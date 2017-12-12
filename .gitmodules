@@ -1,7 +1,4 @@
 [submodule "extlib/sampling"]
 	path = extlib/sampling
 	url = https://github.com/lorenzhs/sampling_new
-[submodule "KaGen_Release"]
-	path = KaGen_Release
-	url = git@github.com:sebalamm/KaGen_Release
-	branch = master
+  branch = master
