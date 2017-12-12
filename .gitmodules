@@ -1,4 +1,5 @@
 [submodule "extlib/sampling"]
 	path = extlib/sampling
-	url = https://github.com/lorenzhs/sampling_new
+	url = https://github.com/lorenzhs/sampling_new.git
   branch = master
+
