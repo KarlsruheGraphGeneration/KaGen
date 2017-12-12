@@ -3,3 +3,6 @@
 	url = https://github.com/lorenzhs/sampling_new.git
   branch = master
 
+[submodule "extlib/libmorton"]
+	path = extlib/libmorton
+	url = https://github.com/Forceflow/libmorton.git
