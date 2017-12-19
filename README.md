@@ -34,7 +34,7 @@ The graph can either be directed or undirected and can contain self-loops.
 
 #### Parameters
 ```
--gen gnm_directed/gnm_undirected
+-gen <gnm_directed|gnm_undirected>
 -n <number of vertices as a power of two>
 -m <number of edges as a power of two>
 -k <number of chunks> 
@@ -51,12 +51,35 @@ mpirun -n 16 ./build/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp
 
 ---
 
+### Erdos-Renyi Graphs G(n,p)
+Generate a random graph using the Erdos-Renyi model G(n,p).
+The graph can either be directed or undirected and can contain self-loops.
+
+#### Parameters
+```
+-gen <gnp_directed|gnp_undirected>
+-n <number of vertices as a power of two>
+-p <edge probability>
+-k <number of chunks> 
+-seed <seed for PRNGs>
+-output <output file>
+-self_loops 
+```
+
+#### Example
+Generate a directed G(n,p) graph with 2^20 vertices and an edge probability of 0.001 with self-loops on 16 processors and write it to tmp
+```
+mpirun -n 16 ./build/kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp
+```
+
+---
+
 #### Random Geometric Graphs RGG(n,r)
 Generate a random graph using the random geometric graph model RGG(n,r).
 Graphs will always be undirected and can be either two- or three-dimensional.
 ##### Parameters
 ```
--gen rgg_2d/rgg_3d
+-gen <rgg_2d|rgg_3d>
 -n <number of vertices as a power of two>
 -r <radius for vertices to be connected> (r <= 1.0)
 -k <number of chunks>
@@ -72,11 +95,11 @@ mpirun -n 16 ./build/kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp
 
 --- 
 
-#### Random Delaunay Graphs $RDG(n,r)$
+#### Random Delaunay Graphs RDG(n)
 Generate a random graph using the random Delaunay graph model RDG(n)
 ##### Parameters
 ```
--gen rdg_2d/rdg_3d
+-gen <rdg_2d|rdg_3d>
 -n <number of vertices as a power of two>
 -k <number of chunks>
 -seed <seed for PRNGs>
@@ -95,7 +118,7 @@ mpirun -n 16 ./build/kagen -gen rgg_2d -n 20 -output tmp
 Generate a random graph using the Barabassi-Albert graph model BA(n,d)
 ##### Parameters
 ```
--gen rgg_2d/rgg_3d
+-gen ba
 -n <number of vertices as a power of two>
 -d <min degree for each vertex> 
 -k <number of chunks>
@@ -115,7 +138,7 @@ mpirun -n 16 ./build/kagen -gen ba -n 20 -d 4 -output tmp
 Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)$
 ##### Parameters
 ```
--gen rgg_2d/rgg_3d
+-gen rhg
 -n <number of vertices as a power of two>
 -d <average degree> 
 -gamma <power-law exponent> 
