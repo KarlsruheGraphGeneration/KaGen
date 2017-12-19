@@ -24,6 +24,7 @@
 
 #include <mpi.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -32,7 +33,6 @@
 #include <vector>
 
 #include "generator_config.h"
-#include "spooky_hash.h"
 
 template <typename T>
 struct identity {
@@ -47,7 +47,7 @@ class GeneratorIO {
   }
 
   inline void UpdateDist(SInt node_id) {
-    // if ((Spooky::Hash(node_id) % config_.n) < dist_.size()) dist_[node_id]++;
+    // if ((CRCHash::hash(node_id) % config_.n) < dist_.size()) dist_[node_id]++;
     if (node_id < dist_.size()) dist_[node_id]++;
     num_edges_++;
   }
@@ -58,7 +58,7 @@ class GeneratorIO {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     std::vector<SInt> global_dist(dist_.size(), 0);
-    MPI_Reduce((void*)&dist_[0], &global_dist[0], dist_.size(), MPI_LONG, MPI_SUM,
+    MPI_Reduce(&dist_[0], &global_dist[0], dist_.size(), MPI_LONG, MPI_SUM,
                ROOT, MPI_COMM_WORLD);
     if (rank == ROOT) {
       FILE* fout = fopen(config_.output_file.c_str(), "w+");
@@ -89,6 +89,18 @@ class GeneratorIO {
   std::vector<Edge> edges_;
 
   SInt num_edges_;
+  SInt global_num_vertices_;
+  SInt global_num_edges_;
+
+  void GatherGraphData() {
+    // Exchange local dist
+    PEID rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    std::vector<SInt> global_dist(dist_.size(), 0);
+    MPI_Reduce(&dist_[0], &global_dist[0], dist_.size(), MPI_LONG, MPI_SUM,
+               ROOT, MPI_COMM_WORLD);
+  }
 
   // 2D geometric point output
   void Print(identity<std::tuple<LPFloat, LPFloat>>) const {

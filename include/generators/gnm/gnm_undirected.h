@@ -29,7 +29,7 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "rng_wrapper.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
 
 class GNMUndirected {
  public:
@@ -113,7 +113,7 @@ class GNMUndirected {
 
     // Generate variate for quadrants
     SInt chunk_start = ChunkStart(offset_row, offset_column);
-    SInt h = Spooky::Hash(config_.seed + level * config_.n + chunk_start);
+    SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate =
         (SInt)rng_.GenerateHypergeometric(h, ul_edges, m, total_edges);
     SInt ll_variate = (SInt)rng_.GenerateHypergeometric(
@@ -168,7 +168,7 @@ class GNMUndirected {
 
     // Generate variate for upper/lower half
     SInt chunk_start = ChunkStart(offset_row, offset_column);
-    SInt h = Spooky::Hash(config_.seed + level * config_.n + chunk_start);
+    SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate = (SInt)rng_.GenerateHypergeometric(
         h, ul_edges + ur_edges, m, total_edges);
 
@@ -238,7 +238,7 @@ class GNMUndirected {
 
     // Generate variate for upper/lower half
     SInt chunk_start = ChunkStart(offset_row, offset_column);
-    SInt h = Spooky::Hash(config_.seed + level * config_.n + chunk_start);
+    SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate = (SInt)rng_.GenerateHypergeometric(
         h, ul_edges + ur_edges, m, total_edges);
     SInt ul_variate = (SInt)rng_.GenerateHypergeometric(
@@ -279,7 +279,7 @@ class GNMUndirected {
 
     // Sample from [1, total_edges]
     SInt h =
-        Spooky::Hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
+        sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
       // Absolute triangular point
       // if (loops) sqr = (sqrt(8*((double)sample-1)+1) - 1)/2 + 1;
@@ -309,7 +309,7 @@ class GNMUndirected {
 
     // Sample from [1, total_edges]
     SInt h =
-        Spooky::Hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
+        sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
       SInt i = (sample - 1) / n_column;
       SInt j = (sample - 1) % n_column;

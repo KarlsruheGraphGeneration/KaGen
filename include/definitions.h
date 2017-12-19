@@ -1,7 +1,7 @@
 /******************************************************************************
- * spooky_hash.h
+ * definitions.h
  *
- * Source of the sampling routine
+ * Source of the graph generator
  ******************************************************************************
  * Copyright (C) 2016 Sebastian Lamm <lamm@ira.uka.de>
  *
@@ -18,34 +18,22 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
+#ifndef _DEFINITIONS_H_
+#define _DEFINITIONS_H_
 
-#ifndef _SPOOKY_HASH_H_
-#define _SPOOKY_HASH_H_
+// Constants
+typedef long long LONG;
+typedef unsigned long long ULONG;
+typedef int INT;
+typedef unsigned int UINT;
+typedef int PEID;
 
-#include "definitions.h"
-#include "spooky.h"
+const PEID ROOT = 0;
 
-#if __GNUC__
-#if __x86_64__ || __ppc64__
-#define ENV64BIT
-#else
-#define ENV32BIT
-#endif
-#endif
-
-#define SEEDA 28475421
-#define SEEDB 52150599
-
-class Spooky {
- public:
-  inline static SInt Hash(SInt x) {
-#ifdef ENV64BIT
-    SInt hash = SpookyHash::Hash64(&x, 8, SEEDA);
-#else
-    SInt hash = SpookyHash::Hash32(&x, 4, SEEDA);
-#endif
-    return hash;
-  };
-};
+// High/low prec
+typedef long double HPFloat;
+typedef double LPFloat;
+typedef ULONG SInt;
+typedef LONG SSInt;
 
 #endif

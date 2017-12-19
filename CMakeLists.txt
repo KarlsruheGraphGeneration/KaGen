@@ -32,8 +32,20 @@ option(KAGEN_OUTPUT_EDGES "Output edge list." OFF)
 
 # variables to collect compile-time definitions, include dirs, and libraries
 set(KAGEN_DEFINITIONS "")
-set(KAGEN_INCLUDE_DIRS "")
-set(KAGEN_LINK_LIBRARIES "")
+set(KAGEN_INCLUDE_DIRS 
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/include/generators
+  ${PROJECT_SOURCE_DIR}/include/generators/barabassi
+  ${PROJECT_SOURCE_DIR}/include/generators/geometric
+  ${PROJECT_SOURCE_DIR}/include/generators/geometric/delaunay
+  ${PROJECT_SOURCE_DIR}/include/generators/geometric/rgg
+  ${PROJECT_SOURCE_DIR}/include/generators/gnm
+  ${PROJECT_SOURCE_DIR}/include/generators/gnp
+  ${PROJECT_SOURCE_DIR}/include/generators/hyperbolic
+  ${PROJECT_SOURCE_DIR}/include/io
+  ${PROJECT_SOURCE_DIR}/include/tools
+  ${PROJECT_SOURCE_DIR}/extlib/sampling/include
+  )
 
 if(NOT MSVC)
   # enable warnings
@@ -223,8 +235,9 @@ endmacro(set_join)
 ###############################################################################
 
 # use tlx
-add_subdirectory(extlib/tlx)
-set(KAGEN_LINK_LIBRARIES tlx ${KAGEN_LINK_LIBRARIES})
+add_subdirectory(extlib/sampling)
+set(KAGEN_LINK_LIBRARIES sampling ${KAGEN_LINK_LIBRARIES})
+set(KAGEN_LINK_LIBRARIES spooky ${KAGEN_LINK_LIBRARIES})
 
 # find MPI
 find_package(MPI REQUIRED)
@@ -240,14 +253,17 @@ include(${CGAL_USE_FILE})
 
 # macro for building main programs with correct libraries
 macro(do_build TARGETNAME)
+  message("\nINCLUDES: ${KAGEN_INCLUDE_DIRS}")
   add_executable(${TARGETNAME} ${ARGN})
-  target_link_libraries(${TARGETNAME} kagen)
+  target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
+  target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES})
 endmacro(do_build)
 
 # macro for building main programs with correct libraries
 macro(mpi_build TARGETNAME)
   add_executable(${TARGETNAME} ${ARGN})
-  target_link_libraries(${TARGETNAME} kagen ${MPI_LIBRARIES})
+  target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
+  target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES} ${MPI_LIBRARIES})
 endmacro(mpi_build)
 
 # macro for building a single-source thrill program
@@ -263,10 +279,10 @@ endmacro(build_mpi_prog)
 
 ################################################################################
 
-# add sampling
-add_subdirectory(extlib/sampling)
-
 # descend into library source
-add_subdirectory(include)
+# add_subdirectory(include)
+
+# descend into apps
+add_subdirectory(app)
 
 ################################################################################

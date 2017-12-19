@@ -32,7 +32,7 @@
 #include "generator_io.h"
 #include "geometry.h"
 #include "rng_wrapper.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
 
 class Geometric3D {
  public:
@@ -143,7 +143,7 @@ class Geometric3D {
     SInt depth_splitter = (depth_k + 1) / 2;
 
     // Generate variate for upper/lower half
-    SInt h = Spooky::Hash(config_.seed + chunk_start + level * total_chunks_);
+    SInt h = sampling::Spooky::hash(config_.seed + chunk_start + level * total_chunks_);
     SInt v_variate = rng_.GenerateBinomial(h, n, (LPFloat)row_splitter / row_k);
 
     if (chunk_row < row_splitter + chunk_start_row) {
@@ -257,7 +257,7 @@ class Geometric3D {
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
-      SInt h = Spooky::Hash(seed);
+      SInt h = sampling::Spooky::hash(seed);
       SInt cell_vertices =
           (SInt)rng_.GenerateBinomial(h, n, (LPFloat)cell_area / total_area);
       LPFloat cell_start_x =
@@ -306,7 +306,7 @@ class Geometric3D {
     LPFloat start_z = std::get<3>(cell);
 
     SInt seed = config_.seed + chunk_id * cells_per_chunk_ + cell_id;
-    SInt h = Spooky::Hash(seed);
+    SInt h = sampling::Spooky::hash(seed);
     mersenne_.RandomInit(h);
     std::vector<Vertex> &cell_vertices = vertices_[global_cell_id];
     cell_vertices.reserve(n);
@@ -345,7 +345,7 @@ class Geometric3D {
     LPFloat start_z = std::get<3>(cell);
 
     SInt seed = config_.seed + chunk_id * cells_per_chunk_ + cell_id;
-    SInt h = Spooky::Hash(seed);
+    SInt h = sampling::Spooky::hash(seed);
     mersenne_.RandomInit(h);
     vertex_buffer.clear();
     vertex_buffer.reserve(n);

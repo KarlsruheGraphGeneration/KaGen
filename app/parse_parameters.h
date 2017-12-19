@@ -28,7 +28,6 @@
 #include "tools/arg_parser.h"
 
 #include "definitions.h"
-#include "mpreal.h"
 
 void ParseParameters(int argn, char **argv,
                      PGeneratorConfig &generator_config) {
@@ -82,7 +81,6 @@ void ParseParameters(int argn, char **argv,
 
   // Floating-point precision
   generator_config.precision = args.Get<ULONG>("prec", 32);
-  mpfr::mpreal::set_default_prec(generator_config.precision);
 
   // Sampling algorithm
   generator_config.base_size = (ULONG)1 << args.Get<ULONG>("sk", 8);

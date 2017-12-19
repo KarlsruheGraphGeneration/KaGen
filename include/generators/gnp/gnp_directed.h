@@ -29,7 +29,7 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "rng_wrapper.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
 
 class GNPDirected {
  public:
@@ -95,7 +95,7 @@ class GNPDirected {
   void GenerateEdges(const SInt n, const double p, const SInt chunk_id,
                      const SInt offset) {
     // Generate variate
-    SInt h = Spooky::Hash(config_.seed + chunk_id);
+    SInt h = sampling::Spooky::hash(config_.seed + chunk_id);
     SInt num_edges = (SInt)rng_.GenerateBinomial(h, n * edges_per_node, p);
 
     // Sample from [1, num_edges]

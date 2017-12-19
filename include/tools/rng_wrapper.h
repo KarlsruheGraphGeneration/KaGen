@@ -24,18 +24,16 @@
 
 #include <random>
 
-#include "sampling/method_r.h"
+#include "methodR.hpp"
 #include "var_gen.h"
 
-template <typename LPStocc = VarGen<LPFloat>, typename HPStocc = VarGen<>,
-          typename Sampler = SeqDivideSampling<>>
+template <typename LPStocc = VarGen<LPFloat>, typename HPStocc = VarGen<>>
 class RNGWrapper {
  public:
   RNGWrapper(const PGeneratorConfig &config)
       : config_(config),
         lp_gen_(0),
-        hp_gen_(0),
-        sampler_(config.base_size, 0){};
+        hp_gen_(0) {};
 
   HPFloat GenerateHypergeometric(SInt seed, HPFloat n, HPFloat m, HPFloat N) {
     hp_gen_.RandomInit(seed);
@@ -61,8 +59,9 @@ class RNGWrapper {
 
   template <typename F>
   void GenerateSample(SInt seed, HPFloat N, SInt n, F &&callback) {
-    sampler_.Reseed(seed);
-    sampler_.Sample(N, n, callback);
+    sampling::HashSampling<> hs(seed, config_.base_size);
+    sampling::SeqDivideSampling<> sds(hs, config_.base_size, seed, config_.use_binom);
+    sds.sample(N, n, callback);
   }
 
  private:
@@ -70,8 +69,6 @@ class RNGWrapper {
 
   LPStocc lp_gen_;
   HPStocc hp_gen_;
-
-  Sampler sampler_;
 };
 
 #endif

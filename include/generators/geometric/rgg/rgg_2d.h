@@ -187,7 +187,7 @@ class RGG2D : public Geometric2D {
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
-      SInt h = Spooky::Hash(seed);
+      SInt h = sampling::Spooky::hash(seed);
       SInt cell_vertices =
           (SInt)rng_.GenerateBinomial(h, n, (LPFloat)cell_area / total_area);
       LPFloat cell_start_x =

@@ -29,7 +29,7 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "rng_wrapper.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
 
 class GNMDirected {
  public:
@@ -101,7 +101,7 @@ class GNMDirected {
     SInt n_split = k_split * (n / k) + std::min(n % k, k_split);
 
     // Generate variate
-    SInt h = Spooky::Hash(config_.seed + level * config_.n + chunk_start);
+    SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt variate = (SInt)rng_.GenerateHypergeometric(
         h, (HPFloat)n_split * edges_per_node_, m, (HPFloat)n * edges_per_node_);
 
@@ -118,7 +118,7 @@ class GNMDirected {
   void GenerateEdges(const SInt n, const SInt m, const SInt chunk_id,
                      const SInt offset) {
     // Sample from [1, num_edges]
-    SInt h = Spooky::Hash(config_.seed + chunk_id);
+    SInt h = sampling::Spooky::hash(config_.seed + chunk_id);
     rng_.GenerateSample(h, (HPFloat)n * edges_per_node_, m, [&](SInt sample) {
       SInt source = (sample - 1) / edges_per_node_ + offset;
       SInt target = (sample - 1) % edges_per_node_;

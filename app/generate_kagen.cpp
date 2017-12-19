@@ -119,35 +119,25 @@ int main(int argn, char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     generator_config.seed = user_seed + i;
     if (generator_config.generator == "gnm_directed")
-      RunGenerator<GNMDirected>(generator_config, rank, size, stats, edge_stats,
-                                edges);
+      RunGenerator<GNMDirected>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "gnm_undirected")
-      RunGenerator<GNMUndirected>(generator_config, rank, size, stats,
-                                  edge_stats, edges);
+      RunGenerator<GNMUndirected>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "gnp_directed")
-      RunGenerator<GNPDirected>(generator_config, rank, size, stats, edge_stats,
-                                edges);
+      RunGenerator<GNPDirected>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "gnp_undirected")
-      RunGenerator<GNPUndirected>(generator_config, rank, size, stats,
-                                  edge_stats, edges);
+      RunGenerator<GNPUndirected>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "rgg_2d")
-      RunGenerator<RGG2D>(generator_config, rank, size, stats, edge_stats,
-                          edges);
+      RunGenerator<RGG2D>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "rgg_3d")
-      RunGenerator<RGG3D>(generator_config, rank, size, stats, edge_stats,
-                          edges);
+      RunGenerator<RGG3D>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "rdg_2d")
-      RunGenerator<Delaunay2D>(generator_config, rank, size, stats, edge_stats,
-                               edges);
+      RunGenerator<Delaunay2D>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "rdg_3d")
-      RunGenerator<Delaunay3D>(generator_config, rank, size, stats, edge_stats,
-                               edges);
+      RunGenerator<Delaunay3D>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "rhg")
-      RunGenerator<Hyperbolic>(generator_config, rank, size, stats, edge_stats,
-                               edges);
+      RunGenerator<Hyperbolic>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "ba")
-      RunGenerator<Barabassi>(generator_config, rank, size, stats, edge_stats,
-                              edges);
+      RunGenerator<Barabassi>(generator_config, rank, size, stats, edge_stats, edges);
   }
 
   if (rank == ROOT) {

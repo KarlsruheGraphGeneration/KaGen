@@ -29,7 +29,7 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "rng_wrapper.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
 
 class GNPUndirected {
  public:
@@ -137,7 +137,7 @@ class GNPUndirected {
 
     // Generate variate
     SInt h =
-        Spooky::Hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
+        sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
     SInt num_edges = (SInt)rng_.GenerateBinomial(h, total_edges, p);
 
     // Sample from [1, num_edges]
@@ -164,7 +164,7 @@ class GNPUndirected {
                               const SInt offset_column) {
     // Generate variate
     SInt h =
-        Spooky::Hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
+        sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
     SInt num_edges = (SInt)rng_.GenerateBinomial(h, row_n * column_n, p);
 
     // Sample from [1, num_edges]

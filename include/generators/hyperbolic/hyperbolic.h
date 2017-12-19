@@ -34,7 +34,8 @@
 #include "geometry.h"
 #include "rng_wrapper.h"
 #include "sorted_mersenne.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
+#include "methodD.hpp"
 
 class Hyperbolic {
  public:
@@ -142,7 +143,7 @@ class Hyperbolic {
   PEID rank_, size_;
 
   // Variates
-  RNGWrapper<VarGen<LPFloat>, VarGen<>, Vitter<>> rng_;
+  RNGWrapper<VarGen<LPFloat>, VarGen<>> rng_;
   Mersenne mersenne;
   SortedMersenne sorted_mersenne;
 
@@ -187,7 +188,7 @@ class Hyperbolic {
                           PGGeometry::RadiusToHyperbolicArea(alpha_ * min_r);
 
       // Variate
-      SInt h = Spooky::Hash(config_.seed + level * total_annuli_ + i);
+      SInt h = sampling::Spooky::hash(config_.seed + level * total_annuli_ + i);
       SInt n_annulus =
           (SInt)rng_.GenerateBinomial(h, n, (LPFloat)ring_area / total_area);
 
@@ -225,7 +226,7 @@ class Hyperbolic {
     SInt midk = (k + 1) / 2;
 
     // Generate variate
-    SInt h = Spooky::Hash(config_.seed + level * config_.k + chunk_start + annulus_id);
+    SInt h = sampling::Spooky::hash(config_.seed + level * config_.k + chunk_start + annulus_id);
     SInt splitter_variate = rng_.GenerateBinomial(h, n, (LPFloat)midk / k);
 
     // Compute splitter
@@ -280,7 +281,7 @@ class Hyperbolic {
       // Variate
       if (!clique)
         seed = config_.seed + annulus_id * config_.k + chunk_id + i + config_.n;
-      SInt h = Spooky::Hash(seed);
+      SInt h = sampling::Spooky::hash(seed);
       SInt n_cell = (SInt)rng_.GenerateBinomial(h, n, (LPFloat)grid_phi / total_phi);
 
       SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, i);
@@ -333,7 +334,7 @@ class Hyperbolic {
              annulus_id * config_.k * GridSizeForAnnulus(annulus_id) +
              chunk_id * GridSizeForAnnulus(annulus_id) + cell_id + config_.n;
 
-    SInt h = Spooky::Hash(seed);
+    SInt h = sampling::Spooky::hash(seed);
     mersenne.RandomInit(h);
     sorted_mersenne.RandomInit(h, n);
     LPFloat mincdf = cosh(alpha_ * min_r);
@@ -406,8 +407,7 @@ class Hyperbolic {
         std::get<2>(cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)]);
 
     // Iterate over cell
-    GenerateGridEdges(annulus_id, chunk_id, cell_id, min_cell_phi, max_cell_phi,
-                      q);
+    GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
 
     if (std::get<1>(annulus) >= clique_thres_ && std::max(TotalGridSizeForAnnulus(annulus_id), config_.k) > 1) {
       // Continue right
@@ -418,8 +418,8 @@ class Hyperbolic {
         SInt next_cell_id = (cell_id + GridSizeForAnnulus(annulus_id) - 1) %
                             GridSizeForAnnulus(annulus_id);
         GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
-        QueryRightNeighbor(annulus_id, next_chunk_id, next_cell_id, q, chunk_id,
-                           cell_id, std::abs(min_cell_phi - 0.0) < cell_eps_);
+        QueryRightNeighbor(annulus_id, next_chunk_id, next_cell_id, q, 
+                           std::abs(min_cell_phi - 0.0) < cell_eps_);
       }
 
       // Continue left
@@ -430,7 +430,7 @@ class Hyperbolic {
         SInt next_cell_id = (cell_id + GridSizeForAnnulus(annulus_id) + 1) %
                             GridSizeForAnnulus(annulus_id);
         GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
-        QueryLeftNeighbor(annulus_id, next_chunk_id, next_cell_id, q, chunk_id, cell_id,
+        QueryLeftNeighbor(annulus_id, next_chunk_id, next_cell_id, q, 
                           std::abs(max_cell_phi - 2 * M_PI) < cell_eps_);
       }
     }
@@ -456,8 +456,7 @@ class Hyperbolic {
   }
 
   void QueryRightNeighbor(const SInt annulus_id, SInt chunk_id, SInt cell_id,
-                          const Vertex &q, const SInt start_chunk,
-                          const SInt start_cell, bool phase) {
+                          const Vertex &q, bool phase) {
     while (true) {
       // Boundaries
       if (phase && current_min_phi_ < 0.0) current_min_phi_ += 2 * M_PI;
@@ -467,11 +466,9 @@ class Hyperbolic {
 
       auto &cell = cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)];
       LPFloat min_cell_phi = std::get<1>(cell);
-      LPFloat max_cell_phi = std::get<2>(cell);
 
       // Iterate over cell
-      GenerateGridEdges(annulus_id, chunk_id, cell_id, min_cell_phi,
-                        max_cell_phi, q);
+      GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
 
       phase = phase || std::abs(min_cell_phi - 0.0) < cell_eps_;
       if (current_min_phi_ < min_cell_phi || OutOfBounds(current_min_phi_)) {
@@ -490,8 +487,7 @@ class Hyperbolic {
   }
 
   void QueryLeftNeighbor(const SInt annulus_id, SInt chunk_id, SInt cell_id,
-                         const Vertex &q, const SInt start_chunk,
-                         const SInt start_cell, bool phase) {
+                         const Vertex &q, bool phase) {
     while (true) {
       // Boundaries
       if (phase && current_max_phi_ >= 2 * M_PI) current_max_phi_ -= 2 * M_PI;
@@ -500,12 +496,10 @@ class Hyperbolic {
         return;
 
       auto &cell = cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)];
-      LPFloat min_cell_phi = std::get<1>(cell);
       LPFloat max_cell_phi = std::get<2>(cell);
 
       // Iterate over cell
-      GenerateGridEdges(annulus_id, chunk_id, cell_id, min_cell_phi,
-                        max_cell_phi, q);
+      GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
 
       phase = phase || std::abs(max_cell_phi - 2 * M_PI) < cell_eps_;
       if (current_max_phi_ > max_cell_phi || OutOfBounds(current_max_phi_)) {
@@ -524,8 +518,7 @@ class Hyperbolic {
   }
 
   void GenerateGridEdges(const SInt annulus_id, const SInt chunk_id,
-                         const SInt cell_id, const LPFloat min_cell_phi,
-                         const LPFloat max_cell_phi, const Vertex &q) {
+                         const SInt cell_id, const Vertex &q) {
     // Check if vertices not generated
     SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
     GenerateVertices(annulus_id, chunk_id, cell_id);

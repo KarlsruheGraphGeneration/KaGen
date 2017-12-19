@@ -24,11 +24,6 @@
 
 #include <random>
 
-void EndOfProgram(void);  // System-specific exit code (userintf.cpp)
-
-void FatalError(
-    const char *ErrorText);  // System-specific error reporting (userintf.cpp)
-
 class Mersenne {
  public:
   Mersenne() { Mersenne(0); };

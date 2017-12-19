@@ -31,9 +31,10 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "geometry.h"
-#include "morton2D.h"
+// #include "morton2D.h"
 #include "rng_wrapper.h"
-#include "tools/spooky_hash.h"
+#include "mersenne.h"
+#include "hash.hpp"
 
 class Geometric2D {
  public:
@@ -139,7 +140,7 @@ class Geometric2D {
     SInt column_splitter = (column_k + 1) / 2;
 
     // Generate variate for upper/lower half
-    SInt h = Spooky::Hash(config_.seed + chunk_start + level * total_chunks_);
+    SInt h = sampling::Spooky::hash(config_.seed + chunk_start + level * total_chunks_);
     SInt v_variate = rng_.GenerateBinomial(h, n, (LPFloat)row_splitter / row_k);
 
     // Upper half
@@ -204,7 +205,7 @@ class Geometric2D {
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
-      SInt h = Spooky::Hash(seed);
+      SInt h = sampling::Spooky::hash(seed);
       SInt cell_vertices =
           (SInt)rng_.GenerateBinomial(h, n, (LPFloat)cell_area / total_area);
       LPFloat cell_start_x =
@@ -242,7 +243,7 @@ class Geometric2D {
     LPFloat start_y = std::get<2>(cell);
 
     SInt seed = config_.seed + chunk_id * cells_per_chunk_ + cell_id;
-    SInt h = Spooky::Hash(seed);
+    SInt h = sampling::Spooky::hash(seed);
     mersenne.RandomInit(h);
     std::vector<Vertex> &cell_vertices = vertices_[global_cell_id];
     cell_vertices.reserve(n);
@@ -276,7 +277,7 @@ class Geometric2D {
     LPFloat start_y = std::get<2>(cell);
 
     SInt seed = config_.seed + chunk_id * cells_per_chunk_ + cell_id;
-    SInt h = Spooky::Hash(seed);
+    SInt h = sampling::Spooky::hash(seed);
     mersenne.RandomInit(h);
     vertex_buffer.clear();
     vertex_buffer.reserve(n);

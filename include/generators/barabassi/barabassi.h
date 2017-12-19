@@ -29,7 +29,7 @@
 #include "definitions.h"
 #include "generator_config.h"
 #include "generator_io.h"
-#include "tools/spooky_hash.h"
+#include "hash.hpp"
 
 class Barabassi {
  public:
@@ -94,7 +94,7 @@ class Barabassi {
         SInt r = 2 * (v * min_degree_ + i) + 1;
         do {
           // compute hash h(r)
-          SInt hash = Spooky::Hash(r);
+          SInt hash = sampling::Spooky::hash(r);
           r = hash % r;
         } while (r % 2 == 1);
         SInt w = r / total_degree_;
