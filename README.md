@@ -13,6 +13,19 @@ If you use this library in the context of an academic publication, we ask that y
 }
 ```
 
+Additionally, if you use the Barabassi-Albert generator, we ask that you cite the paper:
+```bibtex
+@article{sanders2016generators,
+  title = "Scalable generation of scale-free graphs",
+  journal = "Information Processing Letters",
+  volume = "116",
+  number = "7",
+  pages = "489 - 491",
+  year = "2016",
+  author = "Peter Sanders and Christian Schulz",
+}
+```
+
 ## Installation
 
 #### Prerequisites
