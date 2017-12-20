@@ -26,7 +26,8 @@ endif()
 
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 
-option(KAGEN_OUTPUT_EDGES "Output edge list." OFF)
+option(KAGEN_OUTPUT_EDGES "Output edge list." ON)
+option(KAGEN_SINGLE_OUTPUT "Output single edge list." ON)
 
 ################################################################################
 
@@ -211,6 +212,9 @@ endif()
 
 if(KAGEN_OUTPUT_EDGES)
   set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DOUTPUT_EDGES")
+  if (KAGEN_SINGLE_OUTPUT)
+    set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DSINGLE_LIST")
+  endif()
 endif()
 
 if(APPLE)
@@ -219,6 +223,7 @@ if(APPLE)
   set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KAGEN_DEFINITIONS}")
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ###############################################################################
@@ -253,7 +258,6 @@ include(${CGAL_USE_FILE})
 
 # macro for building main programs with correct libraries
 macro(do_build TARGETNAME)
-  message("\nINCLUDES: ${KAGEN_INCLUDE_DIRS}")
   add_executable(${TARGETNAME} ${ARGN})
   target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
   target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES})

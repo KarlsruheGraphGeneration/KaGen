@@ -42,14 +42,14 @@ struct identity {
 template <typename Edge = std::tuple<SInt, SInt>>
 class GeneratorIO {
  public:
-  GeneratorIO(const PGeneratorConfig& config) : config_(config), num_edges_(0) {
+  GeneratorIO(const PGeneratorConfig& config) : config_(config), local_num_edges_(0) {
     dist_.resize(config_.dist_size);
   }
 
   inline void UpdateDist(SInt node_id) {
     // if ((CRCHash::hash(node_id) % config_.n) < dist_.size()) dist_[node_id]++;
     if (node_id < dist_.size()) dist_[node_id]++;
-    num_edges_++;
+    local_num_edges_++;
   }
 
   void OutputDist() const {
@@ -74,12 +74,19 @@ class GeneratorIO {
   template <typename... Args>
   inline void PushEdge(Args... args) {
     edges_.emplace_back(std::make_tuple(args...));
+    local_num_edges_++;
   }
 
-  void OutputEdges() const { Print(identity<Edge>()); }
+  void OutputEdges() const { 
+#ifdef SINGLE_LIST
+    GatherPrint(identity<Edge>());
+#else
+    Print(identity<Edge>()); 
+#endif
+  }
 
   SInt NumEdges() const { 
-    return edges_.size() > 0 ? edges_.size() : num_edges_/2; 
+    return edges_.size() > 0 ? edges_.size() : local_num_edges_/2; 
   }
 
  private:
@@ -88,80 +95,48 @@ class GeneratorIO {
   std::vector<SInt> dist_;
   std::vector<Edge> edges_;
 
-  SInt num_edges_;
-  SInt global_num_vertices_;
-  SInt global_num_edges_;
+  SInt local_num_edges_;
 
-  void GatherGraphData() {
+  void GatherPrint(identity<std::tuple<SInt, SInt>>) const {
     // Exchange local dist
     PEID rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    std::vector<SInt> global_dist(dist_.size(), 0);
-    MPI_Reduce(&dist_[0], &global_dist[0], dist_.size(), MPI_LONG, MPI_SUM,
-               ROOT, MPI_COMM_WORLD);
+
+    // Gather number of edges for each PE
+    std::vector<int> displ(size);
+    std::vector<int> num_edges(size);
+    MPI_Gather(&local_num_edges_, 1, MPI_INT, &num_edges[0], 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    int current_displ = 0;
+    int total_num_edges = 0;
+    if (rank == ROOT) {
+      for (SInt i = 0; i < num_edges.size(); ++i) {
+        displ[i] = current_displ;
+        total_num_edges += num_edges[i];
+        current_displ = total_num_edges;
+      }
+    }
+
+    // Gather actual edges
+    MPI_Datatype MPI_EDGE;
+    MPI_Type_vector(1, 2, 0, MPI_LONG, &MPI_EDGE);
+    MPI_Type_commit(&MPI_EDGE);
+    std::vector<Edge> edges(total_num_edges);
+    MPI_Gatherv(&edges_[0], local_num_edges_, MPI_EDGE, &edges[0], &num_edges[0], &displ[0], MPI_EDGE, ROOT, MPI_COMM_WORLD);
+
+
+    if (rank == ROOT) {
+      // Sort edges and remove duplicates
+      std::sort(std::begin(edges), std::end(edges));
+      edges.erase(unique(edges.begin(), edges.end()), edges.end());
+      
+      // Output edges
+      FILE* fout = fopen(config_.output_file.c_str(), "w+");
+      fprintf(fout, "%llu %llu\n", config_.n, edges.size());
+      for (auto edge : edges) fprintf(fout, "%llu %llu\n", std::get<0>(edge), std::get<1>(edge));
+      fclose(fout);
+    }
   }
-
-  // 2D geometric point output
-  void Print(identity<std::tuple<LPFloat, LPFloat>>) const {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    FILE* fout =
-        fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
-    for (auto edge : edges_) {
-      fprintf(fout, "%f %f\n", std::get<0>(edge), std::get<1>(edge));
-    }
-    fclose(fout);
-  };
-
-  // 3D geometric point output
-  void Print(identity<std::tuple<LPFloat, LPFloat, LPFloat>>) const {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    FILE* fout =
-        fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
-    for (auto edge : edges_) {
-      fprintf(fout, "%f %f %f\n", std::get<0>(edge), std::get<1>(edge),
-              std::get<2>(edge));
-    }
-    fclose(fout);
-  };
-
-  // 2D geometric coordinates output
-  void Print(identity<std::tuple<LPFloat, LPFloat, LPFloat, LPFloat>>) const {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    FILE* fout =
-        fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
-    for (auto edge : edges_) {
-      fprintf(fout, "%f %f %f %f\n", std::get<0>(edge), std::get<1>(edge),
-              std::get<2>(edge), std::get<3>(edge));
-    }
-    fclose(fout);
-  };
-
-  // 3D geometric coordinates output
-  void Print(identity<std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat,
-                                 LPFloat>>) const {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    FILE* fout =
-        fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
-    for (auto edge : edges_) {
-      fprintf(fout, "%f %f %f %f %f %f\n", std::get<0>(edge), std::get<1>(edge),
-              std::get<2>(edge), std::get<3>(edge), std::get<4>(edge),
-              std::get<5>(edge));
-    }
-    fclose(fout);
-  };
 
   // node id output
   void Print(identity<std::tuple<SInt, SInt>>) const {

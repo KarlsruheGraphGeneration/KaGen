@@ -39,6 +39,9 @@ Compile instructions:
   make
 ```
 
+By default our generators will output the generated graphs in the DIMACS format.
+For performance measurements this can be turned of by disabling the `-DOUTPUT_EDGES` flag.
+
 ## Graph Models
 
 ### Erdos-Renyi Graphs G(n,m)

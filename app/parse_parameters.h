@@ -53,7 +53,7 @@ void ParseParameters(int argn, char **argv,
 
   // I/O
   generator_config.output_file = args.Get<std::string>("output", "out");
-  generator_config.debug_output = args.Get<std::string>("debug", "tmp");
+  generator_config.debug_output = args.Get<std::string>("debug", "dbg");
   generator_config.dist_size = args.Get<ULONG>("dist", 10);
 
   // Edges
@@ -87,7 +87,7 @@ void ParseParameters(int argn, char **argv,
   generator_config.hyp_base = (ULONG)1 << args.Get<ULONG>("hk", 8);
 
   // Benchmarks
-  generator_config.iterations = args.Get<ULONG>("i", 10);
+  generator_config.iterations = args.Get<ULONG>("i", 1);
 }
 
 #endif
