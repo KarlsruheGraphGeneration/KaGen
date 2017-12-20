@@ -93,6 +93,7 @@ mpirun -n 16 ./build/kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output 
 #### Random Geometric Graphs RGG(n,r)
 Generate a random graph using the random geometric graph model RGG(n,r).
 Graphs will always be undirected and can be either two- or three-dimensional.
+NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
 ##### Parameters
 ```
 -gen <rgg_2d|rgg_3d>
@@ -112,7 +113,8 @@ mpirun -n 16 ./build/kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp
 --- 
 
 #### Random Delaunay Graphs RDG(n)
-Generate a random graph using the random Delaunay graph model RDG(n)
+Generate a random graph using the random Delaunay graph model RDG(n).
+NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
 ##### Parameters
 ```
 -gen <rdg_2d|rdg_3d>
