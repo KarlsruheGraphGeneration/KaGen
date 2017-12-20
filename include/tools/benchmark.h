@@ -1,3 +1,11 @@
+/*******************************************************************************
+ * include/tools/benchmark.h
+ *
+ * Copyright (C) 2016-2017 Sebastian Lamm <lamm@ira.uka.de>
+ *
+ * All rights reserved. Published under the BSD-2 license in the LICENSE file.
+ ******************************************************************************/
+
 #ifndef _BENCHMARK_H_
 #define _BENCHMARK_H_
 

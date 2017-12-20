@@ -1,3 +1,11 @@
+/*******************************************************************************
+ * include/tools/arg_parser.h
+ *
+ * Copyright (C) 2016-2017 Sebastian Lamm <lamm@ira.uka.de>
+ *
+ * All rights reserved. Published under the BSD-2 license in the LICENSE file.
+ ******************************************************************************/
+
 #ifndef _ARG_PARSER_H_
 #define _ARG_PARSER_H_
 
