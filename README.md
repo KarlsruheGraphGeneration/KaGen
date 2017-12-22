@@ -138,7 +138,7 @@ Generate a random graph using the Barabassi-Albert graph model BA(n,d)
 ```
 -gen ba
 -n <number of vertices as a power of two>
--d <min degree for each vertex> 
+-md <min degree for each vertex> 
 -k <number of chunks>
 -seed <seed for PRNGs>
 -output <output file>
