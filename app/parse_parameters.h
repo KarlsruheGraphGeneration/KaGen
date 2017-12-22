@@ -19,6 +19,12 @@
 void ParseParameters(int argn, char **argv,
                      PGeneratorConfig &generator_config) {
   ArgParser args(argn, argv);
+  
+  if (argn < 2) {
+    std::cout << "Usage: ./generate_kagen -gen <generator> [additional parameters]" << std::endl;
+    std::cout << "For more information on additional parameters please check the README." << std::endl;
+    exit(1);
+  }
 
   // Generator
   generator_config.generator = args.Get<std::string>("gen", "");
