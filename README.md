@@ -29,7 +29,7 @@ Additionally, if you use the Barabassi-Albert generator, we ask that you cite th
 ## Installation
 
 #### Prerequisites
-To compile the generators you need [Google Sparsehash](https://github.com/sparsehash/sparsehash).
+To compile the generators you need Open MPI, CGAL and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
 
 Compile instructions:
 ```
