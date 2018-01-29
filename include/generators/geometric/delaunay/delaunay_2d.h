@@ -446,7 +446,7 @@ private:
 
 #ifdef OUTPUT_EDGES
       if(touches){
-          edge_io_.PushEdge(v1->info(), v2->info());
+          edge_io_.PushEdge((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(), (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
       }
 #endif
     }
