@@ -21,7 +21,7 @@ class PGGeometry {
   }
 
   static double GetTargetRadius(double n, double m, double alpha = 1,
-                                double T = 0, double epsilon = 0.01) {
+                                double /* T */ = 0, double epsilon = 0.01) {
     double pl_exp = 2 * alpha + 1;
     double target_avg_degree = (m / n) * 2;
     double xi_inv = ((pl_exp - 2) / (pl_exp - 1));

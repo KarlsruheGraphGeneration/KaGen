@@ -20,7 +20,7 @@
 
 class GNMDirected {
  public:
-  GNMDirected(const PGeneratorConfig &config, const PEID rank)
+  GNMDirected(const PGeneratorConfig &config, const PEID /* rank */)
       : config_(config), rng_(config), io_(config) {
     // Init variables
     if (!config_.self_loops)

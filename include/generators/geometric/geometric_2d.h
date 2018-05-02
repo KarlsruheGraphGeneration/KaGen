@@ -33,7 +33,7 @@ class Geometric2D {
   // x, y, id
   using Vertex = std::tuple<LPFloat, LPFloat, SInt>;
 
-  Geometric2D(const PGeneratorConfig &config, const PEID rank)
+  Geometric2D(const PGeneratorConfig &config, const PEID /* rank */)
       : config_(config), rng_(config) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     MPI_Comm_size(MPI_COMM_WORLD, &size_);

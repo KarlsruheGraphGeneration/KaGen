@@ -20,7 +20,7 @@
 
 class GNMUndirected {
  public:
-  GNMUndirected(const PGeneratorConfig &config, const PEID rank)
+  GNMUndirected(const PGeneratorConfig &config, const PEID /* rank */)
       : config_(config), rng_(config), io_(config) { }
 
   void Generate() {

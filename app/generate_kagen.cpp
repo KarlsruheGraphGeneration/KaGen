@@ -27,7 +27,7 @@
 #include "hyperbolic/hyperbolic.h"
 #include "barabassi/barabassi.h"
 
-void OutputParameters(const PGeneratorConfig &config, const PEID rank,
+void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
                       const PEID size) {
   if (config.generator == "gnm_directed" ||
       config.generator == "gnm_undirected" ||
@@ -59,7 +59,7 @@ void OutputParameters(const PGeneratorConfig &config, const PEID rank,
 
 template <typename Generator>
 void RunGenerator(const PGeneratorConfig &config, const PEID rank,
-                  const PEID size, Statistics &stats, Statistics &edge_stats,
+                  const PEID /* size */, Statistics &stats, Statistics &edge_stats,
                   Statistics &edges) {
   // Start timers
   Timer t;
