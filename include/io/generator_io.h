@@ -121,9 +121,9 @@ class GeneratorIO {
       // Output edges
       FILE* fout = fopen(config_.output_file.c_str(), "w+");
 #ifndef OMIT_HEADER
-      fprintf(fout, "%llu %llu\n", config_.n, edges.size());
+      fprintf(fout, "p %llu %llu\n", config_.n, edges.size());
 #endif
-      for (auto edge : edges) fprintf(fout, "%llu %llu\n", std::get<0>(edge), std::get<1>(edge));
+      for (auto edge : edges) fprintf(fout, "e %llu %llu\n", std::get<0>(edge), std::get<1>(edge));
       fclose(fout);
     }
   }
@@ -137,7 +137,7 @@ class GeneratorIO {
     FILE* fout =
         fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
     for (auto edge : edges_) {
-      fprintf(fout, "%llu %llu\n", std::get<0>(edge), std::get<1>(edge));
+      fprintf(fout, "e %llu %llu\n", std::get<0>(edge), std::get<1>(edge));
     }
     fclose(fout);
   };

@@ -29,6 +29,7 @@ class VarGen {
   }
 
   Float Hypergeometric(Float n, Float m, Float N) {
+    if (m < 1) return 0;
     return hyp_(n, N-n, m);
   }
 

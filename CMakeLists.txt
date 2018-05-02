@@ -28,7 +28,7 @@ option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 
 option(KAGEN_OUTPUT_EDGES "Output edge list." ON)
 option(KAGEN_SINGLE_OUTPUT "Output single edge list." ON)
-option(KAGEN_OMIT_HEADER "Omit header in edge list" ON)
+option(KAGEN_OMIT_HEADER "Omit header in edge list" OFF)
 
 ################################################################################
 

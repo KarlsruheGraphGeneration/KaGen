@@ -81,6 +81,7 @@ void RunGenerator(const PGeneratorConfig &config, const PEID rank,
     edges.Push(gen.NumberOfEdges());
   }
 
+  if (rank == ROOT) std::cout << "write output..." << std::endl;
   gen.Output();
 }
 
@@ -126,6 +127,8 @@ int main(int argn, char **argv) {
       RunGenerator<Hyperbolic>(generator_config, rank, size, stats, edge_stats, edges);
     else if (generator_config.generator == "ba")
       RunGenerator<Barabassi>(generator_config, rank, size, stats, edge_stats, edges);
+    else 
+      if (rank == ROOT) std::cout << "generator not supported" << std::endl;
   }
 
   if (rank == ROOT) {

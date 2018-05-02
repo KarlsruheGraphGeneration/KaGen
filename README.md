@@ -62,7 +62,7 @@ The graph can either be directed or undirected and can contain self-loops.
 #### Example
 Generate a directed G(n,m) graph with 2^20 vertices and 2^22 edges with self-loops on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp
 ```
 
 ---
@@ -85,7 +85,7 @@ The graph can either be directed or undirected and can contain self-loops.
 #### Example
 Generate a directed G(n,p) graph with 2^20 vertices and an edge probability of 0.001 with self-loops on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp
 ```
 
 ---
@@ -107,7 +107,7 @@ NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (t
 ##### Example
 Generate a three dimensional RGG(n,r) graph with 2^20 vertices and a radius of 0.00275 on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp
 ```
 
 --- 
@@ -127,7 +127,7 @@ NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (t
 ##### Example
 Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/kagen -gen rgg_2d -n 20 -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen rgg_2d -n 20 -output tmp
 ```
 
 --- 
@@ -147,7 +147,7 @@ Generate a random graph using the Barabassi-Albert graph model BA(n,d)
 ##### Example
 Generate a BA(n,d) graph with 2^20 vertices and a minimum degree of 4 on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/kagen -gen ba -n 20 -d 4 -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen ba -n 20 -md 4 -output tmp
 ```
 
 --- 
@@ -168,7 +168,7 @@ Generate a two dimensional random graph using the random hyperbolic graph model 
 ##### Example
 Generate a two dimensional RHG(n,r) graph with 2^20 vertices and an average degree of 8 with a power-law exponent of 2.2 on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp
 ```
 
 --- 
