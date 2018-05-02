@@ -153,7 +153,7 @@ mpirun -n 16 ./build/app/generate_kagen -gen ba -n 20 -md 4 -output tmp
 --- 
 
 #### Random Hyperbolic Graphs RHG(n,d)
-Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)$
+Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)
 ##### Parameters
 ```
 -gen rhg
