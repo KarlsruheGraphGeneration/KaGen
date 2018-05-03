@@ -94,7 +94,9 @@ class GeneratorIO {
     // Gather number of edges for each PE
     std::vector<int> displ(size);
     std::vector<int> num_edges(size);
-    MPI_Gather(&local_num_edges_, 1, MPI_INT, &num_edges[0], 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Gather(&local_num_edges_, 1, MPI_INT, 
+               num_edges.data(), 1, MPI_INT, 
+               ROOT, MPI_COMM_WORLD);
     int current_displ = 0;
     int total_num_edges = 0;
     if (rank == ROOT) {
@@ -110,7 +112,9 @@ class GeneratorIO {
     MPI_Type_vector(1, 2, 0, MPI_LONG, &MPI_EDGE);
     MPI_Type_commit(&MPI_EDGE);
     std::vector<Edge> edges(total_num_edges);
-    MPI_Gatherv(&edges_[0], local_num_edges_, MPI_EDGE, &edges[0], &num_edges[0], &displ[0], MPI_EDGE, ROOT, MPI_COMM_WORLD);
+    MPI_Gatherv(edges_.data(), local_num_edges_, MPI_EDGE, 
+                edges.data(), num_edges.data(), displ.data(), MPI_EDGE, 
+                ROOT, MPI_COMM_WORLD);
 
 
     if (rank == ROOT) {

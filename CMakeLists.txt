@@ -51,7 +51,7 @@ set(KAGEN_INCLUDE_DIRS
 
 if(NOT MSVC)
   # enable warnings
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC -fpermissive")
 
   # enable more warnings
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wpedantic")
