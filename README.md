@@ -47,11 +47,11 @@ If you haven't installed these dependencies, please do so via your package manag
   sudo apt-get -qq update
   sudo apt-get install gcc-7 g++-7 libopenmpi-dev libcgal-dev libcgal-qt5-dev libsparsehash-dev 
 ```
-Also make sure to initialize all submodules using `git submodule update --init --recursive`.
 
 #### Compiling 
-To compile the code use the following instruction
+To compile the code either run `compile.sh` or use the following instruction
 ```
+  git submodule update --init --recursive
   mkdir build
   cd build
   cmake ..
@@ -147,7 +147,7 @@ NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (t
 ##### Example
 Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/app/generate_kagen -gen rgg_2d -n 20 -output tmp
+mpirun -n 16 ./build/app/generate_kagen -gen rdg_3d -n 20 -output tmp
 ```
 
 --- 
@@ -172,14 +172,14 @@ mpirun -n 16 ./build/app/generate_kagen -gen ba -n 20 -md 4 -output tmp
 
 --- 
 
-#### Random Hyperbolic Graphs RHG(n,d)
+#### Random Hyperbolic Graphs RHG(n,gamma,d)
 Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)
 ##### Parameters
 ```
 -gen rhg
 -n <number of vertices as a power of two>
--d <average degree> 
 -gamma <power-law exponent> 
+-d <average degree> 
 -k <number of chunks>
 -seed <seed for PRNGs>
 -output <output file>

@@ -60,6 +60,9 @@ if(NOT MSVC)
   # enable more warnings
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wpedantic")
 
+  # remove unwanted warnings
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+
   # enable -march=native on Debug and Release builds
   include(CheckCXXCompilerFlag)
   check_cxx_compiler_flag("-march=native" KAGEN_HAS_MARCH_NATIVE)

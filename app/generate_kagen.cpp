@@ -94,7 +94,7 @@ int main(int argn, char **argv) {
 
   // Read command-line args
   PGeneratorConfig generator_config;
-  ParseParameters(argn, argv, generator_config);
+  ParseParameters(argn, argv, rank, size, generator_config);
 
   if (rank == ROOT) OutputParameters(generator_config, rank, size);
 
