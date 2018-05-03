@@ -1,0 +1,11 @@
+language: cpp
+compiler: gcc
+
+before_script:
+  - sudo apt-get -qq update
+  - subo apt-get install libopenmpi-dev
+
+script:
+  - cd extlib/sparsehash && ./configure && make && make install && cd ..
+  - cd extlib/CGAL && mkdir -p build/release && cd build/release cmake -DCMAKE_BUILD_TYPE=Release ../.. && make && cd ../../..
+  - mkdir build && cd build && cmake .. && make

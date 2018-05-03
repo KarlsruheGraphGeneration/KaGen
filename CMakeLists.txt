@@ -243,7 +243,7 @@ endmacro(set_join)
 
 ###############################################################################
 
-# use tlx
+# use sampling lib
 add_subdirectory(extlib/sampling)
 set(KAGEN_LINK_LIBRARIES sampling ${KAGEN_LINK_LIBRARIES})
 set(KAGEN_LINK_LIBRARIES spooky ${KAGEN_LINK_LIBRARIES})
