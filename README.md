@@ -1,4 +1,4 @@
-# Communication-free Graph Generators
+# Communication-free Graph Generators [![Build Status](https://travis-ci.com/sebalamm/KaGen_Release.svg?token=xPJBtRVg2pEbu9qYXkx1&branch=master)](https://travis-ci.com/sebalamm/KaGen_Release) 
 
 This is the code to accompany our eponymous paper: *Funke, D., Lamm, S., Sanders, P., Schulz, C., Strash, D. and von Looz, M., 2017. Communication-free Massively Distributed Graph Generation. arXiv preprint arXiv:1710.07565.*
 You can find a freely accessible online version [in the arXiv](https://arxiv.org/abs/1710.07565).
@@ -26,7 +26,7 @@ Additionally, if you use the Barabassi-Albert generator, we ask that you cite th
 }
 ```
 
-## Usage 
+## Introduction 
 Network generators serve as a tool to alleviate the need for synthethic instances with controllable parameters by algorithm developers and researchers. 
 However, many generators fail to provide instances on a massive scale due to their sequential nature or resource constraints.
 
@@ -39,10 +39,14 @@ Therefore, our generators allow new graph families to be used on an unprecedente
 ## Installation
 
 #### Prerequisites
-To compile the generators you need Open MPI, CGAL and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
-If you haven't installed CGAL or Sparsehash yet, please follow the instructions in `extlib/cgal` and `extlib/sparsehash`
+In order to compile the generators you need g++-7, OpenMPI, CGAL and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
+If you haven't installed these dependencies, please do so via your package manager.
+```
+  sudo apt-get install gcc-7 g++-7 libopenmpi-dev libcgal-dev libsparsehash-dev 
+```
 
-Compile instructions:
+#### Compiling 
+To compile the code use the following instruction
 ```
   mkdir build
   cd build
@@ -52,6 +56,7 @@ Compile instructions:
 
 By default our generators will output the generated graphs in the DIMACS format.
 For performance measurements this can be turned of by disabling the `-DOUTPUT_EDGES` flag.
+Additional flags for varying the output can be found in `CMakeLists.txt`.
 
 ## Graph Models
 
