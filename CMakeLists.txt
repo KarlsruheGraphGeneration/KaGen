@@ -19,10 +19,9 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 endif()
 
 # default to Debug building for single-config generators
-set(CMAKE_BUILD_TYPE Release)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message("Defaulting CMAKE_BUILD_TYPE to Debug")
-  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type")
+  message("Defaulting CMAKE_BUILD_TYPE to Release")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type")
 endif()
 
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
@@ -56,7 +55,7 @@ if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC -fpermissive")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wpedantic")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -03 -fpermissive")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -fpermissive")
   endif()
 
   # enable -march=native on Debug and Release builds
