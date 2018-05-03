@@ -2,13 +2,6 @@
 	path = extlib/sampling
 	url = https://github.com/lorenzhs/sampling_new.git
   branch = master
-
 [submodule "extlib/libmorton"]
 	path = extlib/libmorton
 	url = https://github.com/Forceflow/libmorton.git
-[submodule "extlib/sparsehash"]
-	path = extlib/sparsehash
-	url = https://github.com/sparsehash/sparsehash.git
-[submodule "extlib/cgal"]
-	path = extlib/cgal
-	url = https://github.com/CGAL/cgal.git
