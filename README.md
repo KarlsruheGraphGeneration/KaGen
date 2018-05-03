@@ -8,8 +8,8 @@ If you use this library in the context of an academic publication, we ask that y
 @article{funke2017communication,
   title={Communication-free Massively Distributed Graph Generation},
   author={Funke, Daniel and Lamm, Sebastian and Sanders, Peter and Schulz, Christian and Strash, Darren and von Looz, Moritz},
-  journal={arXiv preprint arXiv:1710.07565},
-  year={2017}
+  journal={to appear at IPDPS 2018},
+  year={2018}
 }
 ```
 
@@ -26,10 +26,21 @@ Additionally, if you use the Barabassi-Albert generator, we ask that you cite th
 }
 ```
 
+## Usage 
+Network generators serve as a tool to alleviate the need for synthethic instances with controllable parameters by algorithm developers and researchers. 
+However, many generators fail to provide instances on a massive scale due to their sequential nature or resource constraints.
+
+In our work, we present novel generators for a variety of network models commonly found in practice.
+By making use of pseudorandomization and divide-and-conquer schemes, our generators follow a communication-free paradigm.
+The resulting generators are often embarrassingly parallel and have a near optimal scaling behavior.
+This allows us to generate instances of up to 2^43 vertices and 2^47 edges in less than 22 minutes on 32768 cores.
+Therefore, our generators allow new graph families to be used on an unprecedented scale.
+
 ## Installation
 
 #### Prerequisites
 To compile the generators you need Open MPI, CGAL and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
+If you haven't installed CGAL or Sparsehash yet, please follow the instructions in `extlib/cgal` and `extlib/sparsehash`
 
 Compile instructions:
 ```

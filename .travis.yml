@@ -6,6 +6,6 @@ before_script:
   - sudo apt-get install libopenmpi-dev
 
 script:
-  - cd extlib/sparsehash && ./configure && make && sudo make install && cd ../..
-  - cd extlib/CGAL && mkdir -p build/release && cd build/release cmake -DCMAKE_BUILD_TYPE=Release ../.. && sudo make && cd ../../../..
-  - mkdir build && cd build && cmake .. && sudo make && cd ..
+  - cwd=$(pwd) && extlib/sparsehash && ./configure && make && sudo make install && cd cwd
+  - cwd=$(pwd) && cd extlib/cgal && mkdir -p build/release && cd build/release cmake -DCMAKE_BUILD_TYPE=Release ../.. && sudo make && cd cwd
+  - cwd=$(pwd) && mkdir build && cd build && cmake .. && sudo make && cd cwd
