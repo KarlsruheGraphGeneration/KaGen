@@ -5,11 +5,12 @@ You can find a freely accessible online version [in the arXiv](https://arxiv.org
 
 If you use this library in the context of an academic publication, we ask that you cite our paper:
 ```bibtex
-@article{funke2017communication,
+@inproceedings{funke2017communication,
   title={Communication-free Massively Distributed Graph Generation},
   author={Funke, Daniel and Lamm, Sebastian and Sanders, Peter and Schulz, Christian and Strash, Darren and von Looz, Moritz},
-  journal={to appear at IPDPS 2018},
-  year={2018}
+  booktitle={2018 {IEEE} International Parallel and Distributed Processing Symposium, {IPDPS} 2018, Vancouver, BC, Canada, May 21 - May 25, 2018},
+  year={2018},
+  intype={to appear in}
 }
 ```
 
@@ -42,8 +43,11 @@ Therefore, our generators allow new graph families to be used on an unprecedente
 In order to compile the generators you need g++-7, OpenMPI, CGAL and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
 If you haven't installed these dependencies, please do so via your package manager.
 ```
-  sudo apt-get install gcc-7 g++-7 libopenmpi-dev libcgal-dev libsparsehash-dev 
+  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  sudo apt-get -qq update
+  sudo apt-get install gcc-7 g++-7 libopenmpi-dev libcgal-dev libcgal-qt5-dev libsparsehash-dev 
 ```
+Also make sure to initialize all submodules using `git submodule update --init --recursive`.
 
 #### Compiling 
 To compile the code use the following instruction

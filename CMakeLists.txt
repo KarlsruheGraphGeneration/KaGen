@@ -19,6 +19,7 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 endif()
 
 # default to Debug building for single-config generators
+set(CMAKE_BUILD_TYPE Release)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message("Defaulting CMAKE_BUILD_TYPE to Debug")
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type")
@@ -51,10 +52,12 @@ set(KAGEN_INCLUDE_DIRS
 
 if(NOT MSVC)
   # enable warnings
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC -fpermissive")
-
-  # enable more warnings
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wpedantic")
+  if(CMAKE_BUILD_TYPE MATCHES Debug)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC -fpermissive")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wpedantic")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -03 -fpermissive")
+  endif()
 
   # enable -march=native on Debug and Release builds
   include(CheckCXXCompilerFlag)
@@ -242,20 +245,27 @@ macro(set_join var)
 endmacro(set_join)
 
 ###############################################################################
+# find MPI
+find_package(MPI REQUIRED)
+if(MPI_FOUND)
+  include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+else()
+  message(STATUS "Could not find MPI library")
+endif()
+
+# find CGAL
+set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
+find_package(CGAL)
+if(CGAL_FOUND)
+  include(${CGAL_USE_FILE})
+else()
+  message(STATUS "Could not find CGAL library")
+endif()
 
 # use sampling lib
 add_subdirectory(extlib/sampling)
 set(KAGEN_LINK_LIBRARIES sampling ${KAGEN_LINK_LIBRARIES})
 set(KAGEN_LINK_LIBRARIES spooky ${KAGEN_LINK_LIBRARIES})
-
-# find MPI
-find_package(MPI REQUIRED)
-include_directories(${MPI_INCLUDE_PATH})
-
-# find CGAL
-set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
-find_package(CGAL REQUIRED)
-include(${CGAL_USE_FILE})
 
 ################################################################################
 ### Build Macros
