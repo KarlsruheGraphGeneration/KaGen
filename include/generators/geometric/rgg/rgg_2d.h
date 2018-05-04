@@ -12,10 +12,12 @@
 
 #include "geometric/geometric_2d.h"
 
+template <typename EdgeCallback>
 class RGG2D : public Geometric2D {
  public:
-  RGG2D(const PGeneratorConfig &config, const PEID rank)
-      : Geometric2D(config, rank), io_(config) {
+  RGG2D(const PGeneratorConfig &config, const PEID rank, 
+        const EdgeCallback &cb)
+      : Geometric2D(config, rank), io_(config), cb_(cb) {
     // Chunk variables
     total_chunks_ = config_.k;
     chunks_per_dim_ = sqrt(total_chunks_);
@@ -44,7 +46,9 @@ class RGG2D : public Geometric2D {
  private:
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_;
   // FILE* edge_file;
+  
   LPFloat target_r_;
 
   void GenerateEdges(const SInt chunk_row, const SInt chunk_column) override {
@@ -125,6 +129,7 @@ class RGG2D : public Geometric2D {
         for (SInt j = i + 1; j < vertices_second.size(); ++j) {
           const Vertex &v2 = vertices_second[j];
           if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+            cb_(std::get<2>(v1), std::get<2>(v2));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
 #else
@@ -143,6 +148,7 @@ class RGG2D : public Geometric2D {
         for (SInt j = 0; j < vertices_second.size(); ++j) {
           const Vertex &v2 = vertices_second[j];
           if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+            cb_(std::get<2>(v1), std::get<2>(v2));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
 #else

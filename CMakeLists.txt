@@ -35,6 +35,8 @@ option(KAGEN_OMIT_HEADER "Omit header in edge list" OFF)
 # variables to collect compile-time definitions, include dirs, and libraries
 set(KAGEN_DEFINITIONS "")
 set(KAGEN_INCLUDE_DIRS 
+  ${PROJECT_SOURCE_DIR}/app
+  ${PROJECT_SOURCE_DIR}/extlib/sampling/sampling
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/include/generators
   ${PROJECT_SOURCE_DIR}/include/generators/barabassi
@@ -46,7 +48,7 @@ set(KAGEN_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/include/generators/hyperbolic
   ${PROJECT_SOURCE_DIR}/include/io
   ${PROJECT_SOURCE_DIR}/include/tools
-  ${PROJECT_SOURCE_DIR}/extlib/sampling/sampling
+  ${PROJECT_SOURCE_DIR}/interface/
   )
 
 if(NOT MSVC)

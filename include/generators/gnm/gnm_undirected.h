@@ -18,10 +18,12 @@
 #include "rng_wrapper.h"
 #include "hash.hpp"
 
+template <typename EdgeCallback> 
 class GNMUndirected {
  public:
-  GNMUndirected(const PGeneratorConfig &config, const PEID /* rank */)
-      : config_(config), rng_(config), io_(config) { }
+  GNMUndirected(const PGeneratorConfig &config, const PEID /* rank */,
+                const EdgeCallback &cb)
+      : config_(config), rng_(config), io_(config), cb_(cb) { }
 
   void Generate() {
     PEID rank, size;
@@ -64,6 +66,7 @@ class GNMUndirected {
 
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_;
 
   void GenerateChunks(const SInt row) {
     QueryTriangular(config_.m, config_.k, config_.k, row, row, 0, 0, 1);
@@ -275,6 +278,7 @@ class GNMUndirected {
       while (sqr * sqr > 8 * (sample - 1) + 1) sqr--;
       SInt i = (sqr - 1) / 2;
       SInt j = (sample - 1) - i * (i + 1) / 2;
+      cb_(i + offset_row, j + offset_column);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(i + offset_row, j + offset_column);
 #else
@@ -300,6 +304,7 @@ class GNMUndirected {
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
       SInt i = (sample - 1) / n_column;
       SInt j = (sample - 1) % n_column;
+      cb_(i + offset_row, j + offset_column);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(i + offset_row, j + offset_column);
 #else 

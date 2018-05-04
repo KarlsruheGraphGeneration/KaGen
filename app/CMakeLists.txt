@@ -8,6 +8,7 @@
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
 
-build_mpi_prog(generate_kagen)
+build_mpi_prog(kagen)
+build_mpi_prog(interface_test)
 
 ################################################################################

@@ -18,10 +18,12 @@
 #include "rng_wrapper.h"
 #include "hash.hpp"
 
+template <typename EdgeCallback> 
 class GNMDirected {
  public:
-  GNMDirected(const PGeneratorConfig &config, const PEID /* rank */)
-      : config_(config), rng_(config), io_(config) {
+  GNMDirected(const PGeneratorConfig &config, const PEID /* rank */,
+              const EdgeCallback &cb)
+      : config_(config), rng_(config), io_(config), cb_(cb) {
     // Init variables
     if (!config_.self_loops)
       edges_per_node_ = config_.n - 1;
@@ -63,6 +65,7 @@ class GNMDirected {
 
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_; 
 
   // Constants and variables
   SInt edges_per_node_;
@@ -111,6 +114,7 @@ class GNMDirected {
       SInt target = (sample - 1) % edges_per_node_;
       if (!config_.self_loops)
         target += (((sample - 1) % edges_per_node_) >= source);
+      cb_(source, target);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(source, target);
 #else

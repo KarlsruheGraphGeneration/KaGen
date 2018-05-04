@@ -36,10 +36,12 @@ using Points_3d = std::vector<std::pair<Point_3d, SInt>>; // needed to add
 using Circ_3d = CGAL::Sphere_3<K_3d>;
 using Box_3d = CGAL::Bbox_3;
 
+template <typename EdgeCallback>
 class Delaunay3D : public Geometric3D {
 public:
-  Delaunay3D(const PGeneratorConfig &config, const PEID rank)
-      : Geometric3D(config, rank), point_io_(config), edge_io_(config) {
+  Delaunay3D(const PGeneratorConfig &config, const PEID rank,
+             const EdgeCallback &cb)
+      : Geometric3D(config, rank), point_io_(config), edge_io_(config), cb_(cb) {
     // Chunk variables
     total_chunks_ = config_.k;
     chunks_per_dim_ = cbrt(config_.k);
@@ -81,6 +83,7 @@ private:
   // I/O
   GeneratorIO<std::tuple<LPFloat, LPFloat, LPFloat>> point_io_;
   GeneratorIO<std::tuple<SInt, SInt>> edge_io_;
+  EdgeCallback cb_;
 
 #ifdef DEL_STATS
 
@@ -451,11 +454,12 @@ private:
             touches = true;
         }
 
-#ifdef OUTPUT_EDGES
         if(touches){
+            cb_((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(), (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
+#ifdef OUTPUT_EDGES
             edge_io_.PushEdge((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(), (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
-        }
 #endif
+        }
     }
 
     /*adjacency_io_.ReserveEdges(id_high - id_low);

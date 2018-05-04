@@ -85,10 +85,12 @@ public:
 };
 #endif
 
+template <typename EdgeCallback>
 class Delaunay2D : public Geometric2D {
 public:
-  Delaunay2D(const PGeneratorConfig &config, const PEID rank)
-      : Geometric2D(config, rank), point_io_(config), edge_io_(config) {
+  Delaunay2D(const PGeneratorConfig &config, const PEID rank, 
+             const EdgeCallback &cb)
+      : Geometric2D(config, rank), point_io_(config), edge_io_(config), cb_(cb) {
     // Chunk variables
     total_chunks_ = config_.k;
     chunks_per_dim_ = sqrt(total_chunks_);
@@ -129,6 +131,7 @@ private:
   // I/O
   GeneratorIO<std::tuple<LPFloat, LPFloat>> point_io_;
   GeneratorIO<std::tuple<SInt, SInt>> edge_io_;
+  EdgeCallback cb_;
 
 #ifdef DEL_STATS
 
@@ -444,11 +447,12 @@ private:
         touches = true;
       }
 
-#ifdef OUTPUT_EDGES
       if(touches){
+          cb_((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(), (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
+#ifdef OUTPUT_EDGES
           edge_io_.PushEdge((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(), (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
-      }
 #endif
+      }
     }
 
     /*adjacency_io_.ReserveEdges(id_high - id_low);

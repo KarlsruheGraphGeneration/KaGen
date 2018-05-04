@@ -17,12 +17,15 @@
 #include "generator_io.h"
 #include "hash.hpp"
 
+template <typename EdgeCallback> 
 class Barabassi {
  public:
-  Barabassi(const PGeneratorConfig &config, const PEID rank)
+  Barabassi(const PGeneratorConfig &config, const PEID rank,
+            const EdgeCallback &cb)
       : config_(config),
         rank_(rank),
         io_(config),
+        cb_(cb),
         min_degree_(config_.min_degree),
         total_degree_(2 * config_.min_degree) {
     PEID size;
@@ -68,6 +71,7 @@ class Barabassi {
 
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_; 
 
   // Constants and variables
   SInt min_degree_;
@@ -84,9 +88,9 @@ class Barabassi {
           r = hash % r;
         } while (r % 2 == 1);
         SInt w = r / total_degree_;
+        cb_(v, w);
 #ifdef OUTPUT_EDGES
         io_.PushEdge(v, w);
-        io_.PushEdge(w, v);
 #else
         io_.UpdateDist(v);
         io_.UpdateDist(w);

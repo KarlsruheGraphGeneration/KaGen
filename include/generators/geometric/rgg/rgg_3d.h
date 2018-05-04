@@ -12,10 +12,12 @@
 
 #include "geometric/geometric_3d.h"
 
+template <typename EdgeCallback>
 class RGG3D : public Geometric3D {
  public:
-  RGG3D(const PGeneratorConfig &config, const PEID rank)
-      : Geometric3D(config, rank), io_(config) {
+  RGG3D(const PGeneratorConfig &config, const PEID rank,
+        const EdgeCallback &cb)
+      : Geometric3D(config, rank), io_(config), cb_(cb) {
     // Chunk variables
     total_chunks_ = config_.k;
     chunks_per_dim_ = cbrt(config_.k);
@@ -44,6 +46,7 @@ class RGG3D : public Geometric3D {
  public:
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_;
   // FILE* edge_file;
 
   LPFloat target_r_;
@@ -156,6 +159,7 @@ class RGG3D : public Geometric3D {
           LPFloat y = std::get<1>(v1) - std::get<1>(v2);
           LPFloat z = std::get<2>(v1) - std::get<2>(v2);
           if (x * x + y * y + z * z <= target_r_) {
+            cb_(std::get<3>(v1), std::get<3>(v2));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
 #else
@@ -177,6 +181,7 @@ class RGG3D : public Geometric3D {
           LPFloat y = std::get<1>(v1) - std::get<1>(v2);
           LPFloat z = std::get<2>(v1) - std::get<2>(v2);
           if (x * x + y * y + z * z <= target_r_) {
+            cb_(std::get<3>(v1), std::get<3>(v2));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
 #else

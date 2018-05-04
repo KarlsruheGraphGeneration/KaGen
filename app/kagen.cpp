@@ -57,10 +57,10 @@ void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
               << ")" << std::endl;
 }
 
-template <typename Generator>
+template <typename Generator, typename EdgeCallback>
 void RunGenerator(const PGeneratorConfig &config, const PEID rank,
                   const PEID /* size */, Statistics &stats, Statistics &edge_stats,
-                  Statistics &edges) {
+                  Statistics &edges, const EdgeCallback &cb) {
   // Start timers
   Timer t;
   double local_time = 0.0;
@@ -68,7 +68,7 @@ void RunGenerator(const PGeneratorConfig &config, const PEID rank,
   t.Restart();
 
   // Chunk distribution
-  Generator gen(config, rank);
+  Generator gen(config, rank, cb);
   gen.Generate();
 
   // Output
@@ -103,30 +103,41 @@ int main(int argn, char **argv) {
   Statistics edge_stats;
   Statistics edges;
 
+  auto edge_cb = [](SInt, SInt){};
   ULONG user_seed = generator_config.seed;
   for (ULONG i = 0; i < generator_config.iterations; ++i) {
     MPI_Barrier(MPI_COMM_WORLD);
     generator_config.seed = user_seed + i;
     if (generator_config.generator == "gnm_directed")
-      RunGenerator<GNMDirected>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<GNMDirected<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "gnm_undirected")
-      RunGenerator<GNMUndirected>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<GNMUndirected<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "gnp_directed")
-      RunGenerator<GNPDirected>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<GNPDirected<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "gnp_undirected")
-      RunGenerator<GNPUndirected>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<GNPUndirected<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "rgg_2d")
-      RunGenerator<RGG2D>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<RGG2D<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "rgg_3d")
-      RunGenerator<RGG3D>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<RGG3D<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "rdg_2d")
-      RunGenerator<Delaunay2D>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<Delaunay2D<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "rdg_3d")
-      RunGenerator<Delaunay3D>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<Delaunay3D<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "rhg")
-      RunGenerator<Hyperbolic>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<Hyperbolic<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "ba")
-      RunGenerator<Barabassi>(generator_config, rank, size, stats, edge_stats, edges);
+      RunGenerator<Barabassi<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else 
       if (rank == ROOT) std::cout << "generator not supported" << std::endl;
   }

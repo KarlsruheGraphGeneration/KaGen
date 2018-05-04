@@ -24,6 +24,7 @@
 #include "hash.hpp"
 #include "methodD.hpp"
 
+template <typename EdgeCallback> 
 class Hyperbolic {
  public:
   // n, min_r, max_r, offset
@@ -35,8 +36,9 @@ class Hyperbolic {
   // phi, r, x, y, gamma, id
   using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat, SInt>;
 
-  Hyperbolic(const PGeneratorConfig &config, const PEID rank)
-      : config_(config), rank_(rank), rng_(config), io_(config) {
+  Hyperbolic(const PGeneratorConfig &config, const PEID rank, 
+             const EdgeCallback &cb)
+      : config_(config), rank_(rank), rng_(config), io_(config), cb_(cb) {
     MPI_Comm_size(MPI_COMM_WORLD, &size_);
 
     // Globals
@@ -136,6 +138,7 @@ class Hyperbolic {
 
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_; 
   // FILE* edge_file;
 
   // Constants and variables
@@ -535,6 +538,7 @@ class Hyperbolic {
       const Vertex &v = cell_vertices[j];
       if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
         // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
+        cb_(std::get<5>(q), std::get<5>(v));
 #ifdef OUTPUT_EDGES
         io_.PushEdge(std::get<5>(q), std::get<5>(v));
 #else

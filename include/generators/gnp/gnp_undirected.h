@@ -18,10 +18,12 @@
 #include "rng_wrapper.h"
 #include "hash.hpp"
 
+template <typename EdgeCallback> 
 class GNPUndirected {
  public:
-  GNPUndirected(const PGeneratorConfig &config, const PEID /* rank */)
-      : config_(config), rng_(config), io_(config) { }
+  GNPUndirected(const PGeneratorConfig &config, const PEID /* rank */,
+                const EdgeCallback &cb)
+      : config_(config), rng_(config), io_(config), cb_(cb) { }
 
   void Generate() {
     PEID rank, size;
@@ -93,6 +95,7 @@ class GNPUndirected {
 
   // I/O
   GeneratorIO<> io_;
+  EdgeCallback cb_;
 
   // Constants and variables
   SInt nodes_per_chunk;
@@ -136,6 +139,7 @@ class GNPUndirected {
       while (sqr * sqr > 8 * (sample - 1) + 1) sqr--;
       SInt i = (sqr - 1) / 2;
       SInt j = (sample - 1) - i * (i + 1) / 2;
+      cb_(i + offset_row, j + offset_column);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(i + offset_row, j + offset_column);
 #else
@@ -159,6 +163,7 @@ class GNPUndirected {
                         [&](SInt sample) {
                           SInt i = (sample - 1) / column_n;
                           SInt j = (sample - 1) % column_n;
+                          cb_(i + offset_row, j + offset_column);
 #ifdef OUTPUT_EDGES
                           io_.PushEdge(i + offset_row, j + offset_column);
 #else
