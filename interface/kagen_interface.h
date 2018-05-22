@@ -38,7 +38,6 @@ class KaGen {
 
   virtual ~KaGen() = default;
 
-
   EdgeList GenerateDirectedGNM(SInt n, 
                                SInt m, 
                                SInt k = 0, 
