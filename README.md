@@ -204,4 +204,4 @@ mpirun -n 16 ./build/app/ -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp
 
 --- 
 
-**[License](/LICENSE):** kagen2-clause BSD
+**[License](/LICENSE):** 2-clause BSD
