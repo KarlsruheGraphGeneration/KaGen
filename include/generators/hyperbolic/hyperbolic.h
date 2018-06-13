@@ -221,6 +221,8 @@ class Hyperbolic {
 
     // Compute splitter
     LPFloat middlePhi = (max_phi - min_phi) * ((LPFloat)midk / k) + min_phi;
+    // Manuel fix
+    if (-1e-8 < middlePhi && middlePhi <= 0.0) middlePhi = 0;
 
     // Recurse
     if (chunk_id < chunk_start + midk)
@@ -264,6 +266,8 @@ class Hyperbolic {
       min_phi = std::get<1>(chunk);
       max_phi = std::get<2>(chunk);
     }
+    // Manuel fix
+    if (-1e-8 < min_phi && min_phi <= 0.0) min_phi = 0;
 
     LPFloat total_phi = max_phi - min_phi;
     LPFloat grid_phi = total_phi / GridSizeForAnnulus(annulus_id);
