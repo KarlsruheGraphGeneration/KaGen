@@ -29,9 +29,9 @@ void ParseParameters(int argn, char **argv,
       std::cout << "================================================" << std::endl;
       std::cout << "==================== KaGen =====================" << std::endl;
       std::cout << "================================================" << std::endl;
-      std::cout << "Usage:\t\t\tmpirun -n <num_proc> ./generate_kagen -gen <generator> [additional parameters]" << std::endl;
+      std::cout << "Usage:\t\t\tmpirun -n <num_proc> ./kagen -gen <generator> [additional parameters]" << std::endl;
       std::cout << "Generators:\t\tgnm_directed|gnm_undirected|gnp_directed|gnp_undirected|rgg_2d|rgg_3d|rdg_2d|rdg_3d|ba|rhg" << std::endl;
-      std::cout << "Additional help:\t./generate_kagen -gen <generator> -help" << std::endl;
+      std::cout << "Additional help:\t./kagen -gen <generator> -help" << std::endl;
     }
     
     if (generator_config.generator == "gnm_undirected" || generator_config.generator == "gnm_directed") {
@@ -46,7 +46,7 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "-self_loops" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/generate_kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp" << std::endl;
     } else if (generator_config.generator == "gnp_undirected" || generator_config.generator == "gnp_directed") {
       std::cout << "================================================" << std::endl;
       std::cout << "========== Erdos-Renyi Graphs G(n,p) ===========" << std::endl;
@@ -59,7 +59,7 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "-self_loops" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/generate_kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp" << std::endl;
     } else if (generator_config.generator == "rgg_2d" || generator_config.generator == "rgg_3d") {
       std::cout << "================================================" << std::endl;
       std::cout << "======= Random Geometric Graphs RGG(n,d) ========" << std::endl;
@@ -71,7 +71,7 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/generate_kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp" << std::endl;
     } else if (generator_config.generator == "rdg_2d" || generator_config.generator == "rdg_3d") {
       std::cout << "================================================" << std::endl;
       std::cout << "======== Random Delaunay Graphs RDG(n) =========" << std::endl;
@@ -82,7 +82,7 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/generate_kagen -gen rdg_3d -n 20 -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp" << std::endl;
     } else if (generator_config.generator == "ba") {
       std::cout << "================================================" << std::endl;
       std::cout << "======= Barabassi-Albert Graphs BA(n,d) ========" << std::endl;
@@ -94,7 +94,7 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/generate_kagen -gen ba -n 20 -md 4 -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp" << std::endl;
     } else if (generator_config.generator == "rhg") {
       std::cout << "Parameters for Random Hyperbolic Graphs RHG(n,gamma,d)" << std::endl;
       std::cout << "================================================" << std::endl;
@@ -108,7 +108,7 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/generate_kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp" << std::endl;
     }
     exit(0);
   }

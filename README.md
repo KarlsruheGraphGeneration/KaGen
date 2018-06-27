@@ -8,22 +8,21 @@ If you use this library in the context of an academic publication, we ask that y
 @inproceedings{funke2017communication,
   title={Communication-free Massively Distributed Graph Generation},
   author={Funke, Daniel and Lamm, Sebastian and Sanders, Peter and Schulz, Christian and Strash, Darren and von Looz, Moritz},
-  booktitle={2018 {IEEE} International Parallel and Distributed Processing Symposium, {IPDPS} 2018, Vancouver, BC, Canada, May 21 - May 25, 2018},
+  booktitle={2018 {IEEE} International Parallel and Distributed Processing Symposium, {IPDPS} 2018, Vancouver, BC, Canada, May 21 -- May 25, 2018},
   year={2018},
-  intype={to appear in}
 }
 ```
 
 Additionally, if you use the Barabassi-Albert generator, we ask that you cite the paper:
 ```bibtex
 @article{sanders2016generators,
-  title = "Scalable generation of scale-free graphs",
-  journal = "Information Processing Letters",
-  volume = "116",
-  number = "7",
-  pages = "489 - 491",
-  year = "2016",
-  author = "Peter Sanders and Christian Schulz",
+  title={Scalable generation of scale-free graphs},
+  journal={Information Processing Letters},
+  volume={116},
+  number={7},
+  pages={489 -- 491},
+  year={2016},
+  author={Sanders, Peter and Schulz, Christian},
 }
 ```
 
