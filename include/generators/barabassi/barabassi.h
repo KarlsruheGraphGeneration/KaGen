@@ -84,7 +84,7 @@ class Barabassi {
         SInt r = 2 * (v * min_degree_ + i) + 1;
         do {
           // compute hash h(r)
-          SInt hash = sampling::Spooky::hash(r);
+          SInt hash = sampling::Spooky::hash(config_.seed + r);
           r = hash % r;
         } while (r % 2 == 1);
         SInt w = r / total_degree_;
