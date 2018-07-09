@@ -20,7 +20,7 @@
 
 using K_2d = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Vb_2d =
-    CGAL::Triangulation_vertex_base_with_info_2<SInt, K_2d>; // attach an ID to
+    CGAL::Triangulation_vertex_base_with_info_2<kagen::SInt, K_2d>; // attach an ID to
                                                              // each point
 using Fb_2d = CGAL::Triangulation_face_base_2<K_2d>;
 using Tds_2d = CGAL::Triangulation_data_structure_2<Vb_2d, Fb_2d>;
@@ -29,7 +29,7 @@ using Point_2d = Dt_2d::Point;
 using Fh_2d = Dt_2d::Face_handle;
 using Vh_2d = Dt_2d::Vertex_handle;
 
-using Points_2d = std::vector<std::pair<Point_2d, SInt>>; // needed to add
+using Points_2d = std::vector<std::pair<Point_2d, kagen::SInt>>; // needed to add
                                                           // points with ID to
                                                           // CGAL
 

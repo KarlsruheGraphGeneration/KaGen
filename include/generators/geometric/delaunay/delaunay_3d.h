@@ -20,7 +20,7 @@
 
 using K_3d = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Vb_3d =
-    CGAL::Triangulation_vertex_base_with_info_3<SInt, K_3d>; // attach an ID to
+    CGAL::Triangulation_vertex_base_with_info_3<kagen::SInt, K_3d>; // attach an ID to
                                                              // each point
 using Fb_3d = CGAL::Triangulation_cell_base_3<K_3d>;
 using Tds_3d = CGAL::Triangulation_data_structure_3<Vb_3d, Fb_3d>;
@@ -29,7 +29,7 @@ using Point_3d = Dt_3d::Point;
 using Fh_3d = Dt_3d::Cell_handle;
 using Vh_3d = Dt_3d::Vertex_handle;
 
-using Points_3d = std::vector<std::pair<Point_3d, SInt>>; // needed to add
+using Points_3d = std::vector<std::pair<Point_3d, kagen::SInt>>; // needed to add
                                                           // points with ID to
                                                           // CGAL
 

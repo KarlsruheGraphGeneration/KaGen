@@ -9,6 +9,8 @@
 #ifndef _DEFINITIONS_H_
 #define _DEFINITIONS_H_
 
+namespace kagen {
+
 // Constants
 typedef long long LONG;
 typedef unsigned long long ULONG;
@@ -24,4 +26,5 @@ typedef double LPFloat;
 typedef ULONG SInt;
 typedef LONG SSInt;
 
+}
 #endif
