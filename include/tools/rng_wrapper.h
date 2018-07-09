@@ -14,6 +14,8 @@
 #include "methodR.hpp"
 #include "var_gen.h"
 
+namespace kagen {
+
 template <typename LPStocc = VarGen<LPFloat>, typename HPStocc = VarGen<>>
 class RNGWrapper {
  public:
@@ -58,4 +60,5 @@ class RNGWrapper {
   HPStocc hp_gen_;
 };
 
+}
 #endif

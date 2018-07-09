@@ -11,6 +11,8 @@
 
 #include <random>
 
+namespace kagen {
+
 class Mersenne {
  public:
   Mersenne() { Mersenne(0); };
@@ -40,4 +42,5 @@ class Mersenne {
   std::uniform_real_distribution<double> dis_;
 };
 
+}
 #endif

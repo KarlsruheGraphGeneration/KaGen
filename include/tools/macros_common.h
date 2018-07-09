@@ -9,6 +9,8 @@
 #ifndef _MACROS_COMMON_H_
 #define _MACROS_COMMON_H_
 
+namespace kagen {
+
 // If DEBUG has not been defined yet then define it as false.
 #ifndef DEBUG
 #define DEBUG 0
@@ -37,4 +39,5 @@
 // This macro allows to convert an expression to a string.
 #define STR(x) ASSERT_H_XSTR(x)
 
+}
 #endif

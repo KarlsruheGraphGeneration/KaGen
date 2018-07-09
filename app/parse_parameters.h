@@ -16,6 +16,8 @@
 
 #include "definitions.h"
 
+namespace kagen {
+
 void ParseParameters(int argn, char **argv,
                      PEID, PEID size,
                      PGeneratorConfig &generator_config) {
@@ -167,4 +169,5 @@ void ParseParameters(int argn, char **argv,
   generator_config.iterations = args.Get<ULONG>("i", 1);
 }
 
+}
 #endif

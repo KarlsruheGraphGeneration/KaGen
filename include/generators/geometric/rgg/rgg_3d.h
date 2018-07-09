@@ -12,6 +12,8 @@
 
 #include "geometric/geometric_3d.h"
 
+namespace kagen {
+
 template <typename EdgeCallback>
 class RGG3D : public Geometric3D {
  public:
@@ -302,4 +304,5 @@ class RGG3D : public Geometric3D {
   }
 };
 
+}
 #endif

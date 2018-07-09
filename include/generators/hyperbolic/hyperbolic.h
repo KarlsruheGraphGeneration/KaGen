@@ -24,6 +24,8 @@
 #include "hash.hpp"
 #include "methodD.hpp"
 
+namespace kagen {
+
 template <typename EdgeCallback> 
 class Hyperbolic {
  public:
@@ -603,4 +605,5 @@ class Hyperbolic {
   }
 };
 
+}
 #endif

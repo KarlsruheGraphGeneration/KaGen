@@ -17,6 +17,8 @@
 #include "generator_io.h"
 #include "hash.hpp"
 
+namespace kagen {
+
 template <typename EdgeCallback> 
 class Barabassi {
  public:
@@ -99,4 +101,6 @@ class Barabassi {
     }
   };
 };
+
+}
 #endif

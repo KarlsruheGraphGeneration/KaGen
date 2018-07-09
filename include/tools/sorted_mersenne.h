@@ -11,6 +11,8 @@
 
 #include <random>
 
+namespace kagen {
+
 class SortedMersenne {
  public:
   SortedMersenne() { SortedMersenne(0); };
@@ -53,4 +55,5 @@ class SortedMersenne {
   double ln_cur_max_;
 };
 
+}
 #endif

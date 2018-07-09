@@ -36,6 +36,8 @@ using Points_3d = std::vector<std::pair<Point_3d, SInt>>; // needed to add
 using Circ_3d = CGAL::Sphere_3<K_3d>;
 using Box_3d = CGAL::Bbox_3;
 
+namespace kagen {
+
 template <typename EdgeCallback>
 class Delaunay3D : public Geometric3D {
 public:
@@ -532,4 +534,5 @@ private:
     }
 };
 
+}
 #endif

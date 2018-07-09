@@ -18,6 +18,8 @@
 #include "rng_wrapper.h"
 #include "hash.hpp"
 
+namespace kagen {
+
 template <typename EdgeCallback> 
 class GNPDirected {
  public:
@@ -106,4 +108,5 @@ class GNPDirected {
   }
 };
 
+}
 #endif

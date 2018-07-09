@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace kagen {
+
 /// Parse command-line arguments
 /**
  * A simple command-line parser.
@@ -82,4 +84,5 @@ class ArgParser {
   std::vector<std::string> data_args_;
 };
 
+}
 #endif

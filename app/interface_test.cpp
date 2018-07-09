@@ -9,6 +9,8 @@
 
 #include "kagen_interface.h"
 
+using namespace kagen;
+
 int main(int argn, char **argv) {
   // Init MPI
   MPI_Init(&argn, &argv);

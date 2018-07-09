@@ -12,6 +12,8 @@
 #include <cassert>
 #include <cmath>
 
+namespace kagen {
+
 // template-based loop unrolling
 template <size_t N>
 struct FauxUnroll {
@@ -52,4 +54,5 @@ struct Statistics {
   double Stddev() const { return count_ > 1 ? sqrt(nvar_ / (count_ - 1)) : 0; }
 };
 
+}
 #endif

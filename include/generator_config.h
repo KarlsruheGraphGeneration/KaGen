@@ -12,6 +12,8 @@
 #include <string>
 #include "definitions.h"
 
+namespace kagen {
+
 // Configuration for the generator.
 struct PGeneratorConfig {
   PGeneratorConfig() {}
@@ -59,4 +61,5 @@ struct PGeneratorConfig {
   ULONG iterations;
 };
 
+}
 #endif

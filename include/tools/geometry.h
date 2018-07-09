@@ -10,6 +10,9 @@
 #define _GEOMETRY_H_
 
 #include <cmath>
+#include <CGAL/Dimension.h>
+
+namespace kagen {
 
 class PGGeometry {
  public:
@@ -150,8 +153,6 @@ class PGGeometry {
   }
 };
 
-#include <CGAL/Dimension.h>
-
 /* Tests whehter a sphere intersects with the box */
 template <typename BOX, typename SPHERE>
 static bool boxIntersects(const BOX &box, const SPHERE &sphere) {
@@ -205,4 +206,5 @@ static bool boxContains(const BOX &box, const SPHERE &sphere) {
   return true;
 }
 
+}
 #endif

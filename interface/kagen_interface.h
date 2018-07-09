@@ -27,6 +27,8 @@
 #include "hyperbolic/hyperbolic.h"
 #include "barabassi/barabassi.h"
 
+namespace kagen {
+
 typedef std::vector<std::pair<SInt, SInt>> EdgeList;
 
 class KaGen {
@@ -335,4 +337,5 @@ class KaGen {
   }
 };
 
+}
 #endif

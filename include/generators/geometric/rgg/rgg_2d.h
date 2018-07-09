@@ -12,6 +12,8 @@
 
 #include "geometric/geometric_2d.h"
 
+namespace kagen {
+
 template <typename EdgeCallback>
 class RGG2D : public Geometric2D {
  public:
@@ -250,4 +252,5 @@ class RGG2D : public Geometric2D {
   }
 };
 
+}
 #endif

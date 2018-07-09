@@ -22,6 +22,8 @@
 
 #include "generator_config.h"
 
+namespace kagen {
+
 template <typename T>
 struct identity {
   typedef T type;
@@ -189,4 +191,5 @@ class GeneratorIO {
   };
 };
 
+}
 #endif

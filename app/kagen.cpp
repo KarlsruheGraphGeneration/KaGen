@@ -27,6 +27,8 @@
 #include "hyperbolic/hyperbolic.h"
 #include "barabassi/barabassi.h"
 
+using namespace kagen;
+
 void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
                       const PEID size) {
   if (config.generator == "gnm_directed" ||
@@ -151,4 +153,5 @@ int main(int argn, char **argv) {
   }
 
   MPI_Finalize();
+  return 0;
 }

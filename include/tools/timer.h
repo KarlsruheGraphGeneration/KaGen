@@ -13,6 +13,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+namespace kagen {
+
 class Timer {
  public:
   Timer() { start_ = timestamp(); }
@@ -32,4 +34,5 @@ class Timer {
   double start_;
 };
 
+}
 #endif

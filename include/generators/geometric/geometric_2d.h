@@ -24,6 +24,8 @@
 #include "mersenne.h"
 #include "hash.hpp"
 
+namespace kagen {
+
 class Geometric2D {
  public:
   // n, x_off, y_off, generated, offset
@@ -303,4 +305,5 @@ class Geometric2D {
   }
 };
 
+}
 #endif

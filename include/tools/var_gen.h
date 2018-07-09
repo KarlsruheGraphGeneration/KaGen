@@ -13,6 +13,8 @@
 
 #include "definitions.h"
 
+namespace kagen {
+
 template <typename Float = HPFloat>
 class VarGen {
  public:
@@ -38,4 +40,5 @@ class VarGen {
   sampling::hypergeometric_distribution<> hyp_;
 };
 
+}
 #endif

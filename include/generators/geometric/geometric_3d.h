@@ -22,6 +22,8 @@
 #include "rng_wrapper.h"
 #include "hash.hpp"
 
+namespace kagen {
+
 class Geometric3D {
  public:
   // n, x_off, y_off, z_off, generated, offset
@@ -374,4 +376,5 @@ class Geometric3D {
   }
 };
 
+}
 #endif

@@ -85,6 +85,8 @@ public:
 };
 #endif
 
+namespace kagen {
+
 template <typename EdgeCallback>
 class Delaunay2D : public Geometric2D {
 public:
@@ -512,4 +514,5 @@ private:
     }
 };
 
+}
 #endif
