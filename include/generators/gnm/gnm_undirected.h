@@ -32,10 +32,10 @@ class GNMUndirected {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    SInt leftover_chunks = config_.k % size;
-    SInt num_chunks = config_.k / size + ((SInt)rank < leftover_chunks);
+    leftover_chunks_ = config_.k % size;
+    SInt num_chunks = config_.k / size + ((SInt)rank < leftover_chunks_);
     SInt row = rank * num_chunks +
-               ((SInt)rank >= leftover_chunks ? leftover_chunks : 0);
+               ((SInt)rank >= leftover_chunks_ ? leftover_chunks_ : 0);
 
     nodes_per_chunk_ = config_.n / config_.k;
     remaining_nodes_ = config_.n % config_.k;
@@ -61,7 +61,7 @@ class GNMUndirected {
   PGeneratorConfig config_;
 
   // Globals
-  SInt nodes_per_chunk_, remaining_nodes_;
+  SInt leftover_chunks_, nodes_per_chunk_, remaining_nodes_;
 
   // Variates
   RNGWrapper<> rng_;
@@ -318,20 +318,20 @@ class GNMUndirected {
 
   inline SInt NodesInRows(const SInt rows, const SInt offset) const {
     return nodes_per_chunk_ * rows +
-           std::max(remaining_nodes_ - offset, (SInt)0);
+           std::min(remaining_nodes_ - offset, rows);
   }
 
   inline SInt NodesInColumns(const SInt columns, const SInt offset) const {
     return nodes_per_chunk_ * columns +
-           std::max(remaining_nodes_ - offset, (SInt)0);
+           std::min(remaining_nodes_ - offset, columns);
   }
 
   inline SInt NodesInRow(const SInt row) const {
-    return nodes_per_chunk_ + (row < config_.k);
+    return nodes_per_chunk_ + (row < leftover_chunks_);
   }
 
   inline SInt NodesInColumn(const SInt column) const {
-    return nodes_per_chunk_ + (column < config_.k);
+    return nodes_per_chunk_ + (column < leftover_chunks_);
   }
 
   inline SInt OffsetInRow(const SInt row) const {
