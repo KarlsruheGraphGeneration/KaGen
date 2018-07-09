@@ -40,6 +40,12 @@ class GNMUndirected {
     nodes_per_chunk_ = config_.n / config_.k;
     remaining_nodes_ = config_.n % config_.k;
 
+    SInt start_chunk = rank * (config_.k / size) + std::min(leftover_chunks_, (SInt)rank);
+    SInt end_chunk = start_chunk + num_chunks;
+    
+    start_node_ = start_chunk * nodes_per_chunk_ + std::min(remaining_nodes_, start_chunk);
+    end_node_ = end_chunk * nodes_per_chunk_ + std::min(remaining_nodes_, end_chunk);
+
     for (SInt i = 0; i < num_chunks; i++) {
       GenerateChunks(row);
       row++;
@@ -61,7 +67,7 @@ class GNMUndirected {
   PGeneratorConfig config_;
 
   // Globals
-  SInt leftover_chunks_, nodes_per_chunk_, remaining_nodes_;
+  SInt leftover_chunks_, nodes_per_chunk_, remaining_nodes_, start_node_, end_node_;
 
   // Variates
   RNGWrapper<> rng_;
@@ -263,6 +269,7 @@ class GNMUndirected {
     SInt offset_row = OffsetInRow(row_id);
     SInt offset_column = OffsetInColumn(column_id);
     if (!config_.self_loops) offset_row += 1;
+    bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
     // Number edges
     SInt n_row = NodesInRow(row_id);
@@ -280,9 +287,11 @@ class GNMUndirected {
       while (sqr * sqr > 8 * (sample - 1) + 1) sqr--;
       SInt i = (sqr - 1) / 2;
       SInt j = (sample - 1) - i * (i + 1) / 2;
-      cb_(i + offset_row, j + offset_column);
+      if (local_row) cb_(i + offset_row, j + offset_column);
+      else cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-      io_.PushEdge(i + offset_row, j + offset_column);
+      if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
+      else io_.PushEdge(j + offset_column, i + offset_row);
 #else
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);
@@ -294,6 +303,7 @@ class GNMUndirected {
                               const SInt column_id) {
     SInt offset_row = OffsetInRow(row_id);
     SInt offset_column = OffsetInColumn(column_id);
+    bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
     // Sample from [1, num_edges]
     SInt n_row = NodesInRow(row_id);
@@ -306,9 +316,11 @@ class GNMUndirected {
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
       SInt i = (sample - 1) / n_column;
       SInt j = (sample - 1) % n_column;
-      cb_(i + offset_row, j + offset_column);
+      if (local_row) cb_(i + offset_row, j + offset_column);
+      else cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-      io_.PushEdge(i + offset_row, j + offset_column);
+      if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
+      else io_.PushEdge(j + offset_column, i + offset_row);
 #else 
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);
