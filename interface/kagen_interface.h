@@ -93,6 +93,7 @@ class KaGen {
     GNMUndirected<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
