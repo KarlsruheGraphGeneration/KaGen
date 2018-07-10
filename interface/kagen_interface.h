@@ -65,6 +65,7 @@ class KaGen {
     GNMDirected<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -122,6 +123,7 @@ class KaGen {
     GNPDirected<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -150,6 +152,7 @@ class KaGen {
     GNPUndirected<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -176,6 +179,7 @@ class KaGen {
     RGG2D<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -202,6 +206,7 @@ class KaGen {
     RGG3D<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -226,6 +231,7 @@ class KaGen {
     Delaunay2D<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -250,6 +256,7 @@ class KaGen {
     Delaunay3D<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -276,6 +283,7 @@ class KaGen {
     Barabassi<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 
@@ -304,6 +312,7 @@ class KaGen {
     Hyperbolic<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
+    edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
   }
 

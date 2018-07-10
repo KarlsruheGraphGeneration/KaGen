@@ -37,6 +37,10 @@ class Geometric3D {
       : config_(config), rng_(config) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     MPI_Comm_size(MPI_COMM_WORLD, &size_);
+
+    // Vertex range
+    start_node_ = std::numeric_limits<SInt>::max();
+    num_nodes_ = 0;
   }
 
   void Generate() {
@@ -47,6 +51,10 @@ class Geometric3D {
     // Generate local chunks and edges
     for (SInt i = local_chunk_start_; i < local_chunk_end_; i++)
       GenerateChunk(i);
+  }
+
+  std::pair<SInt, SInt> GetVertexRange() {
+    return std::make_pair(start_node_, start_node_ + num_nodes_);
   }
 
   virtual void Output() const = 0;
@@ -67,6 +75,7 @@ class Geometric3D {
   SInt total_chunks_, chunks_per_dim_, local_chunk_start_, local_chunk_end_;
   LPFloat cell_size_;
   SInt cells_per_chunk_, cells_per_dim_;
+  SInt start_node_, num_nodes_;
 
   // Data structures
   // std::vector<Chunk> chunks_;
@@ -124,6 +133,8 @@ class Geometric3D {
       chunks_[chunk_start] = std::make_tuple(
           n, chunk_start_row * chunk_size_, chunk_start_column * chunk_size_,
           chunk_start_depth * chunk_size_, false, offset);
+      if (start_node_ > offset) start_node_ = offset;
+      num_nodes_ += n;
       return;
     }
 

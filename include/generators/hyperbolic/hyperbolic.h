@@ -87,6 +87,10 @@ class Hyperbolic {
     cell_eps_ = (2 * M_PI / GridSizeForAnnulus(total_annuli_ - 1)) / 1000;
     point_eps_ = std::numeric_limits<LPFloat>::epsilon();
 
+    // Vertex range
+    start_node_ = std::numeric_limits<SInt>::max();
+    num_nodes_ = 0;
+
     // I/O (Debug)
     // edge_file = fopen((config_.debug_output + std::to_string(rank_)).c_str(), "w"); fprintf(edge_file, "target_r_ %f\n", target_r_);
   }
@@ -125,6 +129,10 @@ class Hyperbolic {
     io_.OutputDist(); 
 #endif
   }
+  
+  std::pair<SInt, SInt> GetVertexRange() {
+    return std::make_pair(start_node_, start_node_ + num_nodes_);
+  }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
 
@@ -150,6 +158,7 @@ class Hyperbolic {
   SInt local_chunks_;
   SInt local_chunk_start_, local_chunk_end_;
   SInt total_annuli_;
+  SInt start_node_, num_nodes_;
   // Eps
   LPFloat chunk_eps_, cell_eps_, point_eps_;
   // State
@@ -211,6 +220,8 @@ class Hyperbolic {
       chunks_[ComputeGlobalChunkId(annulus_id, chunk_start)] =
           std::make_tuple(n, min_phi, max_phi, false, offset);
       // fprintf(edge_file, "c %llu %f %f %f %f\n", n, min_phi, max_phi, std::get<1>(annuli_[annulus_id]), std::get<2>(annuli_[annulus_id]));
+      if (start_node_ > offset) start_node_ = offset;
+      num_nodes_ += n;
       return;
     }
 

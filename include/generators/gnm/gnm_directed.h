@@ -41,11 +41,19 @@ class GNMDirected {
     // Chunk distribution
     SInt leftover_chunks = config_.k % size;
     SInt num_chunks = (config_.k / size) + ((SInt)rank < leftover_chunks);
-    SInt current_chunk = rank * num_chunks +
+    SInt start_chunk = rank * num_chunks +
                          ((SInt)rank >= leftover_chunks ? leftover_chunks : 0);
+    SInt end_chunk = start_chunk + num_chunks;
+
+    SInt nodes_per_chunk = config_.n / config_.k;
+    SInt remaining_nodes = config_.n % config_.k;
+
+    start_node_ = start_chunk * nodes_per_chunk + std::min(remaining_nodes, start_chunk);
+    end_node_ = end_chunk * nodes_per_chunk + std::min(remaining_nodes, end_chunk);
+    num_nodes_ = end_node_ - start_node_ - 1;
 
     // Generate chunks
-    for (SInt i = 0; i < num_chunks; i++) GenerateChunk(current_chunk++);
+    for (SInt i = 0; i < num_chunks; i++) GenerateChunk(start_chunk++);
   }
 
   void Output() const { 
@@ -54,6 +62,10 @@ class GNMDirected {
 #else
     io_.OutputDist(); 
 #endif
+  }
+
+  std::pair<SInt, SInt> GetVertexRange() {
+    return std::make_pair(start_node_, start_node_ + num_nodes_);
   }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
@@ -71,6 +83,7 @@ class GNMDirected {
 
   // Constants and variables
   SInt edges_per_node_;
+  SInt start_node_, end_node_, num_nodes_;
 
   void GenerateChunk(const SInt chunk_id) {
     GenerateChunk(config_.n, config_.m, config_.k, chunk_id, 0, 0, 1);

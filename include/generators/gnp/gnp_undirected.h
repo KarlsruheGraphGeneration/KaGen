@@ -35,33 +35,38 @@ class GNPUndirected {
     // Chunk distribution
     nodes_per_chunk = config_.n / config_.k;
     SInt leftover_chunks = config_.k % size;
-    SInt leftover_nodes = config_.n % config_.k;
+    SInt remaining_nodes = config_.n % config_.k;
     SInt nodes_per_chunk = config_.n / config_.k;
     SInt num_chunks = config_.k / size + ((SInt)rank < leftover_chunks);
-    SInt init_row = rank * num_chunks +
+    SInt start_chunk = rank * num_chunks +
                     ((SInt)rank >= leftover_chunks ? leftover_chunks : 0);
+    SInt end_chunk = start_chunk + num_chunks;
+
+    start_node_ = start_chunk * nodes_per_chunk + std::min(remaining_nodes, start_chunk);
+    end_node_ = end_chunk * nodes_per_chunk + std::min(remaining_nodes, end_chunk);
+    num_nodes_ = end_node_ - start_node_ - 1;
 
     // Generate chunks
     for (SInt i = 0; i < num_chunks; i++) {
       SInt row_n = 0;
       SInt column_n = 0;
       SInt row_node_id =
-          init_row * nodes_per_chunk + std::min(init_row, leftover_nodes);
+          start_chunk * nodes_per_chunk + std::min(start_chunk, remaining_nodes);
       SInt column_node_id = 0;
-      SInt current_row = init_row++;
+      SInt current_row = start_chunk++;
       SInt current_column = 0;
       // Iterate current_row
       while (current_column < current_row) {
-        row_n = nodes_per_chunk + (current_row < leftover_nodes);
-        column_n = nodes_per_chunk + (current_column < leftover_nodes);
+        row_n = nodes_per_chunk + (current_row < remaining_nodes);
+        column_n = nodes_per_chunk + (current_column < remaining_nodes);
         GenerateRectangleChunk(current_row, current_column++, row_node_id,
                                column_node_id, row_n, column_n);
         column_node_id += column_n;
       }
       // Handle triangular section
       if (current_row < config_.k) {
-        row_n = nodes_per_chunk + (current_row < leftover_nodes);
-        column_n = nodes_per_chunk + (current_column < leftover_nodes);
+        row_n = nodes_per_chunk + (current_row < remaining_nodes);
+        column_n = nodes_per_chunk + (current_column < remaining_nodes);
         GenerateTriangleChunk(current_row++, current_column,
                               row_node_id + config_.self_loops, column_node_id,
                               row_n, column_n);
@@ -69,8 +74,8 @@ class GNPUndirected {
       }
       // Iterate current_column
       while (current_row < config_.k) {
-        row_n = nodes_per_chunk + (current_row < leftover_nodes);
-        column_n = nodes_per_chunk + (current_column < leftover_nodes);
+        row_n = nodes_per_chunk + (current_row < remaining_nodes);
+        column_n = nodes_per_chunk + (current_column < remaining_nodes);
         GenerateRectangleChunk(current_row++, current_column, row_node_id,
                                column_node_id, row_n, column_n);
         row_node_id += row_n;
@@ -84,6 +89,10 @@ class GNPUndirected {
 #else
     io_.OutputDist(); 
 #endif
+  }
+
+  std::pair<SInt, SInt> GetVertexRange() {
+    return std::make_pair(start_node_, start_node_ + num_nodes_);
   }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
@@ -101,6 +110,7 @@ class GNPUndirected {
 
   // Constants and variables
   SInt nodes_per_chunk;
+  SInt start_node_, end_node_, num_nodes_;
 
   void GenerateTriangleChunk(const SInt row_id, const SInt column_id,
                              const SInt row_node_id, const SInt column_node_id,
