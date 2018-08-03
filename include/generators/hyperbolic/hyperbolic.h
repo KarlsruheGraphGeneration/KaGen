@@ -533,38 +533,44 @@ class Hyperbolic {
     // Gather vertices
     const std::vector<Vertex> &cell_vertices = vertices_[global_cell_id];
     // Same cell
-    // if (current_annulus_ == annulus_id && current_chunk_ == chunk_id && current_cell_ == cell_id) {
-    //   for (SInt j = 0; j < cell_vertices.size(); ++j) {
-    //     const Vertex &v = cell_vertices[j];
-    //     // Skip if larger angle or same angle and larger radius
-    //     // TODO: Use in sequential? (slower but no duplicates)
-    //     if (std::get<0>(v) > std::get<0>(q) || (std::abs(std::get<0>(v) - std::get<0>(q)) < point_eps_ && std::get<1>(v) < std::get<1>(q))) continue; 
-    //     if (std::abs(std::get<1>(v) - std::get<1>(q)) < point_eps_ && std::abs(std::get<0>(v) - std::get<0>(q)) < point_eps_) continue;
-    //     // Generate edge
-    //     if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
-    //       // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
-    //       // io_.PushEdge(std::get<0>(q), std::get<1>(q), std::get<0>(v), std::get<1>(v));
-    //       io_.UpdateDist(std::get<5>(q));
-    //       io_.UpdateDist(std::get<5>(v));
-    //     }
-    //   }
-    // }
-    // Different cells
-    // else {
-    for (SInt j = 0; j < cell_vertices.size(); ++j) {
-      const Vertex &v = cell_vertices[j];
-      if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
-        // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
-        cb_(std::get<5>(q), std::get<5>(v));
+    if (current_annulus_ == annulus_id && current_chunk_ == chunk_id && current_cell_ == cell_id) {
+      for (SInt j = 0; j < cell_vertices.size(); ++j) {
+        const Vertex &v = cell_vertices[j];
+        // Skip if larger angle or same angle and larger radius
+        if (std::get<0>(v) > std::get<0>(q) 
+            || (std::abs(std::get<0>(v) - std::get<0>(q)) < point_eps_ 
+              && std::get<1>(v) < std::get<1>(q))) continue; 
+        if (std::abs(std::get<1>(v) - std::get<1>(q)) < point_eps_ 
+            && std::abs(std::get<0>(v) - std::get<0>(q)) < point_eps_) continue;
+        // Generate edge
+        if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
+          // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
+          cb_(std::get<5>(q), std::get<5>(v));
 #ifdef OUTPUT_EDGES
-        io_.PushEdge(std::get<5>(q), std::get<5>(v));
+          io_.PushEdge(std::get<5>(q), std::get<5>(v));
 #else
-        io_.UpdateDist(std::get<5>(q));
-        io_.UpdateDist(std::get<5>(v));
+          io_.UpdateDist(std::get<5>(q));
+          io_.UpdateDist(std::get<5>(v));
 #endif
+        }
       }
     }
-    // }
+    // Different cells
+    else {
+      for (SInt j = 0; j < cell_vertices.size(); ++j) {
+        const Vertex &v = cell_vertices[j];
+        if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
+          // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
+          cb_(std::get<5>(q), std::get<5>(v));
+#ifdef OUTPUT_EDGES
+          io_.PushEdge(std::get<5>(q), std::get<5>(v));
+#else
+          io_.UpdateDist(std::get<5>(q));
+          io_.UpdateDist(std::get<5>(v));
+#endif
+        }
+      }
+    }
   }
 
   inline std::pair<LPFloat,LPFloat> GetBoundaryPhis(const LPFloat boundary_phi,
