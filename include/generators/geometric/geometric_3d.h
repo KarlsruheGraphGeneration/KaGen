@@ -54,7 +54,7 @@ class Geometric3D {
   }
 
   std::pair<SInt, SInt> GetVertexRange() {
-    return std::make_pair(start_node_, start_node_ + num_nodes_);
+    return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
   }
 
   virtual void Output() const = 0;
@@ -133,8 +133,10 @@ class Geometric3D {
       chunks_[chunk_start] = std::make_tuple(
           n, chunk_start_row * chunk_size_, chunk_start_column * chunk_size_,
           chunk_start_depth * chunk_size_, false, offset);
-      if (start_node_ > offset) start_node_ = offset;
-      num_nodes_ += n;
+      if (IsLocalChunk(chunk_id)) {
+        if (start_node_ > offset) start_node_ = offset;
+        num_nodes_ += n;
+      }
       return;
     }
 

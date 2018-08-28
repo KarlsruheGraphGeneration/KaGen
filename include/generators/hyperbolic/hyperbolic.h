@@ -131,7 +131,7 @@ class Hyperbolic {
   }
   
   std::pair<SInt, SInt> GetVertexRange() {
-    return std::make_pair(start_node_, start_node_ + num_nodes_);
+    return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
   }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
@@ -220,8 +220,10 @@ class Hyperbolic {
       chunks_[ComputeGlobalChunkId(annulus_id, chunk_start)] =
           std::make_tuple(n, min_phi, max_phi, false, offset);
       // fprintf(edge_file, "c %llu %f %f %f %f\n", n, min_phi, max_phi, std::get<1>(annuli_[annulus_id]), std::get<2>(annuli_[annulus_id]));
-      if (start_node_ > offset) start_node_ = offset;
-      num_nodes_ += n;
+      if (IsLocalChunk(chunk_id)) {
+        if (start_node_ > offset) start_node_ = offset;
+        num_nodes_ += n;
+      }
       return;
     }
 
@@ -619,6 +621,10 @@ class Hyperbolic {
 
   inline SInt GridSizeForAnnulus(const SInt annulus_id) {
     return std::max<SInt>(1, TotalGridSizeForAnnulus(annulus_id) / size_);
+  }
+
+  inline bool IsLocalChunk(const SInt chunk_id) const {
+    return (chunk_id >= local_chunk_start_ && chunk_id < local_chunk_end_);
   }
 };
 

@@ -65,7 +65,7 @@ class Barabassi {
   }
 
   std::pair<SInt, SInt> GetVertexRange() {
-    return std::make_pair(from_, to_ + 1);
+    return std::make_pair(from_, to_);
   }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
