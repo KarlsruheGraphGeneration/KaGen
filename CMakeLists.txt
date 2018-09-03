@@ -54,9 +54,9 @@ set(KAGEN_INCLUDE_DIRS
 if(NOT MSVC)
   # enable warnings
   if(CMAKE_BUILD_TYPE MATCHES Debug)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC -fpermissive")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -g -W -Wall -Wextra -fPIC -fpermissive")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -g -W -Wall -Wextra -fPIC")
   endif()
 
   # enable more warnings
@@ -270,8 +270,8 @@ endif()
 
 # use sampling lib
 add_subdirectory(extlib/sampling)
-set(KAGEN_LINK_LIBRARIES sampling ${KAGEN_LINK_LIBRARIES})
-set(KAGEN_LINK_LIBRARIES spooky ${KAGEN_LINK_LIBRARIES})
+set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
+set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
 
 ################################################################################
 ### Build Macros
