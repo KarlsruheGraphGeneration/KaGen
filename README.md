@@ -93,34 +93,31 @@ mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output
 
 ---
 
-### Erdos-Renyi Graphs G(n,p)
-Generate a random graph using the Erdos-Renyi model G(n,p).
-The graph can either be directed or undirected and can contain self-loops.
+### Random Geometric Graphs G(n,p)
+Generate a random graph using the random geometric graph model RGG(n,r).
 
 #### Parameters
 ```
--gen <gnp_directed|gnp_undirected>
+-gen <rgg_2d|rgg_3d>
 -n <number of vertices as a power of two>
--p <edge probability>
+-r <radius>
 -k <number of chunks> 
 -seed <seed for PRNGs>
 -output <output file>
--self_loops 
 ```
 
 #### Interface
 ```
 KaGen gen(proc_rank, proc_size);
-auto edge_list_directed = gen.GenerateDirectedGNP(n, p, k, seed, output, self_loops);
-auto edge_list_undirected = gen.GenerateUndirectedGNP(n, p, k, seed, output, self_loops);
+auto edge_list_directed = gen.Generate2DRGG(n, r, k, seed, output);
+auto edge_list_undirected = gen.Generate3DRGG(n, r, k, seed, output);
 ```
 
 #### Command Line Example
-Generate a directed G(n,p) graph with 2^20 vertices and an edge probability of 0.001 with self-loops on 16 processors and write it to tmp
+Generate a three dimensional RGG(n,r) graph with 2^20 vertices and a radius of 0.001 on 16 processors and write it to tmp
 ```
-mpirun -n 16 ./build/app/kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp
+mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.001 -output tmp
 ```
-kagen
 --- 
 
 #### Random Delaunay Graphs RDG(n)
@@ -139,7 +136,7 @@ NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (t
 ```
 KaGen gen(proc_rank, proc_size);
 auto edge_list_2d = gen.Generate2DRDG(n, k, seed, output);
-auto edge_list_3d = gen.Generate3DRGG(n, k, seed, output);
+auto edge_list_3d = gen.Generate3DRDG(n, k, seed, output);
 ```
 
 ##### Command Line Example
@@ -147,7 +144,32 @@ Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors 
 ```
 mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp
 ```
+--- 
 
+#### Random Delaunay Graphs RDG(n)
+Generate a random graph using the random Delaunay graph model RDG(n).
+NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
+##### Parameters
+```
+-gen <rdg_2d|rdg_3d>
+-n <number of vertices as a power of two>
+-k <number of chunks>
+-seed <seed for PRNGs>
+-output <output file>
+```
+
+#### Interface
+```
+KaGen gen(proc_rank, proc_size);
+auto edge_list_2d = gen.Generate2DRDG(n, k, seed, output);
+auto edge_list_3d = gen.Generate3DRDG(n, k, seed, output);
+```
+
+##### Command Line Example
+Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors and write it to tmp
+```
+mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp
+```
 --- 
 
 #### Barabassi-Albert Graphs BA(n,d)
