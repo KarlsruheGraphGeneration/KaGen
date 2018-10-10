@@ -120,10 +120,10 @@ mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.001 -output tmp
 ```
 --- 
 
-#### Random Delaunay Graphs RDG(n)
+### Random Delaunay Graphs RDG(n)
 Generate a random graph using the random Delaunay graph model RDG(n).
 NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
-##### Parameters
+#### Parameters
 ```
 -gen <rdg_2d|rdg_3d>
 -n <number of vertices as a power of two>
@@ -139,42 +139,16 @@ auto edge_list_2d = gen.Generate2DRDG(n, k, seed, output);
 auto edge_list_3d = gen.Generate3DRDG(n, k, seed, output);
 ```
 
-##### Command Line Example
+#### Command Line Example
 Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors and write it to tmp
 ```
 mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp
 ```
 --- 
 
-#### Random Delaunay Graphs RDG(n)
-Generate a random graph using the random Delaunay graph model RDG(n).
-NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
-##### Parameters
-```
--gen <rdg_2d|rdg_3d>
--n <number of vertices as a power of two>
--k <number of chunks>
--seed <seed for PRNGs>
--output <output file>
-```
-
-#### Interface
-```
-KaGen gen(proc_rank, proc_size);
-auto edge_list_2d = gen.Generate2DRDG(n, k, seed, output);
-auto edge_list_3d = gen.Generate3DRDG(n, k, seed, output);
-```
-
-##### Command Line Example
-Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors and write it to tmp
-```
-mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp
-```
---- 
-
-#### Barabassi-Albert Graphs BA(n,d)
+### Barabassi-Albert Graphs BA(n,d)
 Generate a random graph using the Barabassi-Albert graph model BA(n,d)
-##### Parameters
+#### Parameters
 ```
 -gen ba
 -n <number of vertices as a power of two>
@@ -190,7 +164,7 @@ KaGen gen(proc_rank, proc_size);
 auto edge_list = gen.GenerateBA(n, md, seed, output);
 ```
 
-##### Command Line Example
+#### Command Line Example
 Generate a BA(n,d) graph with 2^20 vertices and a minimum degree of 4 on 16 processors and write it to tmp
 ```
 mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp
@@ -198,9 +172,9 @@ mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp
 
 --- 
 
-#### Random Hyperbolic Graphs RHG(n,gamma,d)
+### Random Hyperbolic Graphs RHG(n,gamma,d)
 Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)
-##### Parameters
+#### Parameters
 ```
 -gen rhg
 -n <number of vertices as a power of two>
@@ -217,7 +191,7 @@ KaGen gen(proc_rank, proc_size);
 auto edge_list = gen.GenerateRHG(n, gamma, d, seed, output);
 ```
 
-##### Command Line Example
+#### Command Line Example
 Generate a two dimensional RHG(n,r) graph with 2^20 vertices and an average degree of 8 with a power-law exponent of 2.2 on 16 processors and write it to tmp
 ```
 mpirun -n 16 ./build/app/ -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp
