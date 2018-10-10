@@ -93,7 +93,7 @@ mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output
 
 ---
 
-### Random Geometric Graphs G(n,p)
+### Random Geometric Graphs RGG(n,r)
 Generate a random graph using the random geometric graph model RGG(n,r).
 
 #### Parameters
