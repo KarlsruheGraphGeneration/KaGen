@@ -288,7 +288,7 @@ class KaGen {
   }
 
   EdgeList GenerateRHG(SInt n, 
-                       SInt gamma,
+                       LPFloat gamma,
                        SInt d,
                        SInt k = 0, 
                        SInt seed = 1, 

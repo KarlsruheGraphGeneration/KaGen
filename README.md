@@ -109,8 +109,8 @@ Generate a random graph using the random geometric graph model RGG(n,r).
 #### Interface
 ```
 KaGen gen(proc_rank, proc_size);
-auto edge_list_directed = gen.Generate2DRGG(n, r, k, seed, output);
-auto edge_list_undirected = gen.Generate3DRGG(n, r, k, seed, output);
+auto edge_list_2d = gen.Generate2DRGG(n, r, k, seed, output);
+auto edge_list_3d = gen.Generate3DRGG(n, r, k, seed, output);
 ```
 
 #### Command Line Example
