@@ -220,8 +220,7 @@ class RGG3D : public Geometric3D {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
       SInt h = sampling::Spooky::hash(seed);
-      SInt cell_vertices =
-          (SInt)rng_.GenerateBinomial(h, n, (LPFloat)cell_area / total_area);
+      SInt cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
       LPFloat cell_start_x =
           std::get<1>(chunk) +
           ((i / cells_per_dim_) % cells_per_dim_) * cell_size_;

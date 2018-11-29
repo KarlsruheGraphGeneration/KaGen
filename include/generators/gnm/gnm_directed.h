@@ -75,7 +75,7 @@ class GNMDirected {
   PGeneratorConfig config_;
 
   // Variates
-  RNGWrapper<> rng_;
+  RNGWrapper rng_;
 
   // I/O
   GeneratorIO<> io_;
@@ -107,8 +107,7 @@ class GNMDirected {
 
     // Generate variate
     SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
-    SInt variate = (SInt)rng_.GenerateHypergeometric(
-        h, (HPFloat)n_split * edges_per_node_, m, (HPFloat)n * edges_per_node_);
+    SInt variate = rng_.GenerateHypergeometric(h, n_split * edges_per_node_, m, n * edges_per_node_);
 
     // Distributed splitting of chunks
     if (chunk_id < chunk_start + k_split) {
@@ -124,7 +123,7 @@ class GNMDirected {
                      const SInt offset) {
     // Sample from [1, num_edges]
     SInt h = sampling::Spooky::hash(config_.seed + chunk_id);
-    rng_.GenerateSample(h, (HPFloat)n * edges_per_node_, m, [&](SInt sample) {
+    rng_.GenerateSample(h, n * edges_per_node_, m, [&](SInt sample) {
       SInt source = (sample - 1) / edges_per_node_ + offset;
       SInt target = (sample - 1) % edges_per_node_;
       if (!config_.self_loops)

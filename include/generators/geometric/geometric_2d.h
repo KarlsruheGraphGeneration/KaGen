@@ -69,7 +69,7 @@ class Geometric2D {
   PEID rank_, size_;
 
   // Variates
-  RNGWrapper<> rng_;
+  RNGWrapper rng_;
   Mersenne mersenne;
 
   // Constants and variables
@@ -144,13 +144,12 @@ class Geometric2D {
 
     // Generate variate for upper/lower half
     SInt h = sampling::Spooky::hash(config_.seed + chunk_start + level * total_chunks_);
-    SInt v_variate = rng_.GenerateBinomial(h, n, (LPFloat)row_splitter / row_k);
+    SInt v_variate = rng_.GenerateBinomial(h, n, row_splitter / row_k);
 
     // Upper half
     if (chunk_row < row_splitter + chunk_start_row) {
       // Generate variate for left/right half
-      SInt h_variate = rng_.GenerateBinomial(
-          h, v_variate, (LPFloat)column_splitter / column_k);
+      SInt h_variate = rng_.GenerateBinomial(h, v_variate, column_splitter / column_k);
 
       // Upper left/right quadrant
       if (chunk_column < column_splitter + chunk_start_column)
@@ -163,8 +162,7 @@ class Geometric2D {
     } else {
       // Lower half
       // Generate variate for left/right half
-      SInt h_variate = rng_.GenerateBinomial(
-          h, n - v_variate, (LPFloat)column_splitter / column_k);
+      SInt h_variate = rng_.GenerateBinomial(h, n - v_variate, column_splitter / column_k);
 
       // Lower left/right quadrant
       if (chunk_column < column_splitter + chunk_start_column)
@@ -209,8 +207,7 @@ class Geometric2D {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
       SInt h = sampling::Spooky::hash(seed);
-      SInt cell_vertices =
-          (SInt)rng_.GenerateBinomial(h, n, (LPFloat)cell_area / total_area);
+      SInt cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
       LPFloat cell_start_x =
           std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
       LPFloat cell_start_y =

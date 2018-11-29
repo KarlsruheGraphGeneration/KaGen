@@ -142,7 +142,7 @@ class Hyperbolic {
   PEID rank_, size_;
 
   // Variates
-  RNGWrapper<VarGen<LPFloat>, VarGen<>> rng_;
+  RNGWrapper rng_;
   Mersenne mersenne;
   SortedMersenne sorted_mersenne;
 
@@ -190,8 +190,7 @@ class Hyperbolic {
 
       // Variate
       SInt h = sampling::Spooky::hash(config_.seed + level * total_annuli_ + i);
-      SInt n_annulus =
-          (SInt)rng_.GenerateBinomial(h, n, (LPFloat)ring_area / total_area);
+      SInt n_annulus = rng_.GenerateBinomial(h, n, ring_area / total_area);
 
       // Push annuli_
       annuli_.emplace_back(n_annulus, min_r, max_r, offset);
@@ -232,7 +231,7 @@ class Hyperbolic {
 
     // Generate variate
     SInt h = sampling::Spooky::hash(config_.seed + level * config_.k + chunk_start + annulus_id);
-    SInt splitter_variate = rng_.GenerateBinomial(h, n, (LPFloat)midk / k);
+    SInt splitter_variate = rng_.GenerateBinomial(h, n, midk / k);
 
     // Compute splitter
     LPFloat middlePhi = (max_phi - min_phi) * ((LPFloat)midk / k) + min_phi;
@@ -291,7 +290,7 @@ class Hyperbolic {
       if (!clique)
         seed = config_.seed + annulus_id * config_.k + chunk_id + i + config_.n;
       SInt h = sampling::Spooky::hash(seed);
-      SInt n_cell = (SInt)rng_.GenerateBinomial(h, n, (LPFloat)grid_phi / total_phi);
+      SInt n_cell = rng_.GenerateBinomial(h, n, grid_phi / total_phi);
 
       SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, i);
       cells_[global_cell_id] = std::make_tuple(n_cell, min_phi + (grid_phi * i), min_phi + (grid_phi * (i + 1)), false, offset);

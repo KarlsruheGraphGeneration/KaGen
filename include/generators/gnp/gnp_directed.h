@@ -79,7 +79,7 @@ class GNPDirected {
   PGeneratorConfig config_;
 
   // Variates
-  RNGWrapper<> rng_;
+  RNGWrapper rng_;
 
   // I/O
   GeneratorIO<> io_;
@@ -97,11 +97,10 @@ class GNPDirected {
                      const SInt offset) {
     // Generate variate
     SInt h = sampling::Spooky::hash(config_.seed + chunk_id);
-    SInt num_edges = (SInt)rng_.GenerateBinomial(h, n * edges_per_node, p);
+    SInt num_edges = rng_.GenerateBinomial(h, n * edges_per_node, p);
 
     // Sample from [1, num_edges]
-    rng_.GenerateSample(h, (HPFloat)n * edges_per_node, num_edges,
-                        [&](SInt sample) {
+    rng_.GenerateSample(h, n * edges_per_node, num_edges, [&](SInt sample) {
                           SInt source = (sample - 1) / edges_per_node + offset;
                           SInt target = (sample - 1) % edges_per_node;
                           if (!config_.self_loops)

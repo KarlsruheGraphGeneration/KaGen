@@ -67,7 +67,7 @@ class Geometric3D {
   PEID rank_, size_;
 
   // Variates
-  RNGWrapper<> rng_;
+  RNGWrapper rng_;
   Mersenne mersenne_;
 
   // Constants and variables
@@ -147,17 +147,15 @@ class Geometric3D {
 
     // Generate variate for upper/lower half
     SInt h = sampling::Spooky::hash(config_.seed + chunk_start + level * total_chunks_);
-    SInt v_variate = rng_.GenerateBinomial(h, n, (LPFloat)row_splitter / row_k);
+    SInt v_variate = rng_.GenerateBinomial(h, n, row_splitter / row_k);
 
     if (chunk_row < row_splitter + chunk_start_row) {
       // Generate variate for left/right half
-      SInt h_variate = rng_.GenerateBinomial(
-          h, v_variate, (LPFloat)column_splitter / column_k);
+      SInt h_variate = rng_.GenerateBinomial(h, v_variate, column_splitter / column_k);
 
       if (chunk_column < column_splitter + chunk_start_column) {
         // Generate variate for front/back half
-        SInt z_variate = rng_.GenerateBinomial(
-            h, h_variate, (LPFloat)depth_splitter / depth_k);
+        SInt z_variate = rng_.GenerateBinomial(h, h_variate, depth_splitter / depth_k);
 
         // Upper left front/back octant
         if (chunk_depth < depth_splitter + chunk_start_depth)
@@ -171,8 +169,7 @@ class Geometric3D {
                        chunk_start_depth + depth_splitter, level + 1, offset + z_variate);
       } else {
         // Generate variate for front/back half
-        SInt z_variate = rng_.GenerateBinomial(
-            h, v_variate - h_variate, (LPFloat)depth_splitter / depth_k);
+        SInt z_variate = rng_.GenerateBinomial(h, v_variate - h_variate, depth_splitter / depth_k);
 
         if (chunk_depth < depth_splitter + chunk_start_depth)
           // Upper right front/back octant
@@ -190,13 +187,11 @@ class Geometric3D {
     } else {
       // Lower half
       // Generate variate for left/right half
-      SInt h_variate = rng_.GenerateBinomial(
-          h, n - v_variate, (LPFloat)column_splitter / column_k);
+      SInt h_variate = rng_.GenerateBinomial(h, n - v_variate, column_splitter / column_k);
 
       if (chunk_column < column_splitter + chunk_start_column) {
         // Generate variate for front/back half
-        SInt z_variate = rng_.GenerateBinomial(
-            h, h_variate, (LPFloat)depth_splitter / depth_k);
+        SInt z_variate = rng_.GenerateBinomial(h, h_variate, depth_splitter / depth_k);
 
         // Lower left front/back octant
         if (chunk_depth < depth_splitter + chunk_start_depth)
@@ -211,8 +206,7 @@ class Geometric3D {
                        chunk_start_depth + depth_splitter, level + 1, offset + v_variate + z_variate);
       } else {
         // Generate variate for front/back half
-        SInt z_variate = rng_.GenerateBinomial(
-            h, n - v_variate - h_variate, (LPFloat)depth_splitter / depth_k);
+        SInt z_variate = rng_.GenerateBinomial(h, n - v_variate - h_variate, depth_splitter / depth_k);
         // Lower right front/back octant
         if (chunk_depth < depth_splitter + chunk_start_depth)
           ComputeChunk(chunk_id, z_variate, row_k - row_splitter,
@@ -261,8 +255,7 @@ class Geometric3D {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
       SInt h = sampling::Spooky::hash(seed);
-      SInt cell_vertices =
-          (SInt)rng_.GenerateBinomial(h, n, (LPFloat)cell_area / total_area);
+      SInt cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
       LPFloat cell_start_x =
           std::get<1>(chunk) +
           ((i / cells_per_dim_) % cells_per_dim_) * cell_size_;

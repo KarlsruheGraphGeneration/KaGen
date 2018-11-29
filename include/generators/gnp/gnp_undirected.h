@@ -102,7 +102,7 @@ class GNPUndirected {
   PGeneratorConfig config_;
 
   // Variates
-  RNGWrapper<> rng_;
+  RNGWrapper rng_;
 
   // I/O
   GeneratorIO<> io_;
@@ -140,7 +140,7 @@ class GNPUndirected {
     // Generate variate
     SInt h =
         sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
-    SInt num_edges = (SInt)rng_.GenerateBinomial(h, total_edges, p);
+    SInt num_edges = rng_.GenerateBinomial(h, total_edges, p);
 
     // Sample from [1, num_edges]
     rng_.GenerateSample(h, total_edges, num_edges, [&](SInt sample) {
@@ -168,11 +168,10 @@ class GNPUndirected {
     // Generate variate
     SInt h =
         sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
-    SInt num_edges = (SInt)rng_.GenerateBinomial(h, row_n * column_n, p);
+    SInt num_edges = rng_.GenerateBinomial(h, row_n * column_n, p);
 
     // Sample from [1, num_edges]
-    rng_.GenerateSample(h, (HPFloat)row_n * column_n, num_edges,
-                        [&](SInt sample) {
+    rng_.GenerateSample(h, row_n * column_n, num_edges, [&](SInt sample) {
                           SInt i = (sample - 1) / column_n;
                           SInt j = (sample - 1) % column_n;
                           cb_(i + offset_row, j + offset_column);

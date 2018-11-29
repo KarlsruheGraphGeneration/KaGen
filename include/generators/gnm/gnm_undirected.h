@@ -76,7 +76,7 @@ class GNMUndirected {
   SInt start_node_, end_node_, num_nodes_;
 
   // Variates
-  RNGWrapper<> rng_;
+  RNGWrapper rng_;
 
   // I/O
   GeneratorIO<> io_;
@@ -118,10 +118,8 @@ class GNMUndirected {
     // Generate variate for quadrants
     SInt chunk_start = ChunkStart(offset_row, offset_column);
     SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
-    SInt upper_variate =
-        (SInt)rng_.GenerateHypergeometric(h, ul_edges, m, total_edges);
-    SInt ll_variate = (SInt)rng_.GenerateHypergeometric(
-        h, ll_edges, m - upper_variate, ll_edges + lr_edges);
+    SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges, m, total_edges);
+    SInt ll_variate = rng_.GenerateHypergeometric(h, ll_edges, m - upper_variate, ll_edges + lr_edges);
 
     // Recursive calls for quadrants
     // Row within upper half then column will automatically be in left half
@@ -173,15 +171,13 @@ class GNMUndirected {
     // Generate variate for upper/lower half
     SInt chunk_start = ChunkStart(offset_row, offset_column);
     SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
-    SInt upper_variate = (SInt)rng_.GenerateHypergeometric(
-        h, ul_edges + ur_edges, m, total_edges);
+    SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges + ur_edges, m, total_edges);
 
     // Recursive calls for quadrants
     // Row in upper half
     if (row_id < offset_row + row_splitter) {
       // Generate variate for upper left quadrant
-      SInt ul_variate = (SInt)rng_.GenerateHypergeometric(
-          h, ul_edges, upper_variate, ul_edges + ur_edges);
+      SInt ul_variate = rng_.GenerateHypergeometric(h, ul_edges, upper_variate, ul_edges + ur_edges);
 
       QueryRowRectangle(ul_variate, row_splitter, column_splitter, row_id,
                         offset_row, offset_column, level + 1);
@@ -195,8 +191,7 @@ class GNMUndirected {
       HPFloat lr_edges = NumRectangleEdges(ll_nodes_row, ur_nodes_column);
 
       // Generate variate for lower left quadrant
-      SInt ll_variate = (SInt)rng_.GenerateHypergeometric(
-          h, ll_edges, m - upper_variate, ll_edges + lr_edges);
+      SInt ll_variate = rng_.GenerateHypergeometric(h, ll_edges, m - upper_variate, ll_edges + lr_edges);
 
       QueryRowRectangle(ll_variate, num_rows / 2, column_splitter, row_id,
                         offset_row + row_splitter, offset_column, level + 1);
@@ -243,12 +238,9 @@ class GNMUndirected {
     // Generate variate for upper/lower half
     SInt chunk_start = ChunkStart(offset_row, offset_column);
     SInt h = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
-    SInt upper_variate = (SInt)rng_.GenerateHypergeometric(
-        h, ul_edges + ur_edges, m, total_edges);
-    SInt ul_variate = (SInt)rng_.GenerateHypergeometric(
-        h, ul_edges, upper_variate, ul_edges + ur_edges);
-    SInt ll_variate = (SInt)rng_.GenerateHypergeometric(
-        h, ll_edges, m - upper_variate, ll_edges + lr_edges);
+    SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges + ur_edges, m, total_edges);
+    SInt ul_variate = rng_.GenerateHypergeometric(h, ul_edges, upper_variate, ul_edges + ur_edges);
+    SInt ll_variate = rng_.GenerateHypergeometric(h, ll_edges, m - upper_variate, ll_edges + lr_edges);
 
     // Recursive calls for quadrants
     // Column in left half
