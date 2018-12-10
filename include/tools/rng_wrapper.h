@@ -25,11 +25,12 @@ class RNGWrapper {
   SInt GenerateHypergeometric(SInt seed, SInt n, SInt m, SInt N) {
     SInt variate = 0;
     if (config_.use_binom)
-      variate = GenerateBinomial(seed, n, (LPFloat)(m / N));
-    else
+      variate = GenerateBinomial(seed, n, (LPFloat)m / N);
+    else {
       hyp_.seed(seed);
       if (m < 1) return 0;
       variate = hyp_(n, N-n, m);
+    }
     return variate;
   }
 

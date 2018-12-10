@@ -144,12 +144,12 @@ class Geometric2D {
 
     // Generate variate for upper/lower half
     SInt h = sampling::Spooky::hash(config_.seed + chunk_start + level * total_chunks_);
-    SInt v_variate = rng_.GenerateBinomial(h, n, row_splitter / row_k);
+    SInt v_variate = rng_.GenerateBinomial(h, n, (LPFloat)row_splitter / row_k);
 
     // Upper half
     if (chunk_row < row_splitter + chunk_start_row) {
       // Generate variate for left/right half
-      SInt h_variate = rng_.GenerateBinomial(h, v_variate, column_splitter / column_k);
+      SInt h_variate = rng_.GenerateBinomial(h, v_variate, (LPFloat)column_splitter / column_k);
 
       // Upper left/right quadrant
       if (chunk_column < column_splitter + chunk_start_column)
@@ -162,7 +162,7 @@ class Geometric2D {
     } else {
       // Lower half
       // Generate variate for left/right half
-      SInt h_variate = rng_.GenerateBinomial(h, n - v_variate, column_splitter / column_k);
+      SInt h_variate = rng_.GenerateBinomial(h, n - v_variate, (LPFloat)column_splitter / column_k);
 
       // Lower left/right quadrant
       if (chunk_column < column_splitter + chunk_start_column)

@@ -231,7 +231,7 @@ class Hyperbolic {
 
     // Generate variate
     SInt h = sampling::Spooky::hash(config_.seed + level * config_.k + chunk_start + annulus_id);
-    SInt splitter_variate = rng_.GenerateBinomial(h, n, midk / k);
+    SInt splitter_variate = rng_.GenerateBinomial(h, n, (LPFloat)midk / k);
 
     // Compute splitter
     LPFloat middlePhi = (max_phi - min_phi) * ((LPFloat)midk / k) + min_phi;
