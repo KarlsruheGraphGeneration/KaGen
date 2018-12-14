@@ -56,9 +56,16 @@ To compile the code either run `compile.sh` or use the following instruction
   cmake ..
   make
 ```
-
+#### Output
 By default our generators will output the generated graphs in the DIMACS format.
-For performance measurements this can be turned of by disabling the `-DOUTPUT_EDGES` flag.
+If you want to use our generators as a library, note that the return value is a vector of pairs with the following contents
+```
+  <v_from, v_to>, <e1_from, e1_to> <e2_from, e2_to> ...
+```
+The first pair `<v_from, v_to>` denotes the first and last vertex (numbered from 0 to n-1) that belong to this processor.
+The following pairs each correspond to a single edge.
+
+Furthermore, you can further disable the file output by disabling the `-DOUTPUT_EDGES` flag.
 Additional flags for varying the output can be found in `CMakeLists.txt`.
 
 ## Graph Models
@@ -95,6 +102,7 @@ mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output
 
 ### Random Geometric Graphs RGG(n,r)
 Generate a random graph using the random geometric graph model RGG(n,r).
+NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
 
 #### Parameters
 ```
