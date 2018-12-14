@@ -131,6 +131,7 @@ mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.001 -output tmp
 ### Random Delaunay Graphs RDG(n)
 Generate a random graph using the random Delaunay graph model RDG(n).
 NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
+NOTE: The graph is generated with periodic boundary conditions to avoid long edges at the border.
 #### Parameters
 ```
 -gen <rdg_2d|rdg_3d>
