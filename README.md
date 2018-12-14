@@ -65,7 +65,7 @@ If you want to use our generators as a library, note that the return value is a 
 The first pair `<v_from, v_to>` denotes the first and last vertex (numbered from 0 to n-1) that belong to this processor.
 The following pairs each correspond to a single edge.
 
-Furthermore, you can further disable the file output by disabling the `-DOUTPUT_EDGES` flag.
+Furthermore, you can disable the file output by disabling the `-DOUTPUT_EDGES` flag.
 Additional flags for varying the output can be found in `CMakeLists.txt`.
 
 ## Graph Models
