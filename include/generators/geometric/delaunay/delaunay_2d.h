@@ -138,13 +138,14 @@ private:
 #ifdef DEL_STATS
 
   struct del_stats {
-    del_stats(int r, SInt p_cell, SInt p_tria, SInt s)
-        : radius(r), n_p_cell(p_cell), n_p_tria(p_tria), n_simplices(s) {}
+    del_stats(int r, SInt p_chunk, SInt p_tria, SInt s, std::vector<SInt> & pIC)
+        : radius(r), n_p_chunk(p_chunk), n_p_tria(p_tria), n_simplices(s), pointsInCells(pIC) {}
 
     int radius;
-    SInt n_p_cell;
+    SInt n_p_chunk;
     SInt n_p_tria;
     SInt n_simplices;
+    std::vector<SInt> pointsInCells;
   };
 
   std::map<SInt, del_stats> radius_stats_;
@@ -160,14 +161,37 @@ private:
 //            total_chunks_, chunks_per_dim_, chunk_size_, cells_per_chunk_,
 //            cells_per_dim_, cell_size_, max_radius_);
 
+// document whether correct cell size is used
+    int cellCalc = 0; // 0 = calculated, 1 = chunk_size used, 2 = upper bound
+
+
+    // upper bound for expected distance to nearest neighbor, according to paper
+      LPFloat edNN = 4.8 / sqrt(config_.n);
+
+      if(edNN > chunk_size_)
+          cellCalc = 1;
+
+      LPFloat lCellSize = std::min(edNN, chunk_size_);
+
+      if((SInt)floor(chunk_size_ / lCellSize) > 128)
+          cellCalc = 2;
+
+      // use chunks_per_dim_ as upper bound for cells_per_dim_
+
     for (const auto &s : radius_stats_) {
 //      SInt x, y;
 //      Decode(s.first, x, y);
-      fprintf(fout, "%u %llu %llu %llu %f %llu %llu %f %llu %llu %i %llu %llu %llu\n", 2, config_.n,
+      fprintf(fout, "%u %llu %llu %llu %f %llu %llu %f %i %llu %llu %i %llu %llu %llu\n", 2, config_.n,
               total_chunks_, chunks_per_dim_, chunk_size_, cells_per_chunk_,
-              cells_per_dim_, cell_size_, max_radius_, s.first,
-              s.second.radius, s.second.n_p_cell, s.second.n_p_tria,
+              cells_per_dim_, cell_size_, cellCalc, max_radius_, s.first,
+              s.second.radius, s.second.n_p_chunk, s.second.n_p_tria,
               s.second.n_simplices);
+
+        for (const auto &i : s.second.pointsInCells){
+            fprintf(fout, "%u %llu %llu %llu %f %llu %llu %f %i %llu %llu %llu\n", 2, config_.n,
+                    total_chunks_, chunks_per_dim_, chunk_size_, cells_per_chunk_,
+                    cells_per_dim_, cell_size_, cellCalc, max_radius_, s.first, i);
+        }
     }
 
     //fprintf(fout, "STATS end\n");
@@ -408,10 +432,26 @@ private:
     }
 
 #ifdef DEL_STATS
+
+    std::vector<SInt> pointsInCells;
+      for (SInt cell_row = 0; cell_row < cells_per_dim_; ++cell_row) {
+          for (SInt cell_column = 0; cell_column < cells_per_dim_; ++cell_column) {
+              SInt cell_id = cell_row * cells_per_dim_ + cell_column;
+              SInt cellIdx = ComputeGlobalCellId(chunk_id, cell_id);
+
+              //                    printf("[%llu] adding %lu points from own cell
+              //                    %llu (%llu, %llu)\n",
+              //                           chunk_id, vertices_[cellIdx].size(),
+              //                           cell_id, cell_row, cell_column);
+
+              pointsInCells.push_back(vertices_[cellIdx].size());
+          }
+      }
+
     radius_stats_.emplace(chunk_id,
                           del_stats(conflictFree ? cell_radius - 1 : -1,
                                     id_high - id_low, tria.number_of_vertices(),
-                                    tria.number_of_faces()));
+                                    tria.number_of_faces(), pointsInCells));
 #endif
 
     if (!conflictFree) {
