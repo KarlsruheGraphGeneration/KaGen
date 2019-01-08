@@ -9,6 +9,8 @@
 #ifndef _DELAUNAY_3D_H_
 #define _DELAUNAY_3D_H_
 
+#define DEL_STATS
+
 #include "geometric/geometric_3d.h"
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
