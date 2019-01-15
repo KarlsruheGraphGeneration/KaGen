@@ -133,39 +133,39 @@ if os.path.exists(dir):
         gStats.sort_values(['d', 'n', 'k'], inplace=True)
         gStats.to_pickle(statsfile)
 
-# if os.path.exists(cellsfile):
-#     gCells = pd.read_pickle(cellsfile)
-#     cellsfileTS = os.stat(cellsfile).st_mtime
-#
-#     print("loaded cells database from %s" % datetime.datetime.fromtimestamp(cellsfileTS))
-# else:
-#     gCells = pd.DataFrame(columns=header_cells)
-#     cellsfileTS = 0
-#
-#     print("creating new cells database")
-#
-# if os.path.exists(dir):
-#     files = [f for f in os.listdir(dir) if ('_cells_' in f) and (os.stat(os.path.join(dir, f)).st_mtime > cellsfileTS)]
-#     bar = progressbar.ProgressBar()
-#     frames = []
-#
-#     if len(files):
-#         print("%i new cells files found" % len(files))
-#         for file in bar(files):
-#             match = r_cells_file_name.match(file)
-#             if match:
-#                 # new file format
-#                 d = int(match.group('d'))
-#                 n = int(match.group('n'))
-#                 k = int(match.group('k'))
-#                 rank = int(match.group('rank'))
-#                 iteration = 0
-#
-#             frames.append(pd.read_csv(os.path.join(dir, file), delim_whitespace=True, names=header_cells))
-#
-#         gCells = pd.concat(frames, ignore_index=True)
-#         gCells.sort_values(['d', 'n', 'k'], inplace=True)
-#         gCells.to_pickle(cellsfile)
+if os.path.exists(cellsfile):
+    gCells = pd.read_pickle(cellsfile)
+    cellsfileTS = os.stat(cellsfile).st_mtime
+
+    print("loaded cells database from %s" % datetime.datetime.fromtimestamp(cellsfileTS))
+else:
+    gCells = pd.DataFrame(columns=header_cells)
+    cellsfileTS = 0
+
+    print("creating new cells database")
+
+if os.path.exists(dir):
+    files = [f for f in os.listdir(dir) if ('_cells_' in f) and (os.stat(os.path.join(dir, f)).st_mtime > cellsfileTS)]
+    bar = progressbar.ProgressBar()
+    frames = []
+
+    if len(files):
+        print("%i new cells files found" % len(files))
+        for file in bar(files):
+            match = r_cells_file_name.match(file)
+            if match:
+                # new file format
+                d = int(match.group('d'))
+                n = int(match.group('n'))
+                k = int(match.group('k'))
+                rank = int(match.group('rank'))
+                iteration = 0
+
+            frames.append(pd.read_csv(os.path.join(dir, file), delim_whitespace=True, names=header_cells))
+
+        gCells = pd.concat(frames, ignore_index=True)
+        gCells.sort_values(['d', 'n', 'k'], inplace=True)
+        gCells.to_pickle(cellsfile)
 
 # done loading new data files
 
