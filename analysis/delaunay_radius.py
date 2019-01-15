@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import re
 import csv
@@ -93,7 +95,7 @@ header_cells = ['d',
                 'chunk',
                 'n_p_cell']
 
-dir = '../runners/run_study'
+dir = 'logs'
 
 if os.path.exists(statsfile):
     gStats = pd.read_pickle(statsfile)
