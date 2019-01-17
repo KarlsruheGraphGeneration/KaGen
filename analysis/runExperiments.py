@@ -17,7 +17,7 @@ def runExperiment(params):
     myPID = os.getpid()
     filename = "delaunay_%id_%i_%i" % (d, n, k)
 
-    call = "mpirun -n 1 app/kagen -gen rdg_" + str(d) + "d -n " + str(n) + " -seed 1337 -k " + str(k) + " -i 10 -output " + filename
+    call = "mpirun -n 1 ../build/app/kagen -gen rdg_" + str(d) + "d -n " + str(n) + " -seed 1337 -k " + str(k) + " -i 10 -output " + filename
 
     print(myPID, call)
     if subprocess.call(call, shell=True):
