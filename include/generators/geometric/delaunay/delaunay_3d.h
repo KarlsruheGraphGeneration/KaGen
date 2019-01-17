@@ -407,6 +407,9 @@ namespace kagen {
                 // painter.drawTriangles(tria);
 
                 conflictFree = true;
+
+                // check whether the circumspheres of the simplices of the triangulation are completely contained
+                // within the halo, if the simplex has at least one vertex from the chunk
                 for (auto f = tria.finite_cells_begin(); f != tria.finite_cells_end(); ++f) {
                     bool touchesChunk = (!(f->vertex(0)->info() & COPY_FLAG))
                                         || (!(f->vertex(1)->info() & COPY_FLAG))
@@ -436,6 +439,22 @@ namespace kagen {
                             //                       c.center().y(), c.center().z(),
                             //                       std::sqrt(c.squared_radius()));
 
+                            // we found a sphere that leaves the halo -> not conflict free
+                            conflictFree = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (conflictFree) {
+                    // check whether all edges of the convex hull are with points _not_ from the chunk
+
+                    std::vector<Dt_3d::Vertex_handle> chVertices;
+                    tria.adjacent_vertices(tria.infinite_vertex(), std::back_inserter(chVertices));
+
+                    for (auto &vc : chVertices) {
+                        if (!(vc->info() & COPY_FLAG)) {
+                            // we found a vertex of the convex hull that is from the original chunk --> not conflict free
                             conflictFree = false;
                             break;
                         }

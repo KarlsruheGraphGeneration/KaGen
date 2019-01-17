@@ -404,6 +404,9 @@ namespace kagen {
                 // painter.drawTriangles(tria);
 
                 conflictFree = true;
+
+                // check whether the circumcircles of the triangles of the triangulation are completely contained
+                // within the halo, if the triangle has at least one vertex from the chunk
                 for (auto f = tria.finite_faces_begin(); f != tria.finite_faces_end(); ++f) {
                     bool touchesChunk = (!(f->vertex(0)->info() & COPY_FLAG))
                                         || (!(f->vertex(1)->info() & COPY_FLAG))
@@ -426,9 +429,26 @@ namespace kagen {
                             //                                   c.center().x(), c.center().y(),
                             //                                   std::sqrt(c.squared_radius()));
 
+                            // we found a circle that leaves the halo -> not conflict free
                             conflictFree = false;
                             break;
                         }
+                    }
+                }
+
+                if (conflictFree) {
+                    // check whether all edges of the convex hull are with points _not_ from the chunk
+
+                    Dt_2d::Vertex_circulator vc = tria.incident_vertices(tria.infinite_vertex()),
+                            done(vc);
+                    if (vc != 0) {
+                        do {
+                            if (!(vc->info() & COPY_FLAG)) {
+                                // we found a vertex of the convex hull that is from the original chunk --> not conflict free
+                                conflictFree = false;
+                                break;
+                            }
+                        } while (++vc != done);
                     }
                 }
 
