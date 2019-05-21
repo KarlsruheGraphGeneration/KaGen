@@ -26,6 +26,7 @@
 #include "gnp/gnp_undirected.h"
 #include "hyperbolic/hyperbolic.h"
 #include "barabassi/barabassi.h"
+#include "kronecker/kronecker.h"
 
 using namespace kagen;
 
@@ -55,6 +56,11 @@ void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
 
   else if (config.generator == "ba")
     std::cout << "generate graph (n=" << config.n << ", d=" << config.min_degree
+              << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
+              << ")" << std::endl;
+
+  else if (config.generator == "rmat")
+    std::cout << "generate graph (n=" << config.n << ", m=" << config.m
               << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
               << ")" << std::endl;
 }
@@ -139,6 +145,9 @@ int main(int argn, char **argv) {
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "ba")
       RunGenerator<Barabassi<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+    else if (generator_config.generator == "rmat")
+      RunGenerator<Kronecker<decltype(edge_cb)>, decltype(edge_cb)>
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else 
       if (rank == ROOT) std::cout << "generator not supported" << std::endl;

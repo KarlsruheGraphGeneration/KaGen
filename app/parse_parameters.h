@@ -111,6 +111,19 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
       std::cout << "mpirun -n 16 ./build/app/kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp" << std::endl;
+    } else if (generator_config.generator == "rmat") {
+      std::cout << "Parameters for Kronecker Graphs RMAT(n,m)" << std::endl;
+      std::cout << "================================================" << std::endl;
+      std::cout << "=========== Kronecker Graphs RMAT(n,m) ==========" << std::endl;
+      std::cout << "================================================" << std::endl;
+      std::cout << "Parameters:" << std::endl;
+      std::cout << "-n\t\t<number of vertices as a power of two>" << std::endl;
+      std::cout << "-m\t\t<number of edges as a power of two>" << std::endl;
+      std::cout << "-k\t\t<number of chunks>" << std::endl;
+      std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
+      std::cout << "-output\t\t<output file>" << std::endl;
+      std::cout << "\nExample:" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen rmat -n 20 -m 22 -output tmp" << std::endl;
     }
     exit(0);
   }
