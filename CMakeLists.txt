@@ -27,8 +27,8 @@ endif()
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 
 option(KAGEN_OUTPUT_EDGES "Output edge list." ON)
-option(KAGEN_SINGLE_OUTPUT "Output single edge list." ON)
-option(KAGEN_OMIT_HEADER "Omit header in edge list" OFF)
+option(KAGEN_SINGLE_OUTPUT "Output single edge list." OFF)
+option(KAGEN_OMIT_HEADER "Omit header in edge list" ON)
 
 ################################################################################
 
@@ -37,6 +37,7 @@ set(KAGEN_DEFINITIONS "")
 set(KAGEN_INCLUDE_DIRS 
   ${PROJECT_SOURCE_DIR}/app
   ${PROJECT_SOURCE_DIR}/extlib/sampling/sampling
+  ${PROJECT_SOURCE_DIR}/extlib/libmorton/libmorton/include
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/include/generators
   ${PROJECT_SOURCE_DIR}/include/generators/barabassi

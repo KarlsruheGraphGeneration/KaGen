@@ -114,7 +114,7 @@ void ParseParameters(int argn, char **argv,
     } else if (generator_config.generator == "rmat") {
       std::cout << "Parameters for Kronecker Graphs RMAT(n,m)" << std::endl;
       std::cout << "================================================" << std::endl;
-      std::cout << "=========== Kronecker Graphs RMAT(n,m) ==========" << std::endl;
+      std::cout << "=========== Kronecker Graphs RMAT(n,m) =========" << std::endl;
       std::cout << "================================================" << std::endl;
       std::cout << "Parameters:" << std::endl;
       std::cout << "-n\t\t<number of vertices as a power of two>" << std::endl;
@@ -124,6 +124,21 @@ void ParseParameters(int argn, char **argv,
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
       std::cout << "mpirun -n 16 ./build/app/kagen -gen rmat -n 20 -m 22 -output tmp" << std::endl;
+    } else if (generator_config.generator == "grid") {
+      std::cout << "Parameters for 2D Grid Graphs G(n,m,periodic)" << std::endl;
+      std::cout << "================================================" << std::endl;
+      std::cout << "=========== Grid Graphs G(n,m) ================" << std::endl;
+      std::cout << "================================================" << std::endl;
+      std::cout << "Parameters:" << std::endl;
+      std::cout << "-n\t\t<size of first dimension>" << std::endl;
+      std::cout << "-m\t\t<size of second dimension>" << std::endl;
+      std::cout << "-p\t\t<probability of edge insertion>" << std::endl;
+      std::cout << "-periodic\t\t<use periodic boundary condition>" << std::endl;
+      std::cout << "-k\t\t<number of chunks>" << std::endl;
+      std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
+      std::cout << "-output\t\t<output file>" << std::endl;
+      std::cout << "\nExample:" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen grid -n 16 -m 16 -output tmp" << std::endl;
     }
     exit(0);
   }
@@ -155,7 +170,7 @@ void ParseParameters(int argn, char **argv,
   else
     generator_config.m = (ULONG)1 << args.Get<ULONG>("m", 0);
   generator_config.p = args.Get<double>("p", 0.0);
-  generator_config.self_loops = args.Get<bool>("self_loops", false);
+  generator_config.self_loops = args.IsSet("self_loops");
 
   // Radius/Edges
   generator_config.r = args.Get<double>("r", 0.125);
@@ -170,6 +185,9 @@ void ParseParameters(int argn, char **argv,
 
   // BA
   generator_config.min_degree = args.Get<ULONG>("md", 4);
+
+  // GRID
+  generator_config.periodic = args.IsSet("periodic");
 
   // Floating-point precision
   generator_config.precision = args.Get<ULONG>("prec", 32);

@@ -26,6 +26,7 @@
 #include "gnp/gnp_undirected.h"
 #include "hyperbolic/hyperbolic.h"
 #include "barabassi/barabassi.h"
+#include "grid/grid_2d.h"
 
 namespace kagen {
 
@@ -310,6 +311,37 @@ class KaGen {
 
     // Init and run generator
     Hyperbolic<decltype(edge_cb)> gen(config_, rank_, edge_cb);
+    gen.Generate();
+
+    edges.insert(begin(edges), gen.GetVertexRange());
+    return edges;
+  }
+
+  EdgeList Generate2DGrid(SInt n, 
+                          SInt m,
+                          LPFloat p,
+                          SInt periodic,
+                          SInt k = 0, 
+                          SInt seed = 1, 
+                          const std::string &output = "out") {
+    EdgeList edges; 
+
+    // Update config
+    config_.n = n;
+    config_.m = m;
+    config_.p = p;
+    config_.periodic = periodic;
+    config_.k = (k == 0 ? config_.k : k);
+    config_.seed = seed;
+    config_.output_file = output;
+
+    // Edge callback
+    auto edge_cb = [&](SInt source, SInt target) {
+      edges.emplace_back(source, target);
+    };
+
+    // Init and run generator
+    Grid2D<decltype(edge_cb)> gen(config_, rank_, edge_cb);
     gen.Generate();
 
     edges.insert(begin(edges), gen.GetVertexRange());
