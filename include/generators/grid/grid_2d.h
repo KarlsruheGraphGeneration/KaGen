@@ -21,6 +21,10 @@
 
 namespace kagen {
 
+enum Direction {
+  Up, Down, Left, Right
+};
+
 template <typename EdgeCallback> 
 class Grid2D {
  public:
@@ -34,9 +38,9 @@ class Grid2D {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Init dimensions
-    // TODO: Only tested for powers of two
-    total_rows_ = log2(config_.n);
-    total_cols_ = log2(config_.m);
+    // TODO: Only tested for cube PEs and one chunk per PE
+    total_rows_ = config_.n;
+    total_cols_ = config_.m;
     edge_probability_ = config_.p;
 
     // Init chunks
@@ -56,24 +60,12 @@ class Grid2D {
     cols_per_chunk_ = total_cols_ / chunks_per_dim_;
     remaining_cols_ = total_cols_ % chunks_per_dim_;
 
-    // Determine node count
-    SInt start_chunk_row, start_chunk_col;
-    Decode(start_chunk, start_chunk_col, start_chunk_row);
-    SInt start_vertex_row = start_chunk_row * rows_per_chunk_ + std::min(remaining_rows_, start_chunk_row);
-    SInt start_vertex_col = start_chunk_col * cols_per_chunk_ + std::min(remaining_cols_, start_chunk_col);
+    vertices_per_chunk_ = rows_per_chunk_ * cols_per_chunk_;
 
-    SInt end_chunk_row, end_chunk_col;
-    Decode(end_chunk, end_chunk_col, end_chunk_row);
-
-    SInt end_vertex_row = end_chunk_row * rows_per_chunk_ + std::min(remaining_rows_, end_chunk_row);
-    SInt end_vertex_col = end_chunk_col * cols_per_chunk_ + std::min(remaining_cols_, end_chunk_col);
-
-    start_node_ = Encode(start_vertex_col, start_vertex_row);
-    end_node_ = Encode(end_vertex_col, end_vertex_row);
+    start_node_ = OffsetForChunk(start_chunk);
+    end_node_ = OffsetForChunk(end_chunk);
     num_nodes_ = end_node_ - start_node_;
 
-    // std::cout << "R" << rank << " chunks [" << start_chunk << "," << end_chunk << ")" << std::endl;
-    // std::cout << "R" << rank << " nodes [" << start_node_ << "," << end_node_ << ") num " << num_nodes_ << std::endl;
     for (SInt i = 0; i < num_chunks; i++) {
       GenerateChunk(start_chunk + i);
     }
@@ -111,74 +103,174 @@ class Grid2D {
   SInt total_chunks_, chunks_per_dim_;
   SInt rows_per_chunk_, cols_per_chunk_;
   SInt remaining_rows_, remaining_cols_;
+  SInt vertices_per_chunk_;
 
   void GenerateChunk(const SInt chunk) {
-    // Compute position of chunk
-    SInt chunk_row, chunk_col;
-    Decode(chunk, chunk_col, chunk_row);
-
-    // Compute start vertex
-    SInt vertex_row = chunk_row * rows_per_chunk_ + std::min(remaining_rows_, chunk_row);
-    SInt vertex_col = chunk_col * cols_per_chunk_ + std::min(remaining_cols_, chunk_col);
-
-    SInt num_rows = rows_per_chunk_ + (chunk_row < remaining_rows_);
-    SInt num_cols = cols_per_chunk_ + (chunk_col < remaining_cols_);
-
-    for (SInt i = 0; i < num_rows; i++) {
-      for (SInt j = 0; j < num_cols; j++) {
-        SInt row = vertex_row + i;
-        SInt col = vertex_col + j;
-        GenerateEdges(row, col);
-      }
+    SInt start_vertex = OffsetForChunk(chunk);
+    SInt end_vertex = OffsetForChunk(chunk + 1);
+    for (SInt i = start_vertex; i < end_vertex; i++) {
+      GenerateEdges(chunk, i);
     }
   }
 
-  void GenerateEdges(const SInt row, const SInt col) {
+  void GenerateEdges(const SInt chunk, const SInt vertex) {
+    QueryInDirection(chunk, vertex, Direction::Right);
+    QueryInDirection(chunk, vertex, Direction::Left);
+    QueryInDirection(chunk, vertex, Direction::Up);
+    QueryInDirection(chunk, vertex, Direction::Down);
+  }
+
+  void QueryInDirection(const SInt chunk, const SInt vertex, Direction direction) {
+    SInt offset = OffsetForChunk(chunk);
+    SInt local_vertex = vertex - offset;
+
+    SInt chunk_row, chunk_col;
+    Decode(chunk, chunk_row, chunk_col);
+
+    SInt rows = rows_per_chunk_ + (chunk_row < remaining_rows_);
+    SInt cols = cols_per_chunk_ + (chunk_col < remaining_cols_);
+
+    SInt local_row = local_vertex / cols;
+    SInt local_col = local_vertex % cols;
+
+    SInt local_neighbor_row = local_row + DirectionRow(direction);
+    SInt local_neighbor_col = local_col + DirectionColumn(direction);
+
+    if (IsLocalVertex(local_neighbor_row, local_neighbor_col, rows, cols)) {
+      SInt neighbor_vertex = offset + (local_neighbor_row * cols + local_neighbor_col);
+      if (vertex > neighbor_vertex) return;
+      GenerateEdge(vertex, neighbor_vertex);
+    } else {
+      // Determine neighboring chunk
+      SSInt neighbor_chunk_row = (SSInt)chunk_row + DirectionRow(direction);
+      SSInt neighbor_chunk_col = (SSInt)chunk_col + DirectionColumn(direction);
+      if (config_.periodic) {
+        neighbor_chunk_row = (neighbor_chunk_row + chunks_per_dim_) % chunks_per_dim_;
+        neighbor_chunk_col = (neighbor_chunk_col + chunks_per_dim_) % chunks_per_dim_;
+      }
+      if (!IsValidChunk(neighbor_chunk_row, neighbor_chunk_col)) return;
+
+      SInt neighbor_chunk = Encode(neighbor_chunk_row, neighbor_chunk_col);
+      SInt neighbor_vertex = LocateVertexInChunk(neighbor_chunk, local_row, local_col, direction);
+      GenerateEdge(vertex, neighbor_vertex);
+    }
+  }
+
+  bool IsLocalVertex(const SInt local_row, const SInt local_col, 
+                     const SInt rows, const SInt cols) {
+    if (local_row < 0 || local_row >= rows) return false;
+    if (local_col < 0 || local_col >= cols) return false;
+    return true;
+  }
+
+  bool IsValidChunk(const SInt chunk_row, const SInt chunk_col) {
+    if (chunk_row < 0 || chunk_row >= chunks_per_dim_) return false;
+    if (chunk_col < 0 || chunk_col >= chunks_per_dim_) return false;
+    return true;
+  }
+
+  SInt LocateVertexInChunk(const SInt chunk, const SInt local_row, const SInt local_col, Direction direction) {
+    SInt offset = OffsetForChunk(chunk);
+
+    SInt chunk_row, chunk_col;
+    Decode(chunk, chunk_row, chunk_col);
+      
+    SInt rows = rows_per_chunk_ + (chunk_row < remaining_rows_);
+    SInt cols = cols_per_chunk_ + (chunk_col < remaining_cols_);
+
+    SInt local_neighbor_row, local_neighbor_col;
+    switch(direction) {
+      case Right:
+        local_neighbor_row = local_row;
+        local_neighbor_col = 0;
+        break;
+      case Left:
+        local_neighbor_row = local_row;
+        local_neighbor_col = cols - 1;
+        break;
+      case Up:
+        local_neighbor_row = rows - 1;
+        local_neighbor_col = local_col;
+        break;
+      case Down:
+        local_neighbor_row = 0;
+        local_neighbor_col = local_col;
+        break;
+      default:
+        break;
+    }
+    return offset + (local_neighbor_row * cols + local_neighbor_col);
+  }
+
+  void GenerateEdge(const SInt source, const SInt target) {
     PEID rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    for (SSInt r = -1; r <= 1; r++) {
-      for (SSInt c = -1; c <= 1; c++) {
-        if (r != 0 && c != 0) continue;
-        if (r == 0 && c == 0) continue;
-        SSInt neighbor_row = (SSInt)row + r;
-        SSInt neighbor_col = (SSInt)col + c;
 
-        // Check if neighbor is valid 
-        if (config_.periodic) {
-          neighbor_row = (neighbor_row + total_rows_) % total_rows_;
-          neighbor_col = (neighbor_col + total_cols_) % total_cols_;
-        } 
-        if (neighbor_row < 0 || neighbor_row >= total_rows_) continue;
-        if (neighbor_col < 0 || neighbor_col >= total_cols_) continue;
-
-        SInt source = Encode(col, row);
-        SInt target = Encode((SInt)neighbor_col, (SInt)neighbor_row);
-
-        SInt edge_seed = std::min(source, target) * total_rows_ * total_cols_ + std::max(source, target);
-        SInt h = sampling::Spooky::hash(config_.seed + edge_seed);
-        if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
-          // std::cout << "R" << rank << " e " << source << " -> " << target << std::endl;
-          cb_(source, target);
-          cb_(target, source);
+    SInt edge_seed = std::min(source, target) * total_rows_ * total_cols_ + std::max(source, target);
+    SInt h = sampling::Spooky::hash(config_.seed + edge_seed);
+    if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
+      cb_(source, target);
+      cb_(target, source);
 #ifdef OUTPUT_EDGES
-          io_.PushEdge(source, target);
+      io_.PushEdge(source, target);
 #else
-          io_.UpdateDist(source);
-          io_.UpdateDist(target);
+      io_.UpdateDist(source);
+      io_.UpdateDist(target);
 #endif
-        }
-      }
     }
   }
 
+  inline SSInt DirectionRow(Direction direction) {
+    switch(direction) {
+      case Up:
+        return -1;
+      case Down:
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
+  inline SSInt DirectionColumn(Direction direction) {
+    switch(direction) {
+      case Left:
+        return -1;
+      case Right:
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
+  SInt OffsetForChunk(const SInt chunk) {
+    SInt chunk_row, chunk_col;
+    Decode(chunk, chunk_row, chunk_col);
+      
+    // Compute start vertex coordinates from chunk
+    SInt vertex_row = chunk_row * rows_per_chunk_ + std::min(chunk_row, remaining_rows_);
+    SInt vertex_col = chunk_col * cols_per_chunk_ + std::min(chunk_col, remaining_cols_);
+
+    // Compute offset of start vertex
+    SInt upper_rectangle = vertex_row * total_cols_;
+    SInt upperleft_rectangle = vertex_col * vertex_row; 
+
+    SInt next_vertex_row = (chunk_row + 1) * rows_per_chunk_ + std::min(chunk_row + 1, remaining_rows_);
+    SInt left_rectangle = vertex_col * next_vertex_row;
+
+    return upper_rectangle + left_rectangle - upperleft_rectangle;
+  }
+
   inline void Decode(const SInt id, SInt &x, SInt &y) const {
-    m2D_d_sLUT(id, y, x);
+    x = id / chunks_per_dim_;
+    y = id % chunks_per_dim_;
+    // m2D_d_sLUT(id, y, x);
   }
 
   // Chunk/vertex coding
   inline SInt Encode(const SInt x, const SInt y) const {
-    return m2D_e_sLUT<SInt>(y, x);
+    return x * chunks_per_dim_ + y;
+    // return m2D_e_sLUT<SInt>(y, x);
   }
 };
 

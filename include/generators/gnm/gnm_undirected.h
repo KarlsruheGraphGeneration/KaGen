@@ -285,8 +285,8 @@ class GNMUndirected {
       while (sqr * sqr > 8 * (sample - 1) + 1) sqr--;
       SInt i = (sqr - 1) / 2;
       SInt j = (sample - 1) - i * (i + 1) / 2;
-      if (local_row) cb_(i + offset_row, j + offset_column);
-      else cb_(j + offset_column, i + offset_row);
+      cb_(i + offset_row, j + offset_column);
+      cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
       if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
       else io_.PushEdge(j + offset_column, i + offset_row);
@@ -314,8 +314,8 @@ class GNMUndirected {
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
       SInt i = (sample - 1) / n_column;
       SInt j = (sample - 1) % n_column;
-      if (local_row) cb_(i + offset_row, j + offset_column);
-      else cb_(j + offset_column, i + offset_row);
+      cb_(i + offset_row, j + offset_column);
+      cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
       if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
       else io_.PushEdge(j + offset_column, i + offset_row);

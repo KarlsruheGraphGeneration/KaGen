@@ -37,6 +37,7 @@ class Barabassi {
     from_ = rank * ceil(config_.n / (LPFloat)size);
     to_ = std::min((SInt)((rank + 1) * ceil(config_.n / (LPFloat)size) - 1),
                    config_.n - 1);
+    std::cout << "f " << from_ << " t " << to_ << std::endl;
   }
 
   void Generate() {

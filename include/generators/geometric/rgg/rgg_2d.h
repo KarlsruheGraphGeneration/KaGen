@@ -132,6 +132,7 @@ class RGG2D : public Geometric2D {
           const Vertex &v2 = vertices_second[j];
           if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
             cb_(std::get<2>(v1), std::get<2>(v2));
+            cb_(std::get<2>(v2), std::get<2>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
 #else
@@ -151,6 +152,7 @@ class RGG2D : public Geometric2D {
           const Vertex &v2 = vertices_second[j];
           if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
             cb_(std::get<2>(v1), std::get<2>(v2));
+            cb_(std::get<2>(v2), std::get<2>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
 #else
