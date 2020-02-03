@@ -12,7 +12,7 @@
 #include <iostream>
 #include <vector>
 
-#include "morton2D.h"
+// #include "morton2D.h"
 #include "definitions.h"
 #include "generator_config.h"
 #include "generator_io.h"
@@ -203,10 +203,6 @@ class Grid2D {
   }
 
   void GenerateEdge(const SInt source, const SInt target) {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
     SInt edge_seed = std::min(source, target) * total_rows_ * total_cols_ + std::max(source, target);
     SInt h = sampling::Spooky::hash(config_.seed + edge_seed);
     if (rng_.GenerateBinomial(h, 1, edge_probability_)) {

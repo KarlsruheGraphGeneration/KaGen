@@ -581,6 +581,7 @@ class Hyperbolic {
         if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
           // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
           cb_(std::get<5>(q), std::get<5>(v));
+          cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
 #else
@@ -597,6 +598,7 @@ class Hyperbolic {
         if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
           // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
           cb_(std::get<5>(q), std::get<5>(v));
+          cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
 #else
