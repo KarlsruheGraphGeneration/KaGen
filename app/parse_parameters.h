@@ -144,7 +144,7 @@ void ParseParameters(int argn, char **argv,
   }
 
   // Nodes
-  bool exact_n = args.IsSet("exact_n");
+  bool exact_n = args.IsSet("exact_n") || generator_config.generator == "grid_2d";
   if (exact_n)
     generator_config.n = args.Get<ULONG>("n", 100);
   else
@@ -164,7 +164,7 @@ void ParseParameters(int argn, char **argv,
   generator_config.dist_size = args.Get<ULONG>("dist", 10);
 
   // Edges
-  bool exact_m = args.IsSet("exact_m");
+  bool exact_m = args.IsSet("exact_m") || generator_config.generator == "grid_2d";
   if (exact_m)
     generator_config.m = args.Get<ULONG>("m", 0);
   else

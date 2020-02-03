@@ -124,8 +124,8 @@ class GeneratorIO {
       // Sort edges and remove duplicates
       std::sort(std::begin(edges), std::end(edges));
       SInt total_edges = edges.size();
-      edges.erase(unique(edges.begin(), edges.end()), edges.end());
-      std::cout << "duplicates " << total_edges - edges.size() << std::endl;
+      // edges.erase(unique(edges.begin(), edges.end()), edges.end());
+      // std::cout << "duplicates " << total_edges - edges.size() << std::endl;
       
       // Output edges
       FILE* fout = fopen(config_.output_file.c_str(), "w+");
