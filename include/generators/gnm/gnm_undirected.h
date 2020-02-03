@@ -45,7 +45,7 @@ class GNMUndirected {
     
     start_node_ = start_chunk * nodes_per_chunk_ + std::min(remaining_nodes_, start_chunk);
     end_node_ = end_chunk * nodes_per_chunk_ + std::min(remaining_nodes_, end_chunk);
-    num_nodes_ = end_node_ - start_node_ - 1;
+    num_nodes_ = end_node_ - start_node_;
 
     for (SInt i = 0; i < num_chunks; i++) {
       GenerateChunks(row);
@@ -62,7 +62,7 @@ class GNMUndirected {
   }
 
   std::pair<SInt, SInt> GetVertexRange() {
-    return std::make_pair(start_node_, start_node_ + num_nodes_);
+    return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
   }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
