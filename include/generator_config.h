@@ -52,6 +52,8 @@ struct PGeneratorConfig {
   ULONG dist_size;
   // Use binomial approximation to hypergeometric
   bool use_binom;
+  // Grid dimensions
+  ULONG grid_x, grid_y, grid_z;
   // Use periodic boundary condition for grid generators
   bool periodic;
   // Floating-point precision

@@ -125,26 +125,27 @@ void ParseParameters(int argn, char **argv,
       std::cout << "\nExample:" << std::endl;
       std::cout << "mpirun -n 16 ./build/app/kagen -gen rmat -n 20 -m 22 -output tmp" << std::endl;
     } else if (generator_config.generator == "grid") {
-      std::cout << "Parameters for 2D Grid Graphs G(n,m,periodic)" << std::endl;
+      std::cout << "Parameters for 2D/3D Grid Graphs G(x,y(,z),periodic)" << std::endl;
       std::cout << "================================================" << std::endl;
-      std::cout << "=========== Grid Graphs G(n,m) ================" << std::endl;
+      std::cout << "=========== Grid Graphs G(x,y(,z)) ================" << std::endl;
       std::cout << "================================================" << std::endl;
       std::cout << "Parameters:" << std::endl;
-      std::cout << "-n\t\t<size of first dimension>" << std::endl;
-      std::cout << "-m\t\t<size of second dimension>" << std::endl;
+      std::cout << "-x\t\t<size of first dimension>" << std::endl;
+      std::cout << "-y\t\t<size of second dimension>" << std::endl;
+      std::cout << "-z\t\t<size of third dimension>" << std::endl;
       std::cout << "-p\t\t<probability of edge insertion>" << std::endl;
       std::cout << "-periodic\t\t<use periodic boundary condition>" << std::endl;
       std::cout << "-k\t\t<number of chunks>" << std::endl;
       std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
       std::cout << "-output\t\t<output file>" << std::endl;
       std::cout << "\nExample:" << std::endl;
-      std::cout << "mpirun -n 16 ./build/app/kagen -gen grid -n 16 -m 16 -output tmp" << std::endl;
+      std::cout << "mpirun -n 16 ./build/app/kagen -gen grid -x 16 -y 16 -output tmp" << std::endl;
     }
     exit(0);
   }
 
   // Nodes
-  bool exact_n = args.IsSet("exact_n") || generator_config.generator == "grid_2d";
+  bool exact_n = args.IsSet("exact_n");
   if (exact_n)
     generator_config.n = args.Get<ULONG>("n", 100);
   else
@@ -164,7 +165,7 @@ void ParseParameters(int argn, char **argv,
   generator_config.dist_size = args.Get<ULONG>("dist", 10);
 
   // Edges
-  bool exact_m = args.IsSet("exact_m") || generator_config.generator == "grid_2d";
+  bool exact_m = args.IsSet("exact_m");
   if (exact_m)
     generator_config.m = args.Get<ULONG>("m", 0);
   else
@@ -187,6 +188,9 @@ void ParseParameters(int argn, char **argv,
   generator_config.min_degree = args.Get<ULONG>("md", 4);
 
   // GRID
+  generator_config.grid_x = args.Get<ULONG>("x", 1);
+  generator_config.grid_y = args.Get<ULONG>("y", 1);
+  generator_config.grid_z = args.Get<ULONG>("z", 1);
   generator_config.periodic = args.IsSet("periodic");
 
   // Floating-point precision

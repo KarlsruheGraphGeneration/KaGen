@@ -100,7 +100,6 @@ class Barabassi {
         io_.PushEdge(v, w);
 #else
         io_.UpdateDist(v);
-        io_.UpdateDist(w);
 #endif
       }
     }

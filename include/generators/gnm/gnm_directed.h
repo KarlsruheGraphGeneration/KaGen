@@ -133,7 +133,6 @@ class GNMDirected {
       io_.PushEdge(source, target);
 #else
       io_.UpdateDist(source);
-      io_.UpdateDist(target);
 #endif
     });
   }

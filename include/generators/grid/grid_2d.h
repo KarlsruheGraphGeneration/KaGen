@@ -21,10 +21,6 @@
 
 namespace kagen {
 
-enum Direction {
-  Up, Down, Left, Right
-};
-
 template <typename EdgeCallback> 
 class Grid2D {
  public:
@@ -39,8 +35,8 @@ class Grid2D {
 
     // Init dimensions
     // TODO: Only tested for cube PEs and one chunk per PE
-    total_rows_ = config_.n;
-    total_cols_ = config_.m;
+    total_rows_ = config_.grid_x;
+    total_cols_ = config_.grid_y;
     edge_probability_ = config_.p;
 
     // Init chunks
@@ -210,6 +206,7 @@ class Grid2D {
       cb_(target, source);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(source, target);
+      io_.PushEdge(target, source);
 #else
       io_.UpdateDist(source);
       io_.UpdateDist(target);
