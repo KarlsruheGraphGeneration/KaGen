@@ -97,7 +97,7 @@ static inline void write_edge(packed_edge* p, int64_t v0, int64_t v1) {
 template <typename EdgeCallback>
 class Kronecker {
  public:
-  Kronecker(const PGeneratorConfig &config, const PEID rank, 
+  Kronecker(PGeneratorConfig &config, const PEID rank, 
             const EdgeCallback &cb) 
       : config_(config),
         rank_(rank), 
@@ -160,7 +160,7 @@ class Kronecker {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
   PEID size_, rank_;
 
   // I/O

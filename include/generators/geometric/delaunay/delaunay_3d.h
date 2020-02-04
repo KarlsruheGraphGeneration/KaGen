@@ -41,7 +41,7 @@ namespace kagen {
 template <typename EdgeCallback>
 class Delaunay3D : public Geometric3D {
 public:
-  Delaunay3D(const PGeneratorConfig &config, const PEID rank,
+  Delaunay3D(PGeneratorConfig &config, const PEID rank,
              const EdgeCallback &cb)
       : Geometric3D(config, rank), point_io_(config), edge_io_(config), cb_(cb) {
     // Chunk variables
@@ -461,7 +461,6 @@ private:
             cb_((v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(), (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
 #ifdef OUTPUT_EDGES
             edge_io_.PushEdge((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(), (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
-            edge_io_.PushEdge((v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(), (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
 #endif
         }
     }

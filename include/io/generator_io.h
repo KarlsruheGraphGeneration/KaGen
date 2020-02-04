@@ -32,7 +32,7 @@ struct identity {
 template <typename Edge = std::tuple<SInt, SInt>>
 class GeneratorIO {
  public:
-  GeneratorIO(const PGeneratorConfig& config) : config_(config), local_num_edges_(0) {
+  GeneratorIO(PGeneratorConfig& config) : config_(config), local_num_edges_(0) {
     dist_.resize(config_.dist_size);
   }
 
@@ -80,7 +80,7 @@ class GeneratorIO {
   }
 
  private:
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   std::vector<SInt> dist_;
   std::vector<Edge> edges_;
@@ -132,7 +132,7 @@ class GeneratorIO {
 #ifndef OMIT_HEADER
       fprintf(fout, "p %llu %lu\n", config_.n, edges.size());
 #endif
-      for (auto edge : edges) fprintf(fout, "e %llu %llu\n", std::get<0>(edge), std::get<1>(edge));
+      for (auto edge : edges) fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
       fclose(fout);
     }
   }
@@ -146,7 +146,7 @@ class GeneratorIO {
     FILE* fout =
         fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
     for (auto edge : edges_) {
-      fprintf(fout, "e %llu %llu\n", std::get<0>(edge), std::get<1>(edge));
+      fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
     }
     fclose(fout);
   };

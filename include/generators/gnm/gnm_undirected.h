@@ -23,7 +23,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class GNMUndirected {
  public:
-  GNMUndirected(const PGeneratorConfig &config, const PEID /* rank */,
+  GNMUndirected(PGeneratorConfig &config, const PEID /* rank */,
                 const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) { }
 
@@ -69,7 +69,7 @@ class GNMUndirected {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Globals
   SInt leftover_chunks_, nodes_per_chunk_, remaining_nodes_; 
@@ -289,7 +289,6 @@ class GNMUndirected {
       cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
       if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
-      else io_.PushEdge(j + offset_column, i + offset_row);
 #else
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);
@@ -318,7 +317,6 @@ class GNMUndirected {
       cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
       if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
-      else io_.PushEdge(j + offset_column, i + offset_row);
 #else 
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);

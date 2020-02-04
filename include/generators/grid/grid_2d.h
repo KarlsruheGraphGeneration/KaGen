@@ -24,7 +24,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class Grid2D {
  public:
-  Grid2D(const PGeneratorConfig &config, const PEID /* rank */,
+  Grid2D(PGeneratorConfig &config, const PEID /* rank */,
        const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) { }
 
@@ -37,6 +37,7 @@ class Grid2D {
     // TODO: Only tested for cube PEs and one chunk per PE
     total_rows_ = config_.grid_x;
     total_cols_ = config_.grid_y;
+    config_.n = total_rows_ * total_cols_;
     edge_probability_ = config_.p;
 
     // Init chunks
@@ -83,7 +84,7 @@ class Grid2D {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Variates
   RNGWrapper rng_;
@@ -134,7 +135,6 @@ class Grid2D {
 
     if (IsLocalVertex(local_neighbor_row, local_neighbor_col, rows, cols)) {
       SInt neighbor_vertex = offset + (local_neighbor_row * cols + local_neighbor_col);
-      if (vertex > neighbor_vertex) return;
       GenerateEdge(vertex, neighbor_vertex);
     } else {
       // Determine neighboring chunk
@@ -206,7 +206,6 @@ class Grid2D {
       cb_(target, source);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(source, target);
-      io_.PushEdge(target, source);
 #else
       io_.UpdateDist(source);
       io_.UpdateDist(target);

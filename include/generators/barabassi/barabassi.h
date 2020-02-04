@@ -22,7 +22,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class Barabassi {
  public:
-  Barabassi(const PGeneratorConfig &config, const PEID rank,
+  Barabassi(PGeneratorConfig &config, const PEID rank,
             const EdgeCallback &cb)
       : config_(config),
         rank_(rank),
@@ -73,7 +73,7 @@ class Barabassi {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
   PEID rank_;
 
   // I/O

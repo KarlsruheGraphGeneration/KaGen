@@ -38,7 +38,7 @@ class Hyperbolic {
   // phi, r, x, y, gamma, id
   using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat, SInt>;
 
-  Hyperbolic(const PGeneratorConfig &config, const PEID rank, 
+  Hyperbolic(PGeneratorConfig &config, const PEID rank, 
              const EdgeCallback &cb)
       : config_(config), rank_(rank), rng_(config), io_(config), cb_(cb) {
     MPI_Comm_size(MPI_COMM_WORLD, &size_);
@@ -146,7 +146,7 @@ class Hyperbolic {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
   PEID rank_, size_;
 
   // Variates
@@ -584,7 +584,6 @@ class Hyperbolic {
           cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
-          io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
           io_.UpdateDist(std::get<5>(q));
           io_.UpdateDist(std::get<5>(v));
@@ -602,7 +601,6 @@ class Hyperbolic {
           cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
-          io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
           io_.UpdateDist(std::get<5>(q));
           io_.UpdateDist(std::get<5>(v));

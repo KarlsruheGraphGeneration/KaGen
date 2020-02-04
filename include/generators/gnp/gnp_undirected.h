@@ -23,7 +23,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class GNPUndirected {
  public:
-  GNPUndirected(const PGeneratorConfig &config, const PEID /* rank */,
+  GNPUndirected(PGeneratorConfig &config, const PEID /* rank */,
                 const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) { }
 
@@ -99,7 +99,7 @@ class GNPUndirected {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Variates
   RNGWrapper rng_;
@@ -152,6 +152,7 @@ class GNPUndirected {
       SInt i = (sqr - 1) / 2;
       SInt j = (sample - 1) - i * (i + 1) / 2;
       cb_(i + offset_row, j + offset_column);
+      cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(i + offset_row, j + offset_column);
 #else
@@ -175,6 +176,7 @@ class GNPUndirected {
                           SInt i = (sample - 1) / column_n;
                           SInt j = (sample - 1) % column_n;
                           cb_(i + offset_row, j + offset_column);
+                          cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
                           io_.PushEdge(i + offset_row, j + offset_column);
 #else

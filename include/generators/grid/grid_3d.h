@@ -24,7 +24,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class Grid3D {
  public:
-  Grid3D(const PGeneratorConfig &config, const PEID /* rank */,
+  Grid3D(PGeneratorConfig &config, const PEID /* rank */,
        const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) { }
 
@@ -38,6 +38,7 @@ class Grid3D {
     total_x_ = config_.grid_x;
     total_y_ = config_.grid_y;
     total_z_ = config_.grid_z;
+    config_.n = total_x_ * total_y_ * total_z_;
     edge_probability_ = config_.p;
 
     // Init chunks
@@ -87,7 +88,7 @@ class Grid3D {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Variates
   RNGWrapper rng_;
@@ -137,7 +138,6 @@ class Grid3D {
     SInt local_y = (local_vertex / xs) % ys;
     SInt local_z = local_vertex / (xs * ys);
 
-
     SSInt local_neighbor_x = (SSInt)local_x + DirectionX(direction);
     SSInt local_neighbor_y = (SSInt)local_y + DirectionY(direction);
     SSInt local_neighbor_z = (SSInt)local_z + DirectionZ(direction);
@@ -146,7 +146,6 @@ class Grid3D {
     if (IsLocalVertex(local_neighbor_x, local_neighbor_y, local_neighbor_z, 
                       xs, ys, zs)) {
       SInt neighbor_vertex = offset + (local_neighbor_x + local_neighbor_y * xs + local_neighbor_z * (xs * ys));
-      if (vertex > neighbor_vertex) return;
       GenerateEdge(vertex, neighbor_vertex);
     } else {
       // Determine neighboring chunk
@@ -240,7 +239,6 @@ class Grid3D {
       cb_(target, source);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(source, target);
-      io_.PushEdge(target, source);
 #else
       io_.UpdateDist(source);
       io_.UpdateDist(target);
