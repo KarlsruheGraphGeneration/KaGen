@@ -32,7 +32,7 @@
 
 using namespace kagen;
 
-void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
+void OutputParameters(PGeneratorConfig &config, const PEID /* rank */,
                       const PEID size) {
   if (config.generator == "gnm_directed" ||
       config.generator == "gnm_undirected" ||
@@ -78,7 +78,7 @@ void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
 }
 
 template <typename Generator, typename EdgeCallback>
-void RunGenerator(const PGeneratorConfig &config, const PEID rank,
+void RunGenerator(PGeneratorConfig &config, const PEID rank,
                   const PEID /* size */, Statistics &stats, Statistics &edge_stats,
                   Statistics &edges, const EdgeCallback &cb) {
   // Start timers
