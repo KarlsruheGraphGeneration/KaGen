@@ -288,7 +288,8 @@ class GNMUndirected {
       cb_(i + offset_row, j + offset_column);
       cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-      if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
+      io_.PushEdge(i + offset_row, j + offset_column);
+      io_.PushEdge(j + offset_column, i + offset_row);
 #else
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);
@@ -316,7 +317,10 @@ class GNMUndirected {
       cb_(i + offset_row, j + offset_column);
       cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-      if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
+      if (local_row) {
+        io_.PushEdge(i + offset_row, j + offset_column);
+        io_.PushEdge(j + offset_column, i + offset_row);
+      }
 #else 
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);

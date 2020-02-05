@@ -135,6 +135,7 @@ class RGG2D : public Geometric2D {
             cb_(std::get<2>(v2), std::get<2>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
+            io_.PushEdge(std::get<2>(v2), std::get<2>(v1));
 #else
             io_.UpdateDist(std::get<2>(v1));
             io_.UpdateDist(std::get<2>(v2));
@@ -155,6 +156,7 @@ class RGG2D : public Geometric2D {
             cb_(std::get<2>(v2), std::get<2>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
+            if (IsLocalChunk(second_chunk_id)) io_.PushEdge(std::get<2>(v2), std::get<2>(v1));
 #else
             io_.UpdateDist(std::get<2>(v1));
             io_.UpdateDist(std::get<2>(v2));

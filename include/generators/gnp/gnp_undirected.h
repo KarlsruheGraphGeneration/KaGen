@@ -136,6 +136,7 @@ class GNPUndirected {
       total_edges = row_n * (column_n - 1) / 2;
     else
       total_edges = row_n * (column_n + 1) / 2;
+    bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
     // Generate variate
     SInt h =
@@ -155,6 +156,7 @@ class GNPUndirected {
       cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
       io_.PushEdge(i + offset_row, j + offset_column);
+      io_.PushEdge(j + offset_column, i + offset_row);
 #else
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);
@@ -170,6 +172,7 @@ class GNPUndirected {
     SInt h =
         sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
     SInt num_edges = rng_.GenerateBinomial(h, row_n * column_n, p);
+    bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
     // Sample from [1, num_edges]
     rng_.GenerateSample(h, row_n * column_n, num_edges, [&](SInt sample) {
@@ -178,7 +181,10 @@ class GNPUndirected {
                           cb_(i + offset_row, j + offset_column);
                           cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-                          io_.PushEdge(i + offset_row, j + offset_column);
+                          if (local_row) {
+                            io_.PushEdge(i + offset_row, j + offset_column);
+                            io_.PushEdge(j + offset_column, i + offset_row);
+                          }
 #else
                           io_.UpdateDist(i + offset_row);
                           io_.UpdateDist(j + offset_column);

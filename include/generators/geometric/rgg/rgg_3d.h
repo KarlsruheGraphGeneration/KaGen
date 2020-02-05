@@ -165,6 +165,7 @@ class RGG3D : public Geometric3D {
             cb_(std::get<3>(v2), std::get<3>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
+            io_.PushEdge(std::get<3>(v2), std::get<3>(v1));
 #else
             io_.UpdateDist(std::get<3>(v1));
             io_.UpdateDist(std::get<3>(v2));
@@ -188,6 +189,7 @@ class RGG3D : public Geometric3D {
             cb_(std::get<3>(v2), std::get<3>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
+            if (IsLocalChunk(second_chunk_id)) io_.PushEdge(std::get<3>(v2), std::get<3>(v1));
 #else
             io_.UpdateDist(std::get<3>(v1));
             io_.UpdateDist(std::get<3>(v2));
