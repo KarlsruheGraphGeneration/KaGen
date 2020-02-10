@@ -67,12 +67,12 @@ void OutputParameters(PGeneratorConfig &config, const PEID /* rank */,
               << ")" << std::endl;
 
   else if (config.generator == "grid_2d")
-    std::cout << "generate graph (row=" << config.n << ", col=" << config.m
+    std::cout << "generate graph (row=" << config.grid_x << ", col=" << config.grid_y
               << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed 
               << ", P=" << size << ")" << std::endl;
 
   else if (config.generator == "grid_3d")
-    std::cout << "generate graph (x=" << config.n << ", y=" << config.m << ", z=" << config.m
+    std::cout << "generate graph (x=" << config.grid_x << ", y=" << config.grid_y << ", z=" << config.grid_z
               << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed 
               << ", P=" << size << ")" << std::endl;
 }

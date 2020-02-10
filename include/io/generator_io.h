@@ -142,8 +142,15 @@ class GeneratorIO {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    SInt num_edges = edges_.size();
+    SInt total_num_edges = 0;
+    MPI_Allreduce(&num_edges, &total_num_edges, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
     FILE* fout =
-        fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
+        fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "w+");
+#ifndef OMIT_HEADER
+    fprintf(fout, "p %llu %lu\n", config_.n, total_num_edges);
+#endif
     for (auto edge : edges_) {
       fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
     }
