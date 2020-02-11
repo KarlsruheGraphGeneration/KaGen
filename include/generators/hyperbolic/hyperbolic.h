@@ -602,7 +602,7 @@ class Hyperbolic {
           cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
-          if (IsLocalChunk(chunk_id)) io_.PushEdge(std::get<5>(q), std::get<5>(v));
+          if (IsLocalChunk(chunk_id)) io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
           io_.UpdateDist(std::get<5>(q));
           io_.UpdateDist(std::get<5>(v));
