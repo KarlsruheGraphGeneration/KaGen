@@ -12,7 +12,7 @@
 #include <iostream>
 #include <vector>
 
-#include "morton2D.h"
+// #include "morton2D.h"
 #include "definitions.h"
 #include "generator_config.h"
 #include "generator_io.h"
@@ -21,14 +21,10 @@
 
 namespace kagen {
 
-enum Direction {
-  Up, Down, Left, Right
-};
-
 template <typename EdgeCallback> 
 class Grid2D {
  public:
-  Grid2D(const PGeneratorConfig &config, const PEID /* rank */,
+  Grid2D(PGeneratorConfig &config, const PEID /* rank */,
        const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) { }
 
@@ -39,8 +35,9 @@ class Grid2D {
 
     // Init dimensions
     // TODO: Only tested for cube PEs and one chunk per PE
-    total_rows_ = config_.n;
-    total_cols_ = config_.m;
+    total_rows_ = config_.grid_x;
+    total_cols_ = config_.grid_y;
+    config_.n = total_rows_ * total_cols_;
     edge_probability_ = config_.p;
 
     // Init chunks
@@ -87,7 +84,7 @@ class Grid2D {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Variates
   RNGWrapper rng_;
@@ -138,7 +135,6 @@ class Grid2D {
 
     if (IsLocalVertex(local_neighbor_row, local_neighbor_col, rows, cols)) {
       SInt neighbor_vertex = offset + (local_neighbor_row * cols + local_neighbor_col);
-      if (vertex > neighbor_vertex) return;
       GenerateEdge(vertex, neighbor_vertex);
     } else {
       // Determine neighboring chunk
@@ -203,10 +199,6 @@ class Grid2D {
   }
 
   void GenerateEdge(const SInt source, const SInt target) {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
     SInt edge_seed = std::min(source, target) * total_rows_ * total_cols_ + std::max(source, target);
     SInt h = sampling::Spooky::hash(config_.seed + edge_seed);
     if (rng_.GenerateBinomial(h, 1, edge_probability_)) {

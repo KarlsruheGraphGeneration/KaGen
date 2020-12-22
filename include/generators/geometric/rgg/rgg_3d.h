@@ -17,7 +17,7 @@ namespace kagen {
 template <typename EdgeCallback>
 class RGG3D : public Geometric3D {
  public:
-  RGG3D(const PGeneratorConfig &config, const PEID rank,
+  RGG3D(PGeneratorConfig &config, const PEID rank,
         const EdgeCallback &cb)
       : Geometric3D(config, rank), io_(config), cb_(cb) {
     // Chunk variables
@@ -162,8 +162,10 @@ class RGG3D : public Geometric3D {
           LPFloat z = std::get<2>(v1) - std::get<2>(v2);
           if (x * x + y * y + z * z <= target_r_) {
             cb_(std::get<3>(v1), std::get<3>(v2));
+            cb_(std::get<3>(v2), std::get<3>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
+            io_.PushEdge(std::get<3>(v2), std::get<3>(v1));
 #else
             io_.UpdateDist(std::get<3>(v1));
             io_.UpdateDist(std::get<3>(v2));
@@ -184,8 +186,10 @@ class RGG3D : public Geometric3D {
           LPFloat z = std::get<2>(v1) - std::get<2>(v2);
           if (x * x + y * y + z * z <= target_r_) {
             cb_(std::get<3>(v1), std::get<3>(v2));
+            cb_(std::get<3>(v2), std::get<3>(v1));
 #ifdef OUTPUT_EDGES
             io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
+            if (IsLocalChunk(second_chunk_id)) io_.PushEdge(std::get<3>(v2), std::get<3>(v1));
 #else
             io_.UpdateDist(std::get<3>(v1));
             io_.UpdateDist(std::get<3>(v2));

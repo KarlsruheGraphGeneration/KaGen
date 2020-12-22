@@ -26,5 +26,9 @@ typedef double LPFloat;
 typedef ULONG SInt;
 typedef LONG SSInt;
 
+enum Direction {
+  Up, Down, Left, Right, Front, Back
+};
+
 }
 #endif

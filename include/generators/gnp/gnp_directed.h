@@ -23,7 +23,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class GNPDirected {
  public:
-  GNPDirected(const PGeneratorConfig &config, const PEID /* rank */,
+  GNPDirected(PGeneratorConfig &config, const PEID /* rank */,
               const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) {
     // Init variables
@@ -76,7 +76,7 @@ class GNPDirected {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Variates
   RNGWrapper rng_;

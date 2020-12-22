@@ -23,7 +23,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class GNMDirected {
  public:
-  GNMDirected(const PGeneratorConfig &config, const PEID /* rank */,
+  GNMDirected(PGeneratorConfig &config, const PEID /* rank */,
               const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) {
     // Init variables
@@ -72,7 +72,7 @@ class GNMDirected {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Variates
   RNGWrapper rng_;
@@ -133,7 +133,6 @@ class GNMDirected {
       io_.PushEdge(source, target);
 #else
       io_.UpdateDist(source);
-      io_.UpdateDist(target);
 #endif
     });
   }
