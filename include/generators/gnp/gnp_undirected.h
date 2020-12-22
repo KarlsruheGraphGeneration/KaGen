@@ -67,8 +67,9 @@ class GNPUndirected {
       if (current_row < config_.k) {
         row_n = nodes_per_chunk + (current_row < remaining_nodes);
         column_n = nodes_per_chunk + (current_column < remaining_nodes);
+        // TODO: Triangle chunk
         GenerateTriangleChunk(current_row++, current_column,
-                              row_node_id + config_.self_loops, column_node_id,
+                              row_node_id + (!config_.self_loops), column_node_id,
                               row_n, column_n);
         row_node_id += row_n;
       }
