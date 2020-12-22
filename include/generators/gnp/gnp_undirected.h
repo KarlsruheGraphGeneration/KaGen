@@ -132,7 +132,7 @@ class GNPUndirected {
                                const SInt column_id, const SInt offset_row,
                                const SInt offset_column) {
     // Number of edges
-    HPFloat total_edges = 0;
+    SInt total_edges = 0;
     if (!config_.self_loops)
       total_edges = row_n * (column_n - 1) / 2;
     else
