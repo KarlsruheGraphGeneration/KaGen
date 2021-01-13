@@ -23,7 +23,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class GNMUndirected {
  public:
-  GNMUndirected(const PGeneratorConfig &config, const PEID /* rank */,
+  GNMUndirected(PGeneratorConfig &config, const PEID /* rank */,
                 const EdgeCallback &cb)
       : config_(config), rng_(config), io_(config), cb_(cb) { }
 
@@ -45,7 +45,7 @@ class GNMUndirected {
     
     start_node_ = start_chunk * nodes_per_chunk_ + std::min(remaining_nodes_, start_chunk);
     end_node_ = end_chunk * nodes_per_chunk_ + std::min(remaining_nodes_, end_chunk);
-    num_nodes_ = end_node_ - start_node_ - 1;
+    num_nodes_ = end_node_ - start_node_;
 
     for (SInt i = 0; i < num_chunks; i++) {
       GenerateChunks(row);
@@ -62,14 +62,14 @@ class GNMUndirected {
   }
 
   std::pair<SInt, SInt> GetVertexRange() {
-    return std::make_pair(start_node_, start_node_ + num_nodes_);
+    return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
   }
 
   SInt NumberOfEdges() const { return io_.NumEdges(); }
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
 
   // Globals
   SInt leftover_chunks_, nodes_per_chunk_, remaining_nodes_; 
@@ -285,11 +285,11 @@ class GNMUndirected {
       while (sqr * sqr > 8 * (sample - 1) + 1) sqr--;
       SInt i = (sqr - 1) / 2;
       SInt j = (sample - 1) - i * (i + 1) / 2;
-      if (local_row) cb_(i + offset_row, j + offset_column);
-      else cb_(j + offset_column, i + offset_row);
+      cb_(i + offset_row, j + offset_column);
+      cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-      if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
-      else io_.PushEdge(j + offset_column, i + offset_row);
+      io_.PushEdge(i + offset_row, j + offset_column);
+      io_.PushEdge(j + offset_column, i + offset_row);
 #else
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);
@@ -314,11 +314,13 @@ class GNMUndirected {
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
       SInt i = (sample - 1) / n_column;
       SInt j = (sample - 1) % n_column;
-      if (local_row) cb_(i + offset_row, j + offset_column);
-      else cb_(j + offset_column, i + offset_row);
+      cb_(i + offset_row, j + offset_column);
+      cb_(j + offset_column, i + offset_row);
 #ifdef OUTPUT_EDGES
-      if (local_row) io_.PushEdge(i + offset_row, j + offset_column);
-      else io_.PushEdge(j + offset_column, i + offset_row);
+      if (local_row) {
+        io_.PushEdge(i + offset_row, j + offset_column);
+        io_.PushEdge(j + offset_column, i + offset_row);
+      }
 #else 
       io_.UpdateDist(i + offset_row);
       io_.UpdateDist(j + offset_column);

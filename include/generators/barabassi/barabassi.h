@@ -22,7 +22,7 @@ namespace kagen {
 template <typename EdgeCallback> 
 class Barabassi {
  public:
-  Barabassi(const PGeneratorConfig &config, const PEID rank,
+  Barabassi(PGeneratorConfig &config, const PEID rank,
             const EdgeCallback &cb)
       : config_(config),
         rank_(rank),
@@ -37,6 +37,7 @@ class Barabassi {
     from_ = rank * ceil(config_.n / (LPFloat)size);
     to_ = std::min((SInt)((rank + 1) * ceil(config_.n / (LPFloat)size) - 1),
                    config_.n - 1);
+    std::cout << "f " << from_ << " t " << to_ << std::endl;
   }
 
   void Generate() {
@@ -72,7 +73,7 @@ class Barabassi {
 
  private:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
   PEID rank_;
 
   // I/O
@@ -99,7 +100,6 @@ class Barabassi {
         io_.PushEdge(v, w);
 #else
         io_.UpdateDist(v);
-        io_.UpdateDist(w);
 #endif
       }
     }

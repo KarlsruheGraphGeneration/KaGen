@@ -26,10 +26,13 @@
 #include "gnp/gnp_undirected.h"
 #include "hyperbolic/hyperbolic.h"
 #include "barabassi/barabassi.h"
+#include "kronecker/kronecker.h"
+#include "grid/grid_2d.h"
+#include "grid/grid_3d.h"
 
 using namespace kagen;
 
-void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
+void OutputParameters(PGeneratorConfig &config, const PEID /* rank */,
                       const PEID size) {
   if (config.generator == "gnm_directed" ||
       config.generator == "gnm_undirected" ||
@@ -57,10 +60,25 @@ void OutputParameters(const PGeneratorConfig &config, const PEID /* rank */,
     std::cout << "generate graph (n=" << config.n << ", d=" << config.min_degree
               << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
               << ")" << std::endl;
+
+  else if (config.generator == "rmat")
+    std::cout << "generate graph (n=" << config.n << ", m=" << config.m
+              << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
+              << ")" << std::endl;
+
+  else if (config.generator == "grid_2d")
+    std::cout << "generate graph (row=" << config.grid_x << ", col=" << config.grid_y
+              << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed 
+              << ", P=" << size << ")" << std::endl;
+
+  else if (config.generator == "grid_3d")
+    std::cout << "generate graph (x=" << config.grid_x << ", y=" << config.grid_y << ", z=" << config.grid_z
+              << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed 
+              << ", P=" << size << ")" << std::endl;
 }
 
 template <typename Generator, typename EdgeCallback>
-void RunGenerator(const PGeneratorConfig &config, const PEID rank,
+void RunGenerator(PGeneratorConfig &config, const PEID rank,
                   const PEID /* size */, Statistics &stats, Statistics &edge_stats,
                   Statistics &edges, const EdgeCallback &cb) {
   // Start timers
@@ -139,6 +157,15 @@ int main(int argn, char **argv) {
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "ba")
       RunGenerator<Barabassi<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+    else if (generator_config.generator == "rmat")
+      RunGenerator<Kronecker<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+    else if (generator_config.generator == "grid_2d")
+      RunGenerator<Grid2D<decltype(edge_cb)>, decltype(edge_cb)>
+        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+    else if (generator_config.generator == "grid_3d")
+      RunGenerator<Grid3D<decltype(edge_cb)>, decltype(edge_cb)>
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else 
       if (rank == ROOT) std::cout << "generator not supported" << std::endl;

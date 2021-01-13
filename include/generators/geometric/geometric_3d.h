@@ -33,7 +33,7 @@ class Geometric3D {
   // x, y, z, id
   using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, SInt>;
 
-  Geometric3D(const PGeneratorConfig &config, const PEID /* rank */)
+  Geometric3D(PGeneratorConfig &config, const PEID /* rank */)
       : config_(config), rng_(config) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     MPI_Comm_size(MPI_COMM_WORLD, &size_);
@@ -63,7 +63,7 @@ class Geometric3D {
 
  protected:
   // Config
-  PGeneratorConfig config_;
+  PGeneratorConfig &config_;
   PEID rank_, size_;
 
   // Variates
