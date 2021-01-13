@@ -266,8 +266,10 @@ class Geometric3D {
           (i / (cells_per_dim_ * cells_per_dim_)) * cell_size_;
 
       // Only store cells that are adjacent to local ones
-      cells_[ComputeGlobalCellId(chunk_id, i)] = std::make_tuple(
-          cell_vertices, cell_start_x, cell_start_y, cell_start_z, false, offset);
+      if (cell_vertices != 0) {
+        cells_[ComputeGlobalCellId(chunk_id, i)] = std::make_tuple(
+            cell_vertices, cell_start_x, cell_start_y, cell_start_z, false, offset);
+      }
 
       // Update for multinomial
       n -= cell_vertices;
@@ -290,7 +292,7 @@ class Geometric3D {
 
     // Stop if cell already generated
     SInt global_cell_id = ComputeGlobalCellId(chunk_id, cell_id);
-
+    if (cells_.find(global_cell_id) == end(cells_)) return;
     auto &cell = cells_[global_cell_id];
     if (std::get<4>(cell)) return;
 
@@ -332,7 +334,9 @@ class Geometric3D {
 
     // Compute vertex distribution
     SInt global_cell_id = ComputeGlobalCellId(chunk_id, cell_id);
+    if (cells_.find(global_cell_id) == end(cells_)) return;
     const auto &cell = cells_[global_cell_id];
+    if (std::get<4>(cell)) return;
 
     SInt n = std::get<0>(cell);
     SInt offset = std::get<5>(cell);

@@ -143,6 +143,8 @@ class RGG3D : public Geometric3D {
     GenerateVertices(second_chunk_id, second_cell_id);
 
     // Gather vertices
+    if (vertices_.find(first_global_cell_id) == end(vertices_)) return;
+    if (vertices_.find(second_global_cell_id) == end(vertices_)) return;
     const std::vector<Vertex> &vertices_first = vertices_[first_global_cell_id];
     const std::vector<Vertex> &vertices_second = vertices_[second_global_cell_id];
     // GenerateVertices(first_chunk_id, first_cell_id, first_vertex_buffer_);
@@ -231,9 +233,12 @@ class RGG3D : public Geometric3D {
           (i / (cells_per_dim_ * cells_per_dim_)) * cell_size_;
 
       // Only store cells that are adjacent to local ones
-      if (IsLocalChunk(chunk_id) || IsAdjacentCell(chunk_id, i))
-        cells_[ComputeGlobalCellId(chunk_id, i)] = std::make_tuple(
-            cell_vertices, cell_start_x, cell_start_y, cell_start_z, false, offset);
+      if (cell_vertices != 0) {
+        if (IsLocalChunk(chunk_id) || IsAdjacentCell(chunk_id, i)) {
+          cells_[ComputeGlobalCellId(chunk_id, i)] = std::make_tuple(
+              cell_vertices, cell_start_x, cell_start_y, cell_start_z, false, offset);
+        }
+      }
 
       // Update for multinomial
       n -= cell_vertices;

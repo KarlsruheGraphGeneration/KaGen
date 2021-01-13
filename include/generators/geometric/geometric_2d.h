@@ -212,8 +212,10 @@ class Geometric2D {
           std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
       LPFloat cell_start_y =
           std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
-      cells_[ComputeGlobalCellId(chunk_id, i)] =
-          std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);
+      if (cell_vertices != 0) {
+        cells_[ComputeGlobalCellId(chunk_id, i)] =
+            std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);
+      }
 
       // Update for multinomial
       n -= cell_vertices;
@@ -233,6 +235,7 @@ class Geometric2D {
 
     // Stop if cell already generated
     SInt global_cell_id = ComputeGlobalCellId(chunk_id, cell_id);
+    if (cells_.find(global_cell_id) == end(cells_)) return;
     auto &cell = cells_[global_cell_id];
     if (std::get<3>(cell)) return;
 
@@ -269,7 +272,9 @@ class Geometric2D {
 
     // Compute vertex distribution
     SInt global_cell_id = ComputeGlobalCellId(chunk_id, cell_id);
+    if (cells_.find(global_cell_id) == end(cells_)) return;
     const auto &cell = cells_[global_cell_id];
+    if (std::get<3>(cell)) return;
 
     SInt n = std::get<0>(cell);
     SInt offset = std::get<4>(cell);

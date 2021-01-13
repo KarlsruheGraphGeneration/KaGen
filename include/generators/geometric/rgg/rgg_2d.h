@@ -121,6 +121,8 @@ class RGG2D : public Geometric2D {
     GenerateVertices(second_chunk_id, second_cell_id);
 
     // Gather vertices
+    if (vertices_.find(first_global_cell_id) == end(vertices_)) return;
+    if (vertices_.find(second_global_cell_id) == end(vertices_)) return;
     const std::vector<Vertex> &vertices_first = vertices_[first_global_cell_id];
     const std::vector<Vertex> &vertices_second = vertices_[second_global_cell_id];
     // Generate edges
@@ -180,6 +182,7 @@ class RGG2D : public Geometric2D {
     LPFloat total_area = chunk_size_ * chunk_size_;
     LPFloat cell_area = cell_size_ * cell_size_;
 
+
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
       seed = config_.seed + chunk_id * cells_per_chunk_ + i +
              total_chunks_ * cells_per_chunk_;
@@ -191,9 +194,12 @@ class RGG2D : public Geometric2D {
           std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
 
       // Only generate adjacent cells
-      if (IsLocalChunk(chunk_id) || IsAdjacentCell(chunk_id, i))
-        cells_[ComputeGlobalCellId(chunk_id, i)] =
-            std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);
+      if (cell_vertices != 0) {
+        if (IsLocalChunk(chunk_id) || IsAdjacentCell(chunk_id, i)) {
+          cells_[ComputeGlobalCellId(chunk_id, i)] =
+              std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);
+        }
+      }
 
       // Update for multinomial
       n -= cell_vertices;
