@@ -29,6 +29,7 @@ option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 option(KAGEN_OUTPUT_EDGES "Output edge list." ON)
 option(KAGEN_SINGLE_OUTPUT "Output single edge list." ON)
 option(KAGEN_OMIT_HEADER "Omit header in edge list" OFF)
+option(KAGEN_BINARY_OUTPUT "Output edge lists in binary format" ON)
 
 ################################################################################
 
@@ -228,6 +229,9 @@ if(KAGEN_OUTPUT_EDGES)
   endif()
   if (KAGEN_OMIT_HEADER)
     set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DOMIT_HEADER")
+  endif()
+  if (KAGEN_BINARY_OUTPUT)
+    set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DBINARY_OUT")
   endif()
 endif()
 

@@ -126,12 +126,28 @@ class GeneratorIO {
       SInt total_edges = edges.size();
       edges.erase(unique(edges.begin(), edges.end()), edges.end());
       
+#ifndef BINARY_OUT
       // Output edges
       FILE* fout = fopen(config_.output_file.c_str(), "w+");
 #ifndef OMIT_HEADER
       fprintf(fout, "p %llu %lu\n", config_.n, edges.size());
 #endif
       for (auto edge : edges) fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
+#else
+      FILE* fout =
+          fopen(config_.output_file.c_str(), "wb+");
+#ifndef OMIT_HEADER
+      SInt total_m = edges.size();
+      fwrite(&config_.n, sizeof(SInt), 1, fout);
+      fwrite(&total_m, sizeof(SInt), 1, fout);
+#endif
+      for (auto edge : edges) {
+        SInt source = std::get<0>(edge) + 1;
+        SInt target = std::get<1>(edge) + 1;
+        fwrite(&source, sizeof(SInt), 1, fout);
+        fwrite(&target, sizeof(SInt), 1, fout);
+      }
+#endif
       fclose(fout);
     }
   }
@@ -146,6 +162,7 @@ class GeneratorIO {
     SInt total_num_edges = 0;
     MPI_Allreduce(&num_edges, &total_num_edges, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
 
+#ifndef BINARY_OUT
     FILE* fout =
         fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "w+");
 #ifndef OMIT_HEADER
@@ -154,6 +171,21 @@ class GeneratorIO {
     for (auto edge : edges_) {
       fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
     }
+#else
+    FILE* fout =
+        fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "wb+");
+#ifndef OMIT_HEADER
+    SInt total_m = total_num_edges;
+    fwrite(&config_.n, sizeof(SInt), 1, fout);
+    fwrite(&total_m, sizeof(SInt), 1, fout);
+#endif
+    for (auto edge : edges_) {
+      SInt source = std::get<0>(edge) + 1;
+      SInt target = std::get<1>(edge) + 1;
+      fwrite(&source, sizeof(SInt), 1, fout);
+      fwrite(&target, sizeof(SInt), 1, fout);
+    }
+#endif
     fclose(fout);
   };
 
@@ -179,7 +211,7 @@ class GeneratorIO {
         [](SInt a, const Edge& b) { return a + std::get<1>(b).size(); });
 
     FILE* fout =
-        fopen((config_.output_file + std::to_string(rank)).c_str(), "w+");
+        fopen((config_.output_file + std::to_string(rank)).c_str(), "wb");
     fprintf(fout, "%lu %llu\n", edges_.size(), edgeCount);
 
     for (auto& node : nodes) {
