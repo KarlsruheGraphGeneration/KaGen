@@ -172,6 +172,7 @@ class Hyperbolic {
   // State
   SInt current_annulus_, current_chunk_, current_cell_;
   LPFloat current_min_phi_, current_max_phi_;
+  SInt right_processed_chunk_, right_processed_cell_;
 
   // Data structures
   google::dense_hash_map<SInt, Annulus> annuli_;
@@ -204,7 +205,7 @@ class Hyperbolic {
       // Push annuli_
       annuli_[ComputeGlobalChunkId(i - 1, chunk_id)] = std::make_tuple(n_annulus, min_r, max_r, false, offset);
       boundaries_[i - 1] = std::make_pair(cosh(min_r), sinh(min_r));
-      // if (rank_ == ROOT) 
+      // if (rank_ == 2) 
       //   printf("a %llu %f %f %f %f %llu\n", n_annulus, min_r, max_r, std::get<1>(chunks_[chunk_id]), std::get<2>(chunks_[chunk_id]), offset);
       min_r = max_r;
       n -= n_annulus;
@@ -225,7 +226,7 @@ class Hyperbolic {
     // Base case
     if (k == 1) {
       chunks_[chunk_id] = std::make_tuple(n, min_phi, max_phi, offset);
-      // if (rank_ == ROOT) 
+      // if (rank_ == 2) 
       //   printf("c %llu %f %f %llu\n", n, min_phi, max_phi, offset);
       return;
     }
@@ -302,7 +303,7 @@ class Hyperbolic {
 
       SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, i);
       cells_[global_cell_id] = std::make_tuple(n_cell, min_phi + (grid_phi * i), min_phi + (grid_phi * (i + 1)), false, offset);
-      // if (rank_ == ROOT) 
+      // if (rank_ == 2) 
       //   printf("g %llu %f %f %f %f %llu\n", n_cell, std::get<1>(annulus), std::get<2>(annulus), min_phi + (grid_phi * i), min_phi + (grid_phi * (i + 1)), offset);
       n -= n_cell;
       offset += n_cell;
@@ -365,8 +366,6 @@ class Hyperbolic {
       LPFloat angle = sorted_mersenne.Random() * (max_phi - min_phi) + min_phi;
       LPFloat radius =
           acosh(mersenne.Random() * (maxcdf - mincdf) + mincdf) / alpha_;
-      // if (rank_ == ROOT) 
-      //   printf("p %f %f %d\n", radius, angle, rank_);
 
       // Perform pdm transformation
       LPFloat inv_len = (cosh(radius) + 1.0) / 2.0;
@@ -375,6 +374,8 @@ class Hyperbolic {
       LPFloat y = pdm_radius * cos(angle);
       LPFloat gamma = 1.0 / (1.0 - pdm_radius * pdm_radius);
       cell_vertices.emplace_back(angle, radius, x, y, gamma, offset + i);
+      // if (rank_ == 2) 
+      //   printf("p %lld %f %f %d\n", offset + i, radius, angle, rank_);
       if ((start_node_ > offset + i) && (pe_min_phi_ <= angle && pe_max_phi_ > angle)) start_node_ = offset;
       if (pe_min_phi_ <= angle && pe_max_phi_ > angle) num_nodes_++;
     }
@@ -394,8 +395,8 @@ class Hyperbolic {
         const Vertex v = vertices_[global_cell_id][i];
         if (pe_min_phi_ > std::get<0>(v) || pe_max_phi_ < std::get<0>(v))
           continue;
-        // if (rank_ == ROOT)
-        //   printf("qp %f %f %f\n", std::get<1>(v), std::get<0>(v), target_r_);
+        // if (rank_ == 2)
+        //   printf("qp %lld %f %f %f\n", std::get<5>(v), std::get<1>(v), std::get<0>(v), target_r_);
         QueryBoth(annulus_id, chunk_id, cell_id, v);
       }
     }
@@ -428,11 +429,14 @@ class Hyperbolic {
     LPFloat max_cell_phi =
         std::get<2>(cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)]);
 
-    // if (rank_ == ROOT) {
+    // if (rank_ == 2) {
     //   std::cout << "go down " << chunk_id << " " << annulus_id << " " << cell_id << std::endl;
     //   std::cout << "min phi " << current_min_phi_ << " max phi " << current_max_phi_ << std::endl;
     //   std::cout << "min cell phi " << min_cell_phi << " max cell phi " << max_cell_phi << std::endl;
     // }
+     
+    right_processed_chunk_ = chunk_id;
+    right_processed_cell_ = cell_id;  
 
     // Iterate over cell
     if (search_down || !IsLocalChunk(chunk_id))
@@ -447,7 +451,7 @@ class Hyperbolic {
           next_chunk_id = (chunk_id + config_.k - 1) % config_.k;
         SInt next_cell_id = (cell_id + GridSizeForAnnulus(annulus_id) - 1) %
                             GridSizeForAnnulus(annulus_id);
-        // if (rank_ == ROOT)
+        // if (rank_ == 2)
         //   std::cout << "go right " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
         GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
         QueryRightNeighbor(annulus_id, next_chunk_id, next_cell_id, q, 
@@ -462,7 +466,7 @@ class Hyperbolic {
           next_chunk_id = (chunk_id + config_.k + 1) % config_.k;
         SInt next_cell_id = (cell_id + GridSizeForAnnulus(annulus_id) + 1) %
                             GridSizeForAnnulus(annulus_id);
-        // if (rank_ == ROOT)
+        // if (rank_ == 2)
         //   std::cout << "go left " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
         GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
         QueryLeftNeighbor(annulus_id, next_chunk_id, next_cell_id, q, 
@@ -501,6 +505,8 @@ class Hyperbolic {
 
       auto &cell = cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)];
       LPFloat min_cell_phi = std::get<1>(cell);
+      right_processed_chunk_ = chunk_id;
+      right_processed_cell_ = cell_id;  
 
       // Iterate over cell
       if ((search_down && IsLocalChunk(chunk_id) && min_cell_phi > std::get<0>(q))
@@ -514,7 +520,7 @@ class Hyperbolic {
           next_chunk_id = (chunk_id + config_.k - 1) % config_.k;
         SInt next_cell_id = (cell_id + GridSizeForAnnulus(annulus_id) - 1) %
                             GridSizeForAnnulus(annulus_id);
-        // if (rank_ == ROOT)
+        // if (rank_ == 2)
         //   std::cout << "go right " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
         GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
         cell_id = next_cell_id;
@@ -533,6 +539,8 @@ class Hyperbolic {
       if (phase && OutOfBounds(current_max_phi_))
         return;
             // || std::get<1>(annuli_[annulus_id]) < clique_thres_))
+      if (chunk_id == right_processed_chunk_ && cell_id == right_processed_cell_)
+        return;
 
       auto &cell = cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)];
       LPFloat max_cell_phi = std::get<2>(cell);
@@ -548,7 +556,7 @@ class Hyperbolic {
           next_chunk_id = (chunk_id + config_.k + 1) % config_.k;
         SInt next_cell_id = (cell_id + GridSizeForAnnulus(annulus_id) + 1) %
                             GridSizeForAnnulus(annulus_id);
-        // if (rank_ == ROOT)
+        // if (rank_ == 2)
         //   std::cout << "go left " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
         GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
         cell_id = next_cell_id;
@@ -579,10 +587,11 @@ class Hyperbolic {
             && std::abs(std::get<0>(v) - std::get<0>(q)) < point_eps_) continue;
         // Generate edge
         if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
-          // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
           cb_(std::get<5>(q), std::get<5>(v));
           cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
+          // if (rank_ == 2)
+          //   printf("e %lld %f %f %lld %f %f %d %f\n", std::get<5>(q), std::get<1>(q), std::get<0>(q), std::get<5>(v), std::get<1>(v), std::get<0>(v), rank_, PGGeometry::HyperbolicDistance(q, v));
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
           io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
@@ -597,10 +606,11 @@ class Hyperbolic {
       for (SInt j = 0; j < cell_vertices.size(); ++j) {
         const Vertex &v = cell_vertices[j];
         if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
-          // fprintf(edge_file, "e %f %f %f %f %d\n", std::get<1>(q), std::get<0>(q), std::get<1>(v), std::get<0>(v), rank_);
           cb_(std::get<5>(q), std::get<5>(v));
           cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
+          // if (rank_ == 2)
+          //   printf("e %lld %f %f %lld %f %f %d %f\n", std::get<5>(q), std::get<1>(q), std::get<0>(q), std::get<5>(v), std::get<1>(v), std::get<0>(v), rank_, PGGeometry::HyperbolicDistance(q, v));
           io_.PushEdge(std::get<5>(q), std::get<5>(v));
           if (IsLocalChunk(chunk_id)) io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
