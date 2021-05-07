@@ -117,14 +117,23 @@ class RGG2D : public Geometric2D {
     SInt first_global_cell_id = ComputeGlobalCellId(first_chunk_id, first_cell_id);
     SInt second_global_cell_id =
         ComputeGlobalCellId(second_chunk_id, second_cell_id);
-    GenerateVertices(first_chunk_id, first_cell_id);
-    GenerateVertices(second_chunk_id, second_cell_id);
+
+    // Gather vertices (temp)
+    std::vector<Vertex> vertices_first;
+    std::vector<Vertex> vertices_second;
+    GenerateVertices(first_chunk_id, first_cell_id, vertices_first);
+    GenerateVertices(second_chunk_id, second_cell_id, vertices_second);
+    if (vertices_first.size() == 0) return;
+    if (vertices_second.size() == 0) return;
 
     // Gather vertices
-    if (vertices_.find(first_global_cell_id) == end(vertices_)) return;
-    if (vertices_.find(second_global_cell_id) == end(vertices_)) return;
-    const std::vector<Vertex> &vertices_first = vertices_[first_global_cell_id];
-    const std::vector<Vertex> &vertices_second = vertices_[second_global_cell_id];
+    // GenerateVertices(first_chunk_id, first_cell_id);
+    // GenerateVertices(second_chunk_id, second_cell_id);
+    // if (vertices_.find(first_global_cell_id) == end(vertices_)) return;
+    // if (vertices_.find(second_global_cell_id) == end(vertices_)) return;
+    // const std::vector<Vertex> &vertices_first = vertices_[first_global_cell_id];
+    // const std::vector<Vertex> &vertices_second = vertices_[second_global_cell_id];
+
     // Generate edges
     // Same cell
     if (first_chunk_id == second_chunk_id && first_cell_id == second_cell_id) {

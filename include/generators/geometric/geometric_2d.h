@@ -265,7 +265,7 @@ class Geometric2D {
                         std::vector<Vertex> &vertex_buffer) {
     // Lazily compute chunk
     if (chunks_.find(chunk_id) == end(chunks_)) ComputeChunk(chunk_id);
-    const auto &chunk = chunks_[chunk_id];
+    auto &chunk = chunks_[chunk_id];
 
     // Lazily compute cell distribution
     if (!std::get<3>(chunk)) GenerateCells(chunk_id);
@@ -273,8 +273,7 @@ class Geometric2D {
     // Compute vertex distribution
     SInt global_cell_id = ComputeGlobalCellId(chunk_id, cell_id);
     if (cells_.find(global_cell_id) == end(cells_)) return;
-    const auto &cell = cells_[global_cell_id];
-    if (std::get<3>(cell)) return;
+    auto &cell = cells_[global_cell_id];
 
     SInt n = std::get<0>(cell);
     SInt offset = std::get<4>(cell);
@@ -291,8 +290,7 @@ class Geometric2D {
       LPFloat x = mersenne.Random() * cell_size_ + start_x;
       LPFloat y = mersenne.Random() * cell_size_ + start_y;
 
-      // vertex_buffer.emplace_back(x, y, z);
-      vertex_buffer[i] = std::make_tuple(x, y, offset + i);
+      vertex_buffer.emplace_back(x, y, offset + i);
       // fprintf(edge_file, "v %f %f\n", x, y);
     }
   }
