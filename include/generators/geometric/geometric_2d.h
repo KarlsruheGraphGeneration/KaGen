@@ -19,7 +19,7 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "geometry.h"
-#include "morton2D.h"
+#include "libmorton/morton2D.h"
 #include "rng_wrapper.h"
 #include "mersenne.h"
 #include "hash.hpp"
@@ -307,12 +307,12 @@ class Geometric2D {
 
   // Chunk coding
   inline SInt Encode(const SInt x, const SInt y) const {
-    return m2D_e_sLUT<SInt>(x, y);
+      return libmorton::m2D_e_sLUT<SInt>(x, y);
     // return x + y * chunks_per_dim_;
   }
 
   inline void Decode(const SInt id, SInt &x, SInt &y) const {
-    m2D_d_sLUT(id, x, y);
+      libmorton::m2D_d_sLUT(id, x, y);
     // x = id % chunks_per_dim_;
     // y = id / chunks_per_dim_;
   }

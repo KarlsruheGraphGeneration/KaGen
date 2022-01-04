@@ -19,7 +19,7 @@
 #include "generator_config.h"
 #include "generator_io.h"
 #include "geometry.h"
-#include "morton3D.h"
+#include "libmorton/morton3D.h"
 #include "rng_wrapper.h"
 #include "hash.hpp"
 
@@ -375,12 +375,12 @@ class Geometric3D {
 
   // Chunk coding
   inline SInt Encode(const SInt x, const SInt y, const SInt z) const {
-    return m3D_e_sLUT<SInt>(x, y, z);
+      return libmorton::m3D_e_sLUT<SInt>(x, y, z);
     // return x + y * chunks_per_dim_ + z * (chunks_per_dim_ * chunks_per_dim_);
   }
 
   inline void Decode(const SInt id, SInt &x, SInt &y, SInt &z) const {
-    m3D_d_sLUT(id, x, y, z);
+      libmorton::m3D_d_sLUT(id, x, y, z);
     // x = id % chunks_per_dim_;
     // y = (id / chunks_per_dim_) % chunks_per_dim_;
     // z = id / (chunks_per_dim_ * chunks_per_dim_);
