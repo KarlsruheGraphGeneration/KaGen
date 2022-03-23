@@ -11,6 +11,8 @@
 
 #include <iostream>
 #include <vector>
+#include <iomanip>
+#include <cmath>
 
 #include "definitions.h"
 #include "generator_config.h"
@@ -34,7 +36,7 @@ class Barabassi {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Init variables
-    from_ = rank * ceil(config_.n / (LPFloat)size);
+    from_ = rank * std::ceil(config_.n / (LPFloat)size);
     to_ = std::min((SInt)((rank + 1) * ceil(config_.n / (LPFloat)size) - 1),
                    config_.n - 1);
     std::cout << "f " << from_ << " t " << to_ << std::endl;

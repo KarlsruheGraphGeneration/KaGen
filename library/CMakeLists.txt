@@ -1,0 +1,5 @@
+add_library(kagen_library kagen_library.cc kagen_library.h)
+target_link_libraries(kagen_library PUBLIC ${KAGEN_LINK_LIBRARIES})
+target_include_directories(kagen_library PRIVATE ${KAGEN_INCLUDE_DIRS})
+target_include_directories(kagen_library PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(kagen_library PUBLIC cxx_std_17)

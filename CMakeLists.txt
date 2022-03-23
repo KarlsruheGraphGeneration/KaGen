@@ -8,10 +8,9 @@
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.12)
 
-project(kagen)
-#set_target_properties(kagen PROPERTIES LINKER_LANGUAGE CXX)
+project(kagen LANGUAGES CXX)
 
 # prohibit in-source builds
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
@@ -268,6 +267,7 @@ endif()
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
 find_package(CGAL)
 if(CGAL_FOUND)
+  add_definitions(-DKAGEN_CGAL_FOUND) 
   include(${CGAL_USE_FILE})
 else()
   message(STATUS "Could not find CGAL library")
@@ -308,10 +308,7 @@ endmacro(build_mpi_prog)
 
 ################################################################################
 
-# descend into library source
-# add_subdirectory(include)
-
-# descend into apps
 add_subdirectory(app)
+add_subdirectory(library)
 
 ################################################################################
