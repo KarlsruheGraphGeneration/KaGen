@@ -114,9 +114,9 @@ class RGG2D : public Geometric2D {
                          const SInt second_chunk_id,
                          const SInt second_cell_id) {
     // Check if vertices not generated
-    SInt first_global_cell_id = ComputeGlobalCellId(first_chunk_id, first_cell_id);
-    SInt second_global_cell_id =
-        ComputeGlobalCellId(second_chunk_id, second_cell_id);
+    //SInt first_global_cell_id = ComputeGlobalCellId(first_chunk_id, first_cell_id);
+    //SInt second_global_cell_id =
+    //    ComputeGlobalCellId(second_chunk_id, second_cell_id);
 
     // Gather vertices (temp)
     std::vector<Vertex> vertices_first;

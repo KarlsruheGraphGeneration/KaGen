@@ -123,7 +123,7 @@ class GeneratorIO {
     if (rank == ROOT) {
       // Sort edges and remove duplicates
       std::sort(std::begin(edges), std::end(edges));
-      SInt total_edges = edges.size();
+      //SInt total_edges = edges.size();
       edges.erase(unique(edges.begin(), edges.end()), edges.end());
       
 #ifndef BINARY_OUT

@@ -267,7 +267,7 @@ class GNMUndirected {
     SInt offset_row = OffsetInRow(row_id);
     SInt offset_column = OffsetInColumn(column_id);
     if (!config_.self_loops) offset_row += 1;
-    bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
+    //bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
     // Number edges
     SInt n_row = NodesInRow(row_id);

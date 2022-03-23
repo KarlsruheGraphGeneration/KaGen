@@ -167,16 +167,16 @@ class Grid3D {
 
   bool IsLocalVertex(const SSInt local_x, const SSInt local_y, const SSInt local_z,
                      const SInt xs, const SInt ys, const SInt zs) {
-    if (local_x < 0 || local_x >= xs) return false;
-    if (local_y < 0 || local_y >= ys) return false;
-    if (local_z < 0 || local_z >= zs) return false;
+    if (local_x < 0 || local_x >= static_cast<SSInt>(xs)) return false;
+    if (local_y < 0 || local_y >= static_cast<SSInt>(ys)) return false;
+    if (local_z < 0 || local_z >= static_cast<SSInt>(zs)) return false;
     return true;
   }
 
   bool IsValidChunk(const SSInt chunk_x, const SSInt chunk_y, const SSInt chunk_z) {
-    if (chunk_x < 0 || chunk_x >= chunks_per_dim_) return false;
-    if (chunk_y < 0 || chunk_y >= chunks_per_dim_) return false;
-    if (chunk_z < 0 || chunk_z >= chunks_per_dim_) return false;
+    if (chunk_x < 0 || chunk_x >= static_cast<SSInt>(chunks_per_dim_)) return false;
+    if (chunk_y < 0 || chunk_y >= static_cast<SSInt>(chunks_per_dim_)) return false;
+    if (chunk_z < 0 || chunk_z >= static_cast<SSInt>(chunks_per_dim_)) return false;
     return true;
   }
 
@@ -301,9 +301,9 @@ class Grid3D {
     SInt intersect_frontal_frontal_left = vertex_x * next_vertex_y * vertex_z;
     SInt intersect_all = vertex_x * vertex_y * vertex_z;
 
-    SInt offset = upper_cube + frontal_cube + frontal_left_cube 
-                    - (intersect_upper_frontal + intersect_upper_frontal_left + intersect_frontal_frontal_left)
-                    + intersect_all;
+    //SInt offset = upper_cube + frontal_cube + frontal_left_cube 
+    //                - (intersect_upper_frontal + intersect_upper_frontal_left + intersect_frontal_frontal_left)
+    //                + intersect_all;
 
     return upper_cube + frontal_cube + frontal_left_cube 
             - (intersect_upper_frontal + intersect_upper_frontal_left + intersect_frontal_frontal_left)

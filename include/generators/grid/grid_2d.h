@@ -154,14 +154,14 @@ class Grid2D {
 
   bool IsLocalVertex(const SInt local_row, const SInt local_col, 
                      const SInt rows, const SInt cols) {
-    if (local_row < 0 || local_row >= rows) return false;
-    if (local_col < 0 || local_col >= cols) return false;
+    if (local_row >= rows) return false;
+    if (local_col >= cols) return false;
     return true;
   }
 
   bool IsValidChunk(const SInt chunk_row, const SInt chunk_col) {
-    if (chunk_row < 0 || chunk_row >= chunks_per_dim_) return false;
-    if (chunk_col < 0 || chunk_col >= chunks_per_dim_) return false;
+    if (chunk_row >= chunks_per_dim_) return false;
+    if (chunk_col >= chunks_per_dim_) return false;
     return true;
   }
 

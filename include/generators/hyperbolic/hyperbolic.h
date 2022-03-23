@@ -326,7 +326,7 @@ class Hyperbolic {
       ComputeChunk(chunk_id);
       ComputeAnnuli(chunk_id);
     }
-    auto &chunk = chunks_[chunk_id];
+    //auto &chunk = chunks_[chunk_id];
     auto &annulus = annuli_[ComputeGlobalChunkId(annulus_id, chunk_id)];
 
     // Lazily compute cells distribution

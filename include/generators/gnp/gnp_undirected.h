@@ -137,7 +137,7 @@ class GNPUndirected {
       total_edges = row_n * (column_n - 1) / 2;
     else
       total_edges = row_n * (column_n + 1) / 2;
-    bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
+    //bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
     // Generate variate
     SInt h =

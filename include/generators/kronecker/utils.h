@@ -133,7 +133,7 @@ void * xcalloc (size_t n, size_t sz) {
   return out;
 }
 
-void xfree (void * p, size_t sz) {
+void xfree (void * p, size_t) {
   free (p);
 }
 #endif
