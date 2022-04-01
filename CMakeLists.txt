@@ -270,7 +270,7 @@ if(CGAL_FOUND)
   add_definitions(-DKAGEN_CGAL_FOUND) 
   include(${CGAL_USE_FILE})
 else()
-  message(STATUS "Could not find CGAL library")
+  message(STATUS "Could not find CGAL library: Random Delaunay Graphs will not be available")
 endif()
 
 # use sampling lib

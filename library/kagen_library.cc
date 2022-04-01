@@ -115,7 +115,6 @@ KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SI
 
 KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed,
                                  const std::string &output) {
-#ifdef KAGEN_CGAL_FOUND
   // Update config
   config_->n = n;
   config_->r = r;
@@ -134,14 +133,10 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
   std::cout << "Range for PE " << rank_ << ": " << gen.GetVertexRange().first << " -- " << gen.GetVertexRange().second << std::endl;
   
   return {std::move(edges), gen.GetVertexRange()};
-#else 
-  throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
-#endif 
 }
 
 KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed,
                                  const std::string &output) {
-#ifdef KAGEN_CGAL_FOUND
   // Update config
   config_->n = n;
   config_->r = r;
@@ -158,12 +153,10 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
   gen.Generate();
 
   return {std::move(edges), gen.GetVertexRange()};
-#else 
-  throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
-#endif 
 }
 
 KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed, const std::string &output) {
+#ifdef KAGEN_CGAL_FOUND
   // Update config
   config_->n = n;
   config_->k = (k == 0 ? config_->k : k);
@@ -179,9 +172,13 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed, con
   gen.Generate();
 
   return {std::move(edges), gen.GetVertexRange()};
+#else 
+  throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+#endif 
 }
 
 KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed, const std::string &output) {
+#ifdef KAGEN_CGAL_FOUND
   // Update config
   config_->n = n;
   config_->k = (k == 0 ? config_->k : k);
@@ -197,6 +194,9 @@ KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed, con
   gen.Generate();
 
   return {std::move(edges), gen.GetVertexRange()};
+#else 
+  throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+#endif 
 }
 
 KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const int seed, const std::string &output) {
