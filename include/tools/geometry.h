@@ -10,7 +10,10 @@
 #define _GEOMETRY_H_
 
 #include <cmath>
+
+#ifdef KAGEN_CGAL_FOUND
 #include <CGAL/Dimension.h>
+#endif // KAGEN_CGAL_FOUND
 
 namespace kagen {
 
@@ -153,6 +156,7 @@ class PGGeometry {
   }
 };
 
+#ifdef KAGEN_CGAL_FOUND
 /* Tests whehter a sphere intersects with the box */
 template <typename BOX, typename SPHERE>
 static bool boxIntersects(const BOX &box, const SPHERE &sphere) {
@@ -205,6 +209,6 @@ static bool boxContains(const BOX &box, const SPHERE &sphere) {
 
   return true;
 }
-
+#endif // KAGEN_CGAL_FOUND
 }
 #endif

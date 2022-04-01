@@ -16,8 +16,11 @@
 #include "parse_parameters.h"
 #include "timer.h"
 
+#if KAGEN_CGAL_FOUND
 #include "geometric/delaunay/delaunay_2d.h"
 #include "geometric/delaunay/delaunay_3d.h"
+#endif // KAGEN_CGAL_FOUND
+
 #include "geometric/rgg/rgg_2d.h"
 #include "geometric/rgg/rgg_3d.h"
 #include "gnm/gnm_directed.h"
@@ -146,12 +149,14 @@ int main(int argn, char **argv) {
     else if (generator_config.generator == "rgg_3d")
       RunGenerator<RGG3D<decltype(edge_cb)>, decltype(edge_cb)>
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+#ifdef KAGEN_CGAL_FOUND
     else if (generator_config.generator == "rdg_2d")
       RunGenerator<Delaunay2D<decltype(edge_cb)>, decltype(edge_cb)>
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
     else if (generator_config.generator == "rdg_3d")
       RunGenerator<Delaunay3D<decltype(edge_cb)>, decltype(edge_cb)>
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+#endif // KAGEN_CGAL_FOUND
     else if (generator_config.generator == "rhg")
       RunGenerator<Hyperbolic<decltype(edge_cb)>, decltype(edge_cb)>
         (generator_config, rank, size, stats, edge_stats, edges, edge_cb);

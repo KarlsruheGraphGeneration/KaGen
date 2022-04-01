@@ -16,8 +16,11 @@
 #include "generator_config.h"
 #include "parse_parameters.h"
 
+#ifdef KAGEN_CGAL_FOUND
 #include "geometric/delaunay/delaunay_2d.h"
 #include "geometric/delaunay/delaunay_3d.h"
+#endif // KAGEN_CGAL_FOUND
+
 #include "geometric/rgg/rgg_2d.h"
 #include "geometric/rgg/rgg_3d.h"
 #include "gnm/gnm_directed.h"
@@ -215,6 +218,7 @@ class KaGen {
                          SInt k = 0, 
                          SInt seed = 1, 
                          const std::string &output = "out") {
+#ifdef KAGEN_CGAL_FOUND
     EdgeList edges; 
 
     // Update config
@@ -234,12 +238,16 @@ class KaGen {
 
     edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
+#else // KAGEN_CGAL_FOUND
+    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+#endif // KAGEN_CGAL_FOUND
   }
 
   EdgeList Generate3DRDG(SInt n, 
                          SInt k = 0, 
                          SInt seed = 1, 
                          const std::string &output = "out") {
+#ifdef KAGEN_CGAL_FOUND
     EdgeList edges; 
 
     // Update config
@@ -259,6 +267,9 @@ class KaGen {
 
     edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
+#else // KAGEN_CGAL_FOUND
+    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+#endif // KAGEN_CGAL_FOUND
   }
 
   EdgeList GenerateBA(SInt n, 
