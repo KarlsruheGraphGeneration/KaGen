@@ -20,7 +20,7 @@
 
 #include <iostream>
 
-namespace kagen::interface {
+namespace kagen {
 KaGen::KaGen(const PEID rank, const PEID size)
     : rank_(rank), size_(size), config_(std::make_unique<PGeneratorConfig>()) {
   SetDefaults();
@@ -307,4 +307,4 @@ void KaGen::SetDefaults() {
   config_->hyp_base = (SInt)1 << 8;
   config_->iterations = 1;
 }
-} // namespace kagen::interface 
+} // namespace kagen 

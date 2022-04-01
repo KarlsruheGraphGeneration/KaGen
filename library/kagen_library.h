@@ -16,9 +16,7 @@
 
 namespace kagen {
 struct PGeneratorConfig;
-}
 
-namespace kagen::interface {
 using SInt = unsigned long long;
 using SSInt = long long;
 using EdgeList = std::vector<std::pair<SInt, SInt>>;
@@ -71,6 +69,6 @@ private:
   PEID rank_, size_;
   std::unique_ptr<PGeneratorConfig> config_;
 };
-} // namespace kagen::interface
+} // namespace kagen
 
 #endif
