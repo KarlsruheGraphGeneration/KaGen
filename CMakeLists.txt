@@ -286,6 +286,7 @@ macro(do_build TARGETNAME)
   add_executable(${TARGETNAME} ${ARGN})
   target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
   target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES})
+  target_compile_features(${TARGETNAME} PRIVATE cxx_std_17)
 endmacro(do_build)
 
 # macro for building main programs with correct libraries
@@ -293,6 +294,7 @@ macro(mpi_build TARGETNAME)
   add_executable(${TARGETNAME} ${ARGN})
   target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
   target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES} ${MPI_LIBRARIES})
+  target_compile_features(${TARGETNAME} PRIVATE cxx_std_17)
 endmacro(mpi_build)
 
 # macro for building a single-source thrill program
