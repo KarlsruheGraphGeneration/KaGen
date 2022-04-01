@@ -214,12 +214,11 @@ class KaGen {
     return edges;
   }
 
+#ifdef KAGEN_CGAL_FOUND
   EdgeList Generate2DRDG(SInt n, 
                          SInt k = 0, 
                          SInt seed = 1, 
                          const std::string &output = "out") {
-#ifdef KAGEN_CGAL_FOUND
-    EdgeList edges; 
 
     // Update config
     config_.n = n;
@@ -238,16 +237,12 @@ class KaGen {
 
     edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
-#else // KAGEN_CGAL_FOUND
-    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
-#endif // KAGEN_CGAL_FOUND
   }
 
   EdgeList Generate3DRDG(SInt n, 
                          SInt k = 0, 
                          SInt seed = 1, 
                          const std::string &output = "out") {
-#ifdef KAGEN_CGAL_FOUND
     EdgeList edges; 
 
     // Update config
@@ -267,10 +262,16 @@ class KaGen {
 
     edges.insert(begin(edges), gen.GetVertexRange());
     return edges;
-#else // KAGEN_CGAL_FOUND
-    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
-#endif // KAGEN_CGAL_FOUND
   }
+#else // KAGEN_CGAL_FOUND
+  EdgeList Generate2DRDG(SInt, SInt, SInt, const std::string &) {
+    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+  }
+
+  EdgeList Generate3DRDG(SInt, SInt, SInt, const std::string &) {
+    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+  }
+#endif // KAGEN_CGAL_FOUND
 
   EdgeList GenerateBA(SInt n, 
                       SInt d,

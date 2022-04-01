@@ -174,7 +174,7 @@ class Grid2D {
     SInt rows = rows_per_chunk_ + (chunk_row < remaining_rows_);
     SInt cols = cols_per_chunk_ + (chunk_col < remaining_cols_);
 
-    SInt local_neighbor_row, local_neighbor_col;
+    SInt local_neighbor_row = 0, local_neighbor_col = 0;
     switch(direction) {
       case Right:
         local_neighbor_row = local_row;
