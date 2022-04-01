@@ -122,7 +122,7 @@ class Kronecker {
 
     mrg_seed(&state, seed);
 
-    uint64_t scramble1_, scramble2_; /* Values for scrambling */
+    [[maybe_unused]] uint64_t scramble1_, scramble2_; /* Values for scrambling */
     {
       mrg_state new_state = state;
       mrg_skip(&new_state, 50, 7, 0);
