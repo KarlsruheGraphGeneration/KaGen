@@ -12,9 +12,9 @@
 #include "definitions.h"
 #include "generator_config.h"
 #include "tools/arg_parser.h"
+#include <iostream>
 
 #include <string.h>
-#include <iostream>
 
 namespace kagen {
 

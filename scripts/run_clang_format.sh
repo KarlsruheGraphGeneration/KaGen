@@ -5,5 +5,5 @@ if [[ "$PWD" == */scripts ]]; then
 fi
 
 for directory in "include" "interface" "library" "app"; do 
-	find $directory -type f \( -name "*.cpp" -o -name "*.h" \) -exec clang-format -i {} \;
+	find $directory -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.c" -o -name "*.h" \) -exec clang-format -i {} \;
 done
