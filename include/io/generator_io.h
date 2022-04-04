@@ -19,9 +19,68 @@
 #include <type_traits>
 #include <vector>
 
+#include <fcntl.h>
 #include <mpi.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace kagen {
+namespace internal {
+template <std::size_t kBufferSize = 1024 * 1024, std::size_t kBufferSizeLimit = kBufferSize - 1024>
+class BufferedTextOutput {
+public:
+    BufferedTextOutput(const std::string& filename)
+        : _fd{open(filename.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR)} {
+        if (_fd < 0) {
+            std::cout << "cannot write to " << filename << std::endl;
+            std::exit(0);
+        }
+    }
+
+    ~BufferedTextOutput() {
+        force_flush();
+        close(_fd);
+    }
+
+    BufferedTextOutput& write_char(const char ch) {
+        *(_buffer_pos)++ = ch;
+        return *this;
+    }
+
+    template <typename Int>
+    BufferedTextOutput& write_int(Int value) {
+        static char rev_buffer[80];
+
+        int pos = 0;
+        do {
+            rev_buffer[pos++] = value % 10;
+            value /= 10;
+        } while (value > 0);
+
+        while (pos > 0) {
+            *(_buffer_pos++) = '0' + rev_buffer[--pos];
+        }
+        return *this;
+    }
+
+    BufferedTextOutput& flush() {
+        if (_buffer_pos - _buffer >= kBufferSizeLimit) {
+            force_flush();
+        }
+        return *this;
+    }
+
+private:
+    void force_flush() {
+        write(_fd, _buffer, _buffer_pos - _buffer);
+        _buffer_pos = _buffer;
+    }
+
+    int   _fd;
+    char  _buffer[kBufferSize]{0};
+    char* _buffer_pos{_buffer};
+};
+} // namespace internal
 
 template <typename T>
 struct identity {
@@ -124,37 +183,15 @@ private:
             // SInt total_edges = edges.size();
             edges.erase(unique(edges.begin(), edges.end()), edges.end());
 
-            FILE* fout = nullptr;
             switch (config_.output_format) {
                 case OutputFormat::BINARY_EDGE_LIST:
-                    fout = fopen(config_.output_file.c_str(), "wb+");
-                    if (config_.output_header) {
-                        SInt total_m = edges.size();
-                        fwrite(&config_.n, sizeof(SInt), 1, fout);
-                        fwrite(&total_m, sizeof(SInt), 1, fout);
-                    }
-                    for (auto edge: edges) {
-                        SInt source = std::get<0>(edge) + 1;
-                        SInt target = std::get<1>(edge) + 1;
-                        fwrite(&source, sizeof(SInt), 1, fout);
-                        fwrite(&target, sizeof(SInt), 1, fout);
-                    }
-                    fclose(fout);
+                    WriteBinaryEdgeList(config_.output_file, edges.size(), edges);
                     break;
 
                 case OutputFormat::EDGE_LIST:
-                    fout = fopen(config_.output_file.c_str(), "w+");
-                    if (config_.output_header) {
-                        fprintf(fout, "p %llu %lu\n", config_.n, edges.size());
-                    }
-                    for (const auto& edge: edges) {
-                        fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
-                    }
-                    fclose(fout);
+                    WriteEdgeList(config_.output_file, edges.size(), edges);
                     break;
             }
-
-            fclose(fout);
         }
     }
 
@@ -168,34 +205,53 @@ private:
         SInt total_num_edges = 0;
         MPI_Allreduce(&num_edges, &total_num_edges, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
 
-        FILE* fout = nullptr;
+        const std::string filename = config_.output_file + "_" + std::to_string(rank);
         switch (config_.output_format) {
             case OutputFormat::BINARY_EDGE_LIST:
-                fout = fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "wb+");
-                if (config_.output_header) {
-                    SInt total_m = total_num_edges;
-                    fwrite(&config_.n, sizeof(SInt), 1, fout);
-                    fwrite(&total_m, sizeof(SInt), 1, fout);
-                }
-                for (const auto& edge: edges_) {
-                    SInt source = std::get<0>(edge) + 1;
-                    SInt target = std::get<1>(edge) + 1;
-                    fwrite(&source, sizeof(SInt), 1, fout);
-                    fwrite(&target, sizeof(SInt), 1, fout);
-                }
+                WriteBinaryEdgeList(filename, total_num_edges, edges_);
                 break;
 
             case OutputFormat::EDGE_LIST:
-                fout = fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "w+");
-                if (config_.output_header) {
-                    fprintf(fout, "p %llu %llu\n", config_.n, total_num_edges);
-                }
-                for (const auto& edge: edges_) {
-                    fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
-                }
+                WriteEdgeList(filename, total_num_edges, edges_);
                 break;
         }
+    }
+
+    void WriteBinaryEdgeList(const std::string& filename, const SInt total_m, const std::vector<Edge>& edges) const {
+        FILE* fout = fopen(config_.output_file.c_str(), "wb+");
+        if (!fout) {
+            std::cerr << "Error: cannot write to " << filename << "\n";
+            std::exit(1);
+        }
+
+        if (config_.output_header) {
+            fwrite(&config_.n, sizeof(SInt), 1, fout);
+            fwrite(&total_m, sizeof(SInt), 1, fout);
+        }
+        for (auto edge: edges) {
+            const SInt source = std::get<0>(edge) + 1;
+            const SInt target = std::get<1>(edge) + 1;
+            fwrite(&source, sizeof(SInt), 1, fout);
+            fwrite(&target, sizeof(SInt), 1, fout);
+        }
+
         fclose(fout);
+    }
+
+    void WriteEdgeList(const std::string& filename, const SInt total_m, const std::vector<Edge>& edges) const {
+        internal::BufferedTextOutput<> out(filename);
+        if (config_.output_header) {
+            out.write_char('p').write_char(' ').write_int(config_.n).write_char(' ').write_int(total_m).write_char(
+                '\n');
+        }
+        for (const auto& edge: edges) {
+            out.write_char('e')
+                .write_char(' ')
+                .write_int(std::get<0>(edge) + 1)
+                .write_char(' ')
+                .write_int(std::get<1>(edge) + 1)
+                .write_char('\n');
+        }
     }
 
     // ABUSE: adjacency list output
