@@ -12,23 +12,21 @@
 namespace kagen {
 
 // Constants
-typedef long long LONG;
+typedef long long          LONG;
 typedef unsigned long long ULONG;
-typedef int INT;
-typedef unsigned int UINT;
-typedef int PEID;
+typedef int                INT;
+typedef unsigned int       UINT;
+typedef int                PEID;
 
 const PEID ROOT = 0;
 
 // High/low prec
 typedef long double HPFloat;
-typedef double LPFloat;
-typedef ULONG SInt;
-typedef LONG SSInt;
+typedef double      LPFloat;
+typedef ULONG       SInt;
+typedef LONG        SSInt;
 
-enum Direction {
-  Up, Down, Left, Right, Front, Back
-};
+enum Direction { Up, Down, Left, Right, Front, Back };
 
-}
+} // namespace kagen
 #endif

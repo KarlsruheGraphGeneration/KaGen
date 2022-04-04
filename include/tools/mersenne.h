@@ -14,33 +14,43 @@
 namespace kagen {
 
 class Mersenne {
- public:
-  Mersenne() { Mersenne(0); };
+public:
+    Mersenne() {
+        Mersenne(0);
+    };
 
-  Mersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0){};
+    Mersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0){};
 
-  void RandomInit(SInt seed) { gen_.seed(seed); }
+    void RandomInit(SInt seed) {
+        gen_.seed(seed);
+    }
 
-  void RandomInitByArray(SInt seeds[], SInt NumSeeds) {
-    std::seed_seq sseq(seeds, seeds + NumSeeds);
-    gen_.seed(sseq);
-  }
+    void RandomInitByArray(SInt seeds[], SInt NumSeeds) {
+        std::seed_seq sseq(seeds, seeds + NumSeeds);
+        gen_.seed(sseq);
+    }
 
-  SInt BRandom() { return gen_(); }
+    SInt BRandom() {
+        return gen_();
+    }
 
-  double Random() { return dis_(gen_); }
+    double Random() {
+        return dis_(gen_);
+    }
 
-  SInt IRandom(SInt min, SInt max) {
-    if (max == min) return min;
-    SInt r = (SInt)((double)(SInt)(max - min + 1) * Random() + min);
-    if (r > max) r = max;
-    return r;
-  }
+    SInt IRandom(SInt min, SInt max) {
+        if (max == min)
+            return min;
+        SInt r = (SInt)((double)(SInt)(max - min + 1) * Random() + min);
+        if (r > max)
+            r = max;
+        return r;
+    }
 
- private:
-  std::mt19937_64 gen_;
-  std::uniform_real_distribution<double> dis_;
+private:
+    std::mt19937_64                        gen_;
+    std::uniform_real_distribution<double> dis_;
 };
 
-}
+} // namespace kagen
 #endif

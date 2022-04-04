@@ -20,9 +20,9 @@
  * per-platform. */
 
 #ifdef FAST_64BIT_ARITHMETIC
-#include "mod_arith_64bit.h"
+    #include "mod_arith_64bit.h"
 #else
-#include "mod_arith_32bit.h"
+    #include "mod_arith_32bit.h"
 #endif
 
 #endif /* MOD_ARITH_H */

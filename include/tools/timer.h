@@ -16,23 +16,29 @@
 namespace kagen {
 
 class Timer {
- public:
-  Timer() { start_ = timestamp(); }
+public:
+    Timer() {
+        start_ = timestamp();
+    }
 
-  void Restart() { start_ = timestamp(); }
+    void Restart() {
+        start_ = timestamp();
+    }
 
-  double Elapsed() { return timestamp() - start_; }
+    double Elapsed() {
+        return timestamp() - start_;
+    }
 
- private:
-  /** Returns a timestamp ('now') in seconds (incl. a fractional part). */
-  inline double timestamp() {
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    return double(tp.tv_sec) + tp.tv_usec / 1000000.;
-  }
+private:
+    /** Returns a timestamp ('now') in seconds (incl. a fractional part). */
+    inline double timestamp() {
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        return double(tp.tv_sec) + tp.tv_usec / 1000000.;
+    }
 
-  double start_;
+    double start_;
 };
 
-}
+} // namespace kagen
 #endif

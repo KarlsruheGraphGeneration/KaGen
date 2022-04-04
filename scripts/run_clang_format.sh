@@ -1,0 +1,9 @@
+#!/bin/sh 
+if [[ "$PWD" == */scripts ]]; then
+	echo "Script must be run from the project's root directory"
+	exit 1
+fi
+
+for directory in "include" "interface" "library" "app"; do 
+	find $directory -type f \( -name "*.cpp" -o -name "*.h" \) -exec clang-format -i {} \;
+done
