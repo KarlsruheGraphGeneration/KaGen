@@ -28,14 +28,13 @@ KaGen::KaGen(const PEID rank, const PEID size)
 
 KaGen::~KaGen() = default;
 
-KaGenResult KaGen::GenerateDirectedGMM(
-    const SInt n, const SInt m, const SInt k, const int seed, const std::string& output, const bool self_loops) {
+KaGenResult
+KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const int seed, const bool self_loops) {
     // Update config
     config_->n           = n;
     config_->m           = m;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
     config_->self_loops  = self_loops;
 
     // Edge callback
@@ -51,14 +50,13 @@ KaGenResult KaGen::GenerateDirectedGMM(
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult KaGen::GenerateUndirectedGNM(
-    const SInt n, const SInt m, const SInt k, const int seed, const std::string& output, const bool self_loops) {
+KaGenResult
+KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const int seed, const bool self_loops) {
     // Update config
     config_->n           = n;
     config_->m           = m;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
     config_->self_loops  = self_loops;
 
     // Edge callback
@@ -74,14 +72,13 @@ KaGenResult KaGen::GenerateUndirectedGNM(
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult KaGen::GenerateDirectedGNP(
-    const SInt n, const LPFloat p, const SInt k, const int seed, const std::string& output, const bool self_loops) {
+KaGenResult
+KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const int seed, const bool self_loops) {
     // Update config
     config_->n           = n;
     config_->p           = p;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
     config_->self_loops  = self_loops;
 
     // Edge callback
@@ -97,14 +94,13 @@ KaGenResult KaGen::GenerateDirectedGNP(
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult KaGen::GenerateUndirectedGNP(
-    const SInt n, const LPFloat p, const SInt k, const int seed, const std::string& output, const bool self_loops) {
+KaGenResult
+KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const int seed, const bool self_loops) {
     // Update config
     config_->n           = n;
     config_->p           = p;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
     config_->self_loops  = self_loops;
 
     // Edge callback
@@ -120,14 +116,12 @@ KaGenResult KaGen::GenerateUndirectedGNP(
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult
-KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->r           = r;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -145,14 +139,12 @@ KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult
-KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->r           = r;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -168,12 +160,11 @@ KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed
 }
 
 #ifdef KAGEN_CGAL_FOUND
-KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -188,12 +179,11 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed, con
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -208,22 +198,21 @@ KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed, con
     return {std::move(edges), gen.GetVertexRange()};
 }
 #else  // KAGEN_CGAL_FOUND
-KaGenResult KaGen::Generate2DRDG(SInt, SInt, int, const std::string&) {
+KaGenResult KaGen::Generate2DRDG(SInt, SInt, int) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
-KaGenResult KaGen::Generate3DRDG(SInt, SInt, int, const std::string&) {
+KaGenResult KaGen::Generate3DRDG(SInt, SInt, int) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 #endif // KAGEN_CGAL_FOUND
 
-KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->min_degree  = d;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -238,15 +227,13 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const in
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult KaGen::GenerateRHG(
-    const SInt n, const LPFloat gamma, const SInt d, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->plexp       = gamma;
     config_->avg_degree  = d;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -261,9 +248,8 @@ KaGenResult KaGen::GenerateRHG(
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult KaGen::Generate2DGrid(
-    const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k, const int seed,
-    const std::string& output) {
+KaGenResult
+KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->m           = m;
@@ -271,7 +257,6 @@ KaGenResult KaGen::Generate2DGrid(
     config_->periodic    = periodic;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;
@@ -286,14 +271,12 @@ KaGenResult KaGen::Generate2DGrid(
     return {std::move(edges), gen.GetVertexRange()};
 }
 
-KaGenResult
-KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, const int seed, const std::string& output) {
+KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, const int seed) {
     // Update config
     config_->n           = n;
     config_->m           = m;
     config_->k           = (k == 0 ? config_->k : k);
     config_->seed        = seed;
-    config_->output_file = output;
 
     // Edge callback
     EdgeList edges;

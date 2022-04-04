@@ -25,14 +25,11 @@ endif()
 
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 
-option(KAGEN_OUTPUT_EDGES "Output edge list." ON)
-
 ################################################################################
 
 # variables to collect compile-time definitions, include dirs, and libraries
 set(KAGEN_DEFINITIONS "")
 set(KAGEN_INCLUDE_DIRS 
-  ${PROJECT_SOURCE_DIR}/app
   ${PROJECT_SOURCE_DIR}/extlib/sampling/sampling
   ${PROJECT_SOURCE_DIR}/extlib/libmorton/include/
   ${PROJECT_SOURCE_DIR}/include
@@ -217,10 +214,7 @@ if(KAGEN_USE_LTO)
   endif()
 endif()
 
-if(KAGEN_OUTPUT_EDGES)
-  set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DOUTPUT_EDGES")
-endif()
-
+# @todo does not work with Clang 13+ on macOS
 if(APPLE)
   # disable warnings about "ranlib: file: libsampling.a(...cpp.o) has no symbols"
   set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
@@ -231,24 +225,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KAGEN_DEFINITIONS}")
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ###############################################################################
-
-# set_join(VAR "foo" "bar" "abc") sets VAR="foo bar abc"
-macro(set_join var)
-  set(${var})
-  foreach(v ${ARGN})
-    set(${var} "${${var}} ${v}")
-  endforeach()
-  string(STRIP ${var} "${${var}}")
-endmacro(set_join)
-
-###############################################################################
 # find MPI
 find_package(MPI REQUIRED)
-if(MPI_FOUND)
-  include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-else()
-  message(STATUS "Could not find MPI library")
-endif()
 
 # find CGAL
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
@@ -266,34 +244,11 @@ set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
 set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
 
 ################################################################################
-### Build Macros
-
-# macro for building main programs with correct libraries
-macro(do_build TARGETNAME)
-  add_executable(${TARGETNAME} ${ARGN})
-  target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
-  target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES})
-  target_compile_features(${TARGETNAME} PRIVATE cxx_std_17)
-endmacro(do_build)
-
-# macro for building main programs with correct libraries
-macro(mpi_build TARGETNAME)
-  add_executable(${TARGETNAME} ${ARGN})
-  target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
-  target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES} ${MPI_LIBRARIES})
-  target_compile_features(${TARGETNAME} PRIVATE cxx_std_17)
-endmacro(mpi_build)
-
-# macro for building a single-source thrill program
-macro(build_prog PROGNAME)
-  string(REPLACE "/" "_" TARGETNAME "${PROGNAME}") # replace slashes
-  do_build(${TARGETNAME} ${PROGNAME}.cpp ${ARGN})
-endmacro(build_prog)
-
-macro(build_mpi_prog PROGNAME)
-  string(REPLACE "/" "_" TARGETNAME "${PROGNAME}") # replace slashes
-  mpi_build(${TARGETNAME} ${PROGNAME}.cpp ${ARGN})
-endmacro(build_mpi_prog)
+# kagen_base library 
+add_library(kagen_base INTERFACE)
+target_include_directories(kagen_base INTERFACE ${KAGEN_INCLUDE_DIRS})
+target_link_libraries(kagen_base INTERFACE MPI::MPI_CXX ${KAGEN_LINK_LIBRARIES})
+target_compile_features(kagen_base INTERFACE cxx_std_17)
 
 ################################################################################
 

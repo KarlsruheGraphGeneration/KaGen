@@ -34,34 +34,29 @@ public:
     KaGen(PEID rank, PEID size);
     ~KaGen();
 
-    KaGenResult GenerateDirectedGMM(
-        SInt n, SInt m, SInt k = 0, int seed = 1, const std::string& output = "out", bool self_loops = false);
+    KaGenResult GenerateDirectedGMM(SInt n, SInt m, SInt k = 0, int seed = 1, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNM(
-        SInt n, SInt m, SInt k = 0, int seed = 1, const std::string& output = "out", bool self_loops = false);
+    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, SInt k = 0, int seed = 1, bool self_loops = false);
 
-    KaGenResult GenerateDirectedGNP(
-        SInt n, LPFloat p, SInt k = 0, int seed = 1, const std::string& output = "out", bool self_loops = false);
+    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, SInt k = 0, int seed = 1, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNP(
-        SInt n, LPFloat p, SInt k = 0, int seed = 1, const std::string& output = "out", bool self_loops = false);
+    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, SInt k = 0, int seed = 1, bool self_loops = false);
 
-    KaGenResult Generate2DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult Generate2DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1);
 
-    KaGenResult Generate3DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult Generate3DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1);
 
-    KaGenResult Generate2DRDG(SInt n, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult Generate2DRDG(SInt n, SInt k = 0, int seed = 1);
 
-    KaGenResult Generate3DRDG(SInt n, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult Generate3DRDG(SInt n, SInt k = 0, int seed = 1);
 
-    KaGenResult GenerateBA(SInt n, SInt d, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult GenerateBA(SInt n, SInt d, SInt k = 0, int seed = 1);
 
-    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d, SInt k = 0, int seed = 1);
 
-    KaGenResult Generate2DGrid(
-        SInt n, SInt m, LPFloat p, SInt periodic, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult Generate2DGrid(SInt n, SInt m, LPFloat p, SInt periodic, SInt k = 0, int seed = 1);
 
-    KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0, int seed = 1, const std::string& output = "out");
+    KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0, int seed = 1);
 
 private:
     void SetDefaults();
