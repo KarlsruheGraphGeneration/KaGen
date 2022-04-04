@@ -168,7 +168,7 @@ private:
         // Generate variate
         SInt h         = sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
         SInt num_edges = rng_.GenerateBinomial(h, row_n * column_n, p);
-        bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
+        [[maybe_unused]] bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
         // Sample from [1, num_edges]
         rng_.GenerateSample(h, row_n * column_n, num_edges, [&](SInt sample) {
