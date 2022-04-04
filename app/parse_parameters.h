@@ -14,6 +14,7 @@
 #include "tools/arg_parser.h"
 
 #include <string.h>
+#include <iostream>
 
 namespace kagen {
 
