@@ -46,7 +46,6 @@ set(KAGEN_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/include/generators/hyperbolic
   ${PROJECT_SOURCE_DIR}/include/io
   ${PROJECT_SOURCE_DIR}/include/tools
-  ${PROJECT_SOURCE_DIR}/interface/
   )
 
 if(NOT MSVC)
