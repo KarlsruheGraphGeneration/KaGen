@@ -166,8 +166,8 @@ private:
         const SInt row_n, const SInt column_n, const double p, const SInt row_id, const SInt column_id,
         const SInt offset_row, const SInt offset_column) {
         // Generate variate
-        SInt h         = sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
-        SInt num_edges = rng_.GenerateBinomial(h, row_n * column_n, p);
+        SInt                  h = sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
+        SInt                  num_edges = rng_.GenerateBinomial(h, row_n * column_n, p);
         [[maybe_unused]] bool local_row = (offset_row >= start_node_ && offset_row < end_node_);
 
         // Sample from [1, num_edges]

@@ -298,9 +298,9 @@ private:
     }
 
     void GenerateRectangleEdges(const SInt m, const SInt row_id, const SInt column_id) {
-        SInt offset_row    = OffsetInRow(row_id);
-        SInt offset_column = OffsetInColumn(column_id);
-        bool local_row     = (offset_row >= start_node_ && offset_row < end_node_);
+        SInt                  offset_row    = OffsetInRow(row_id);
+        SInt                  offset_column = OffsetInColumn(column_id);
+        [[maybe_unused]] bool local_row     = (offset_row >= start_node_ && offset_row < end_node_);
 
         // Sample from [1, num_edges]
         SInt    n_row       = NodesInRow(row_id);
