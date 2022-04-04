@@ -31,11 +31,11 @@ KaGen::~KaGen() = default;
 KaGenResult
 KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const int seed, const bool self_loops) {
     // Update config
-    config_->n           = n;
-    config_->m           = m;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
-    config_->self_loops  = self_loops;
+    config_->n          = n;
+    config_->m          = m;
+    config_->k          = (k == 0 ? config_->k : k);
+    config_->seed       = seed;
+    config_->self_loops = self_loops;
 
     // Edge callback
     EdgeList edges;
@@ -53,11 +53,11 @@ KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const int s
 KaGenResult
 KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const int seed, const bool self_loops) {
     // Update config
-    config_->n           = n;
-    config_->m           = m;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
-    config_->self_loops  = self_loops;
+    config_->n          = n;
+    config_->m          = m;
+    config_->k          = (k == 0 ? config_->k : k);
+    config_->seed       = seed;
+    config_->self_loops = self_loops;
 
     // Edge callback
     EdgeList edges;
@@ -75,11 +75,11 @@ KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const int
 KaGenResult
 KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const int seed, const bool self_loops) {
     // Update config
-    config_->n           = n;
-    config_->p           = p;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
-    config_->self_loops  = self_loops;
+    config_->n          = n;
+    config_->p          = p;
+    config_->k          = (k == 0 ? config_->k : k);
+    config_->seed       = seed;
+    config_->self_loops = self_loops;
 
     // Edge callback
     EdgeList edges;
@@ -97,11 +97,11 @@ KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const in
 KaGenResult
 KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const int seed, const bool self_loops) {
     // Update config
-    config_->n           = n;
-    config_->p           = p;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
-    config_->self_loops  = self_loops;
+    config_->n          = n;
+    config_->p          = p;
+    config_->k          = (k == 0 ? config_->k : k);
+    config_->seed       = seed;
+    config_->self_loops = self_loops;
 
     // Edge callback
     EdgeList edges;
@@ -118,10 +118,10 @@ KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const 
 
 KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->r           = r;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n    = n;
+    config_->r    = r;
+    config_->k    = (k == 0 ? config_->k : k);
+    config_->seed = seed;
 
     // Edge callback
     EdgeList edges;
@@ -141,10 +141,10 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
 
 KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->r           = r;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n    = n;
+    config_->r    = r;
+    config_->k    = (k == 0 ? config_->k : k);
+    config_->seed = seed;
 
     // Edge callback
     EdgeList edges;
@@ -162,9 +162,9 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
 #ifdef KAGEN_CGAL_FOUND
 KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n    = n;
+    config_->k    = (k == 0 ? config_->k : k);
+    config_->seed = seed;
 
     // Edge callback
     EdgeList edges;
@@ -181,9 +181,9 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
 
 KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n    = n;
+    config_->k    = (k == 0 ? config_->k : k);
+    config_->seed = seed;
 
     // Edge callback
     EdgeList edges;
@@ -209,10 +209,10 @@ KaGenResult KaGen::Generate3DRDG(SInt, SInt, int) {
 
 KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->min_degree  = d;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n          = n;
+    config_->min_degree = d;
+    config_->k          = (k == 0 ? config_->k : k);
+    config_->seed       = seed;
 
     // Edge callback
     EdgeList edges;
@@ -229,11 +229,11 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const in
 
 KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->plexp       = gamma;
-    config_->avg_degree  = d;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n          = n;
+    config_->plexp      = gamma;
+    config_->avg_degree = d;
+    config_->k          = (k == 0 ? config_->k : k);
+    config_->seed       = seed;
 
     // Edge callback
     EdgeList edges;
@@ -251,12 +251,12 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
 KaGenResult
 KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->m           = m;
-    config_->p           = p;
-    config_->periodic    = periodic;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n        = n;
+    config_->m        = m;
+    config_->p        = p;
+    config_->periodic = periodic;
+    config_->k        = (k == 0 ? config_->k : k);
+    config_->seed     = seed;
 
     // Edge callback
     EdgeList edges;
@@ -273,10 +273,10 @@ KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt pe
 
 KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, const int seed) {
     // Update config
-    config_->n           = n;
-    config_->m           = m;
-    config_->k           = (k == 0 ? config_->k : k);
-    config_->seed        = seed;
+    config_->n    = n;
+    config_->m    = m;
+    config_->k    = (k == 0 ? config_->k : k);
+    config_->seed = seed;
 
     // Edge callback
     EdgeList edges;

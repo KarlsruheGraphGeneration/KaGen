@@ -39,7 +39,7 @@ struct PGeneratorConfig {
     std::string output_file;
     // Output format (text, binary)
     OutputFormat output_format;
-    // Output file header 
+    // Output file header
     bool output_header;
     // If set, write graph to a single file
     bool output_single_file;
