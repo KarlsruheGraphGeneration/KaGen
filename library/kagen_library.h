@@ -34,13 +34,13 @@ public:
     KaGen(PEID rank, PEID size);
     ~KaGen();
 
-    KaGenResult GenerateDirectedGMM(SInt n, SInt m, SInt k = 0, int seed = 1, bool self_loops = false);
+    KaGenResult GenerateDirectedGMM(SInt n, SInt m, SInt k = 0, bool self_loops = false, int seed = 1);
 
-    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, SInt k = 0, int seed = 1, bool self_loops = false);
+    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, SInt k = 0, bool self_loops = false, int seed = 1);
 
-    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, SInt k = 0, int seed = 1, bool self_loops = false);
+    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false, int seed = 1);
 
-    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, SInt k = 0, int seed = 1, bool self_loops = false);
+    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false, int seed = 1);
 
     KaGenResult Generate2DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1);
 

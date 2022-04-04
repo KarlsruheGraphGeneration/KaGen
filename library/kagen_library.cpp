@@ -16,8 +16,6 @@
     #include "geometric/delaunay/delaunay_3d.h"
 #endif
 
-#include <iostream>
-
 namespace kagen {
 KaGen::KaGen(const PEID rank, const PEID size)
     : rank_(rank),
@@ -29,7 +27,7 @@ KaGen::KaGen(const PEID rank, const PEID size)
 KaGen::~KaGen() = default;
 
 KaGenResult
-KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const int seed, const bool self_loops) {
+KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool self_loops, const int seed) {
     // Update config
     config_->n          = n;
     config_->m          = m;
@@ -51,7 +49,7 @@ KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const int s
 }
 
 KaGenResult
-KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const int seed, const bool self_loops) {
+KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const bool self_loops, const int seed) {
     // Update config
     config_->n          = n;
     config_->m          = m;
@@ -73,7 +71,7 @@ KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const int
 }
 
 KaGenResult
-KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const int seed, const bool self_loops) {
+KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops, const int seed) {
     // Update config
     config_->n          = n;
     config_->p          = p;
@@ -95,7 +93,7 @@ KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const in
 }
 
 KaGenResult
-KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const int seed, const bool self_loops) {
+KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops, const int seed) {
     // Update config
     config_->n          = n;
     config_->p          = p;
@@ -132,9 +130,6 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
     // Init and run generator
     RGG2D<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
     gen.Generate();
-
-    std::cout << "Range for PE " << rank_ << ": " << gen.GetVertexRange().first << " -- " << gen.GetVertexRange().second
-              << std::endl;
 
     return {std::move(edges), gen.GetVertexRange()};
 }
