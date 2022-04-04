@@ -69,11 +69,11 @@ public:
     }
 
     void OutputEdges() const {
-#ifdef SINGLE_LIST
-        GatherPrint(identity<Edge>());
-#else
-        Print(identity<Edge>());
-#endif
+        if (config_.output_single_file) {
+            GatherPrint(identity<Edge>());
+        } else {
+            Print(identity<Edge>());
+        }
     }
 
     SInt NumEdges() const {
@@ -124,28 +124,36 @@ private:
             // SInt total_edges = edges.size();
             edges.erase(unique(edges.begin(), edges.end()), edges.end());
 
-#ifndef BINARY_OUT
-            // Output edges
-            FILE* fout = fopen(config_.output_file.c_str(), "w+");
-    #ifndef OMIT_HEADER
-            fprintf(fout, "p %llu %lu\n", config_.n, edges.size());
-    #endif
-            for (auto edge: edges)
-                fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
-#else
-            FILE* fout    = fopen(config_.output_file.c_str(), "wb+");
-    #ifndef OMIT_HEADER
-            SInt  total_m = edges.size();
-            fwrite(&config_.n, sizeof(SInt), 1, fout);
-            fwrite(&total_m, sizeof(SInt), 1, fout);
-    #endif
-            for (auto edge: edges) {
-                SInt source = std::get<0>(edge) + 1;
-                SInt target = std::get<1>(edge) + 1;
-                fwrite(&source, sizeof(SInt), 1, fout);
-                fwrite(&target, sizeof(SInt), 1, fout);
+            FILE* fout = nullptr;
+            switch (config_.output_format) {
+                case OutputFormat::BINARY_EDGE_LIST:
+                    fout = fopen(config_.output_file.c_str(), "wb+");
+                    if (config_.output_header) {
+                        SInt total_m = edges.size();
+                        fwrite(&config_.n, sizeof(SInt), 1, fout);
+                        fwrite(&total_m, sizeof(SInt), 1, fout);
+                    }
+                    for (auto edge: edges) {
+                        SInt source = std::get<0>(edge) + 1;
+                        SInt target = std::get<1>(edge) + 1;
+                        fwrite(&source, sizeof(SInt), 1, fout);
+                        fwrite(&target, sizeof(SInt), 1, fout);
+                    }
+                    fclose(fout);
+                    break;
+
+                case OutputFormat::EDGE_LIST:
+                    fout = fopen(config_.output_file.c_str(), "w+");
+                    if (config_.output_header) {
+                        fprintf(fout, "p %llu %lu\n", config_.n, edges.size());
+                    }
+                    for (const auto& edge: edges) {
+                        fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
+                    }
+                    fclose(fout);
+                    break;
             }
-#endif
+
             fclose(fout);
         }
     }
@@ -160,30 +168,35 @@ private:
         SInt total_num_edges = 0;
         MPI_Allreduce(&num_edges, &total_num_edges, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
 
-#ifndef BINARY_OUT
-        FILE* fout = fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "w+");
-    #ifndef OMIT_HEADER
-        fprintf(fout, "p %llu %lu\n", config_.n, total_num_edges);
-    #endif
-        for (auto edge: edges_) {
-            fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
+        FILE* fout = nullptr;
+        switch (config_.output_format) {
+            case OutputFormat::BINARY_EDGE_LIST:
+                fout = fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "wb+");
+                if (config_.output_header) {
+                    SInt total_m = total_num_edges;
+                    fwrite(&config_.n, sizeof(SInt), 1, fout);
+                    fwrite(&total_m, sizeof(SInt), 1, fout);
+                }
+                for (const auto& edge: edges_) {
+                    SInt source = std::get<0>(edge) + 1;
+                    SInt target = std::get<1>(edge) + 1;
+                    fwrite(&source, sizeof(SInt), 1, fout);
+                    fwrite(&target, sizeof(SInt), 1, fout);
+                }
+                break;
+
+            case OutputFormat::EDGE_LIST:
+                fout = fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "w+");
+                if (config_.output_header) {
+                    fprintf(fout, "p %llu %llu\n", config_.n, total_num_edges);
+                }
+                for (const auto& edge: edges_) {
+                    fprintf(fout, "e %llu %llu\n", std::get<0>(edge) + 1, std::get<1>(edge) + 1);
+                }
+                break;
         }
-#else
-        FILE* fout    = fopen((config_.output_file + "_" + std::to_string(rank)).c_str(), "wb+");
-    #ifndef OMIT_HEADER
-        SInt  total_m = total_num_edges;
-        fwrite(&config_.n, sizeof(SInt), 1, fout);
-        fwrite(&total_m, sizeof(SInt), 1, fout);
-    #endif
-        for (auto edge: edges_) {
-            SInt source = std::get<0>(edge) + 1;
-            SInt target = std::get<1>(edge) + 1;
-            fwrite(&source, sizeof(SInt), 1, fout);
-            fwrite(&target, sizeof(SInt), 1, fout);
-        }
-#endif
         fclose(fout);
-    };
+    }
 
     // ABUSE: adjacency list output
     void Print(identity<std::tuple<SInt, std::vector<SInt>>>) const {

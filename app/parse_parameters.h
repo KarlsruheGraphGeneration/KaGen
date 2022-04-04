@@ -25,18 +25,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
     generator_config.generator = args.Get<std::string>("gen", "");
 
     if (args.IsSet("help") || argn < 2) {
-        if (generator_config.generator == "") {
-            std::cout << "================================================" << std::endl;
-            std::cout << "==================== KaGen =====================" << std::endl;
-            std::cout << "================================================" << std::endl;
-            std::cout << "Usage:\t\t\tmpirun -n <num_proc> ./kagen -gen <generator> [additional parameters]"
-                      << std::endl;
-            std::cout << "Generators:\t\tgnm_directed|gnm_undirected|gnp_directed|gnp_undirected|rgg_2d|rgg_3d|rdg_2d|"
-                         "rdg_3d|ba|rhg"
-                      << std::endl;
-            std::cout << "Additional help:\t./kagen -gen <generator> -help" << std::endl;
-        }
-
         if (generator_config.generator == "gnm_undirected" || generator_config.generator == "gnm_directed") {
             std::cout << "================================================" << std::endl;
             std::cout << "========== Erdos-Renyi Graphs G(n,m) ===========" << std::endl;
@@ -46,7 +34,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-m\t\t<number of edges as a power of two>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "-self_loops" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp"
@@ -60,7 +47,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-p\t\t<edge probability>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "-self_loops" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen gnp_directed -n 20 -p 0.001 -self_loops -output tmp"
@@ -74,7 +60,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-r\t\t<radius for vertices to be connected> (r <= 1.0)>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp" << std::endl;
         } else if (generator_config.generator == "rdg_2d" || generator_config.generator == "rdg_3d") {
@@ -85,7 +70,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-n\t\t<number of vertices as a power of two>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp" << std::endl;
         } else if (generator_config.generator == "ba") {
@@ -97,7 +81,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-md\t\t<min degree for each vertex>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp" << std::endl;
         } else if (generator_config.generator == "rhg") {
@@ -111,7 +94,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-d\t\t<average degree>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp" << std::endl;
         } else if (generator_config.generator == "rmat") {
@@ -124,7 +106,6 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-m\t\t<number of edges as a power of two>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen rmat -n 20 -m 22 -output tmp" << std::endl;
         } else if (generator_config.generator == "grid") {
@@ -140,10 +121,25 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
             std::cout << "-periodic\t\t<use periodic boundary condition>" << std::endl;
             std::cout << "-k\t\t<number of chunks>" << std::endl;
             std::cout << "-seed\t\t<seed for PRNGs>" << std::endl;
-            std::cout << "-output\t\t<output file>" << std::endl;
             std::cout << "\nExample:" << std::endl;
             std::cout << "mpirun -n 16 ./build/app/kagen -gen grid -x 16 -y 16 -output tmp" << std::endl;
+        } else {
+            std::cout << "================================================" << std::endl;
+            std::cout << "==================== KaGen =====================" << std::endl;
+            std::cout << "================================================" << std::endl;
+            std::cout << "Usage:\t\t\tmpirun -n <num_proc> ./kagen -gen <generator> [additional parameters]"
+                      << std::endl;
+            std::cout << "Generators:\t\tgnm_directed|gnm_undirected|gnp_directed|gnp_undirected|rgg_2d|rgg_3d|rdg_2d|"
+                         "rdg_3d|ba|rhg"
+                      << std::endl;
+            std::cout << "Additional help:\t./kagen -gen <generator> -help" << std::endl;
         }
+
+        std::cout << std::endl;
+        std::cout << "Output options:" << std::endl;
+        std::cout << "-output\t\t<output file>" << std::endl;
+        std::cout << "-omit_header\t\tIf set, output the graph without header line" << std::endl;
+        std::cout << "-single_file\t\tIf set, if set, write graph to a single file" << std::endl;
         exit(0);
     }
 
@@ -166,6 +162,20 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
     generator_config.output_file  = args.Get<std::string>("output", "out");
     generator_config.debug_output = args.Get<std::string>("debug", "dbg");
     generator_config.dist_size    = args.Get<ULONG>("dist", 10);
+
+    auto output_format = args.Get<std::string>("output_format", "edge_list");
+    if (output_format == "edge_list") {
+        generator_config.output_format = OutputFormat::EDGE_LIST;
+    } else if (output_format == "binary_edge_list") {
+        generator_config.output_format = OutputFormat::BINARY_EDGE_LIST;
+    } else {
+        std::cout << "Invalid output format: " << output_format << std::endl;
+        std::cout << "Supported output formats: edge_list, binary_edge_list" << std::endl;
+        std::exit(0);
+    }
+
+    generator_config.output_header      = args.IsSet("omit_header");
+    generator_config.output_single_file = args.IsSet("single_file");
 
     // Edges
     bool exact_m = args.IsSet("exact_m");

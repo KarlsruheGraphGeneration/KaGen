@@ -14,6 +14,11 @@
 
 namespace kagen {
 
+enum class OutputFormat {
+    EDGE_LIST,
+    BINARY_EDGE_LIST,
+};
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     PGeneratorConfig() {}
@@ -32,6 +37,12 @@ struct PGeneratorConfig {
     double r;
     // Output filename
     std::string output_file;
+    // Output format (text, binary)
+    OutputFormat output_format;
+    // Output file header 
+    bool output_header;
+    // If set, write graph to a single file
+    bool output_single_file;
     // Debug output
     std::string debug_output;
     // Use hash tryagain sampling
