@@ -610,10 +610,14 @@ private:
                 const Vertex& v = cell_vertices[j];
                 if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
                     cb_(std::get<5>(q), std::get<5>(v));
-                    cb_(std::get<5>(v), std::get<5>(q));
+                    if (IsLocalChunk(chunk_id)) {
+                        cb_(std::get<5>(v), std::get<5>(q));
+                    }
 #ifdef OUTPUT_EDGES
                     io_.PushEdge(std::get<5>(q), std::get<5>(v));
-                    io_.PushEdge(std::get<5>(v), std::get<5>(q));
+                    if (IsLocalChunk(chunk_id)) {
+                        io_.PushEdge(std::get<5>(v), std::get<5>(q));
+                    }
 #else
                     io_.UpdateDist(std::get<5>(q));
                     io_.UpdateDist(std::get<5>(v));
