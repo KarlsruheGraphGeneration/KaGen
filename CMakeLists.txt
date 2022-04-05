@@ -230,7 +230,7 @@ find_package(MPI REQUIRED)
 
 # find CGAL
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
-find_package(CGAL)
+find_package(CGAL QUIET)
 if(CGAL_FOUND)
   add_definitions(-DKAGEN_CGAL_FOUND) 
   include(${CGAL_USE_FILE})
@@ -239,6 +239,7 @@ else()
 endif()
 
 # use sampling lib
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 add_subdirectory(extlib/sampling)
 set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
 set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
