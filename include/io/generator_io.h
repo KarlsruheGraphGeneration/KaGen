@@ -64,7 +64,7 @@ public:
     }
 
     BufferedTextOutput& flush() {
-        if (_buffer_pos - _buffer >= kBufferSizeLimit) {
+        if (static_cast<std::size_t>(_buffer_pos - _buffer) >= kBufferSizeLimit) {
             force_flush();
         }
         return *this;
@@ -241,8 +241,13 @@ private:
     void WriteEdgeList(const std::string& filename, const SInt total_m, const std::vector<Edge>& edges) const {
         internal::BufferedTextOutput<> out(filename);
         if (config_.output_header) {
-            out.write_char('p').write_char(' ').write_int(config_.n).write_char(' ').write_int(total_m).write_char(
-                '\n');
+            out.write_char('p')
+                .write_char(' ')
+                .write_int(config_.n)
+                .write_char(' ')
+                .write_int(total_m)
+                .write_char('\n')
+                .flush();
         }
         for (const auto& edge: edges) {
             out.write_char('e')
@@ -250,7 +255,8 @@ private:
                 .write_int(std::get<0>(edge) + 1)
                 .write_char(' ')
                 .write_int(std::get<1>(edge) + 1)
-                .write_char('\n');
+                .write_char('\n')
+                .flush();
         }
     }
 
