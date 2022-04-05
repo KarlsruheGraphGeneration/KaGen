@@ -595,9 +595,6 @@ private:
                     cb_(std::get<5>(q), std::get<5>(v));
                     cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
-                    // if (rank_ == 2)
-                    //   printf("e %lld %f %f %lld %f %f %d %f\n", std::get<5>(q), std::get<1>(q), std::get<0>(q),
-                    //   std::get<5>(v), std::get<1>(v), std::get<0>(v), rank_, PGGeometry::HyperbolicDistance(q, v));
                     io_.PushEdge(std::get<5>(q), std::get<5>(v));
                     io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
@@ -615,12 +612,8 @@ private:
                     cb_(std::get<5>(q), std::get<5>(v));
                     cb_(std::get<5>(v), std::get<5>(q));
 #ifdef OUTPUT_EDGES
-                    // if (rank_ == 2)
-                    //   printf("e %lld %f %f %lld %f %f %d %f\n", std::get<5>(q), std::get<1>(q), std::get<0>(q),
-                    //   std::get<5>(v), std::get<1>(v), std::get<0>(v), rank_, PGGeometry::HyperbolicDistance(q, v));
                     io_.PushEdge(std::get<5>(q), std::get<5>(v));
-                    if (IsLocalChunk(chunk_id))
-                        io_.PushEdge(std::get<5>(v), std::get<5>(q));
+                    io_.PushEdge(std::get<5>(v), std::get<5>(q));
 #else
                     io_.UpdateDist(std::get<5>(q));
                     io_.UpdateDist(std::get<5>(v));
