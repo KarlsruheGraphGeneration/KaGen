@@ -14,6 +14,7 @@
 #include "tools/arg_parser.h"
 #include <iostream>
 
+#include <mpi.h>
 #include <string.h>
 
 namespace kagen {
@@ -173,9 +174,31 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
         std::cout << "Supported output formats: edge_list, binary_edge_list" << std::endl;
         std::exit(0);
     }
-
-    generator_config.output_header      = args.IsSet("omit_header");
+    generator_config.output_header      = !args.IsSet("omit_header");
     generator_config.output_single_file = args.IsSet("single_file");
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        std::cout << "IO options:" << std::endl;
+        std::cout << "- Output filename: " << generator_config.output_file << std::endl;
+        std::cout << "- Output format: ";
+        switch (generator_config.output_format) {
+            case OutputFormat::EDGE_LIST:
+                std::cout << "edge list";
+                break;
+
+            case OutputFormat::BINARY_EDGE_LIST:
+                std::cout << "binary edge list";
+                break;
+
+            default:
+                std::cout << "undefined";
+        }
+        std::cout << std::endl;
+        std::cout << "- Output header: " << generator_config.output_header << std::endl;
+        std::cout << "- Output to a single file: " << generator_config.output_single_file << std::endl;
+    }
 
     // Edges
     bool exact_m = args.IsSet("exact_m");

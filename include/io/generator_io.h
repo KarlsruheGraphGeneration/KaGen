@@ -218,7 +218,7 @@ private:
     }
 
     void WriteBinaryEdgeList(const std::string& filename, const SInt total_m, const std::vector<Edge>& edges) const {
-        FILE* fout = fopen(config_.output_file.c_str(), "wb+");
+        FILE* fout = fopen(filename.c_str(), "wb+");
         if (!fout) {
             std::cerr << "Error: cannot write to " << filename << "\n";
             std::exit(1);
