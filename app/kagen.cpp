@@ -162,6 +162,9 @@ void RunGenerator(
         std::cout << "Writing edges ..." << std::endl;
     }
     gen.IO().OutputEdges();
+    if (rank == ROOT) {
+        std::cout << std::endl;
+    }
 }
 
 int main(int argn, char** argv) {
