@@ -20,7 +20,10 @@
 namespace kagen {
 class GNMDirected {
 public:
-    GNMDirected(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config), io_(config) {
+    GNMDirected(PGeneratorConfig& config, const PEID /* rank */, const PEID /* size */)
+        : config_(config),
+          rng_(config),
+          io_(config) {
         // Init variables
         if (!config_.self_loops)
             edges_per_node_ = config_.n - 1;

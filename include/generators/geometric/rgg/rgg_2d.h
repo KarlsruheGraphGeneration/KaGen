@@ -15,7 +15,7 @@
 namespace kagen {
 class RGG2D : public Geometric2D {
 public:
-    RGG2D(PGeneratorConfig& config, const PEID rank) : Geometric2D(config, rank), io_(config) {
+    RGG2D(PGeneratorConfig& config, const PEID rank, const PEID /* size */) : Geometric2D(config, rank), io_(config) {
         // Chunk variables
         total_chunks_   = config_.k;
         chunks_per_dim_ = sqrt(total_chunks_);

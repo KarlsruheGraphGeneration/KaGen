@@ -113,7 +113,7 @@ void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEI
 
 template <typename Generator>
 void RunGenerator(
-    PGeneratorConfig& config, const PEID rank, const PEID /* size */, Statistics& stats, Statistics& edge_stats,
+    PGeneratorConfig& config, const PEID rank, const PEID size, Statistics& stats, Statistics& edge_stats,
     Statistics& edges) {
     // Start timers
     Timer  t;
@@ -122,7 +122,7 @@ void RunGenerator(
     t.Restart();
 
     // Chunk distribution
-    Generator gen(config, rank);
+    Generator gen(config, rank, size);
     gen.Generate();
 
     // Output

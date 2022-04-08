@@ -21,7 +21,7 @@
 namespace kagen {
 class Barabassi {
 public:
-    Barabassi(PGeneratorConfig& config, const PEID rank)
+    Barabassi(PGeneratorConfig& config, const PEID rank, const PEID /* size */)
         : config_(config),
           rank_(rank),
           io_(config),

@@ -35,7 +35,11 @@ public:
     // phi, r, x, y, gamma, id
     using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat, SInt>;
 
-    Hyperbolic(PGeneratorConfig& config, const PEID rank) : config_(config), rank_(rank), rng_(config), io_(config) {
+    Hyperbolic(PGeneratorConfig& config, const PEID rank, const PEID /* size */)
+        : config_(config),
+          rank_(rank),
+          rng_(config),
+          io_(config) {
         MPI_Comm_size(MPI_COMM_WORLD, &size_);
 
         // Globals

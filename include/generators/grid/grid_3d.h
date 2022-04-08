@@ -22,13 +22,14 @@ namespace kagen {
 
 class Grid3D {
 public:
-    Grid3D(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config), io_(config) {}
+    Grid3D(PGeneratorConfig& config, const PEID rank, const PEID size)
+        : config_(config),
+          rng_(config),
+          io_(config),
+          rank_(rank),
+          size_(size) {}
 
     void Generate() {
-        PEID rank, size;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &size);
-
         // Init dimensions
         // TODO: Only tested for cube PEs and one chunk per PE
         total_x_          = config_.grid_x;
@@ -41,9 +42,9 @@ public:
         total_chunks_   = config_.k;
         chunks_per_dim_ = cbrt(total_chunks_);
 
-        SInt leftover_chunks = total_chunks_ % size;
-        SInt num_chunks      = (total_chunks_ / size) + ((SInt)rank < leftover_chunks);
-        SInt start_chunk     = rank * num_chunks + ((SInt)rank >= leftover_chunks ? leftover_chunks : 0);
+        SInt leftover_chunks = total_chunks_ % size_;
+        SInt num_chunks      = (total_chunks_ / size_) + ((SInt)rank_ < leftover_chunks);
+        SInt start_chunk     = rank_ * num_chunks + ((SInt)rank_ >= leftover_chunks ? leftover_chunks : 0);
         SInt end_chunk       = start_chunk + num_chunks;
 
         // Chunk distribution
@@ -93,6 +94,9 @@ private:
     SInt    x_per_chunk_, y_per_chunk_, z_per_chunk_;
     SInt    remaining_x_, remaining_y_, remaining_z_;
     SInt    vertices_per_chunk_;
+
+    PEID rank_;
+    PEID size_;
 
     void GenerateChunk(const SInt chunk) {
         SInt start_vertex = OffsetForChunk(chunk);

@@ -36,7 +36,9 @@ using Box_3d  = CGAL::Bbox_3;
 namespace kagen {
 class Delaunay3D : public Geometric3D {
 public:
-    Delaunay3D(PGeneratorConfig& config, const PEID rank) : Geometric3D(config, rank), edge_io_(config) {
+    Delaunay3D(PGeneratorConfig& config, const PEID rank, const PEID /* size */)
+        : Geometric3D(config, rank),
+          edge_io_(config) {
         // Chunk variables
         total_chunks_   = config_.k;
         chunks_per_dim_ = cbrt(config_.k);

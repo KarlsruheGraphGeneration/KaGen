@@ -93,7 +93,10 @@ static inline void write_edge(packed_edge* p, int64_t v0, int64_t v1) {
 
 class Kronecker {
 public:
-    Kronecker(PGeneratorConfig& config, const PEID rank) : config_(config), rank_(rank), io_(config) {
+    Kronecker(PGeneratorConfig& config, const PEID rank, const PEID /* size */)
+        : config_(config),
+          rank_(rank),
+          io_(config) {
         MPI_Comm_size(MPI_COMM_WORLD, &size_);
 
         // Init variables

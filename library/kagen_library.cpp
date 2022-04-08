@@ -38,7 +38,7 @@ KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool 
     config_->self_loops = self_loops;
 
     // Init and run generator
-    GNMDirected gen(*config_, rank_);
+    GNMDirected gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -54,7 +54,7 @@ KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const boo
     config_->self_loops = self_loops;
 
     // Init and run generator
-    GNMUndirected gen(*config_, rank_);
+    GNMUndirected gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -70,7 +70,7 @@ KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bo
     config_->self_loops = self_loops;
 
     // Init and run generator
-    GNPDirected gen(*config_, rank_);
+    GNPDirected gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -86,7 +86,7 @@ KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const 
     config_->self_loops = self_loops;
 
     // Init and run generator
-    GNPUndirected gen(*config_, rank_);
+    GNPUndirected gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -100,7 +100,7 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
     config_->seed = seed;
 
     // Init and run generator
-    RGG2D gen(*config_, rank_);
+    RGG2D gen(*config_, rank_, size_);
     gen.Generate();
 
     // Validate consecutive vertex ranges
@@ -117,7 +117,7 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
     config_->seed = seed;
 
     // Init and run generator
-    RGG3D gen(*config_, rank_);
+    RGG3D gen(*config_, rank_, size_);
     gen.Generate();
 
     // Validate consecutive vertex ranges
@@ -134,7 +134,7 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
     config_->seed = seed;
 
     // Init and run generator
-    Delaunay2D gen(*config_, rank_);
+    Delaunay2D gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -147,7 +147,7 @@ KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
     config_->seed = seed;
 
     // Init and run generator
-    Delaunay3D gen(*config_, rank_);
+    Delaunay3D gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -170,7 +170,7 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const in
     config_->seed       = seed;
 
     // Init and run generator
-    Barabassi gen(*config_, rank_);
+    Barabassi gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -185,7 +185,7 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
     config_->seed       = seed;
 
     // Init and run generator
-    Hyperbolic gen(*config_, rank_);
+    Hyperbolic gen(*config_, rank_, size_);
     gen.Generate();
 
     // Fix broken edge list
@@ -205,7 +205,7 @@ KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt pe
     config_->seed     = seed;
 
     // Init and run generator
-    Grid2D gen(*config_, rank_);
+    Grid2D gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
@@ -219,7 +219,7 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, c
     config_->seed = seed;
 
     // Init and run generator
-    Kronecker gen(*config_, rank_);
+    Kronecker gen(*config_, rank_, size_);
     gen.Generate();
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};

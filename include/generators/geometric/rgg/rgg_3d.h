@@ -15,7 +15,7 @@
 namespace kagen {
 class RGG3D : public Geometric3D {
 public:
-    RGG3D(PGeneratorConfig& config, const PEID rank) : Geometric3D(config, rank), io_(config) {
+    RGG3D(PGeneratorConfig& config, const PEID rank, const PEID /* size */) : Geometric3D(config, rank), io_(config) {
         // Chunk variables
         total_chunks_   = config_.k;
         chunks_per_dim_ = cbrt(config_.k);
