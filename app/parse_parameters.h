@@ -243,5 +243,13 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
 
     // Benchmarks
     generator_config.iterations = args.Get<ULONG>("i", 1);
+
+    // Postprocessing
+    const std::string postprocessing_name = args.Get<std::string>("postprocessing", "");
+    if (!postprocessing_name.empty()) {
+        generator_config.postprocessing = StringToPostprocessing(postprocessing_name);
+    } else {
+        generator_config.postprocessing = Postprocessing::SKIP;
+    }
 }
 } // namespace kagen

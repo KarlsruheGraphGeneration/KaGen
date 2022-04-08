@@ -11,6 +11,7 @@
 #include "grid/grid_2d.h"
 #include "hyperbolic/hyperbolic.h"
 #include "kronecker/kronecker.h"
+#include "postprocessing.h"
 
 #ifdef KAGEN_CGAL_FOUND
     #include "geometric/delaunay/delaunay_2d.h"
@@ -102,6 +103,9 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
     RGG2D gen(*config_, rank_);
     gen.Generate();
 
+    // Validate consecutive vertex ranges
+    Postprocess(Postprocessing::VALIDATE_RANGES_CONSECUTIVE, gen);
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
@@ -115,6 +119,9 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
     // Init and run generator
     RGG3D gen(*config_, rank_);
     gen.Generate();
+
+    // Validate consecutive vertex ranges
+    Postprocess(Postprocessing::VALIDATE_RANGES_CONSECUTIVE, gen);
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
@@ -180,6 +187,9 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
     // Init and run generator
     Hyperbolic gen(*config_, rank_);
     gen.Generate();
+
+    // Fix broken edge list
+    Postprocess(Postprocessing::FIX_UNDIRECTED_EDGE_LIST, gen);
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }

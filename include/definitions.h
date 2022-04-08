@@ -6,11 +6,12 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _DEFINITIONS_H_
-#define _DEFINITIONS_H_
+#pragma once
+
+#include <tuple>
+#include <vector>
 
 namespace kagen {
-
 // Constants
 typedef long long          LONG;
 typedef unsigned long long ULONG;
@@ -28,5 +29,6 @@ typedef LONG        SSInt;
 
 enum Direction { Up, Down, Left, Right, Front, Back };
 
+using EdgeList    = std::vector<std::tuple<SInt, SInt>>;
+using VertexRange = std::pair<SInt, SInt>;
 } // namespace kagen
-#endif

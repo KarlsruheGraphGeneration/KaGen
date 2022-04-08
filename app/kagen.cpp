@@ -14,6 +14,7 @@
 #include "generator_config.h"
 #include "io/generator_io.h"
 #include "parse_parameters.h"
+#include "postprocessing.h"
 #include "timer.h"
 
 #if KAGEN_CGAL_FOUND
@@ -105,6 +106,9 @@ void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEI
     std::cout << std::endl;
     std::cout << "- Output header: " << config.output_header << std::endl;
     std::cout << "- Output to a single file: " << config.output_single_file << std::endl;
+    std::cout << std::endl;
+    std::cout << "Other options:" << std::endl;
+    std::cout << "- Postprocessing: " << PostprocessingToString(config.postprocessing) << std::endl;
 }
 
 template <typename Generator>
@@ -128,6 +132,13 @@ void RunGenerator(
         stats.Push(total_time);
         edge_stats.Push(total_time / gen.IO().NumEdges());
         edges.Push(gen.IO().NumEdges());
+    }
+
+    if (config.postprocessing != Postprocessing::SKIP) {
+        if (rank == ROOT) {
+            std::cout << "postprocessing..." << std::endl;
+        }
+        Postprocess(config.postprocessing, gen);
     }
 
     if (rank == ROOT) {

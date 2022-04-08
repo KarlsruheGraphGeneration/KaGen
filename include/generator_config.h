@@ -86,6 +86,48 @@ inline Generator StringToGenerator(const std::string& name) {
     return Generator::UNDEFINED;
 }
 
+enum class Postprocessing {
+    VALIDATE_RANGES,
+    VALIDATE_RANGES_CONSECUTIVE,
+    VALIDATE_UNDIRECTED,
+    FIX_UNDIRECTED_EDGE_LIST,
+    SKIP
+};
+
+inline const char* PostprocessingToString(const Postprocessing postprocessing) {
+    switch (postprocessing) {
+        case Postprocessing::VALIDATE_RANGES:
+            return "validate_ranges";
+
+        case Postprocessing::VALIDATE_RANGES_CONSECUTIVE:
+            return "validate_ranges_consecutive";
+
+        case Postprocessing::VALIDATE_UNDIRECTED:
+            return "validate_undirected";
+
+        case Postprocessing::FIX_UNDIRECTED_EDGE_LIST:
+            return "fix_undirected_edge_list";
+
+        case Postprocessing::SKIP:
+            return "skip";
+    }
+
+    __builtin_unreachable();
+}
+
+inline Postprocessing StringToPostprocessing(const std::string& name) {
+    for (const Postprocessing postprocessing:
+         {Postprocessing::VALIDATE_RANGES, Postprocessing::VALIDATE_RANGES_CONSECUTIVE,
+          Postprocessing::VALIDATE_UNDIRECTED, Postprocessing::SKIP}) {
+        if (name == PostprocessingToString(postprocessing)) {
+            return postprocessing;
+        }
+    }
+
+    std::cerr << "Error: invalid postprocessing option " << name << "\n";
+    std::exit(1);
+}
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     PGeneratorConfig() {}
@@ -141,5 +183,7 @@ struct PGeneratorConfig {
     ULONG hyp_base;
     // Benchmarks
     ULONG iterations;
+    // Optional postprocessing (validation, make it undirected, fix edge list etc)
+    Postprocessing postprocessing;
 };
 } // namespace kagen

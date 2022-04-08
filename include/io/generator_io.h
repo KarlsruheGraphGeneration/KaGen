@@ -83,9 +83,9 @@ private:
 } // namespace internal
 
 class GeneratorIO {
+public:
     using Edge = std::tuple<SInt, SInt>;
 
-public:
     GeneratorIO(PGeneratorConfig& config) : config_(config), local_num_edges_(0) {
         dist_.resize(config_.dist_size);
     }
