@@ -9,14 +9,14 @@
 #ifndef _BARABASSI_H_
 #define _BARABASSI_H_
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <vector>
 
+#include "definitions.h"
+#include "generator_config.h"
+#include "generator_io.h"
 #include "hash.hpp"
 
 namespace kagen {

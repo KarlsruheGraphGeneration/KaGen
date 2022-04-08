@@ -10,19 +10,18 @@
 #ifndef KRONECKER_H
 #define KRONECKER_H
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
-#include "splittable_mrg.h"
-#include "user_settings.h"
-#include "utils.h"
-
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "definitions.h"
+#include "generator_config.h"
+#include "generator_io.h"
 #include "hash.hpp"
+#include "splittable_mrg.h"
+#include "user_settings.h"
+#include "utils.h"
 
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS

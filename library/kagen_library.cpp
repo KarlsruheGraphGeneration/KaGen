@@ -1,3 +1,5 @@
+#include "kagen_library.h"
+
 #include "barabassi/barabassi.h"
 #include "generator_config.h"
 #include "geometric/rgg/rgg_2d.h"
@@ -8,7 +10,6 @@
 #include "gnp/gnp_undirected.h"
 #include "grid/grid_2d.h"
 #include "hyperbolic/hyperbolic.h"
-#include "kagen_library.h"
 #include "kronecker/kronecker.h"
 
 #ifdef KAGEN_CGAL_FOUND

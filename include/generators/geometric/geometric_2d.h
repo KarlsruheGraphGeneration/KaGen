@@ -10,19 +10,19 @@
 #ifndef _GEOMETRIC_2D_H_
 #define _GEOMETRIC_2D_H_
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
-#include "geometry.h"
-#include "libmorton/morton2D.h"
-#include "mersenne.h"
-#include "rng_wrapper.h"
 #include <google/dense_hash_map>
 #include <iostream>
 #include <tuple>
 #include <vector>
 
+#include "definitions.h"
+#include "generator_config.h"
+#include "generator_io.h"
+#include "geometry.h"
 #include "hash.hpp"
+#include "libmorton/morton2D.h"
+#include "mersenne.h"
+#include "rng_wrapper.h"
 
 namespace kagen {
 

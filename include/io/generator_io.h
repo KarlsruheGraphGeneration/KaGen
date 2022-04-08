@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "generator_config.h"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -22,6 +21,8 @@
 #include <mpi.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "generator_config.h"
 
 namespace kagen {
 namespace internal {

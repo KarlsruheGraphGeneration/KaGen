@@ -9,8 +9,9 @@
 #ifndef _GENERATOR_CONFIG_H_
 #define _GENERATOR_CONFIG_H_
 
-#include "definitions.h"
 #include <string>
+
+#include "definitions.h"
 
 namespace kagen {
 

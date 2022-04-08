@@ -9,12 +9,13 @@
 #ifndef ASSERT_H
 #define ASSERT_H
 
-#include "macros_common.h"
 #include <cassert>
 #include <cmath>    // fabs
 #include <cstdio>   // fprintf(), stderr
 #include <cstdlib>  // abort()
 #include <iostream> // cerr
+
+#include "macros_common.h"
 
 namespace kagen {
 

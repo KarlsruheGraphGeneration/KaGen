@@ -9,20 +9,20 @@
 #ifndef _HYPERBOLIC_H_
 #define _HYPERBOLIC_H_
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
-#include "geometry.h"
-#include "rng_wrapper.h"
-#include "sorted_mersenne.h"
 #include <google/dense_hash_map>
 #include <iostream>
 #include <limits>
 #include <tuple>
 #include <vector>
 
+#include "definitions.h"
+#include "generator_config.h"
+#include "generator_io.h"
+#include "geometry.h"
 #include "hash.hpp"
 #include "methodD.hpp"
+#include "rng_wrapper.h"
+#include "sorted_mersenne.h"
 
 namespace kagen {
 

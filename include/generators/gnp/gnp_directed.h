@@ -9,14 +9,14 @@
 #ifndef _GNP_DIRECTED_H_
 #define _GNP_DIRECTED_H_
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
-#include "rng_wrapper.h"
 #include <iostream>
 #include <vector>
 
+#include "definitions.h"
+#include "generator_config.h"
+#include "generator_io.h"
 #include "hash.hpp"
+#include "rng_wrapper.h"
 
 namespace kagen {
 

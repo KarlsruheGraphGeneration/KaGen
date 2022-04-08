@@ -8,13 +8,13 @@
  ******************************************************************************/
 //#define DEL_STATS 1
 
+#include <mpi.h>
+
 #include "benchmark.h"
 #include "generator_config.h"
 #include "io/generator_io.h"
 #include "parse_parameters.h"
 #include "timer.h"
-
-#include <mpi.h>
 
 #if KAGEN_CGAL_FOUND
     #include "geometric/delaunay/delaunay_2d.h"

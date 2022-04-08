@@ -9,13 +9,14 @@
 #ifndef _PARSE_PARAMETERS_H_
 #define _PARSE_PARAMETERS_H_
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "tools/arg_parser.h"
 #include <iostream>
 
 #include <mpi.h>
 #include <string.h>
+
+#include "definitions.h"
+#include "generator_config.h"
+#include "tools/arg_parser.h"
 
 namespace kagen {
 

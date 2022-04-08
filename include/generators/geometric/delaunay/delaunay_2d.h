@@ -9,13 +9,13 @@
 #ifndef _DELAUNAY_2D_H_
 #define _DELAUNAY_2D_H_
 
-#include "geometric/geometric_2d.h"
-
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/spatial_sort.h>
 #include <sys/stat.h>
+
+#include "geometric/geometric_2d.h"
 
 using K_2d  = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Vb_2d = CGAL::Triangulation_vertex_base_with_info_2<kagen::SInt, K_2d>; // attach an ID to

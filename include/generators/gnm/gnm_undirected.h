@@ -9,14 +9,14 @@
 #ifndef _GNM_UNDIRECTED_H_
 #define _GNM_UNDIRECTED_H_
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
-#include "rng_wrapper.h"
 #include <iostream>
 #include <vector>
 
+#include "definitions.h"
+#include "generator_config.h"
+#include "generator_io.h"
 #include "hash.hpp"
+#include "rng_wrapper.h"
 
 namespace kagen {
 
