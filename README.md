@@ -59,6 +59,12 @@ make -j
 By default our generators will output the generated graphs in the DIMACS format.
 For a list of all output options, see `-help`.
 
+#### As a Library 
+
+To use KaGen as a library, simply add this repository as a Git submodule, 
+include its CMake script using `add_subdirectory(extern/KaGen)` and link 
+against the `kagen_library` target.
+
 ## Graph Models
 
 ### Erdos-Renyi Graphs G(n, m)
