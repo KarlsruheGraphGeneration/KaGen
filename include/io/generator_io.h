@@ -95,6 +95,24 @@ public:
         local_num_edges_++;
     }
 
+    void ReserveEdges(SInt num_edges) {
+        edges_.reserve(num_edges);
+    }
+
+    template <typename... Args>
+    inline void PushEdge(Args... args) {
+        edges_.emplace_back(std::make_tuple(args...));
+        local_num_edges_++;
+    }
+
+    auto& GetEdges() {
+        return edges_;
+    }
+
+    SInt NumEdges() const {
+        return edges_.size() > 0 ? edges_.size() : local_num_edges_ / 2;
+    }
+
     void OutputDist() const {
         // Exchange local dist
         PEID rank, size;
@@ -111,26 +129,12 @@ public:
         }
     }
 
-    void ReserveEdges(SInt num_edges) {
-        edges_.reserve(num_edges);
-    }
-
-    template <typename... Args>
-    inline void PushEdge(Args... args) {
-        edges_.emplace_back(std::make_tuple(args...));
-        local_num_edges_++;
-    }
-
     void OutputEdges() const {
         if (config_.output_single_file) {
             GatherPrint();
         } else {
             Print();
         }
-    }
-
-    SInt NumEdges() const {
-        return edges_.size() > 0 ? edges_.size() : local_num_edges_ / 2;
     }
 
 private:
