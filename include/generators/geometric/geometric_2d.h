@@ -25,7 +25,6 @@
 #include "rng_wrapper.h"
 
 namespace kagen {
-
 class Geometric2D {
 public:
     // n, x_off, y_off, generated, offset
@@ -55,7 +54,7 @@ public:
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
-        return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
+        return std::make_pair(start_node_, start_node_ + num_nodes_);
     }
 
 protected:
@@ -129,7 +128,7 @@ protected:
             if (IsLocalChunk(chunk_id)) {
                 if (start_node_ > offset)
                     start_node_ = offset;
-                num_nodes_ += n;
+                num_nodes_ += n; 
             }
             return;
         }
