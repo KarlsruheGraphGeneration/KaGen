@@ -37,50 +37,68 @@
 using namespace kagen;
 
 void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEID size) {
+    std::cout << "________________________________________________________________________________\n";
+    std::cout << "                       _    _             __                                    \n";
+    std::cout << "                       /  ,'            /    )                                  \n";
+    std::cout << "----------------------/_.'-------__----/----------__-----__---------------------\n";
+    std::cout << "                     /  \\      /   )  /  --,    /___)  /   )                    \n";
+    std::cout << "____________________/____\\____(___(__(____/____(___ __/___/_____________________\n";
+    std::cout << "\n";
+    std::cout << "Input Parameters:\n";
+    std::cout << "|\n";
+    std::cout << "+-- Generator:\n";
+    std::cout << "|   +-- Type: ......................... " << GeneratorToString(config.generator) << "\n";
+    std::cout << "|   +-- n: ............................ " << config.n << "\n";
+
     switch (config.generator) {
         case Generator::GNM_DIRECTED:
         case Generator::GNM_UNDIRECTED:
         case Generator::GNP_DIRECTED:
         case Generator::GNP_UNDIRECTED:
-            std::cout << "generate graph (n=" << config.n << ", m=" << config.m << " (p=" << config.p
-                      << "), k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            std::cout << "|   +-- m: ............................ " << config.m << "\n";
+            std::cout << "|   +-- p: ............................ " << config.p << "\n";
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::RGG_2D:
         case Generator::RGG_3D:
-            std::cout << "generate graph (n=" << config.n << ", r=" << config.r << ", k=" << config.k
-                      << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            std::cout << "|   +-- r: ............................ " << config.r << "\n";
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::RDG_2D:
         case Generator::RDG_3D:
-            std::cout << "generate graph (n=" << config.n << ", k=" << config.k << ", s=" << config.seed
-                      << ", P=" << size << ")" << std::endl;
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::RHG:
-            std::cout << "generate graph (n=" << config.n << ", d=" << config.avg_degree << ", gamma=" << config.plexp
-                      << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            std::cout << "|   +-- d: ............................ " << config.avg_degree << "\n";
+            std::cout << "|   +-- gamma: ........................ " << config.plexp << "\n";
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::BA:
-            std::cout << "generate graph (n=" << config.n << ", d=" << config.min_degree << ", k=" << config.k
-                      << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            std::cout << "|   +-- d: ............................ " << config.avg_degree << "\n";
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::GRID_2D:
-            std::cout << "generate graph (row=" << config.grid_x << ", col=" << config.grid_y << ", p=" << config.p
-                      << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            std::cout << "|   +-- row: .......................... " << config.grid_x << "\n";
+            std::cout << "|   +-- col: .......................... " << config.grid_y << "\n";
+            std::cout << "|   +-- p: ............................ " << config.p << "\n";
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::GRID_3D:
-            std::cout << "generate graph (x=" << config.grid_x << ", y=" << config.grid_y << ", z=" << config.grid_z
-                      << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")"
-                      << std::endl;
+            std::cout << "|   +-- x: ............................ " << config.grid_x << "\n";
+            std::cout << "|   +-- y: ............................ " << config.grid_y << "\n";
+            std::cout << "|   +-- z: ............................ " << config.grid_z << "\n";
+            std::cout << "|   +-- p: ............................ " << config.p << "\n";
+            std::cout << "|   +-- k: ............................ " << config.k << "\n";
             break;
 
         case Generator::KRONECKER:
-            std::cout << "generate graph (?)" << std::endl; // @todo
+            // @todo
             break;
 
         default:
@@ -88,27 +106,18 @@ void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEI
             std::exit(1);
     }
 
-    std::cout << "IO options:" << std::endl;
-    std::cout << "- Output filename: " << config.output_file << std::endl;
-    std::cout << "- Output format: ";
-    switch (config.output_format) {
-        case OutputFormat::EDGE_LIST:
-            std::cout << "edge list";
-            break;
-
-        case OutputFormat::BINARY_EDGE_LIST:
-            std::cout << "binary edge list";
-            break;
-
-        default:
-            std::cout << "undefined";
-    }
+    std::cout << "|   +-- s: ............................ " << config.seed << "\n";
+    std::cout << "|   `-- P: ............................ " << size << "\n";
+    std::cout << "|\n";
+    std::cout << "+-- IO\n";
+    std::cout << "|   +-- Filename: ..................... " << config.output_file << "\n";
+    std::cout << "|   +-- Format: ....................... " << OutputFormatToString(config.output_format) << "\n";
+    std::cout << "|   +-- Header: ....................... " << (config.output_header ? "Yes" : "No") << "\n";
+    std::cout << "|   `-- Single file: .................. " << (config.output_single_file ? "Yes" : "No") << "\n";
+    std::cout << "|\n";
+    std::cout << "`-- Miscellaneous\n";
+    std::cout << "    `-- Postprocessing: ............... " << PostprocessingToString(config.postprocessing) << "\n";
     std::cout << std::endl;
-    std::cout << "- Output header: " << config.output_header << std::endl;
-    std::cout << "- Output to a single file: " << config.output_single_file << std::endl;
-    std::cout << std::endl;
-    std::cout << "Other options:" << std::endl;
-    std::cout << "- Postprocessing: " << PostprocessingToString(config.postprocessing) << std::endl;
 }
 
 template <typename Generator>
@@ -120,6 +129,10 @@ void RunGenerator(
     double local_time = 0.0;
     double total_time = 0.0;
     t.Restart();
+
+    if (rank == ROOT) {
+        std::cout << "Generating graph ..." << std::endl;
+    }
 
     // Chunk distribution
     Generator gen(config, rank, size);
@@ -136,13 +149,13 @@ void RunGenerator(
 
     if (config.postprocessing != Postprocessing::SKIP) {
         if (rank == ROOT) {
-            std::cout << "postprocessing..." << std::endl;
+            std::cout << "Postprocessing ..." << std::endl;
         }
         Postprocess(config.postprocessing, gen);
     }
 
     if (rank == ROOT) {
-        std::cout << "write output..." << std::endl;
+        std::cout << "Writing edges ..." << std::endl;
     }
     gen.IO().OutputEdges();
 }

@@ -19,6 +19,17 @@ enum class OutputFormat {
     BINARY_EDGE_LIST,
 };
 
+inline const char* OutputFormatToString(const OutputFormat format) {
+    switch (format) {
+        case OutputFormat::EDGE_LIST:
+            return "edge_list";
+        case OutputFormat::BINARY_EDGE_LIST:
+            return "binary_edge_list";
+        default:
+            return "undefined";
+    }
+}
+
 enum class Generator {
     GNM_DIRECTED,
     GNM_UNDIRECTED,
