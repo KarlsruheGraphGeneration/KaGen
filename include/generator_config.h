@@ -129,7 +129,7 @@ inline const char* PostprocessingToString(const Postprocessing postprocessing) {
 inline Postprocessing StringToPostprocessing(const std::string& name) {
     for (const Postprocessing postprocessing:
          {Postprocessing::VALIDATE_RANGES, Postprocessing::VALIDATE_RANGES_CONSECUTIVE,
-          Postprocessing::VALIDATE_UNDIRECTED, Postprocessing::SKIP}) {
+          Postprocessing::VALIDATE_UNDIRECTED, Postprocessing::FIX_UNDIRECTED_EDGE_LIST, Postprocessing::SKIP}) {
         if (name == PostprocessingToString(postprocessing)) {
             return postprocessing;
         }

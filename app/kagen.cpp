@@ -147,6 +147,10 @@ void RunGenerator(
         edges.Push(gen.IO().NumEdges());
     }
 
+    if (rank == ROOT) {
+        std::cout << std::endl;
+    }
+
     if (config.postprocessing != Postprocessing::SKIP) {
         if (rank == ROOT) {
             std::cout << "Postprocessing ..." << std::endl;

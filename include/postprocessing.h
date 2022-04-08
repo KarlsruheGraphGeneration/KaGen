@@ -114,6 +114,8 @@ inline void FixEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ran
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    const SInt edge_list_size_before = edge_list.size();
+
     const auto& [local_from, local_to] = ranges[rank];
     std::unordered_map<PEID, std::vector<SInt>> message_buffers;
 
@@ -166,6 +168,26 @@ inline void FixEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ran
     // kagen sometimes produces duplicate edges
     auto it = std::unique(edge_list.begin(), edge_list.end());
     edge_list.erase(it, edge_list.end());
+
+    const SInt edge_list_size_after = edge_list.size();
+
+    // Generate some statistics
+    SInt edge_list_global_size_before = 0;
+    MPI_Reduce(
+        &edge_list_size_before, &edge_list_global_size_before, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT,
+        MPI_COMM_WORLD);
+    SInt edge_list_global_size_after = 0;
+    MPI_Reduce(
+        &edge_list_size_after, &edge_list_global_size_after, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+
+    if (rank == ROOT) {
+        std::cout << "- Number of edges (before): " << edge_list_global_size_before << "\n";
+        std::cout << "- Number of edges  (after): " << edge_list_global_size_after << "\n";
+        std::cout << "- Changed by: ............. "
+                  << static_cast<SSInt>(edge_list_global_size_after) - static_cast<SSInt>(edge_list_global_size_before)
+                  << " edges\n";
+        std::cout << std::endl;
+    }
 }
 
 inline void Postprocess(Postprocessing option, EdgeList& edge_list, const std::vector<VertexRange>& ranges) {
