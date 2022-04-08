@@ -156,6 +156,9 @@ void RunGenerator(
             std::cout << "Postprocessing ..." << std::endl;
         }
         Postprocess(config.postprocessing, gen);
+        if (rank == ROOT) {
+            std::cout << std::endl;
+        }
     }
 
     if (rank == ROOT) {

@@ -29,7 +29,7 @@ inline PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SIn
     for (std::size_t i = 0; i < ranges.size(); ++i) {
         const auto& [local_from, local_to] = ranges[i];
 
-        if (local_from <= node && node <= local_to) {
+        if (local_from <= node && node < local_to) {
             return i;
         }
     }
@@ -119,12 +119,12 @@ inline void FixEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ran
     const auto& [local_from, local_to] = ranges[rank];
     std::unordered_map<PEID, std::vector<SInt>> message_buffers;
 
+    // Each PE gets the edges that we have to that PE
     for (const auto& [tail, head]: edge_list) {
-        if (tail >= local_from && tail < local_to) {
-            if (head < local_from || head >= local_to) {
-                message_buffers[internal::FindPEInRange(head, ranges)].emplace_back(tail);
-                message_buffers[internal::FindPEInRange(head, ranges)].emplace_back(head);
-            }
+        if ((tail >= local_from && tail < local_to) && (head < local_from || head >= local_to)) {
+            const SInt pe = static_cast<SInt>(internal::FindPEInRange(head, ranges));
+            message_buffers[pe].emplace_back(tail);
+            message_buffers[pe].emplace_back(head);
         }
     }
 
@@ -139,10 +139,10 @@ inline void FixEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ran
     }
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
-    const std::size_t total_send_count = send_displs[size - 1] + send_counts[size - 1];
+    const std::size_t total_send_count = send_displs.back() + send_counts.back();
     MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
-    const std::size_t total_recv_count = recv_displs[size - 1] + recv_counts[size - 1];
+    const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
     send_buf.reserve(total_send_count);
     for (size_t i = 0; i < send_counts.size(); ++i) {
         for (const auto& elem: message_buffers[i]) {
@@ -165,7 +165,7 @@ inline void FixEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ran
 
     std::sort(edge_list.begin(), edge_list.end());
 
-    // kagen sometimes produces duplicate edges
+    // KaGen sometimes produces duplicate edges
     auto it = std::unique(edge_list.begin(), edge_list.end());
     edge_list.erase(it, edge_list.end());
 
@@ -186,7 +186,6 @@ inline void FixEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ran
         std::cout << "- Changed by: ............. "
                   << static_cast<SSInt>(edge_list_global_size_after) - static_cast<SSInt>(edge_list_global_size_before)
                   << " edges\n";
-        std::cout << std::endl;
     }
 }
 
