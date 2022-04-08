@@ -7,8 +7,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GENERATOR_IO_H_
-#define _GENERATOR_IO_H_
+#pragma once
 
 #include "generator_config.h"
 #include <algorithm>
@@ -82,11 +81,6 @@ private:
 };
 } // namespace internal
 
-template <typename T>
-struct identity {
-    typedef T type;
-};
-
 template <typename Edge = std::tuple<SInt, SInt>>
 class GeneratorIO {
 public:
@@ -129,9 +123,9 @@ public:
 
     void OutputEdges() const {
         if (config_.output_single_file) {
-            GatherPrint(identity<Edge>());
+            GatherPrint();
         } else {
-            Print(identity<Edge>());
+            Print();
         }
     }
 
@@ -147,7 +141,7 @@ private:
 
     SInt local_num_edges_;
 
-    void GatherPrint(identity<std::tuple<SInt, SInt>>) const {
+    void GatherPrint() const {
         // Exchange local dist
         PEID rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -196,7 +190,7 @@ private:
     }
 
     // node id output
-    void Print(identity<std::tuple<SInt, SInt>>) const {
+    void Print() const {
         PEID rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -259,45 +253,5 @@ private:
                 .flush();
         }
     }
-
-    // ABUSE: adjacency list output
-    void Print(identity<std::tuple<SInt, std::vector<SInt>>>) const {
-        PEID rank, size;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-        // fugly but saves memory as this is a const method
-        auto& nodes = const_cast<std::vector<Edge>&>(edges_);
-
-        // sort edges by node id
-        std::sort(std::begin(nodes), std::end(nodes), [](const Edge& t1, const Edge& t2) {
-            return std::get<0>(t1) < std::get<0>(t2); // or use a custom compare function
-        });
-
-        // compute edge count
-        SInt edgeCount = std::accumulate(std::begin(nodes), std::end(nodes), SInt(0), [](SInt a, const Edge& b) {
-            return a + std::get<1>(b).size();
-        });
-
-        FILE* fout = fopen((config_.output_file + std::to_string(rank)).c_str(), "wb");
-        fprintf(fout, "%lu %llu\n", edges_.size(), edgeCount);
-
-        for (auto& node: nodes) {
-            auto& edges = std::get<1>(node);
-            edgeCount += edges.size();
-            std::sort(std::begin(edges), std::end(edges));
-
-            std::string sep = "";
-            for (const auto& edge: edges) {
-                fprintf(fout, "%s%llu", sep.c_str(), edge);
-                sep = " ";
-            }
-            fprintf(fout, "\n");
-        }
-
-        fclose(fout);
-    };
 };
-
 } // namespace kagen
-#endif
