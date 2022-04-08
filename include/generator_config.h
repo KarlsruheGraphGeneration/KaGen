@@ -79,6 +79,10 @@ inline Generator StringToGenerator(const std::string& name) {
         }
     }
 
+    if (name == "rmat") {
+        return Generator::KRONECKER;
+    }
+
     return Generator::UNDEFINED;
 }
 
