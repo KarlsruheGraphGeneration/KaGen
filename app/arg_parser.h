@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _ARG_PARSER_H_
-#define _ARG_PARSER_H_
+#pragma once
 
 #include <cassert>
 #include <sstream>
@@ -16,7 +15,6 @@
 #include <vector>
 
 namespace kagen {
-
 /// Parse command-line arguments
 /**
  * A simple command-line parser.
@@ -84,6 +82,4 @@ protected:
     std::unordered_map<std::string, std::string> named_args_;
     std::vector<std::string>                     data_args_;
 };
-
 } // namespace kagen
-#endif

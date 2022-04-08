@@ -13,12 +13,12 @@
 #include <mpi.h>
 #include <string.h>
 
+#include "arg_parser.h"
 #include "definitions.h"
 #include "generator_config.h"
-#include "tools/arg_parser.h"
 
 namespace kagen {
-void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& generator_config) {
+inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& generator_config) {
     ArgParser args(argn, argv);
 
     // Generator
@@ -169,7 +169,7 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
         std::cout << "-postprocessing\t\tvalidate_ranges|validate_ranges_consecutive|validate_undirected|fix_"
                      "undirected_edge_list"
                   << std::endl;
-        exit(0);
+        std::exit(0);
     }
 
     if (generator_config.generator == Generator::UNDEFINED) {
