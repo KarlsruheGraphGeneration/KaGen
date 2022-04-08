@@ -78,8 +78,8 @@ The graph can either be directed or undirected and can contain self-loops.
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto edge_list_directed = gen.GenerateDirectedGNM(n, m, k, self_loops, seed);
-auto edge_list_undirected = gen.GenerateUndirectedGNM(n, m, k, self_loops, seed);
+auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, k, self_loops, seed);
+auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, k, self_loops, seed);
 ```
 
 #### Command Line Example
@@ -106,8 +106,8 @@ NOTE: The number of processes must be a power of 2. Unless set explicitly, the n
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto edge_list_2d = gen.Generate2DRGG(n, r, k, seed);
-auto edge_list_3d = gen.Generate3DRGG(n, r, k, seed);
+auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRGG(n, r, k, seed);
+auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRGG(n, r, k, seed);
 ```
 
 #### Command Line Example
@@ -133,8 +133,8 @@ NOTE: The graph is generated with periodic boundary conditions to avoid long edg
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto edge_list_2d = gen.Generate2DRDG(n, k, seed);
-auto edge_list_3d = gen.Generate3DRDG(n, k, seed);
+auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n, k, seed);
+auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n, k, seed);
 ```
 
 #### Command Line Example
@@ -159,7 +159,7 @@ Generate a random graph using the Barabassi-Albert graph model BA(n,d)
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto edge_list = gen.GenerateBA(n, md, seed);
+auto [edge_list, vertex_range] = gen.GenerateBA(n, md, seed);
 ```
 
 #### Command Line Example
@@ -186,7 +186,7 @@ Generate a two dimensional random graph using the random hyperbolic graph model 
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto edge_list = gen.GenerateRHG(n, gamma, d, seed);
+auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d, seed);
 ```
 
 #### Command Line Example
