@@ -1,4 +1,4 @@
-# Communication-free Graph Generators [![Build Status](https://travis-ci.com/sebalamm/KaGen.svg?branch=master)](https://travis-ci.com/sebalamm/KaGen)
+# Communication-free Graph Generators 
 
 This is the code to accompany our eponymous paper: *Funke, D., Lamm, S., Sanders, P., Schulz, C., Strash, D. and von Looz, M., 2017. Communication-free Massively Distributed Graph Generation. arXiv preprint arXiv:1710.07565.*
 You can find a freely accessible online version [in the arXiv](https://arxiv.org/abs/1710.07565).
@@ -43,16 +43,16 @@ In order to compile the generators you need GCC, OpenMPI and [Google Sparsehash]
 If you want to generate random delaunay graphs, you also need CGAL.
 You can install these dependencies via your package manager:
 ```shell
-  sudo apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libcgal-qt5-dev libsparsehash-dev 
+sudo apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libcgal-qt5-dev libsparsehash-dev 
 ```
 
 #### Compiling 
 To compile the code either run `compile.sh` or use the following instruction
 ```shell
-  git submodule update --init --recursive
-  mkdir build && cd build
-  cmake .. -DCMAKE_BUILD_TYPE=Release
-  make -j
+git submodule update --init --recursive
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j
 ```
 
 #### Output
@@ -61,7 +61,7 @@ For a list of all output options, see `-help`.
 
 ## Graph Models
 
-### Erdos-Renyi Graphs G(n,m)
+### Erdos-Renyi Graphs G(n, m)
 Generate a random graph using the Erdos-Renyi model G(n,m).
 The graph can either be directed or undirected and can contain self-loops.
 
@@ -90,7 +90,7 @@ mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output
 
 ---
 
-### Random Geometric Graphs RGG(n,r)
+### Random Geometric Graphs RGG(n, r)
 Generate a random graph using the random geometric graph model RGG(n,r).
 NOTE: The number of processes must be a power of 2. Unless set explicitly, the number of chunks will be set to the next larger square (cubic) number for the two-dimensional (three-dimensional) generator.
 
@@ -121,6 +121,7 @@ mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.001 -output tmp
 Generate a random graph using the random Delaunay graph model RDG(n).
 NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
 NOTE: The graph is generated with periodic boundary conditions to avoid long edges at the border.
+
 #### Parameters
 ```
 -gen <rdg_2d|rdg_3d>
@@ -143,8 +144,9 @@ mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp
 ```
 --- 
 
-### Barabassi-Albert Graphs BA(n,d)
+### Barabassi-Albert Graphs BA(n, d)
 Generate a random graph using the Barabassi-Albert graph model BA(n,d)
+
 #### Parameters
 ```
 -gen ba
@@ -168,8 +170,9 @@ mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp
 
 --- 
 
-### Random Hyperbolic Graphs RHG(n,gamma,d)
+### Random Hyperbolic Graphs RHG(n, gamma, d)
 Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)
+
 #### Parameters
 ```
 -gen rhg
