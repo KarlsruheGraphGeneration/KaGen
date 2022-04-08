@@ -24,6 +24,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
+option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 
 ################################################################################
 
@@ -229,13 +230,15 @@ message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 find_package(MPI REQUIRED)
 
 # find CGAL
-set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
-find_package(CGAL QUIET)
-if(CGAL_FOUND)
-  add_definitions(-DKAGEN_CGAL_FOUND) 
-  include(${CGAL_USE_FILE})
-else()
-  message(STATUS "Could not find CGAL library: Random Delaunay Graphs will not be available")
+if (KAGEN_USE_CGAL)
+  set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
+  find_package(CGAL QUIET)
+  if(CGAL_FOUND)
+    add_definitions(-DKAGEN_CGAL_FOUND) 
+    include(${CGAL_USE_FILE})
+  else()
+    message(STATUS "Could not find CGAL library: Random Delaunay Graphs will not be available")
+  endif()
 endif()
 
 # use sampling lib
