@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GRID_2D_H_
-#define _GRID_2D_H_
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -21,14 +20,9 @@
 
 namespace kagen {
 
-template <typename EdgeCallback>
 class Grid2D {
 public:
-    Grid2D(PGeneratorConfig& config, const PEID /* rank */, const EdgeCallback& cb)
-        : config_(config),
-          rng_(config),
-          io_(config),
-          cb_(cb) {}
+    Grid2D(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config), io_(config) {}
 
     void Generate() {
         PEID rank, size;
@@ -69,20 +63,12 @@ public:
         }
     }
 
-    void Output() const {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -93,8 +79,7 @@ private:
     RNGWrapper rng_;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
+    GeneratorIO io_;
 
     // Constants and variables
     SInt    start_node_, end_node_, num_nodes_;
@@ -209,14 +194,8 @@ private:
         SInt edge_seed = std::min(source, target) * total_rows_ * total_cols_ + std::max(source, target);
         SInt h         = sampling::Spooky::hash(config_.seed + edge_seed);
         if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
-            cb_(source, target);
-            cb_(target, source);
-#ifdef OUTPUT_EDGES
             io_.PushEdge(source, target);
-#else
-            io_.UpdateDist(source);
-            io_.UpdateDist(target);
-#endif
+            io_.PushEdge(target, source);
         }
     }
 
@@ -272,6 +251,4 @@ private:
         // return m2D_e_sLUT<SInt>(y, x);
     }
 };
-
 } // namespace kagen
-#endif

@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _DELAUNAY_2D_H_
-#define _DELAUNAY_2D_H_
+#pragma once
 
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -81,15 +80,11 @@ public:
 #endif
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class Delaunay2D : public Geometric2D {
 public:
-    Delaunay2D(PGeneratorConfig& config, const PEID rank, const EdgeCallback& cb)
+    Delaunay2D(PGeneratorConfig& config, const PEID rank)
         : Geometric2D(config, rank),
-          point_io_(config),
-          edge_io_(config),
-          cb_(cb) {
+          edge_io_(config) {
         // Chunk variables
         total_chunks_   = config_.k;
         chunks_per_dim_ = sqrt(total_chunks_);
@@ -111,17 +106,8 @@ public:
         InitDatastructures();
     }
 
-    void Output() const override {
-#ifdef DEL_STATS
-        outputRadiusStats();
-#endif
-#ifdef OUTPUT_EDGES
-        edge_io_.OutputEdges();
-#else
-        edge_io_.OutputDist();
-#endif
-        // adjacency_io_.OutputEdges();
-        // rng_.output();
+    GenerateIO& IO() {
+        return edge_id_;
     }
 
     inline SInt NumberOfEdges() const override {
@@ -130,9 +116,7 @@ public:
 
 private:
     // I/O
-    GeneratorIO<std::tuple<LPFloat, LPFloat>> point_io_;
-    GeneratorIO<std::tuple<SInt, SInt>>       edge_io_;
-    EdgeCallback                              cb_;
+    GeneratorIO<std::tuple<SInt, SInt>> edge_io_;
 
 #ifdef DEL_STATS
 
@@ -396,9 +380,8 @@ private:
         }
 
         // we have a conflict free triangulation, output edges
-#ifdef OUTPUT_EDGES
         edge_io_.ReserveEdges(id_high - id_low);
-#endif
+
         for (auto e = tria.finite_edges_begin(); e != tria.finite_edges_end(); ++e) {
             // we only save outgoing edges from a vertices within our chunk
 
@@ -424,18 +407,12 @@ private:
             }
 
             if (touches) {
-                cb_((v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(),
-                    (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
-                cb_((v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(),
-                    (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
-#ifdef OUTPUT_EDGES
                 edge_io_.PushEdge(
                     (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(),
                     (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
                 edge_io_.PushEdge(
                     (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(),
                     (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
-#endif
             }
         }
 
@@ -489,6 +466,4 @@ private:
         CGAL::spatial_sort(vertices.begin(), vertices.end(), sst);
     }
 };
-
 } // namespace kagen
-#endif

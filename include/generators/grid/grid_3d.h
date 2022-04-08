@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GRID_3D_H_
-#define _GRID_3D_H_
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -21,14 +20,9 @@
 
 namespace kagen {
 
-template <typename EdgeCallback>
 class Grid3D {
 public:
-    Grid3D(PGeneratorConfig& config, const PEID /* rank */, const EdgeCallback& cb)
-        : config_(config),
-          rng_(config),
-          io_(config),
-          cb_(cb) {}
+    Grid3D(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config), io_(config) {}
 
     void Generate() {
         PEID rank, size;
@@ -73,20 +67,12 @@ public:
         }
     }
 
-    void Output() const {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -97,8 +83,7 @@ private:
     RNGWrapper rng_;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
+    GeneratorIO io_;
 
     // Constants and variables
     SInt    start_node_, end_node_, num_nodes_;
@@ -199,7 +184,7 @@ private:
         SInt ys = y_per_chunk_ + (chunk_y < remaining_y_);
         SInt zs = z_per_chunk_ + (chunk_z < remaining_z_);
 
-        SInt local_neighbor_x, local_neighbor_y, local_neighbor_z;
+        SInt local_neighbor_x = 0, local_neighbor_y = 0, local_neighbor_z = 0;
         switch (direction) {
             case Right:
                 local_neighbor_x = 0;
@@ -241,14 +226,8 @@ private:
         SInt edge_seed = std::min(source, target) * total_y_ * total_x_ * total_z_ + std::max(source, target);
         SInt h         = sampling::Spooky::hash(config_.seed + edge_seed);
         if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
-            cb_(source, target);
-            cb_(target, source);
-#ifdef OUTPUT_EDGES
             io_.PushEdge(source, target);
-#else
-            io_.UpdateDist(source);
-            io_.UpdateDist(target);
-#endif
+            io_.PushEdge(target, source);
         }
     }
 
@@ -307,10 +286,6 @@ private:
         SInt intersect_frontal_frontal_left = vertex_x * next_vertex_y * vertex_z;
         SInt intersect_all                  = vertex_x * vertex_y * vertex_z;
 
-        // SInt offset = upper_cube + frontal_cube + frontal_left_cube
-        //                 - (intersect_upper_frontal + intersect_upper_frontal_left + intersect_frontal_frontal_left)
-        //                 + intersect_all;
-
         return upper_cube + frontal_cube + frontal_left_cube
                - (intersect_upper_frontal + intersect_upper_frontal_left + intersect_frontal_frontal_left)
                + intersect_all;
@@ -329,6 +304,4 @@ private:
         return x + y * chunks_per_dim_ + z * (chunks_per_dim_ * chunks_per_dim_);
     }
 };
-
 } // namespace kagen
-#endif

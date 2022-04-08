@@ -82,17 +82,18 @@ private:
 };
 } // namespace internal
 
-template <typename Edge = std::tuple<SInt, SInt>>
 class GeneratorIO {
+    using Edge = std::tuple<SInt, SInt>;
+
 public:
     GeneratorIO(PGeneratorConfig& config) : config_(config), local_num_edges_(0) {
         dist_.resize(config_.dist_size);
     }
 
     inline void UpdateDist(SInt node_id) {
-        // if ((CRCHash::hash(node_id) % config_.n) < dist_.size()) dist_[node_id]++;
-        if (node_id < dist_.size())
+        if (node_id < dist_.size()) {
             dist_[node_id]++;
+        }
         local_num_edges_++;
     }
 

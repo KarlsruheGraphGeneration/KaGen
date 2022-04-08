@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _HYPERBOLIC_H_
-#define _HYPERBOLIC_H_
+#pragma once
 
 #include <google/dense_hash_map>
 #include <iostream>
@@ -25,8 +24,6 @@
 #include "sorted_mersenne.h"
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class Hyperbolic {
 public:
     // n, min_r, max_r, generated, offset
@@ -38,12 +35,7 @@ public:
     // phi, r, x, y, gamma, id
     using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat, SInt>;
 
-    Hyperbolic(PGeneratorConfig& config, const PEID rank, const EdgeCallback& cb)
-        : config_(config),
-          rank_(rank),
-          rng_(config),
-          io_(config),
-          cb_(cb) {
+    Hyperbolic(PGeneratorConfig& config, const PEID rank) : config_(config), rank_(rank), rng_(config), io_(config) {
         MPI_Comm_size(MPI_COMM_WORLD, &size_);
 
         // Globals
@@ -91,10 +83,6 @@ public:
         // Vertex range
         start_node_ = std::numeric_limits<SInt>::max();
         num_nodes_  = 0;
-
-        // I/O (Debug)
-        // edge_file = fopen((config_.debug_output + std::to_string(rank_)).c_str(), "w"); fprintf(edge_file, "target_r_
-        // %f\n", target_r_);
     }
 
     void Generate() {
@@ -132,20 +120,12 @@ public:
         //   std::cout << "generated edges" << std::endl;
     }
 
-    void Output() const {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -159,9 +139,7 @@ private:
     SortedMersenne sorted_mersenne;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
-    // FILE* edge_file;
+    GeneratorIO io_;
 
     // Constants and variables
     LPFloat alpha_, target_r_, cosh_target_r_, pdm_target_r_;
@@ -592,15 +570,8 @@ private:
                     continue;
                 // Generate edge
                 if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
-                    cb_(std::get<5>(q), std::get<5>(v));
-                    cb_(std::get<5>(v), std::get<5>(q));
-#ifdef OUTPUT_EDGES
                     io_.PushEdge(std::get<5>(q), std::get<5>(v));
                     io_.PushEdge(std::get<5>(v), std::get<5>(q));
-#else
-                    io_.UpdateDist(std::get<5>(q));
-                    io_.UpdateDist(std::get<5>(v));
-#endif
                 }
             }
         }
@@ -609,19 +580,10 @@ private:
             for (SInt j = 0; j < cell_vertices.size(); ++j) {
                 const Vertex& v = cell_vertices[j];
                 if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
-                    cb_(std::get<5>(q), std::get<5>(v));
-                    if (IsLocalChunk(chunk_id)) {
-                        cb_(std::get<5>(v), std::get<5>(q));
-                    }
-#ifdef OUTPUT_EDGES
                     io_.PushEdge(std::get<5>(q), std::get<5>(v));
                     if (IsLocalChunk(chunk_id)) {
                         io_.PushEdge(std::get<5>(v), std::get<5>(q));
                     }
-#else
-                    io_.UpdateDist(std::get<5>(q));
-                    io_.UpdateDist(std::get<5>(v));
-#endif
                 }
             }
         }
@@ -678,6 +640,4 @@ private:
         return (chunk_id >= local_chunk_start_ && chunk_id < local_chunk_end_);
     }
 };
-
 } // namespace kagen
-#endif

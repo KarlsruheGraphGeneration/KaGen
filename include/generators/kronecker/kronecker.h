@@ -7,8 +7,7 @@
 /*  Authors: Jeremiah Willcock                                             */
 /*           Andrew Lumsdaine                                              */
 
-#ifndef KRONECKER_H
-#define KRONECKER_H
+#pragma once
 
 #include <assert.h>
 #include <stdint.h>
@@ -92,14 +91,9 @@ static inline void write_edge(packed_edge* p, int64_t v0, int64_t v1) {
 
 #endif
 
-template <typename EdgeCallback>
 class Kronecker {
 public:
-    Kronecker(PGeneratorConfig& config, const PEID rank, const EdgeCallback& cb)
-        : config_(config),
-          rank_(rank),
-          io_(config),
-          cb_(cb) {
+    Kronecker(PGeneratorConfig& config, const PEID rank) : config_(config), rank_(rank), io_(config) {
         MPI_Comm_size(MPI_COMM_WORLD, &size_);
 
         // Init variables
@@ -141,20 +135,12 @@ public:
         }
     }
 
-    void Output() {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(from_, to_);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -163,8 +149,7 @@ private:
     PEID              size_, rank_;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
+    GeneratorIO io_;
 
     // Constants and variables
     int     log_n_;
@@ -227,7 +212,7 @@ private:
 
 #ifdef FAST_64BIT_ARITHMETIC
 
-            /* 64-bit code */
+        /* 64-bit code */
     #ifdef USE_GCC_BYTESWAP
         x = __builtin_bswap64(x);
     #else
@@ -300,15 +285,7 @@ private:
             base_src += n * src_offset;
             base_tgt += n * tgt_offset;
         }
-#ifdef OUTPUT_EDGES
         io_.PushEdge(Scramble(base_src), Scramble(base_tgt));
-#else
-        io_.UpdateDist(Scramble(base_src));
-        io_.UpdateDist(Scramble(base_tgt));
-#endif
     }
 };
-
 } // namespace kagen
-
-#endif /* KRONECKER_H */

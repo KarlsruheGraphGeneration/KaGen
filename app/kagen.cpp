@@ -36,45 +36,81 @@
 using namespace kagen;
 
 void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEID size) {
-    if (config.generator == "gnm_directed" || config.generator == "gnm_undirected" || config.generator == "gnp_directed"
-        || config.generator == "gnp_undirected")
-        std::cout << "generate graph (n=" << config.n << ", m=" << config.m << " (p=" << config.p << "), k=" << config.k
-                  << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+    switch (config.generator) {
+        case Generator::GNM_DIRECTED:
+        case Generator::GNM_UNDIRECTED:
+        case Generator::GNP_DIRECTED:
+        case Generator::GNP_UNDIRECTED:
+            std::cout << "generate graph (n=" << config.n << ", m=" << config.m << " (p=" << config.p
+                      << "), k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            break;
 
-    else if (config.generator == "rgg_2d" || config.generator == "rgg_3d")
-        std::cout << "generate graph (n=" << config.n << ", r=" << config.r << ", k=" << config.k
-                  << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+        case Generator::RGG_2D:
+        case Generator::RGG_3D:
+            std::cout << "generate graph (n=" << config.n << ", r=" << config.r << ", k=" << config.k
+                      << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            break;
 
-    else if (config.generator == "rdg_2d" || config.generator == "rdg_3d")
-        std::cout << "generate graph (n=" << config.n << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
-                  << ")" << std::endl;
+        case Generator::RDG_2D:
+        case Generator::RDG_3D:
+            std::cout << "generate graph (n=" << config.n << ", k=" << config.k << ", s=" << config.seed
+                      << ", P=" << size << ")" << std::endl;
+            break;
 
-    else if (config.generator == "rhg")
-        std::cout << "generate graph (n=" << config.n << ", d=" << config.avg_degree << ", gamma=" << config.plexp
-                  << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+        case Generator::RHG:
+            std::cout << "generate graph (n=" << config.n << ", d=" << config.avg_degree << ", gamma=" << config.plexp
+                      << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            break;
 
-    else if (config.generator == "ba")
-        std::cout << "generate graph (n=" << config.n << ", d=" << config.min_degree << ", k=" << config.k
-                  << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+        case Generator::BA:
+            std::cout << "generate graph (n=" << config.n << ", d=" << config.min_degree << ", k=" << config.k
+                      << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            break;
 
-    else if (config.generator == "rmat")
-        std::cout << "generate graph (n=" << config.n << ", m=" << config.m << ", k=" << config.k
-                  << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+        case Generator::GRID_2D:
+            std::cout << "generate graph (row=" << config.grid_x << ", col=" << config.grid_y << ", p=" << config.p
+                      << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+            break;
 
-    else if (config.generator == "grid_2d")
-        std::cout << "generate graph (row=" << config.grid_x << ", col=" << config.grid_y << ", p=" << config.p
-                  << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+        case Generator::GRID_3D:
+            std::cout << "generate graph (x=" << config.grid_x << ", y=" << config.grid_y << ", z=" << config.grid_z
+                      << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")"
+                      << std::endl;
+            break;
 
-    else if (config.generator == "grid_3d")
-        std::cout << "generate graph (x=" << config.grid_x << ", y=" << config.grid_y << ", z=" << config.grid_z
-                  << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed << ", P=" << size << ")"
-                  << std::endl;
+        case Generator::KRONECKER:
+            std::cout << "generate graph (?)" << std::endl; // @todo
+            break;
+
+        default:
+            std::cerr << "Error: unknown generator type\n";
+            std::exit(1);
+    }
+
+    std::cout << "IO options:" << std::endl;
+    std::cout << "- Output filename: " << config.output_file << std::endl;
+    std::cout << "- Output format: ";
+    switch (config.output_format) {
+        case OutputFormat::EDGE_LIST:
+            std::cout << "edge list";
+            break;
+
+        case OutputFormat::BINARY_EDGE_LIST:
+            std::cout << "binary edge list";
+            break;
+
+        default:
+            std::cout << "undefined";
+    }
+    std::cout << std::endl;
+    std::cout << "- Output header: " << config.output_header << std::endl;
+    std::cout << "- Output to a single file: " << config.output_single_file << std::endl;
 }
 
-template <typename Generator, typename EdgeCallback>
+template <typename Generator>
 void RunGenerator(
     PGeneratorConfig& config, const PEID rank, const PEID /* size */, Statistics& stats, Statistics& edge_stats,
-    Statistics& edges, const EdgeCallback& cb) {
+    Statistics& edges) {
     // Start timers
     Timer  t;
     double local_time = 0.0;
@@ -82,7 +118,7 @@ void RunGenerator(
     t.Restart();
 
     // Chunk distribution
-    Generator gen(config, rank, cb);
+    Generator gen(config, rank);
     gen.Generate();
 
     // Output
@@ -90,13 +126,14 @@ void RunGenerator(
     MPI_Reduce(&local_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, ROOT, MPI_COMM_WORLD);
     if (rank == ROOT) {
         stats.Push(total_time);
-        edge_stats.Push(total_time / gen.NumberOfEdges());
-        edges.Push(gen.NumberOfEdges());
+        edge_stats.Push(total_time / gen.IO().NumEdges());
+        edges.Push(gen.IO().NumEdges());
     }
 
-    if (rank == ROOT)
+    if (rank == ROOT) {
         std::cout << "write output..." << std::endl;
-    gen.Output();
+    }
+    gen.IO().OutputEdges();
 }
 
 int main(int argn, char** argv) {
@@ -118,59 +155,81 @@ int main(int argn, char** argv) {
     Statistics edge_stats;
     Statistics edges;
 
-    auto edge_cb = [](SInt, SInt) {
-    };
     ULONG user_seed = generator_config.seed;
     for (ULONG i = 0; i < generator_config.iterations; ++i) {
         MPI_Barrier(MPI_COMM_WORLD);
         generator_config.seed = user_seed + i;
-        if (generator_config.generator == "gnm_directed")
-            RunGenerator<GNMDirected<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "gnm_undirected")
-            RunGenerator<GNMUndirected<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "gnp_directed")
-            RunGenerator<GNPDirected<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "gnp_undirected")
-            RunGenerator<GNPUndirected<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "rgg_2d")
-            RunGenerator<RGG2D<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "rgg_3d")
-            RunGenerator<RGG3D<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+
+        switch (generator_config.generator) {
+            case Generator::GNM_DIRECTED:
+                RunGenerator<GNMDirected>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::GNM_UNDIRECTED:
+                RunGenerator<GNMUndirected>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::GNP_DIRECTED:
+                RunGenerator<GNPDirected>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::GNP_UNDIRECTED:
+                RunGenerator<GNPUndirected>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::RGG_2D:
+                RunGenerator<RGG2D>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::RGG_3D:
+                RunGenerator<RGG3D>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::RDG_2D:
 #ifdef KAGEN_CGAL_FOUND
-        else if (generator_config.generator == "rdg_2d")
-            RunGenerator<Delaunay2D<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "rdg_3d")
-            RunGenerator<Delaunay3D<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
+                RunGenerator<Delaunay2D>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+#else  // KAGEN_CGAL_FOUND
+                std::cerr << "Error: RDG 2D generator has been disabled\n";
+                std::exit(1);
 #endif // KAGEN_CGAL_FOUND
-        else if (generator_config.generator == "rhg")
-            RunGenerator<Hyperbolic<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "ba")
-            RunGenerator<Barabassi<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "rmat")
-            RunGenerator<Kronecker<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "grid_2d")
-            RunGenerator<Grid2D<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (generator_config.generator == "grid_3d")
-            RunGenerator<Grid3D<decltype(edge_cb)>, decltype(edge_cb)>(
-                generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-        else if (rank == ROOT)
-            std::cout << "generator not supported" << std::endl;
+
+            case Generator::RDG_3D:
+#ifdef KAGEN_CGAL_FOUND
+                RunGenerator<Delaunay3D>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+#else  // KAGEN_CGAL_FOUND
+                std::cerr << "Error: RDG 3D genertor has been disabled\n";
+                std::exit(1);
+#endif // KAGEN_CGAL_FOUND
+
+            case Generator::RHG:
+                RunGenerator<Hyperbolic>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::BA:
+                RunGenerator<Barabassi>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::KRONECKER:
+                RunGenerator<Kronecker>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::GRID_2D:
+                RunGenerator<Grid2D>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::GRID_3D:
+                RunGenerator<Grid3D>(generator_config, rank, size, stats, edge_stats, edges);
+                break;
+
+            case Generator::UNDEFINED:
+                __builtin_unreachable();
+        }
     }
 
     if (rank == ROOT) {
-        std::cout << "RESULT runner=" << generator_config.generator << " time=" << stats.Avg()
+        std::cout << "RESULT runner=" << GeneratorToString(generator_config.generator) << " time=" << stats.Avg()
                   << " stddev=" << stats.Stddev() << " iterations=" << generator_config.iterations
                   << " edges=" << edges.Avg() << " time_per_edge=" << edge_stats.Avg() << std::endl;
     }

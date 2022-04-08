@@ -6,26 +6,88 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GENERATOR_CONFIG_H_
-#define _GENERATOR_CONFIG_H_
+#pragma once
 
+#include <iostream>
 #include <string>
 
 #include "definitions.h"
 
 namespace kagen {
-
 enum class OutputFormat {
     EDGE_LIST,
     BINARY_EDGE_LIST,
 };
+
+enum class Generator {
+    GNM_DIRECTED,
+    GNM_UNDIRECTED,
+    GNP_DIRECTED,
+    GNP_UNDIRECTED,
+    RGG_2D,
+    RGG_3D,
+    RDG_2D,
+    RDG_3D,
+    GRID_2D,
+    GRID_3D,
+    BA,
+    KRONECKER,
+    RHG,
+    UNDEFINED
+};
+
+inline const char* GeneratorToString(const Generator gen) {
+    switch (gen) {
+        case Generator::GNM_DIRECTED:
+            return "gnm_directed";
+        case Generator::GNM_UNDIRECTED:
+            return "gnm_undirected";
+        case Generator::GNP_DIRECTED:
+            return "gnp_directed";
+        case Generator::GNP_UNDIRECTED:
+            return "gnp_undirected";
+        case Generator::RGG_2D:
+            return "rgg_2d";
+        case Generator::RGG_3D:
+            return "rgg_3d";
+        case Generator::RDG_2D:
+            return "rdg_2d";
+        case Generator::RDG_3D:
+            return "rdg_3d";
+        case Generator::GRID_2D:
+            return "grid_2d";
+        case Generator::GRID_3D:
+            return "grid_3d";
+        case Generator::BA:
+            return "ba";
+        case Generator::KRONECKER:
+            return "kronecker";
+        case Generator::RHG:
+            return "rhg";
+        default:
+            return "undefined";
+    }
+}
+
+inline Generator StringToGenerator(const std::string& name) {
+    for (const Generator gen:
+         {Generator::GNM_DIRECTED, Generator::GNM_UNDIRECTED, Generator::GNP_DIRECTED, Generator::GNP_UNDIRECTED,
+          Generator::RGG_2D, Generator::RGG_3D, Generator::RDG_2D, Generator::RDG_3D, Generator::GRID_2D,
+          Generator::GRID_3D, Generator::BA, Generator::KRONECKER, Generator::RHG}) {
+        if (name == GeneratorToString(gen)) {
+            return gen;
+        }
+    }
+
+    return Generator::UNDEFINED;
+}
 
 // Configuration for the generator.
 struct PGeneratorConfig {
     PGeneratorConfig() {}
 
     // Type of generator
-    std::string generator;
+    Generator generator;
     // Seed for the PRNG
     int seed;
     // Number of nodes/edges
@@ -76,6 +138,4 @@ struct PGeneratorConfig {
     // Benchmarks
     ULONG iterations;
 };
-
 } // namespace kagen
-#endif

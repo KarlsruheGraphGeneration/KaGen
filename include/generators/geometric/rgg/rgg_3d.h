@@ -7,20 +7,15 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _RGG_3D_H_
-#define _RGG_3D_H_
+#pragma once
 
+#include "generator_io.h"
 #include "geometric/geometric_3d.h"
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class RGG3D : public Geometric3D {
 public:
-    RGG3D(PGeneratorConfig& config, const PEID rank, const EdgeCallback& cb)
-        : Geometric3D(config, rank),
-          io_(config),
-          cb_(cb) {
+    RGG3D(PGeneratorConfig& config, const PEID rank) : Geometric3D(config, rank), io_(config) {
         // Chunk variables
         total_chunks_   = config_.k;
         chunks_per_dim_ = cbrt(config_.k);
@@ -35,23 +30,13 @@ public:
         InitDatastructures();
     }
 
-    void Output() const override {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
-    }
-
-    SInt NumberOfEdges() const override {
-        return io_.NumEdges();
+    GeneratorIO& IO() {
+        return io_;
     }
 
 public:
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
-    // FILE* edge_file;
+    GeneratorIO io_;
 
     LPFloat target_r_;
 
@@ -158,18 +143,8 @@ public:
                     LPFloat y = std::get<1>(v1) - std::get<1>(v2);
                     LPFloat z = std::get<2>(v1) - std::get<2>(v2);
                     if (x * x + y * y + z * z <= target_r_) {
-                        cb_(std::get<3>(v1), std::get<3>(v2));
-                        cb_(std::get<3>(v2), std::get<3>(v1));
-#ifdef OUTPUT_EDGES
                         io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
                         io_.PushEdge(std::get<3>(v2), std::get<3>(v1));
-#else
-                        io_.UpdateDist(std::get<3>(v1));
-                        io_.UpdateDist(std::get<3>(v2));
-#endif
-                        // fprintf(edge_file, "e %f %f %f %f %f %f\n", std::get<0>(v1),
-                        // std::get<1>(v1), std::get<2>(v1), std::get<0>(v2),
-                        // std::get<1>(v2), std::get<2>(v2));
                     }
                 }
             }
@@ -182,19 +157,10 @@ public:
                     LPFloat       y  = std::get<1>(v1) - std::get<1>(v2);
                     LPFloat       z  = std::get<2>(v1) - std::get<2>(v2);
                     if (x * x + y * y + z * z <= target_r_) {
-                        cb_(std::get<3>(v1), std::get<3>(v2));
-                        cb_(std::get<3>(v2), std::get<3>(v1));
-#ifdef OUTPUT_EDGES
                         io_.PushEdge(std::get<3>(v1), std::get<3>(v2));
-                        if (IsLocalChunk(second_chunk_id))
+                        if (IsLocalChunk(second_chunk_id)) {
                             io_.PushEdge(std::get<3>(v2), std::get<3>(v1));
-#else
-                        io_.UpdateDist(std::get<3>(v1));
-                        io_.UpdateDist(std::get<3>(v2));
-#endif
-                        // fprintf(edge_file, "e %f %f %f %f %f %f\n", std::get<0>(v1),
-                        // std::get<1>(v1), std::get<2>(v1), std::get<0>(v2),
-                        // std::get<1>(v2), std::get<2>(v2));
+                        }
                     }
                 }
             }
@@ -300,6 +266,4 @@ public:
         z = id / (cells_per_dim_ * cells_per_dim_);
     }
 };
-
 } // namespace kagen
-#endif

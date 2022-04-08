@@ -7,17 +7,17 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GEOMETRIC_2D_H_
-#define _GEOMETRIC_2D_H_
+#pragma once
 
 #include <google/dense_hash_map>
 #include <iostream>
 #include <tuple>
 #include <vector>
 
+#include <mpi.h>
+
 #include "definitions.h"
 #include "generator_config.h"
-#include "generator_io.h"
 #include "geometry.h"
 #include "hash.hpp"
 #include "libmorton/morton2D.h"
@@ -57,10 +57,6 @@ public:
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
     }
-
-    virtual void Output() const = 0;
-
-    virtual SInt NumberOfEdges() const = 0;
 
 protected:
     // Config
@@ -324,6 +320,4 @@ protected:
         // y = id / chunks_per_dim_;
     }
 };
-
 } // namespace kagen
-#endif

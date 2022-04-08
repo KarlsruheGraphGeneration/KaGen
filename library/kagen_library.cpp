@@ -36,17 +36,11 @@ KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool 
     config_->seed       = seed;
     config_->self_loops = self_loops;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    GNMDirected<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    GNMDirected gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult
@@ -58,17 +52,11 @@ KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const boo
     config_->seed       = seed;
     config_->self_loops = self_loops;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    GNMUndirected<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    GNMUndirected gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult
@@ -80,17 +68,11 @@ KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bo
     config_->seed       = seed;
     config_->self_loops = self_loops;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    GNPDirected<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    GNPDirected gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult
@@ -102,17 +84,11 @@ KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const 
     config_->seed       = seed;
     config_->self_loops = self_loops;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    GNPUndirected<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    GNPUndirected gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
@@ -122,17 +98,11 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
     config_->k    = (k == 0 ? config_->k : k);
     config_->seed = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    RGG2D<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    RGG2D gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
@@ -142,17 +112,11 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
     config_->k    = (k == 0 ? config_->k : k);
     config_->seed = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    RGG3D<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    RGG3D gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 #ifdef KAGEN_CGAL_FOUND
@@ -162,17 +126,11 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
     config_->k    = (k == 0 ? config_->k : k);
     config_->seed = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    Delaunay2D<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    Delaunay2D gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
@@ -181,17 +139,11 @@ KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
     config_->k    = (k == 0 ? config_->k : k);
     config_->seed = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    Delaunay3D<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    Delaunay3D gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 #else  // KAGEN_CGAL_FOUND
 KaGenResult KaGen::Generate2DRDG(SInt, SInt, int) {
@@ -210,17 +162,11 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const in
     config_->k          = (k == 0 ? config_->k : k);
     config_->seed       = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    Barabassi<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    Barabassi gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k, const int seed) {
@@ -231,17 +177,11 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
     config_->k          = (k == 0 ? config_->k : k);
     config_->seed       = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    Hyperbolic<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    Hyperbolic gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult
@@ -254,17 +194,11 @@ KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt pe
     config_->k        = (k == 0 ? config_->k : k);
     config_->seed     = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    Grid2D<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    Grid2D gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, const int seed) {
@@ -274,17 +208,11 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, c
     config_->k    = (k == 0 ? config_->k : k);
     config_->seed = seed;
 
-    // Edge callback
-    EdgeList edges;
-    auto     edge_cb = [&](SInt source, SInt target) {
-        edges.emplace_back(source, target);
-    };
-
     // Init and run generator
-    Kronecker<decltype(edge_cb)> gen(*config_, rank_, edge_cb);
+    Kronecker gen(*config_, rank_);
     gen.Generate();
 
-    return {std::move(edges), gen.GetVertexRange()};
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 void KaGen::SetDefaults() {

@@ -7,20 +7,15 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _RGG_2D_H_
-#define _RGG_2D_H_
+#pragma once
 
+#include "generator_io.h"
 #include "geometric/geometric_2d.h"
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class RGG2D : public Geometric2D {
 public:
-    RGG2D(PGeneratorConfig& config, const PEID rank, const EdgeCallback& cb)
-        : Geometric2D(config, rank),
-          io_(config),
-          cb_(cb) {
+    RGG2D(PGeneratorConfig& config, const PEID rank) : Geometric2D(config, rank), io_(config) {
         // Chunk variables
         total_chunks_   = config_.k;
         chunks_per_dim_ = sqrt(total_chunks_);
@@ -35,23 +30,13 @@ public:
         InitDatastructures();
     }
 
-    void Output() const override {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
-    }
-
-    inline SInt NumberOfEdges() const override {
-        return io_.NumEdges();
+    GeneratorIO& IO() {
+        return io_;
     }
 
 private:
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
-    // FILE* edge_file;
+    GeneratorIO io_;
 
     LPFloat target_r_;
 
@@ -142,18 +127,8 @@ private:
                 for (SInt j = i + 1; j < vertices_second.size(); ++j) {
                     const Vertex& v2 = vertices_second[j];
                     if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
-                        cb_(std::get<2>(v1), std::get<2>(v2));
-                        cb_(std::get<2>(v2), std::get<2>(v1));
-#ifdef OUTPUT_EDGES
                         io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
                         io_.PushEdge(std::get<2>(v2), std::get<2>(v1));
-#else
-                        io_.UpdateDist(std::get<2>(v1));
-                        io_.UpdateDist(std::get<2>(v2));
-#endif
-                        // io_.PushEdge(std::get<0>(v1), std::get<1>(v1), std::get<0>(v2), std::get<1>(v2));
-                        // fprintf(edge_file, "e %f %f %f %f\n", std::get<0>(v1),
-                        // std::get<1>(v1), std::get<0>(v2), std::get<1>(v2));
                     }
                 }
             }
@@ -163,19 +138,10 @@ private:
                 for (SInt j = 0; j < vertices_second.size(); ++j) {
                     const Vertex& v2 = vertices_second[j];
                     if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
-                        cb_(std::get<2>(v1), std::get<2>(v2));
-                        cb_(std::get<2>(v2), std::get<2>(v1));
-#ifdef OUTPUT_EDGES
                         io_.PushEdge(std::get<2>(v1), std::get<2>(v2));
-                        if (IsLocalChunk(second_chunk_id))
+                        if (IsLocalChunk(second_chunk_id)) {
                             io_.PushEdge(std::get<2>(v2), std::get<2>(v1));
-#else
-                        io_.UpdateDist(std::get<2>(v1));
-                        io_.UpdateDist(std::get<2>(v2));
-#endif
-                        // io_.PushEdge(std::get<0>(v1), std::get<1>(v1), std::get<0>(v2), std::get<1>(v2));
-                        // fprintf(edge_file, "e %f %f %f %f\n", std::get<0>(v1),
-                        // std::get<1>(v1), std::get<0>(v2), std::get<1>(v2));
+                        }
                     }
                 }
             }
@@ -266,6 +232,4 @@ private:
         y = (id / cells_per_dim_) % cells_per_dim_;
     }
 };
-
 } // namespace kagen
-#endif

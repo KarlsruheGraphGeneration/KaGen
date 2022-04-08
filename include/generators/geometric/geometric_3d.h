@@ -7,24 +7,23 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GEOMETRIC_3D_H_
-#define _GEOMETRIC_3D_H_
+#pragma once
 
 #include <google/dense_hash_map>
 #include <iostream>
 #include <tuple>
 #include <vector>
 
+#include <mpi.h>
+
 #include "definitions.h"
 #include "generator_config.h"
-#include "generator_io.h"
 #include "geometry.h"
 #include "hash.hpp"
 #include "libmorton/morton3D.h"
 #include "rng_wrapper.h"
 
 namespace kagen {
-
 class Geometric3D {
 public:
     // n, x_off, y_off, z_off, generated, offset
@@ -56,10 +55,6 @@ public:
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
     }
-
-    virtual void Output() const = 0;
-
-    virtual SInt NumberOfEdges() const = 0;
 
 protected:
     // Config
@@ -384,6 +379,4 @@ protected:
         // z = id / (chunks_per_dim_ * chunks_per_dim_);
     }
 };
-
 } // namespace kagen
-#endif

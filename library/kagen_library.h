@@ -19,7 +19,7 @@ struct PGeneratorConfig;
 
 using SInt     = unsigned long long;
 using SSInt    = long long;
-using EdgeList = std::vector<std::pair<SInt, SInt>>;
+using EdgeList = std::vector<std::tuple<SInt, SInt>>;
 using PEID     = int;
 using HPFloat  = long double;
 using LPFloat  = double;

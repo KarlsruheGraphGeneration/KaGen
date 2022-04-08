@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _BARABASSI_H_
-#define _BARABASSI_H_
+#pragma once
 
 #include <cmath>
 #include <iomanip>
@@ -20,15 +19,12 @@
 #include "hash.hpp"
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class Barabassi {
 public:
-    Barabassi(PGeneratorConfig& config, const PEID rank, const EdgeCallback& cb)
+    Barabassi(PGeneratorConfig& config, const PEID rank)
         : config_(config),
           rank_(rank),
           io_(config),
-          cb_(cb),
           min_degree_(config_.min_degree),
           total_degree_(2 * config_.min_degree) {
         PEID size;
@@ -56,20 +52,12 @@ public:
         }
     }
 
-    void Output() const {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(from_, to_);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -78,8 +66,7 @@ private:
     PEID              rank_;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
+    GeneratorIO io_;
 
     // Constants and variables
     SInt min_degree_;
@@ -96,16 +83,9 @@ private:
                     r         = hash % r;
                 } while (r % 2 == 1);
                 SInt w = r / total_degree_;
-                cb_(v, w);
-#ifdef OUTPUT_EDGES
                 io_.PushEdge(v, w);
-#else
-                io_.UpdateDist(v);
-#endif
             }
         }
     };
 };
-
 } // namespace kagen
-#endif

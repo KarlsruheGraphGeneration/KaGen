@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GNP_UNDIRECTED_H_
-#define _GNP_UNDIRECTED_H_
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -19,15 +18,9 @@
 #include "rng_wrapper.h"
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class GNPUndirected {
 public:
-    GNPUndirected(PGeneratorConfig& config, const PEID /* rank */, const EdgeCallback& cb)
-        : config_(config),
-          rng_(config),
-          io_(config),
-          cb_(cb) {}
+    GNPUndirected(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config), io_(config) {}
 
     void Generate() {
         PEID rank, size;
@@ -82,20 +75,12 @@ public:
         }
     }
 
-    void Output() const {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -106,8 +91,7 @@ private:
     RNGWrapper rng_;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
+    GeneratorIO io_;
 
     // Constants and variables
     SInt nodes_per_chunk;
@@ -150,15 +134,8 @@ private:
                 sqr--;
             SInt i = (sqr - 1) / 2;
             SInt j = (sample - 1) - i * (i + 1) / 2;
-            cb_(i + offset_row, j + offset_column);
-            cb_(j + offset_column, i + offset_row);
-#ifdef OUTPUT_EDGES
             io_.PushEdge(i + offset_row, j + offset_column);
             io_.PushEdge(j + offset_column, i + offset_row);
-#else
-      io_.UpdateDist(i + offset_row);
-      io_.UpdateDist(j + offset_column);
-#endif
         });
     }
 
@@ -174,20 +151,11 @@ private:
         rng_.GenerateSample(h, row_n * column_n, num_edges, [&](SInt sample) {
             SInt i = (sample - 1) / column_n;
             SInt j = (sample - 1) % column_n;
-            cb_(i + offset_row, j + offset_column);
-            cb_(j + offset_column, i + offset_row);
-#ifdef OUTPUT_EDGES
             if (local_row) {
                 io_.PushEdge(i + offset_row, j + offset_column);
                 io_.PushEdge(j + offset_column, i + offset_row);
             }
-#else
-                          io_.UpdateDist(i + offset_row);
-                          io_.UpdateDist(j + offset_column);
-#endif
         });
     }
 };
-
 } // namespace kagen
-#endif

@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _GNM_DIRECTED_H_
-#define _GNM_DIRECTED_H_
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -19,15 +18,9 @@
 #include "rng_wrapper.h"
 
 namespace kagen {
-
-template <typename EdgeCallback>
 class GNMDirected {
 public:
-    GNMDirected(PGeneratorConfig& config, const PEID /* rank */, const EdgeCallback& cb)
-        : config_(config),
-          rng_(config),
-          io_(config),
-          cb_(cb) {
+    GNMDirected(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config), io_(config) {
         // Init variables
         if (!config_.self_loops)
             edges_per_node_ = config_.n - 1;
@@ -58,20 +51,12 @@ public:
             GenerateChunk(start_chunk++);
     }
 
-    void Output() const {
-#ifdef OUTPUT_EDGES
-        io_.OutputEdges();
-#else
-        io_.OutputDist();
-#endif
+    GeneratorIO& IO() {
+        return io_;
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
         return std::make_pair(start_node_, start_node_ + num_nodes_);
-    }
-
-    SInt NumberOfEdges() const {
-        return io_.NumEdges();
     }
 
 private:
@@ -82,8 +67,7 @@ private:
     RNGWrapper rng_;
 
     // I/O
-    GeneratorIO<> io_;
-    EdgeCallback  cb_;
+    GeneratorIO io_;
 
     // Constants and variables
     SInt edges_per_node_;
@@ -131,15 +115,8 @@ private:
             SInt target = (sample - 1) % edges_per_node_;
             if (!config_.self_loops)
                 target += (((sample - 1) % edges_per_node_) >= source);
-            cb_(source, target);
-#ifdef OUTPUT_EDGES
             io_.PushEdge(source, target);
-#else
-      io_.UpdateDist(source);
-#endif
         });
     }
 };
-
 } // namespace kagen
-#endif
