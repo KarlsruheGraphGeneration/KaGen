@@ -164,6 +164,11 @@ void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& g
         std::cout << "-output\t\t<output file>" << std::endl;
         std::cout << "-omit_header\t\tIf set, output the graph without header line" << std::endl;
         std::cout << "-single_file\t\tIf set, if set, write graph to a single file" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Other options:" << std::endl;
+        std::cout << "-postprocessing\t\tvalidate_ranges|validate_ranges_consecutive|validate_undirected|fix_"
+                     "undirected_edge_list"
+                  << std::endl;
         exit(0);
     }
 
