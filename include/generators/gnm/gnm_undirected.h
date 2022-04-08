@@ -20,7 +20,10 @@
 namespace kagen {
 class GNMUndirected {
 public:
-    GNMUndirected(PGeneratorConfig& config, const PEID /* rank */, const PEID /* size */) : config_(config), rng_(config), io_(config) {}
+    GNMUndirected(PGeneratorConfig& config, const PEID /* rank */, const PEID /* size */)
+        : config_(config),
+          rng_(config),
+          io_(config) {}
 
     void Generate() {
         PEID rank, size;

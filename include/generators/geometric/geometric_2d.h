@@ -128,7 +128,7 @@ protected:
             if (IsLocalChunk(chunk_id)) {
                 if (start_node_ > offset)
                     start_node_ = offset;
-                num_nodes_ += n; 
+                num_nodes_ += n;
             }
             return;
         }
