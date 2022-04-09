@@ -28,6 +28,7 @@ KaGen::KaGen(const PEID rank, const PEID size)
 
 KaGen::~KaGen() = default;
 
+// @todo no postprocessing guarantees
 KaGenResult
 KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool self_loops, const int seed) {
     // Update config
@@ -44,6 +45,7 @@ KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// Normalized output format
 KaGenResult
 KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const bool self_loops, const int seed) {
     // Update config
@@ -57,9 +59,13 @@ KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const boo
     GNMUndirected gen(*config_, rank_, size_);
     gen.Generate();
 
+    // Redistribute graph such that each PE owns a consecutive range of vertices
+    Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// @todo no postprocessing guarantees
 KaGenResult
 KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops, const int seed) {
     // Update config
@@ -76,6 +82,7 @@ KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bo
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// @todo no postprocessing guarantees
 KaGenResult
 KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops, const int seed) {
     // Update config
@@ -92,6 +99,7 @@ KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// Normalized output format
 KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
     // Update config
     config_->n    = n;
@@ -109,6 +117,7 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// Normalized output format
 KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
     // Update config
     config_->n    = n;
@@ -127,6 +136,7 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
 }
 
 #ifdef KAGEN_CGAL_FOUND
+// @todo no postprocessing guarantees
 KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
     // Update config
     config_->n    = n;
@@ -140,6 +150,7 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// @todo no postprocessing guarantees
 KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
     // Update config
     config_->n    = n;
@@ -162,6 +173,7 @@ KaGenResult KaGen::Generate3DRDG(SInt, SInt, int) {
 }
 #endif // KAGEN_CGAL_FOUND
 
+// Normalized output format
 KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const int seed) {
     // Update config
     config_->n          = n;
@@ -173,9 +185,13 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const in
     Barabassi gen(*config_, rank_, size_);
     gen.Generate();
 
+    // Redistribute graph such that each PE owns a consecutive set of vertices
+    Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// Normalized output format
 KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k, const int seed) {
     // Update config
     config_->n          = n;
@@ -194,6 +210,7 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// @todo no postprocessing guarantees
 KaGenResult
 KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k, const int seed) {
     // Update config
@@ -211,6 +228,7 @@ KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt pe
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
+// @todo broken generator
 KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, const int seed) {
     // Update config
     config_->n    = n;
