@@ -57,7 +57,7 @@ public:
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
-        return std::make_pair(from_, to_);
+        return std::make_pair(from_, to_ + 1);
     }
 
 private:
