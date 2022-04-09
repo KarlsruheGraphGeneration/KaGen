@@ -32,6 +32,17 @@ inline const char* OutputFormatToString(const OutputFormat format) {
     }
 }
 
+inline OutputFormat StringToOutputFormat(const std::string& name) {
+    for (OutputFormat format: {OutputFormat::EDGE_LIST, OutputFormat::BINARY_EDGE_LIST}) {
+        if (name == OutputFormatToString(format)) {
+            return format;
+        }
+    }
+
+    std::cerr << "Error: invalid output format " << name << "\n";
+    std::exit(1);
+}
+
 enum class Generator {
     GNM_DIRECTED,
     GNM_UNDIRECTED,

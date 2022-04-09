@@ -161,13 +161,14 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
 
         std::cout << std::endl;
         std::cout << "Output options:" << std::endl;
+        std::cout << "-output_format\t\tedge_list|binary_edge_list" << std::endl;
         std::cout << "-output\t\t<output file>" << std::endl;
         std::cout << "-omit_header\t\tIf set, output the graph without header line" << std::endl;
         std::cout << "-single_file\t\tIf set, if set, write graph to a single file" << std::endl;
         std::cout << std::endl;
         std::cout << "Other options:" << std::endl;
         std::cout << "-postprocessing\t\tvalidate_ranges|validate_ranges_consecutive|validate_undirected|fix_"
-                     "undirected_edge_list"
+                     "undirected_edge_list|redistribute"
                   << std::endl;
         std::exit(0);
     }
@@ -197,16 +198,8 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
     generator_config.debug_output = args.Get<std::string>("debug", "dbg");
     generator_config.dist_size    = args.Get<ULONG>("dist", 10);
 
-    auto output_format = args.Get<std::string>("output_format", "edge_list");
-    if (output_format == "edge_list") {
-        generator_config.output_format = OutputFormat::EDGE_LIST;
-    } else if (output_format == "binary_edge_list") {
-        generator_config.output_format = OutputFormat::BINARY_EDGE_LIST;
-    } else {
-        std::cerr << "Error: Invalid output format: " << output_format << "\n";
-        std::cerr << "Supported output formats: edge_list, binary_edge_list\n";
-        std::exit(1);
-    }
+    auto output_format                  = args.Get<std::string>("output_format", "edge_list");
+    generator_config.output_format      = StringToOutputFormat(output_format);
     generator_config.output_header      = !args.IsSet("omit_header");
     generator_config.output_single_file = args.IsSet("single_file");
 
