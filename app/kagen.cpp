@@ -45,7 +45,6 @@ void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEI
     std::cout << "____________________/____\\____(___(__(____/____(___ __/___/_____________________\n";
     std::cout << "\n";
     std::cout << "Input Parameters:\n";
-    std::cout << "|\n";
     std::cout << "+-- Generator:\n";
     std::cout << "|   +-- Type: ......................... " << GeneratorToString(config.generator) << "\n";
     std::cout << "|   +-- n: ............................ " << config.n << "\n";
@@ -108,16 +107,44 @@ void OutputParameters(PGeneratorConfig& config, const PEID /* rank */, const PEI
 
     std::cout << "|   +-- s: ............................ " << config.seed << "\n";
     std::cout << "|   `-- P: ............................ " << size << "\n";
-    std::cout << "|\n";
     std::cout << "+-- IO\n";
     std::cout << "|   +-- Filename: ..................... " << config.output_file << "\n";
     std::cout << "|   +-- Format: ....................... " << OutputFormatToString(config.output_format) << "\n";
     std::cout << "|   +-- Header: ....................... " << (config.output_header ? "Yes" : "No") << "\n";
     std::cout << "|   `-- Single file: .................. " << (config.output_single_file ? "Yes" : "No") << "\n";
-    std::cout << "|\n";
     std::cout << "`-- Miscellaneous\n";
     std::cout << "    `-- Postprocessing: ............... " << PostprocessingToString(config.postprocessing) << "\n";
     std::cout << std::endl;
+}
+
+void PrintStatistics(const EdgeList& edge_list, const VertexRange& range) {
+    const SInt num_local_edges = edge_list.size();
+
+    SInt sum_edges;
+    SInt min_edges;
+    SInt max_edges;
+
+    MPI_Reduce(&num_local_edges, &sum_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&num_local_edges, &min_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&num_local_edges, &max_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, MPI_COMM_WORLD);
+
+    SInt local_max_node = range.second;
+    SInt max_node;
+    MPI_Reduce(&local_max_node, &max_node, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, MPI_COMM_WORLD);
+
+    int rank;
+    int size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (rank == ROOT) {
+        std::cout << "+-- Number of nodes: .................. " << max_node << "\n";
+        std::cout << "`-- Number of edges\n";
+        std::cout << "    +-- Total: ........................ " << sum_edges << "\n";
+        std::cout << "    +-- Minimum: ...................... " << min_edges << "\n";
+        std::cout << "    +-- Maximum: ...................... " << max_edges << "\n";
+        std::cout << "    `-- Average: ...................... " << 1.0 * sum_edges / size << std::endl;
+    }
 }
 
 template <typename Generator>
@@ -146,7 +173,7 @@ void RunGenerator(
         edge_stats.Push(total_time / gen.IO().NumEdges());
         edges.Push(gen.IO().NumEdges());
     }
-
+    PrintStatistics(gen.IO().GetEdges(), gen.GetVertexRange());
     if (rank == ROOT) {
         std::cout << std::endl;
     }
@@ -156,6 +183,7 @@ void RunGenerator(
             std::cout << "Postprocessing ..." << std::endl;
         }
         Postprocess(config.postprocessing, gen);
+        PrintStatistics(gen.IO().GetEdges(), gen.GetVertexRange());
         if (rank == ROOT) {
             std::cout << std::endl;
         }
