@@ -23,8 +23,10 @@ inline const char* OutputFormatToString(const OutputFormat format) {
     switch (format) {
         case OutputFormat::EDGE_LIST:
             return "edge_list";
+
         case OutputFormat::BINARY_EDGE_LIST:
             return "binary_edge_list";
+
         default:
             return "undefined";
     }
@@ -102,6 +104,7 @@ enum class Postprocessing {
     VALIDATE_RANGES_CONSECUTIVE,
     VALIDATE_UNDIRECTED,
     FIX_UNDIRECTED_EDGE_LIST,
+    REDISTRIBUTE_GRAPH,
     SKIP
 };
 
@@ -119,6 +122,9 @@ inline const char* PostprocessingToString(const Postprocessing postprocessing) {
         case Postprocessing::FIX_UNDIRECTED_EDGE_LIST:
             return "fix_undirected_edge_list";
 
+        case Postprocessing::REDISTRIBUTE_GRAPH:
+            return "redistribute";
+
         case Postprocessing::SKIP:
             return "skip";
     }
@@ -129,7 +135,8 @@ inline const char* PostprocessingToString(const Postprocessing postprocessing) {
 inline Postprocessing StringToPostprocessing(const std::string& name) {
     for (const Postprocessing postprocessing:
          {Postprocessing::VALIDATE_RANGES, Postprocessing::VALIDATE_RANGES_CONSECUTIVE,
-          Postprocessing::VALIDATE_UNDIRECTED, Postprocessing::FIX_UNDIRECTED_EDGE_LIST, Postprocessing::SKIP}) {
+          Postprocessing::VALIDATE_UNDIRECTED, Postprocessing::FIX_UNDIRECTED_EDGE_LIST,
+          Postprocessing::REDISTRIBUTE_GRAPH, Postprocessing::SKIP}) {
         if (name == PostprocessingToString(postprocessing)) {
             return postprocessing;
         }
