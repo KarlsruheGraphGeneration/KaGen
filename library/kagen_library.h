@@ -6,8 +6,7 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
-#ifndef _KAGEN_LIBRARY_H_
-#define _KAGEN_LIBRARY_H_
+#pragma once
 
 #include <memory>
 #include <string>
@@ -71,4 +70,3 @@ private:
 };
 } // namespace kagen
 
-#endif
