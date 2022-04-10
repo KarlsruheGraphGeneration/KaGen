@@ -22,20 +22,27 @@ namespace kagen {
 KaGen::KaGen(const PEID rank, const PEID size)
     : rank_(rank),
       size_(size),
-      config_(std::make_unique<PGeneratorConfig>()) {
+      config_(std::make_unique<PGeneratorConfig>()),
+      validate_undirected_graph_(false) {
     SetDefaults();
 }
 
 KaGen::~KaGen() = default;
 
+void KaGen::SetSeed(const int seed) {
+    config_->seed = seed;
+}
+
+void KaGen::EnableUndirectedGraphVerification() {
+    validate_undirected_graph_ = true;
+}
+
 // @todo no postprocessing guarantees
-KaGenResult
-KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool self_loops, const int seed) {
+KaGenResult KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;
     config_->m          = m;
     config_->k          = (k == 0 ? config_->k : k);
-    config_->seed       = seed;
     config_->self_loops = self_loops;
 
     // Init and run generator
@@ -46,13 +53,11 @@ KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool 
 }
 
 // Normalized output format
-KaGenResult
-KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const bool self_loops, const int seed) {
+KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;
     config_->m          = m;
     config_->k          = (k == 0 ? config_->k : k);
-    config_->seed       = seed;
     config_->self_loops = self_loops;
 
     // Init and run generator
@@ -62,17 +67,19 @@ KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt k, const boo
     // Redistribute graph such that each PE owns a consecutive range of vertices
     Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // @todo no postprocessing guarantees
-KaGenResult
-KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops, const int seed) {
+KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;
     config_->p          = p;
     config_->k          = (k == 0 ? config_->k : k);
-    config_->seed       = seed;
     config_->self_loops = self_loops;
 
     // Init and run generator
@@ -83,29 +90,30 @@ KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bo
 }
 
 // @todo no postprocessing guarantees
-KaGenResult
-KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops, const int seed) {
+KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;
     config_->p          = p;
     config_->k          = (k == 0 ? config_->k : k);
-    config_->seed       = seed;
     config_->self_loops = self_loops;
 
     // Init and run generator
     GNPUndirected gen(*config_, rank_, size_);
     gen.Generate();
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // Normalized output format
-KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
+KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k) {
     // Update config
-    config_->n    = n;
-    config_->r    = r;
-    config_->k    = (k == 0 ? config_->k : k);
-    config_->seed = seed;
+    config_->n = n;
+    config_->r = r;
+    config_->k = (k == 0 ? config_->k : k);
 
     // Init and run generator
     RGG2D gen(*config_, rank_, size_);
@@ -114,16 +122,19 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k, co
     // Validate consecutive vertex ranges
     Postprocess(Postprocessing::VALIDATE_RANGES_CONSECUTIVE, gen);
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // Normalized output format
-KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, const int seed) {
+KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k) {
     // Update config
-    config_->n    = n;
-    config_->r    = r;
-    config_->k    = (k == 0 ? config_->k : k);
-    config_->seed = seed;
+    config_->n = n;
+    config_->r = r;
+    config_->k = (k == 0 ? config_->k : k);
 
     // Init and run generator
     RGG3D gen(*config_, rank_, size_);
@@ -132,54 +143,63 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k, co
     // Validate consecutive vertex ranges
     Postprocess(Postprocessing::VALIDATE_RANGES_CONSECUTIVE, gen);
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 #ifdef KAGEN_CGAL_FOUND
 // @todo no postprocessing guarantees
-KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k, const int seed) {
+KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k) {
     // Update config
-    config_->n    = n;
-    config_->k    = (k == 0 ? config_->k : k);
-    config_->seed = seed;
+    config_->n = n;
+    config_->k = (k == 0 ? config_->k : k);
 
     // Init and run generator
     Delaunay2D gen(*config_, rank_, size_);
     gen.Generate();
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // @todo no postprocessing guarantees
-KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k, const int seed) {
+KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k) {
     // Update config
-    config_->n    = n;
-    config_->k    = (k == 0 ? config_->k : k);
-    config_->seed = seed;
+    config_->n = n;
+    config_->k = (k == 0 ? config_->k : k);
 
     // Init and run generator
     Delaunay3D gen(*config_, rank_, size_);
     gen.Generate();
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 #else  // KAGEN_CGAL_FOUND
-KaGenResult KaGen::Generate2DRDG(SInt, SInt, int) {
+KaGenResult KaGen::Generate2DRDG(SInt, SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
-KaGenResult KaGen::Generate3DRDG(SInt, SInt, int) {
+KaGenResult KaGen::Generate3DRDG(SInt, SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 #endif // KAGEN_CGAL_FOUND
 
 // Normalized output format
-KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const int seed) {
+KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k) {
     // Update config
     config_->n          = n;
     config_->min_degree = d;
     config_->k          = (k == 0 ? config_->k : k);
-    config_->seed       = seed;
 
     // Init and run generator
     Barabassi gen(*config_, rank_, size_);
@@ -188,17 +208,20 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k, const in
     // Redistribute graph such that each PE owns a consecutive set of vertices
     Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // Normalized output format
-KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k, const int seed) {
+KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k) {
     // Update config
     config_->n          = n;
     config_->plexp      = gamma;
     config_->avg_degree = d;
     config_->k          = (k == 0 ? config_->k : k);
-    config_->seed       = seed;
 
     // Init and run generator
     Hyperbolic gen(*config_, rank_, size_);
@@ -207,38 +230,47 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
     // Fix broken edge list
     Postprocess(Postprocessing::FIX_UNDIRECTED_EDGE_LIST, gen);
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // @todo no postprocessing guarantees
-KaGenResult
-KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k, const int seed) {
+KaGenResult KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k) {
     // Update config
     config_->n        = n;
     config_->m        = m;
     config_->p        = p;
     config_->periodic = periodic;
     config_->k        = (k == 0 ? config_->k : k);
-    config_->seed     = seed;
 
     // Init and run generator
     Grid2D gen(*config_, rank_, size_);
     gen.Generate();
 
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
 // @todo broken generator
-KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k, const int seed) {
+KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k) {
     // Update config
-    config_->n    = n;
-    config_->m    = m;
-    config_->k    = (k == 0 ? config_->k : k);
-    config_->seed = seed;
+    config_->n = n;
+    config_->m = m;
+    config_->k = (k == 0 ? config_->k : k);
 
     // Init and run generator
     Kronecker gen(*config_, rank_, size_);
     gen.Generate();
+
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }

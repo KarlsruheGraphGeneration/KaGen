@@ -197,7 +197,7 @@ RedistributeGraph(EdgeList& edge_list, const std::vector<VertexRange>& ranges, c
 
     const auto from = ranges[rank].first;
     const auto to   = ranges[rank].second;
-    
+
     // Create new edge arrays
     std::vector<std::tuple<SInt, SInt>>              local_edges;
     std::vector<std::vector<std::tuple<SInt, SInt>>> remote_edges(size);

@@ -34,35 +34,40 @@ public:
     KaGen(PEID rank, PEID size);
     ~KaGen();
 
-    KaGenResult GenerateDirectedGMM(SInt n, SInt m, SInt k = 0, bool self_loops = false, int seed = 1);
+    void SetSeed(int seed);
 
-    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, SInt k = 0, bool self_loops = false, int seed = 1);
+    void EnableUndirectedGraphVerification();
 
-    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false, int seed = 1);
+    KaGenResult GenerateDirectedGMM(SInt n, SInt m, SInt k = 0, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false, int seed = 1);
+    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, SInt k = 0, bool self_loops = false);
 
-    KaGenResult Generate2DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1);
+    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false);
 
-    KaGenResult Generate3DRGG(SInt n, LPFloat r, SInt k = 0, int seed = 1);
+    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false);
 
-    KaGenResult Generate2DRDG(SInt n, SInt k = 0, int seed = 1);
+    KaGenResult Generate2DRGG(SInt n, LPFloat r, SInt k = 0);
 
-    KaGenResult Generate3DRDG(SInt n, SInt k = 0, int seed = 1);
+    KaGenResult Generate3DRGG(SInt n, LPFloat r, SInt k = 0);
 
-    KaGenResult GenerateBA(SInt n, SInt d, SInt k = 0, int seed = 1);
+    KaGenResult Generate2DRDG(SInt n, SInt k = 0);
 
-    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d, SInt k = 0, int seed = 1);
+    KaGenResult Generate3DRDG(SInt n, SInt k = 0);
 
-    KaGenResult Generate2DGrid(SInt n, SInt m, LPFloat p, SInt periodic, SInt k = 0, int seed = 1);
+    KaGenResult GenerateBA(SInt n, SInt d, SInt k = 0);
 
-    KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0, int seed = 1);
+    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d, SInt k = 0);
+
+    KaGenResult Generate2DGrid(SInt n, SInt m, LPFloat p, SInt periodic, SInt k = 0);
+
+    KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0);
 
 private:
     void SetDefaults();
 
     PEID                              rank_, size_;
     std::unique_ptr<PGeneratorConfig> config_;
+    bool                              validate_undirected_graph_;
 };
 } // namespace kagen
 
