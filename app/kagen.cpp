@@ -178,12 +178,15 @@ void RunGenerator(
         std::cout << std::endl;
     }
 
-    if (config.postprocessing != Postprocessing::SKIP) {
+    if (config.postprocessing != Postprocessing::SKIP || config.validate_undirected_graph) {
         if (rank == ROOT) {
             std::cout << "Postprocessing ..." << std::endl;
         }
         Postprocess(config.postprocessing, gen);
         PrintStatistics(gen.IO().GetEdges(), gen.GetVertexRange());
+        if (config.validate_undirected_graph) {
+            Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+        }
         if (rank == ROOT) {
             std::cout << std::endl;
         }

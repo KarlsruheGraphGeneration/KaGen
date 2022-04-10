@@ -214,5 +214,6 @@ struct PGeneratorConfig {
     ULONG iterations;
     // Optional postprocessing (validation, make it undirected, fix edge list etc)
     Postprocessing postprocessing;
+    bool validate_undirected_graph;
 };
 } // namespace kagen

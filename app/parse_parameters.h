@@ -170,6 +170,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
         std::cout << "-postprocessing\t\tvalidate_ranges|validate_ranges_consecutive|validate_undirected|fix_"
                      "undirected_edge_list|redistribute"
                   << std::endl;
+        std::cout << "-validate_undirected" << std::endl;
         std::exit(0);
     }
 
@@ -249,5 +250,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
     } else {
         generator_config.postprocessing = Postprocessing::SKIP;
     }
+
+    generator_config.validate_undirected_graph = args.IsSet("validate_undirected");
 }
 } // namespace kagen
