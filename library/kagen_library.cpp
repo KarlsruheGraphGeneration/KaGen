@@ -230,13 +230,11 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
-// @todo no postprocessing guarantees
 KaGenResult KaGen::Generate2DGrid(const SInt n, const LPFloat p, const bool periodic, const SInt k) {
     SInt sqrt_n = std::sqrt(n);
     return Generate2DGrid(sqrt_n, sqrt_n, p, periodic, k);
 }
 
-// @todo no postprocessing guarantees
 KaGenResult
 KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic, const SInt k) {
     // Update config

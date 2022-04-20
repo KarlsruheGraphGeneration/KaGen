@@ -69,7 +69,7 @@ public:
     }
 
     std::pair<SInt, SInt> GetVertexRange() {
-        return std::make_pair(start_node_, start_node_ + num_nodes_ - 1);
+        return std::make_pair(start_node_, start_node_ + num_nodes_);
     }
 
 private:
@@ -199,7 +199,6 @@ private:
         SInt h         = sampling::Spooky::hash(config_.seed + edge_seed);
         if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
             io_.PushEdge(source, target);
-            io_.PushEdge(target, source);
         }
     }
 
