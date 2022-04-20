@@ -41,7 +41,7 @@ public:
 
         start_node_ = start_chunk * nodes_per_chunk + std::min(remaining_nodes, start_chunk);
         end_node_   = end_chunk * nodes_per_chunk + std::min(remaining_nodes, end_chunk);
-        num_nodes_  = end_node_ - start_node_ - 1;
+        num_nodes_  = end_node_ - start_node_;
 
         // Generate chunks
         for (SInt i = 0; i < num_chunks; i++) {
@@ -135,10 +135,16 @@ private:
             // TODO: Nasty hack
             while (sqr * sqr > 8 * (sample - 1) + 1)
                 sqr--;
-            SInt i = (sqr - 1) / 2;
-            SInt j = (sample - 1) - i * (i + 1) / 2;
-            io_.PushEdge(i + offset_row, j + offset_column);
-            io_.PushEdge(j + offset_column, i + offset_row);
+            SInt i    = (sqr - 1) / 2;
+            SInt j    = (sample - 1) - i * (i + 1) / 2;
+
+            SInt from = i + offset_row;
+            SInt to   = j + offset_column;
+
+            io_.PushEdge(from, to);
+            if (to >= start_node_ && to < end_node_) {
+                io_.PushEdge(to, from);
+            }
         });
     }
 
@@ -152,11 +158,17 @@ private:
 
         // Sample from [1, num_edges]
         rng_.GenerateSample(h, row_n * column_n, num_edges, [&](SInt sample) {
-            SInt i = (sample - 1) / column_n;
-            SInt j = (sample - 1) % column_n;
+            SInt i    = (sample - 1) / column_n;
+            SInt j    = (sample - 1) % column_n;
+
+            SInt from = i + offset_row;
+            SInt to   = j + offset_column;
+
             if (local_row) {
-                io_.PushEdge(i + offset_row, j + offset_column);
-                io_.PushEdge(j + offset_column, i + offset_row);
+                io_.PushEdge(from, to);
+            }
+            if (to >= start_node_ && to < end_node_) {
+                io_.PushEdge(to, from);
             }
         });
     }

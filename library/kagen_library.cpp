@@ -84,7 +84,6 @@ KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
-// @todo no postprocessing guarantees
 KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;
