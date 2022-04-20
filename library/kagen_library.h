@@ -57,7 +57,9 @@ public:
 
     KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d, SInt k = 0);
 
-    KaGenResult Generate2DGrid(SInt n, SInt m, LPFloat p, SInt periodic, SInt k = 0);
+    KaGenResult Generate2DGrid(SInt n, LPFloat p, bool periodic, SInt k = 0);
+
+    KaGenResult Generate2DGrid(SInt grid_x, SInt grid_y, LPFloat p, bool periodic, SInt k = 0);
 
     KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0);
 

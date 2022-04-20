@@ -231,10 +231,17 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, 
 }
 
 // @todo no postprocessing guarantees
-KaGenResult KaGen::Generate2DGrid(const SInt n, const SInt m, const LPFloat p, const SInt periodic, const SInt k) {
+KaGenResult KaGen::Generate2DGrid(const SInt n, const LPFloat p, const bool periodic, const SInt k) {
+    SInt sqrt_n = std::sqrt(n);
+    return Generate2DGrid(sqrt_n, sqrt_n, p, periodic, k);
+}
+
+// @todo no postprocessing guarantees
+KaGenResult
+KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic, const SInt k) {
     // Update config
-    config_->n        = n;
-    config_->m        = m;
+    config_->grid_x   = grid_x;
+    config_->grid_y   = grid_y;
     config_->p        = p;
     config_->periodic = periodic;
     config_->k        = (k == 0 ? config_->k : k);
