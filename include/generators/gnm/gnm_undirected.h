@@ -272,8 +272,15 @@ private:
                 sqr--;
             SInt i = (sqr - 1) / 2;
             SInt j = (sample - 1) - i * (i + 1) / 2;
-            io_.PushEdge(i + offset_row, j + offset_column);
-            io_.PushEdge(j + offset_column, i + offset_row);
+
+            SInt from = i + offset_row;
+            SInt to   = j + offset_column;
+
+            io_.PushEdge(from, to);
+
+            if (to >= start_node_ && to < end_node_) {
+                io_.PushEdge(to, from);
+            }
         });
     }
 
@@ -292,9 +299,17 @@ private:
         rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
             SInt i = (sample - 1) / n_column;
             SInt j = (sample - 1) % n_column;
+
+            SInt from = i + offset_row;
+            SInt to   = j + offset_column;
+            int  rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
             if (local_row) {
-                io_.PushEdge(i + offset_row, j + offset_column);
-                io_.PushEdge(j + offset_column, i + offset_row);
+                io_.PushEdge(from, to);
+            }
+            if (to >= start_node_ && to < end_node_) {
+                io_.PushEdge(to, from);
             }
         });
     }

@@ -63,9 +63,6 @@ KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt 
     GNMUndirected gen(*config_, rank_, size_);
     gen.Generate();
 
-    // Redistribute graph such that each PE owns a consecutive range of vertices
-    Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
-
     if (validate_undirected_graph_) {
         Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
     }
