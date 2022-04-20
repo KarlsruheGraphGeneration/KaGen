@@ -50,7 +50,6 @@ public:
         }
 
         // Chunk variables
-        total_chunks_   = config_.k;
         chunks_per_dim_ = sqrt(total_chunks_);
         chunk_size_     = 1.0 / chunks_per_dim_;
 
