@@ -119,9 +119,6 @@ KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r, const SInt k) {
     RGG2D gen(*config_, rank_, size_);
     gen.Generate();
 
-    // Validate consecutive vertex ranges
-    Postprocess(Postprocessing::VALIDATE_RANGES_CONSECUTIVE, gen);
-
     if (validate_undirected_graph_) {
         Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
     }
@@ -139,9 +136,6 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k) {
     // Init and run generator
     RGG3D gen(*config_, rank_, size_);
     gen.Generate();
-
-    // Validate consecutive vertex ranges
-    Postprocess(Postprocessing::VALIDATE_RANGES_CONSECUTIVE, gen);
 
     if (validate_undirected_graph_) {
         Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
@@ -170,7 +164,6 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k) {
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
-// @todo no postprocessing guarantees
 KaGenResult KaGen::Generate3DRDG(const SInt n, const SInt k) {
     // Update config
     config_->n = n;

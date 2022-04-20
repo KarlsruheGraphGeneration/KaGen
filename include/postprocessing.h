@@ -53,7 +53,6 @@ ValidateVertexRanges(const EdgeList& edge_list, const std::vector<VertexRange>& 
 
     for (std::size_t i = 0; i < ranges.size(); ++i) {
         const auto& [from, to] = ranges[i];
-        std::cout << "from=" << from << " to=" << to << " i=" << i << std::endl;
         if (from > to) {
             std::cerr << "Invalid vertex range on PE " << i << ": " << from << ".." << to << "\n";
             ++num_errors;
