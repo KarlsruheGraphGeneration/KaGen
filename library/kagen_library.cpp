@@ -291,7 +291,7 @@ void KaGen::SetDefaults() {
     config_->avg_degree   = 5.0;
     config_->plexp        = 2.6;
     config_->thres        = 0;
-    config_->query_both   = true;
+    config_->query_both   = false;
     config_->min_degree   = 4;
     config_->precision    = 32;
     config_->base_size    = (SInt)1 << 8;
