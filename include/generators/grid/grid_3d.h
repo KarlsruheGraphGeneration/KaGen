@@ -62,7 +62,8 @@ public:
         start_node_ = OffsetForChunk(start_chunk);
         end_node_   = OffsetForChunk(end_chunk);
         num_nodes_  = end_node_ - start_node_;
-        std::cout << "rank_=" << rank_ << " start_node=" << start_node_ << " end_node=" << end_node_ << " start_chunk=" << start_chunk << " end_chunk=" << end_chunk << std::endl;
+        std::cout << "rank_=" << rank_ << " start_node=" << start_node_ << " end_node=" << end_node_
+                  << " start_chunk=" << start_chunk << " end_chunk=" << end_chunk << std::endl;
         for (SInt i = 0; i < num_chunks; i++) {
             GenerateChunk(start_chunk + i);
         }

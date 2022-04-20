@@ -116,9 +116,9 @@ inline void ValidateUndirectedEdgeList(EdgeList& edge_list, const std::vector<Ve
         std::sort(edge_list.begin(), edge_list.end());
     }
 
-    // Check that there are no self-loops 
+    // Check that there are no self-loops
     {
-        for (const auto &[from, to] : edge_list) {
+        for (const auto& [from, to]: edge_list) {
             if (from == to) {
                 std::cout << "Warning: there are self-loops\n";
                 break;

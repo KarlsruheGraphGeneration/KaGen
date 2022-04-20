@@ -37,7 +37,6 @@ void KaGen::EnableUndirectedGraphVerification() {
     validate_undirected_graph_ = true;
 }
 
-// @todo no postprocessing guarantees
 KaGenResult KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;
@@ -74,7 +73,6 @@ KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const SInt 
     return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
 }
 
-// @todo no postprocessing guarantees
 KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const SInt k, const bool self_loops) {
     // Update config
     config_->n          = n;

@@ -391,25 +391,25 @@ private:
             if (v1 == nullptr || v2 == nullptr)
                 continue;
 
-            //bool touches = true;
+            // bool touches = true;
             if (!tria.is_infinite(v1) && !(v1->info() & COPY_FLAG)) {
                 // v1 is in chunk we save the edge
                 edge_io_.UpdateDist(v1->info());
                 edge_io_.PushEdge(
                     (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(),
                     (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
-                //touches = true;
-            } 
+                // touches = true;
+            }
             if (!tria.is_infinite(v2) && !(v2->info() & COPY_FLAG)) {
                 // v1 is not in chunk but v2 is in chunk we save the reverse edge
                 edge_io_.UpdateDist(v2->info());
                 edge_io_.PushEdge(
                     (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(),
                     (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
-                //touches = true;
+                // touches = true;
             }
 
-            //if (touches) {
+            // if (touches) {
             //    edge_io_.PushEdge(
             //        (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(),
             //        (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
