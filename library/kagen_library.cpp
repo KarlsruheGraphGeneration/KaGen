@@ -151,7 +151,6 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r, const SInt k) {
 }
 
 #ifdef KAGEN_CGAL_FOUND
-// @todo no postprocessing guarantees
 KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k) {
     // Update config
     config_->n = n;
@@ -160,6 +159,9 @@ KaGenResult KaGen::Generate2DRDG(const SInt n, const SInt k) {
     // Init and run generator
     Delaunay2D gen(*config_, rank_, size_);
     gen.Generate();
+
+    // Fix broken edge list
+    Postprocess(Postprocessing::FIX_UNDIRECTED_EDGE_LIST, gen);
 
     if (validate_undirected_graph_) {
         Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);

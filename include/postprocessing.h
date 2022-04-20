@@ -38,7 +38,7 @@ inline PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SIn
 }
 } // namespace internal
 
-inline void
+inline bool
 ValidateVertexRanges(const EdgeList& edge_list, const std::vector<VertexRange>& ranges, const bool expect_consecutive) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -53,12 +53,13 @@ ValidateVertexRanges(const EdgeList& edge_list, const std::vector<VertexRange>& 
 
     for (std::size_t i = 0; i < ranges.size(); ++i) {
         const auto& [from, to] = ranges[i];
+        std::cout << "from=" << from << " to=" << to << " i=" << i << std::endl;
         if (from > to) {
             std::cerr << "Invalid vertex range on PE " << i << ": " << from << ".." << to << "\n";
             ++num_errors;
 
             if (num_errors >= KAGEN_MAX_WARNINGS) {
-                return;
+                return false;
             }
         }
     }
@@ -76,7 +77,7 @@ ValidateVertexRanges(const EdgeList& edge_list, const std::vector<VertexRange>& 
                 ++num_errors;
 
                 if (num_errors >= KAGEN_MAX_WARNINGS) {
-                    return;
+                    return false;
                 }
             }
         }
@@ -98,18 +99,32 @@ ValidateVertexRanges(const EdgeList& edge_list, const std::vector<VertexRange>& 
         }
 
         if (num_errors >= KAGEN_MAX_WARNINGS) {
-            return;
+            return false;
         }
     }
+
+    return num_errors == 0;
 }
 
 inline void ValidateUndirectedEdgeList(EdgeList& edge_list, const std::vector<VertexRange>& ranges) {
     // Validate vertex ranges
-    ValidateVertexRanges(edge_list, ranges, true);
+    if (!ValidateVertexRanges(edge_list, ranges, true)) {
+        return; // failed, following checks could crash if vertex ranges are broken
+    }
 
     // Sort edges to allow binary search to find reverse edges
     if (!std::is_sorted(edge_list.begin(), edge_list.end())) {
         std::sort(edge_list.begin(), edge_list.end());
+    }
+
+    // Check that there are no self-loops 
+    {
+        for (const auto &[from, to] : edge_list) {
+            if (from == to) {
+                std::cout << "Warning: there are self-loops\n";
+                break;
+            }
+        }
     }
 
     // Check that there are no duplicate edges
