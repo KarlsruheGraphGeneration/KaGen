@@ -69,4 +69,3 @@ private:
     bool                              validate_undirected_graph_;
 };
 } // namespace kagen
-
