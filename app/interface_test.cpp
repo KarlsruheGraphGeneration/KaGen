@@ -32,6 +32,8 @@ int main(int argn, char **argv) {
   gen.Generate3DRDG(num_vertices);
   gen.GenerateRHG(num_vertices, 3.0, 16);
   gen.GenerateBA(num_vertices, 16);
+  const SInt sqrt_num_vertices = std::sqrt(num_vertices);
+  gen.Generate2DGrid(sqrt_num_vertices, sqrt_num_vertices, 0.9, true);
   
   MPI_Finalize();
   return 0;

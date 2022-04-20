@@ -317,18 +317,18 @@ class KaGen {
     return edges;
   }
 
-  EdgeList Generate2DGrid(SInt n, 
-                          SInt m,
+  EdgeList Generate2DGrid(SInt grid_x,
+                          SInt grid_y,
                           LPFloat p,
-                          SInt periodic,
-                          SInt k = 0, 
-                          SInt seed = 1, 
+                          bool periodic,
+                          SInt k = 0,
+                          SInt seed = 1,
                           const std::string &output = "out") {
     EdgeList edges; 
 
     // Update config
-    config_.n = n;
-    config_.m = m;
+    config_.grid_x = grid_x;
+    config_.grid_y = grid_y;
     config_.p = p;
     config_.periodic = periodic;
     config_.k = (k == 0 ? config_.k : k);
