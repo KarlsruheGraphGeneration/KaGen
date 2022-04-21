@@ -10,8 +10,8 @@
 
 #include <mpi.h>
 
+#include "kagen/context.h"
 #include "kagen/facade.h"
-#include "kagen/generator_config.h"
 #include "kagen/io/io.h"
 #include "kagen/tools/benchmark.h"
 #include "kagen/tools/timer.h"

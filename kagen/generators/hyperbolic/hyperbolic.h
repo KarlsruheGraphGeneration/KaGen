@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "hash.hpp"
+#include "kagen/context.h"
 #include "kagen/definitions.h"
-#include "kagen/generator_config.h"
 #include "kagen/generators/generator.h"
 #include "kagen/tools/geometry.h"
 #include "kagen/tools/mersenne.h"
@@ -47,7 +47,7 @@ protected:
 private:
     // Config
     const PGeneratorConfig& config_;
-    PEID              rank_, size_;
+    PEID                    rank_, size_;
 
     // Variates
     RNGWrapper     rng_;

@@ -4,7 +4,6 @@
 
 #include <mpi.h>
 
-#include "kagen/generator_config.h"
 #include "kagen/io/buffered_writer.h"
 
 namespace kagen {
@@ -36,12 +35,23 @@ void CreateFile(const std::string& filename) {
 void WriteGraph(const PGeneratorConfig& config, EdgeList& edges, const VertexRange vertex_range) {
     switch (config.output_format) {
         case OutputFormat::EDGE_LIST:
-            WriteEdgeList(config.output_file, !config.output_header, config.output_single_file, edges, vertex_range);
+            WriteEdgeList(
+                config.output_file, config.output_header == OutputHeader::NEVER, config.output_single_file, edges,
+                vertex_range);
             break;
 
         case OutputFormat::BINARY_EDGE_LIST:
             WriteBinaryEdgeList(
-                config.output_file, !config.output_header, config.output_single_file, edges, vertex_range);
+                config.output_file, config.output_header == OutputHeader::NEVER, config.output_single_file, edges,
+                vertex_range);
+            break;
+
+        case OutputFormat::METIS:
+            WriteMetis(config.output_file, edges, vertex_range);
+            break;
+
+        case OutputFormat::HMETIS:
+            WriteHMetis(config.output_file, edges, vertex_range);
             break;
     }
 }

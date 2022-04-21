@@ -2,8 +2,8 @@
 
 #include <string>
 
+#include "kagen/context.h"
 #include "kagen/definitions.h"
-#include "kagen/generator_config.h"
 
 namespace kagen {
 void WriteGraph(const PGeneratorConfig& config, EdgeList& edges, VertexRange vertex_range);

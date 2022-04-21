@@ -11,7 +11,7 @@
 
 #include "hash.hpp"
 #include "kagen/definitions.h"
-#include "kagen/generator_config.h"
+#include "kagen/context.h"
 #include "kagen/generators/generator.h"
 
 // forward declaration

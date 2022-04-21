@@ -78,6 +78,5 @@ private:
 
     PEID                              rank_, size_;
     std::unique_ptr<PGeneratorConfig> config_;
-    bool                              validate_undirected_graph_;
 };
 } // namespace kagen

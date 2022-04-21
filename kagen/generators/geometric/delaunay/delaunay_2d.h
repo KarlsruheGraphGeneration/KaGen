@@ -8,7 +8,6 @@
 #pragma once
 
 #include "kagen/definitions.h"
-#include "kagen/generator_config.h"
 #include "kagen/generators/generator.h"
 #include "kagen/generators/geometric/geometric_2d.h"
 

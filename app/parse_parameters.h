@@ -14,8 +14,8 @@
 #include <string.h>
 
 #include "arg_parser.h"
+#include "kagen/context.h"
 #include "kagen/definitions.h"
-#include "kagen/generator_config.h"
 
 namespace kagen {
 inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& generator_config) {
@@ -173,7 +173,6 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
         std::cout << "-verify_undirected" << std::endl;
         std::exit(0);
     }
-
 
     // Nodes
     bool exact_n = args.IsSet("exact_n");

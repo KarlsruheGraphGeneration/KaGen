@@ -2,8 +2,8 @@
 
 #include <cmath>
 
+#include "kagen/context.h"
 #include "kagen/facade.h"
-#include "kagen/generator_config.h"
 
 namespace kagen {
 KaGen::KaGen(const PEID rank, const PEID size)
@@ -20,7 +20,7 @@ void KaGen::SetSeed(const int seed) {
 }
 
 void KaGen::EnableUndirectedGraphVerification() {
-    config_->validate_undirected_graph = true;
+    config_->validate_simple_graph = true;
 }
 
 KaGenResult KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const SInt k, const bool self_loops) {
@@ -99,6 +99,7 @@ KaGenResult KaGen::Generate3DRDG(SInt, SInt) {
 }
 #endif // KAGEN_CGAL_FOUND
 
+// @todo broken generator
 KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k) {
     config_->generator  = GeneratorType::BA;
     config_->n          = n;
@@ -107,7 +108,6 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k) {
     return Generate(*config_, rank_, size_);
 }
 
-// Normalized output format
 KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d, const SInt k) {
     config_->generator  = GeneratorType::RHG;
     config_->n          = n;
@@ -160,26 +160,9 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k) {
 }
 
 void KaGen::SetDefaults() {
-    config_->n            = 100;
-    config_->m            = 0;
-    config_->k            = size_;
-    config_->seed         = 1;
-    config_->hash_sample  = false;
-    config_->use_binom    = false;
-    config_->output_file  = "out";
-    config_->debug_output = "dbg";
-    config_->dist_size    = 10;
-    config_->p            = 0.0;
-    config_->self_loops   = false;
-    config_->r            = 0.125;
-    config_->avg_degree   = 5.0;
-    config_->plexp        = 2.6;
-    config_->thres        = 0;
-    config_->query_both   = false;
-    config_->min_degree   = 4;
-    config_->precision    = 32;
-    config_->base_size    = (SInt)1 << 8;
-    config_->hyp_base     = (SInt)1 << 8;
-    config_->iterations   = 1;
+    config_->n     = 100;
+    config_->k     = size_;
+    config_->quiet = true;
+    // keep all other defaults
 }
 } // namespace kagen
