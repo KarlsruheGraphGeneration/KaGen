@@ -175,10 +175,10 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     // IO options
     app.add_option("-o,--output", config.output_file, "Output filename");
     app.add_option("-f,--output-format", config.output_format, "Output format")
-        ->check(CLI::IsMember(GetOutputFormatMap()))
+        //->check(CLI::IsMember(GetOutputFormatMap()))
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()).description(""));
     app.add_option("--output-header", config.output_header, "Output file header")
-        ->check(CLI::IsMember(GetOutputHeaderMap()))
+        //->check(CLI::IsMember(GetOutputHeaderMap()))
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()).description(""));
     app.add_flag("--single-file", config.output_single_file, "Collect graph in a single file");
 }

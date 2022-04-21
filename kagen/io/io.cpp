@@ -67,11 +67,7 @@ void AppendEdgeList(const std::string& filename, const EdgeList& edges) {
     }
 }
 
-void AppendEdgeListHeader(
-    const std::string& filename, const bool single_file, const EdgeList& edges, const VertexRange vertex_range) {
-    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
-    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges) : edges.size();
-
+void AppendEdgeListHeader(const std::string& filename, const SInt number_of_nodes, const SInt number_of_edges) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteString("p ").WriteInt(number_of_nodes).WriteChar(' ').WriteInt(number_of_edges).WriteChar('\n').Flush();
 }
@@ -84,11 +80,14 @@ void WriteEdgeList(
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
+    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges) : edges.size();
+
     if (single_file) {
         if (rank == ROOT) {
             CreateFile(filename);
             if (!omit_header) {
-                AppendEdgeListHeader(filename, true, edges, vertex_range);
+                AppendEdgeListHeader(filename, number_of_nodes, number_of_edges);
             }
         }
 
@@ -102,7 +101,7 @@ void WriteEdgeList(
         const std::string my_filename = filename + "_" + std::to_string(rank);
         CreateFile(my_filename);
         if (!omit_header) {
-            AppendEdgeListHeader(my_filename, false, edges, vertex_range);
+            AppendEdgeListHeader(my_filename, number_of_nodes, number_of_edges);
         }
         AppendEdgeList(my_filename, edges);
     }
@@ -121,11 +120,7 @@ void AppendBinaryEdgeList(const std::string& filename, const EdgeList& edges) {
     fclose(fout);
 }
 
-void AppendBinaryEdgeListHeader(
-    const std::string& filename, const bool single_file, const EdgeList& edges, const VertexRange vertex_range) {
-    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
-    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges) : edges.size();
-
+void AppendBinaryEdgeListHeader(const std::string& filename, const SInt number_of_nodes, const SInt number_of_edges) {
     FILE* fout = fopen(filename.c_str(), "ab");
     fwrite(&number_of_nodes, sizeof(SInt), 1, fout);
     fwrite(&number_of_edges, sizeof(SInt), 1, fout);
@@ -140,11 +135,14 @@ void WriteBinaryEdgeList(
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
+    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges) : edges.size();
+
     if (single_file) {
         if (rank == ROOT) {
             CreateFile(filename);
             if (!omit_header) {
-                AppendBinaryEdgeListHeader(filename, true, edges, vertex_range);
+                AppendBinaryEdgeListHeader(filename, number_of_nodes, number_of_edges);
             }
         }
 
@@ -158,7 +156,7 @@ void WriteBinaryEdgeList(
         const std::string my_filename = filename + "_" + std::to_string(rank);
         CreateFile(my_filename);
         if (!omit_header) {
-            AppendBinaryEdgeListHeader(my_filename, false, edges, vertex_range);
+            AppendBinaryEdgeListHeader(my_filename, number_of_nodes, number_of_edges);
         }
         AppendBinaryEdgeList(my_filename, edges);
     }
