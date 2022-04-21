@@ -13,7 +13,7 @@
 namespace kagen {
 class Delaunay3D : public Geometric3D {
 public:
-    Delaunay3D(PGeneratorConfig& config, PEID rank, PEID size);
+    Delaunay3D(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 

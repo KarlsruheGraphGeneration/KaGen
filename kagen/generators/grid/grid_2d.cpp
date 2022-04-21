@@ -7,7 +7,7 @@
 #include "hash.hpp"
 
 namespace kagen {
-Grid2D::Grid2D(PGeneratorConfig& config, const PEID rank, const PEID size)
+Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rng_(config),
       rank_(rank),

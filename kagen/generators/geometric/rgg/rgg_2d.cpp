@@ -1,7 +1,7 @@
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 
 namespace kagen {
-RGG2D::RGG2D(PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
+RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
     // Number of PEs must be a power of 2 -- crash if violated
     if (size < 0 || (size & (size - 1)) != 0) {
         if (rank == ROOT) {
@@ -34,7 +34,7 @@ RGG2D::RGG2D(PGeneratorConfig& config, const PEID rank, const PEID size) : Geome
     }
 
     // Chunk variables
-    chunks_per_dim_ = sqrt(total_chunks_);
+    chunks_per_dim_ = std::sqrt(total_chunks_);
     chunk_size_     = 1.0 / chunks_per_dim_;
 
     // Cell variables

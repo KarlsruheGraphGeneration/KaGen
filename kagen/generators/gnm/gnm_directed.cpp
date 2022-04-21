@@ -1,7 +1,7 @@
 #include "kagen/generators/gnm/gnm_directed.h"
 
 namespace kagen {
-GNMDirected::GNMDirected(PGeneratorConfig& config, const PEID rank, const PEID size)
+GNMDirected::GNMDirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),

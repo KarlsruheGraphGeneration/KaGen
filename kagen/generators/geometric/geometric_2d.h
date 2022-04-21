@@ -32,7 +32,7 @@ public:
     // x, y, id
     using Vertex = std::tuple<LPFloat, LPFloat, SInt>;
 
-    Geometric2D(PGeneratorConfig& config, const PEID rank, const PEID size)
+    Geometric2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
         : config_(config),
           rank_(rank),
           size_(size),
@@ -55,7 +55,7 @@ protected:
     }
 
     // Config
-    PGeneratorConfig& config_;
+    const PGeneratorConfig& config_;
     PEID              rank_, size_;
 
     // Variates

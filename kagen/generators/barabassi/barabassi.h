@@ -14,7 +14,7 @@
 namespace kagen {
 class Barabassi : public Generator {
 public:
-    Barabassi(PGeneratorConfig& config, PEID rank, PEID size);
+    Barabassi(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 
@@ -25,7 +25,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig& config_;
+    const PGeneratorConfig& config_;
 
     // Constants and variables
     SInt min_degree_;

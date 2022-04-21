@@ -22,7 +22,7 @@ using Vh_3d    = Dt_3d::Vertex_handle;
 using Circ_3d = CGAL::Sphere_3<K_3d>;
 using Box_3d  = CGAL::Bbox_3;
 
-Delaunay3D::Delaunay3D(PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
+Delaunay3D::Delaunay3D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
     // Chunk variables
     total_chunks_   = config_.k;
     chunks_per_dim_ = cbrt(config_.k);

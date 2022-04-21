@@ -15,7 +15,7 @@
 namespace kagen {
 class Grid3D : public Generator {
 public:
-    Grid3D(PGeneratorConfig& config, PEID rank, PEID size);
+    Grid3D(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 
@@ -26,7 +26,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig& config_;
+    PGeneratorConfig config_;
 
     // Variates
     RNGWrapper rng_;

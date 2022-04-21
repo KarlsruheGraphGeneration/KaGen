@@ -35,7 +35,7 @@ public:
     // phi, r, x, y, gamma, id
     using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat, SInt>;
 
-    Hyperbolic(PGeneratorConfig& config, PEID rank, PEID size);
+    Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 
@@ -46,7 +46,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig& config_;
+    const PGeneratorConfig& config_;
     PEID              rank_, size_;
 
     // Variates

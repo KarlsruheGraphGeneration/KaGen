@@ -13,10 +13,9 @@
 #include "kagen/generators/geometric/geometric_2d.h"
 
 namespace kagen {
-
 class Delaunay2D : public Geometric2D {
 public:
-    Delaunay2D(PGeneratorConfig& config, PEID rank, PEID size);
+    Delaunay2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 

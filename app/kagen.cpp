@@ -10,29 +10,13 @@
 
 #include <mpi.h>
 
+#include "kagen/facade.h"
 #include "kagen/generator_config.h"
 #include "kagen/io/generator_io.h"
 #include "kagen/postprocessing.h"
 #include "kagen/tools/benchmark.h"
 #include "kagen/tools/timer.h"
 #include "parse_parameters.h"
-
-#if KAGEN_CGAL_FOUND
-    #include "kagen/generators/geometric/delaunay/delaunay_2d.h"
-    #include "kagen/generators/geometric/delaunay/delaunay_3d.h"
-#endif // KAGEN_CGAL_FOUND
-
-#include "kagen/generators/barabassi/barabassi.h"
-#include "kagen/generators/geometric/rgg/rgg_2d.h"
-#include "kagen/generators/geometric/rgg/rgg_3d.h"
-#include "kagen/generators/gnm/gnm_directed.h"
-#include "kagen/generators/gnm/gnm_undirected.h"
-#include "kagen/generators/gnp/gnp_directed.h"
-#include "kagen/generators/gnp/gnp_undirected.h"
-#include "kagen/generators/grid/grid_2d.h"
-#include "kagen/generators/grid/grid_3d.h"
-#include "kagen/generators/hyperbolic/hyperbolic.h"
-#include "kagen/generators/kronecker/kronecker.h"
 
 using namespace kagen;
 
@@ -147,10 +131,7 @@ void PrintStatistics(const EdgeList& edge_list, const VertexRange& range) {
     }
 }
 
-template <typename Generator>
-void RunGenerator(
-    PGeneratorConfig& config, const PEID rank, const PEID size, Statistics& stats, Statistics& edge_stats,
-    Statistics& edges) {
+void RunGenerator(PGeneratorConfig& config, const PEID rank, const PEID size) {
     // Start timers
     Timer  t;
     double local_time = 0.0;
@@ -162,8 +143,7 @@ void RunGenerator(
     }
 
     // Chunk distribution
-    Generator gen(config, rank, size);
-    gen.Generate();
+    auto [edges, vertex_range] = Generate(config, rank, size);
 
     // Output
     local_time = t.Elapsed();
@@ -177,20 +157,6 @@ void RunGenerator(
     if (rank == ROOT) {
         std::cout << std::endl;
     }
-
-    /*if (config.postprocessing != Postprocessing::SKIP || config.validate_undirected_graph) {
-        if (rank == ROOT) {
-            std::cout << "Postprocessing ..." << std::endl;
-        }
-        Postprocess(config.postprocessing, gen);
-        PrintStatistics(gen.IO().GetEdges(), gen.GetVertexRange());
-        if (config.validate_undirected_graph) {
-            Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
-        }
-        if (rank == ROOT) {
-            std::cout << std::endl;
-        }
-    }*/
 
     if (rank == ROOT) {
         std::cout << "Writing edges ..." << std::endl;
@@ -224,61 +190,7 @@ int main(int argn, char** argv) {
     for (ULONG i = 0; i < generator_config.iterations; ++i) {
         MPI_Barrier(MPI_COMM_WORLD);
         generator_config.seed = user_seed + i;
-
-        switch (generator_config.generator) {
-            case GeneratorType::GNM_DIRECTED:
-                RunGenerator<GNMDirected>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::GNM_UNDIRECTED:
-                RunGenerator<GNMUndirected>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::GNP_DIRECTED:
-                RunGenerator<GNPDirected>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::GNP_UNDIRECTED:
-                RunGenerator<GNPUndirected>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::RGG_2D:
-                RunGenerator<RGG2D>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::RGG_3D:
-                RunGenerator<RGG3D>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::RDG_2D:
-#ifdef KAGEN_CGAL_FOUND
-                RunGenerator<Delaunay2D>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-#else  // KAGEN_CGAL_FOUND
-                std::cerr << "Error: RDG 2D generator has been disabled\n";
-                std::exit(1);
-#endif // KAGEN_CGAL_FOUND
-
-            case GeneratorType::RDG_3D:
-#ifdef KAGEN_CGAL_FOUND
-                RunGenerator<Delaunay3D>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-#else  // KAGEN_CGAL_FOUND
-                std::cerr << "Error: RDG 3D genertor has been disabled\n";
-                std::exit(1);
-#endif // KAGEN_CGAL_FOUND
-
-            case GeneratorType::RHG:
-                RunGenerator<Hyperbolic>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::KRONECKER:
-                RunGenerator<Kronecker>(generator_config, rank, size, stats, edge_stats, edges);
-                break;
-
-            case GeneratorType::UNDEFINED:
-                __builtin_unreachable();
-        }
+	RunGenerator(generator_config, rank, size);
     }
 
     if (rank == ROOT) {

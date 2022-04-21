@@ -1,7 +1,7 @@
 #include "kagen/generators/gnm/gnm_undirected.h"
 
 namespace kagen {
-GNMUndirected::GNMUndirected(PGeneratorConfig& config, const PEID rank, const PEID size)
+GNMUndirected::GNMUndirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),

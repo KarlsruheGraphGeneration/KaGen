@@ -3,7 +3,7 @@
 #include "kagen/generators/generator.h"
 
 namespace kagen {
-Hyperbolic::Hyperbolic(PGeneratorConfig& config, const PEID rank, const PEID size)
+Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),

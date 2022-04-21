@@ -14,7 +14,7 @@
 namespace kagen {
 class RGG3D : public Geometric3D {
 public:
-    RGG3D(PGeneratorConfig& config, const PEID rank, const PEID size);
+    RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
     GeneratorRequirement Requirements() const final;
 

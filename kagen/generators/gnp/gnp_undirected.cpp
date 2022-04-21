@@ -3,7 +3,7 @@
 #include "kagen/generators/gnp/gnp_directed.h"
 
 namespace kagen {
-GNPUndirected::GNPUndirected(PGeneratorConfig& config, const PEID rank, const PEID size)
+GNPUndirected::GNPUndirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),

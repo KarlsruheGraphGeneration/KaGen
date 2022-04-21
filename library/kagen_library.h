@@ -16,16 +16,22 @@
 namespace kagen {
 struct PGeneratorConfig;
 
-using SInt     = unsigned long long;
-using SSInt    = long long;
-using EdgeList = std::vector<std::tuple<SInt, SInt>>;
-using PEID     = int;
-using HPFloat  = long double;
-using LPFloat  = double;
+using SInt        = unsigned long long;
+using SSInt       = long long;
+using EdgeList    = std::vector<std::tuple<SInt, SInt>>;
+using VertexRange = std::pair<SInt, SInt>;
+using PEID        = int;
+using HPFloat     = long double;
+using LPFloat     = double;
 
 struct KaGenResult {
-    EdgeList              edges;
-    std::pair<SInt, SInt> vertex_range;
+    // Implicitly convert result of kagen::Generator to KaGenResult
+    inline KaGenResult(std::pair<EdgeList, VertexRange> result)
+        : edges(std::move(result.first)),
+          vertex_range(std::move(result.second)) {}
+
+    EdgeList    edges;
+    VertexRange vertex_range;
 };
 
 class KaGen {

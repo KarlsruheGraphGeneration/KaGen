@@ -14,7 +14,7 @@
 namespace kagen {
 class RGG2D : public Geometric2D {
 public:
-    RGG2D(PGeneratorConfig& config, PEID rank, PEID size);
+    RGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 

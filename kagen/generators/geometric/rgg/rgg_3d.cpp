@@ -1,7 +1,7 @@
 #include "kagen/generators/geometric/rgg/rgg_3d.h"
 
 namespace kagen {
-RGG3D::RGG3D(PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
+RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
     // Chunk variables
     total_chunks_   = config_.k;
     chunks_per_dim_ = cbrt(config_.k);

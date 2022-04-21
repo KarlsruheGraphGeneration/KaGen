@@ -20,7 +20,7 @@ struct mrg_state;
 namespace kagen {
 class Kronecker : public Generator {
 public:
-    Kronecker(PGeneratorConfig& config, PEID rank, PEID size);
+    Kronecker(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 
@@ -31,7 +31,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig& config_;
+    const PGeneratorConfig& config_;
     PEID              size_, rank_;
 
     // Constants and variables

@@ -16,7 +16,7 @@
 namespace kagen {
 class GNPDirected : public Generator {
 public:
-    GNPDirected(PGeneratorConfig& config, PEID rank, PEID size);
+    GNPDirected(const PGeneratorConfig& config, PEID rank, PEID size);
 
     GeneratorRequirement Requirements() const final;
 
@@ -27,7 +27,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig& config_;
+    const PGeneratorConfig& config_;
 
     PEID rank_;
     PEID size_;

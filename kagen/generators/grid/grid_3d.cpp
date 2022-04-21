@@ -5,7 +5,7 @@
 // #include "morton2D.h"
 
 namespace kagen {
-Grid3D::Grid3D(PGeneratorConfig& config, const PEID rank, const PEID size)
+Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rng_(config),
       rank_(rank),

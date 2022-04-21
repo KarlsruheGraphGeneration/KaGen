@@ -7,7 +7,7 @@
 #include "kagen/generators/barabassi/barabassi.h"
 
 namespace kagen {
-Barabassi::Barabassi(PGeneratorConfig& config, const PEID rank, const PEID size)
+Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       min_degree_(config_.min_degree),
       total_degree_(2 * config_.min_degree) {

@@ -32,7 +32,7 @@ public:
     // x, y, z, id
     using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, SInt>;
 
-    Geometric3D(PGeneratorConfig& config, const PEID rank, const PEID size)
+    Geometric3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
         : config_(config),
           rank_(rank),
           size_(size),
@@ -55,8 +55,10 @@ protected:
     }
 
     // Config
-    PGeneratorConfig& config_;
-    PEID              rank_, size_;
+    const PGeneratorConfig& config_;
+
+    PEID rank_;
+    PEID size_;
 
     // Variates
     RNGWrapper rng_;
