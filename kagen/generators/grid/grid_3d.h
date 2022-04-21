@@ -12,11 +12,11 @@
 #include <vector>
 
 // #include "morton2D.h"
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
 #include "hash.hpp"
-#include "rng_wrapper.h"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
+#include "kagen/io/generator_io.h"
+#include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
 

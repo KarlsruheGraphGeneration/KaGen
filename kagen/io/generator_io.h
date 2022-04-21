@@ -22,7 +22,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "generator_config.h"
+#include "kagen/generator_config.h"
 
 namespace kagen {
 namespace internal {

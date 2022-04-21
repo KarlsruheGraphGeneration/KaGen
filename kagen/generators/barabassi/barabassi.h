@@ -13,10 +13,10 @@
 #include <iostream>
 #include <vector>
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
 #include "hash.hpp"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
+#include "kagen/io/generator_io.h"
 
 namespace kagen {
 class Barabassi {

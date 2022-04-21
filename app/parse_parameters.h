@@ -14,8 +14,8 @@
 #include <string.h>
 
 #include "arg_parser.h"
-#include "definitions.h"
-#include "generator_config.h"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
 
 namespace kagen {
 inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorConfig& generator_config) {

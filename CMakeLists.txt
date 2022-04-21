@@ -35,17 +35,7 @@ set(KAGEN_DEFINITIONS "")
 set(KAGEN_INCLUDE_DIRS 
   ${PROJECT_SOURCE_DIR}/extlib/sampling/sampling
   ${PROJECT_SOURCE_DIR}/extlib/libmorton/include/
-  ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/include/generators
-  ${PROJECT_SOURCE_DIR}/include/generators/barabassi
-  ${PROJECT_SOURCE_DIR}/include/generators/geometric
-  ${PROJECT_SOURCE_DIR}/include/generators/geometric/delaunay
-  ${PROJECT_SOURCE_DIR}/include/generators/geometric/rgg
-  ${PROJECT_SOURCE_DIR}/include/generators/gnm
-  ${PROJECT_SOURCE_DIR}/include/generators/gnp
-  ${PROJECT_SOURCE_DIR}/include/generators/hyperbolic
-  ${PROJECT_SOURCE_DIR}/include/io
-  ${PROJECT_SOURCE_DIR}/include/tools
+  ${PROJECT_SOURCE_DIR}
   )
 
 if(NOT MSVC)

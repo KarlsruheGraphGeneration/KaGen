@@ -14,14 +14,14 @@
 #include <tuple>
 #include <vector>
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
-#include "geometry.h"
 #include "hash.hpp"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
+#include "kagen/io/generator_io.h"
+#include "kagen/tools/geometry.h"
+#include "kagen/tools/rng_wrapper.h"
+#include "kagen/tools/sorted_mersenne.h"
 #include "methodD.hpp"
-#include "rng_wrapper.h"
-#include "sorted_mersenne.h"
 
 namespace kagen {
 class Hyperbolic {

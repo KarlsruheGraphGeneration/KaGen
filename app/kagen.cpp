@@ -10,29 +10,29 @@
 
 #include <mpi.h>
 
-#include "benchmark.h"
-#include "generator_config.h"
-#include "io/generator_io.h"
+#include "kagen/generator_config.h"
+#include "kagen/io/generator_io.h"
+#include "kagen/postprocessing.h"
+#include "kagen/tools/benchmark.h"
+#include "kagen/tools/timer.h"
 #include "parse_parameters.h"
-#include "postprocessing.h"
-#include "timer.h"
 
 #if KAGEN_CGAL_FOUND
-    #include "geometric/delaunay/delaunay_2d.h"
-    #include "geometric/delaunay/delaunay_3d.h"
+    #include "kagen/generators/geometric/delaunay/delaunay_2d.h"
+    #include "kagen/generators/geometric/delaunay/delaunay_3d.h"
 #endif // KAGEN_CGAL_FOUND
 
-#include "barabassi/barabassi.h"
-#include "geometric/rgg/rgg_2d.h"
-#include "geometric/rgg/rgg_3d.h"
-#include "gnm/gnm_directed.h"
-#include "gnm/gnm_undirected.h"
-#include "gnp/gnp_directed.h"
-#include "gnp/gnp_undirected.h"
-#include "grid/grid_2d.h"
-#include "grid/grid_3d.h"
-#include "hyperbolic/hyperbolic.h"
-#include "kronecker/kronecker.h"
+#include "kagen/generators/barabassi/barabassi.h"
+#include "kagen/generators/geometric/rgg/rgg_2d.h"
+#include "kagen/generators/geometric/rgg/rgg_3d.h"
+#include "kagen/generators/gnm/gnm_directed.h"
+#include "kagen/generators/gnm/gnm_undirected.h"
+#include "kagen/generators/gnp/gnp_directed.h"
+#include "kagen/generators/gnp/gnp_undirected.h"
+#include "kagen/generators/grid/grid_2d.h"
+#include "kagen/generators/grid/grid_3d.h"
+#include "kagen/generators/hyperbolic/hyperbolic.h"
+#include "kagen/generators/kronecker/kronecker.h"
 
 using namespace kagen;
 

@@ -16,12 +16,12 @@
 
 #include <mpi.h>
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "geometry.h"
 #include "hash.hpp"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
+#include "kagen/tools/geometry.h"
+#include "kagen/tools/rng_wrapper.h"
 #include "libmorton/morton3D.h"
-#include "rng_wrapper.h"
 
 namespace kagen {
 class Geometric3D {

@@ -11,11 +11,11 @@
 #include <iostream>
 #include <vector>
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
 #include "hash.hpp"
-#include "rng_wrapper.h"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
+#include "kagen/io/generator_io.h"
+#include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
 class GNPUndirected {
@@ -135,8 +135,8 @@ private:
             // TODO: Nasty hack
             while (sqr * sqr > 8 * (sample - 1) + 1)
                 sqr--;
-            SInt i    = (sqr - 1) / 2;
-            SInt j    = (sample - 1) - i * (i + 1) / 2;
+            SInt i = (sqr - 1) / 2;
+            SInt j = (sample - 1) - i * (i + 1) / 2;
 
             SInt from = i + offset_row;
             SInt to   = j + offset_column;
@@ -158,8 +158,8 @@ private:
 
         // Sample from [1, num_edges]
         rng_.GenerateSample(h, row_n * column_n, num_edges, [&](SInt sample) {
-            SInt i    = (sample - 1) / column_n;
-            SInt j    = (sample - 1) % column_n;
+            SInt i = (sample - 1) / column_n;
+            SInt j = (sample - 1) % column_n;
 
             SInt from = i + offset_row;
             SInt to   = j + offset_column;

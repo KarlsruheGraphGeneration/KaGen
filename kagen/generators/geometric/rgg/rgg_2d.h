@@ -11,8 +11,8 @@
 
 #include <iostream>
 
-#include "generator_io.h"
-#include "geometric/geometric_2d.h"
+#include "kagen/generators/geometric/geometric_2d.h"
+#include "kagen/io/generator_io.h"
 
 namespace kagen {
 class RGG2D : public Geometric2D {

@@ -16,7 +16,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#include "mod_arith.h"
+#include "kagen/generators/kronecker/mod_arith.h"
 
 /* Multiple recursive generator from L'Ecuyer, P., Blouin, F., and       */
 /* Couture, R. 1993. A search for good multiple recursive random number  */

@@ -14,13 +14,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "definitions.h"
-#include "generator_config.h"
-#include "generator_io.h"
 #include "hash.hpp"
-#include "splittable_mrg.h"
-#include "user_settings.h"
-#include "utils.h"
+#include "kagen/definitions.h"
+#include "kagen/generator_config.h"
+#include "kagen/generators/kronecker/splittable_mrg.h"
+#include "kagen/generators/kronecker/user_settings.h"
+#include "kagen/generators/kronecker/utils.h"
+#include "kagen/io/generator_io.h"
 
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS

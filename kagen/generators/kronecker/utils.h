@@ -26,8 +26,7 @@
     #include <omp.h>
 #endif
 
-#include "kronecker.h"
-#include "splittable_mrg.h"
+#include "kagen/generators/kronecker/splittable_mrg.h"
 
 #if defined(_OPENMP)
     #define OMP(x_) _Pragma(x_)
