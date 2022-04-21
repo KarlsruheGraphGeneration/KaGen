@@ -193,7 +193,6 @@ void Grid3D::GenerateEdge(const SInt source, const SInt target) {
     SInt h         = sampling::Spooky::hash(config_.seed + edge_seed);
     if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
         PushEdge(source, target);
-        PushEdge(target, source);
     }
 }
 

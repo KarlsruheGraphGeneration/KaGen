@@ -133,6 +133,18 @@ KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LPFloat p, con
     return Generate(*config_, rank_, size_);
 }
 
+KaGenResult KaGen::Generate3DGrid(
+    const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic, const SInt k) {
+    config_->generator = GeneratorType::GRID_3D;
+    config_->grid_x    = grid_x;
+    config_->grid_y    = grid_y;
+    config_->grid_z    = grid_z;
+    config_->p         = p;
+    config_->periodic  = periodic;
+    config_->k         = (k == 0 ? config_->k : k);
+    return Generate(*config_, rank_, size_);
+}
+
 // @todo broken generator
 KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const SInt k) {
     config_->generator = GeneratorType::KRONECKER;

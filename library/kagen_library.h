@@ -67,6 +67,8 @@ public:
 
     KaGenResult Generate2DGrid(SInt grid_x, SInt grid_y, LPFloat p, bool periodic, SInt k = 0);
 
+    KaGenResult Generate3DGrid(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic, SInt k = 0);
+
     KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0);
 
 private:
