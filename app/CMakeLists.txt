@@ -9,7 +9,7 @@
 ################################################################################
 
 add_executable(kagen kagen.cpp parse_parameters.h)
-target_link_libraries(kagen PRIVATE kagen_base)
+target_link_libraries(kagen PRIVATE kagen_obj)
 target_compile_features(kagen INTERFACE cxx_std_17)
 
 ################################################################################

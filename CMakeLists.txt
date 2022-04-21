@@ -8,7 +8,7 @@
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
 
 project(kagen LANGUAGES CXX)
 
@@ -238,17 +238,14 @@ set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 add_subdirectory(extlib/sampling)
 set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
 set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
-
-################################################################################
-# kagen_base library 
-add_library(kagen_base INTERFACE)
-target_include_directories(kagen_base INTERFACE ${KAGEN_INCLUDE_DIRS})
-target_link_libraries(kagen_base INTERFACE MPI::MPI_CXX ${KAGEN_LINK_LIBRARIES})
-target_compile_features(kagen_base INTERFACE cxx_std_17)
+set(KAGEN_LINK_LIBRARIES MPI::MPI_CXX "${KAGEN_LINK_LIBRARIES}")
 
 ################################################################################
 
+add_subdirectory(kagen)
 add_subdirectory(app)
 add_subdirectory(library)
 
 ################################################################################
+
+add_library(KaGen::KaGen ALIAS kagen_library)
