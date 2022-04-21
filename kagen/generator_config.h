@@ -57,7 +57,6 @@ enum class GeneratorType {
     BA,
     KRONECKER,
     RHG,
-    UNDEFINED
 };
 
 inline const char* GeneratorTypeToString(const GeneratorType gen) {
@@ -108,7 +107,7 @@ inline GeneratorType StringToGeneratorType(const std::string& name) {
         return GeneratorType::KRONECKER;
     }
 
-    return GeneratorType::UNDEFINED;
+    __builtin_unreachable();
 }
 
 enum class Postprocessing {

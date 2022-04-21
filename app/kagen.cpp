@@ -13,7 +13,6 @@
 #include "kagen/facade.h"
 #include "kagen/generator_config.h"
 #include "kagen/io/io.h"
-#include "kagen/postprocessing.h"
 #include "kagen/tools/benchmark.h"
 #include "kagen/tools/timer.h"
 #include "parse_parameters.h"

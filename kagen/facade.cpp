@@ -19,9 +19,12 @@
 #include "kagen/generators/kronecker/kronecker.h"
 
 #ifdef KAGEN_CGAL_FOUND
-#include "kagen/generators/geometric/delaunay/delaunay_2d.h"
-#include "kagen/generators/geometric/delaunay/delaunay_3d.h"
+    #include "kagen/generators/geometric/delaunay/delaunay_2d.h"
+    #include "kagen/generators/geometric/delaunay/delaunay_3d.h"
 #endif // KAGEN_CGAL_FOUND
+
+#include "kagen/tools/postprocessor.h"
+#include "kagen/tools/validator.h"
 
 namespace kagen {
 std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const PEID rank, const PEID size) {
@@ -79,7 +82,17 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config) {
 }
 
 std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config, const PEID rank, const PEID size) {
-    auto generator = CreateGenerator(config, rank, size);
-    return generator->Generate();
+    auto generator             = CreateGenerator(config, rank, size);
+    auto [edges, vertex_range] = generator->Generate();
+
+    if ((generator->Features() & GeneratorFeature::ALMOST_UNDIRECTED) != GeneratorFeature::NONE) {
+        AddReverseEdges(edges, vertex_range);
+    }
+
+    if (config.validate_undirected_graph) {
+        ValidateSimpleGraph(edges, vertex_range);
+    }
+
+    return {std::move(edges), vertex_range};
 }
 } // namespace kagen

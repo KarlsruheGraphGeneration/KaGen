@@ -174,10 +174,6 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
         std::exit(0);
     }
 
-    if (generator_config.generator == GeneratorType::UNDEFINED) {
-        std::cerr << "Error: invalid generator type " << gen_name << "\n";
-        std::exit(1);
-    }
 
     // Nodes
     bool exact_n = args.IsSet("exact_n");
