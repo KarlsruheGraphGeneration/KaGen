@@ -19,7 +19,6 @@
 
 #include "definitions.h"
 #include "generator_config.h"
-#include "io/generator_io.h"
 
 #define KAGEN_MAX_WARNINGS 10
 
@@ -404,17 +403,16 @@ inline void Postprocess(Postprocessing option, EdgeList& edge_list, const std::v
     __builtin_unreachable();
 }
 
-template <typename Generator>
-void Postprocess(Postprocessing option, Generator& generator) {
+inline void Postprocess(Postprocessing option, EdgeList& edges, VertexRange vertex_range) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     std::vector<VertexRange> ranges(static_cast<std::size_t>(size));
-    ranges[static_cast<std::size_t>(rank)] = generator.GetVertexRange();
+    ranges[static_cast<std::size_t>(rank)] = vertex_range;
 
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, MPI_COMM_WORLD);
 
-    Postprocess(option, generator.IO().GetEdges(), ranges);
+    Postprocess(option, edges, ranges);
 }
 } // namespace kagen

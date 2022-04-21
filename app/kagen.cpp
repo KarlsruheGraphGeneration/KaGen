@@ -12,7 +12,7 @@
 
 #include "kagen/facade.h"
 #include "kagen/generator_config.h"
-#include "kagen/io/generator_io.h"
+#include "kagen/io/io.h"
 #include "kagen/postprocessing.h"
 #include "kagen/tools/benchmark.h"
 #include "kagen/tools/timer.h"
@@ -161,7 +161,7 @@ void RunGenerator(PGeneratorConfig& config, const PEID rank, const PEID size) {
     if (rank == ROOT) {
         std::cout << "Writing edges ..." << std::endl;
     }
-    // gen.IO().OutputEdges();
+    WriteGraph(config, edges, vertex_range);
     if (rank == ROOT) {
         std::cout << std::endl;
     }
@@ -190,7 +190,7 @@ int main(int argn, char** argv) {
     for (ULONG i = 0; i < generator_config.iterations; ++i) {
         MPI_Barrier(MPI_COMM_WORLD);
         generator_config.seed = user_seed + i;
-	RunGenerator(generator_config, rank, size);
+        RunGenerator(generator_config, rank, size);
     }
 
     if (rank == ROOT) {

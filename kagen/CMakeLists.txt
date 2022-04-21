@@ -12,8 +12,9 @@ file(GLOB_RECURSE KAGEN_SOURCE_FILES CONFIGURE_DEPENDS
 	*.cpp *.h *.hpp)
 
 # If we do not have CGal, exclude Delaunay generators 
-if (NOT KAGEN_CGAL_FOUND)
+if (NOT CGAL_FOUND)
   list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "delaunay_.*")
+  message("Building without CGal")
 endif ()
 
 add_library(kagen_obj OBJECT ${KAGEN_SOURCE_FILES})
