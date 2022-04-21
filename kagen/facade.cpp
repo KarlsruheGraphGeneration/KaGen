@@ -7,8 +7,6 @@
 
 // Generators
 #include "kagen/generators/barabassi/barabassi.h"
-#include "kagen/generators/geometric/delaunay/delaunay_2d.h"
-#include "kagen/generators/geometric/delaunay/delaunay_3d.h"
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 #include "kagen/generators/geometric/rgg/rgg_3d.h"
 #include "kagen/generators/gnm/gnm_directed.h"
@@ -19,6 +17,11 @@
 #include "kagen/generators/grid/grid_3d.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
 #include "kagen/generators/kronecker/kronecker.h"
+
+#ifdef KAGEN_CGAL_FOUND
+#include "kagen/generators/geometric/delaunay/delaunay_2d.h"
+#include "kagen/generators/geometric/delaunay/delaunay_3d.h"
+#endif // KAGEN_CGAL_FOUND
 
 namespace kagen {
 std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const PEID rank, const PEID size) {
@@ -41,11 +44,13 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
         case GeneratorType::RGG_3D:
             return std::make_unique<RGG3D>(config, rank, size);
 
+#ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
             return std::make_unique<Delaunay2D>(config, rank, size);
 
         case GeneratorType::RDG_3D:
             return std::make_unique<Delaunay3D>(config, rank, size);
+#endif // KAGEN_CGAL_FOUND
 
         case GeneratorType::GRID_2D:
             return std::make_unique<Grid2D>(config, rank, size);

@@ -8,9 +8,13 @@
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
 
-# glob general sources
 file(GLOB_RECURSE KAGEN_SOURCE_FILES CONFIGURE_DEPENDS 
 	*.cpp *.h *.hpp)
+
+# If we do not have CGal, exclude Delaunay generators 
+if (NOT KAGEN_CGAL_FOUND)
+  list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "delaunay_.*")
+endif ()
 
 add_library(kagen_obj OBJECT ${KAGEN_SOURCE_FILES})
 target_compile_definitions(kagen_obj PUBLIC cxx_std_17)
