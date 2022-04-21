@@ -1,5 +1,7 @@
 #include "kagen/io/io.h"
 
+#include <algorithm>
+
 #include <mpi.h>
 
 #include "kagen/generator_config.h"
@@ -149,6 +151,75 @@ void WriteBinaryEdgeList(
             AppendBinaryEdgeListHeader(my_filename, false, edges, vertex_range);
         }
         AppendBinaryEdgeList(my_filename, edges);
+    }
+}
+
+//
+// Metis
+//
+void WriteMetis(const std::string& filename, EdgeList& edges, const VertexRange vertex_range) {
+    PEID rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (!std::is_sorted(edges.begin(), edges.end())) {
+        std::sort(edges.begin(), edges.end());
+    }
+
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
+    const SInt number_of_edges = FindNumberOfGlobalEdges(edges);
+
+    if (rank == ROOT) {
+        BufferedTextOutput<> out(tag::create, filename);
+        out.WriteInt(number_of_nodes).WriteChar(' ').WriteInt(number_of_edges / 2).WriteChar('\n').Flush();
+    }
+
+    // edges
+    for (PEID pe = 0; pe < size; ++pe) {
+        if (pe == rank) {
+            BufferedTextOutput<> out(tag::append, filename);
+
+            SInt cur_edge = 0;
+            for (SInt from = vertex_range.first; from < vertex_range.second; ++from) {
+                while (cur_edge < edges.size() && std::get<0>(edges[cur_edge]) == from) {
+                    const SInt to = std::get<1>(edges[cur_edge]) + 1;
+                    out.WriteInt(to).WriteChar(' ').Flush();
+                    ++cur_edge;
+                }
+                out.WriteChar('\n').Flush();
+            }
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+}
+
+//
+// hMetis hypergraph
+//
+void WriteHMetis(const std::string& filename, EdgeList& edges, VertexRange vertex_range) {
+    PEID rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
+    const SInt number_of_edges = FindNumberOfGlobalEdges(edges);
+
+    if (rank == ROOT) {
+        BufferedTextOutput<> out(tag::create, filename);
+        out.WriteInt(number_of_edges).WriteChar(' ').WriteInt(number_of_nodes).WriteChar('\n').Flush();
+    }
+
+    for (PEID pe = 0; pe < size; ++pe) {
+        if (pe == rank) {
+            BufferedTextOutput<> out(tag::append, filename);
+
+            for (const auto& [from, to]: edges) {
+                out.WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
+            }
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 }
 } // namespace kagen

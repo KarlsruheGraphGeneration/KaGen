@@ -13,4 +13,8 @@ void WriteEdgeList(
 
 void WriteBinaryEdgeList(
     const std::string& filename, bool omit_header, bool single_file, const EdgeList& edges, VertexRange vertex_range);
+
+void WriteMetis(const std::string& filename, EdgeList& edges, VertexRange vertex_range);
+
+void WriteHMetis(const std::string& filename, EdgeList& edges, VertexRange vertex_range);
 } // namespace kagen
