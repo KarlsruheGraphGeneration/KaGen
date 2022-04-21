@@ -6,7 +6,6 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
 #pragma once
 
 #include <google/dense_hash_map>
@@ -14,18 +13,17 @@
 #include <tuple>
 #include <vector>
 
-#include <mpi.h>
-
 #include "hash.hpp"
 #include "kagen/definitions.h"
 #include "kagen/generator_config.h"
+#include "kagen/generators/generator.h"
 #include "kagen/tools/geometry.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 #include "libmorton/morton2D.h"
 
 namespace kagen {
-class Geometric2D {
+class Geometric2D : public Generator {
 public:
     // n, x_off, y_off, generated, offset
     using Chunk = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
@@ -34,16 +32,17 @@ public:
     // x, y, id
     using Vertex = std::tuple<LPFloat, LPFloat, SInt>;
 
-    Geometric2D(PGeneratorConfig& config, const PEID /* rank */) : config_(config), rng_(config) {
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
-        MPI_Comm_size(MPI_COMM_WORLD, &size_);
-
-        // Vertex range
+    Geometric2D(PGeneratorConfig& config, const PEID rank, const PEID size)
+        : config_(config),
+          rank_(rank),
+          size_(size),
+          rng_(config) {
         start_node_ = std::numeric_limits<SInt>::max();
         num_nodes_  = 0;
     }
 
-    void Generate() {
+protected:
+    void GenerateImpl() final {
         // Generate per PE point distribution
         for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i)
             ComputeChunk(i);
@@ -51,13 +50,10 @@ public:
         // Generate local chunks and edges
         for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i)
             GenerateChunk(i);
+
+        SetVertexRange(start_node_, start_node_ + num_nodes_);
     }
 
-    std::pair<SInt, SInt> GetVertexRange() {
-        return std::make_pair(start_node_, start_node_ + num_nodes_);
-    }
-
-protected:
     // Config
     PGeneratorConfig& config_;
     PEID              rank_, size_;

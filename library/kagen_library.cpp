@@ -192,16 +192,12 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const SInt k) {
 
     // Init and run generator
     Barabassi gen(*config_, rank_, size_);
-    gen.Generate();
+    auto [edges, vertex_range] = gen.Generate();
 
     // Redistribute graph such that each PE owns a consecutive set of vertices
-    Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
+    //Postprocess(Postprocessing::REDISTRIBUTE_GRAPH, gen);
 
-    if (validate_undirected_graph_) {
-        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
-    }
-
-    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
+    return {std::move(edges), vertex_range};
 }
 
 // Normalized output format
@@ -242,13 +238,9 @@ KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LPFloat p, con
 
     // Init and run generator
     Grid2D gen(*config_, rank_, size_);
-    gen.Generate();
+    auto [edges, vertex_range] = gen.Generate();
 
-    if (validate_undirected_graph_) {
-        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
-    }
-
-    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
+    return {std::move(edges), vertex_range};
 }
 
 // @todo broken generator

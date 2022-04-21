@@ -43,7 +43,7 @@ inline OutputFormat StringToOutputFormat(const std::string& name) {
     std::exit(1);
 }
 
-enum class Generator {
+enum class GeneratorType {
     GNM_DIRECTED,
     GNM_UNDIRECTED,
     GNP_DIRECTED,
@@ -60,54 +60,55 @@ enum class Generator {
     UNDEFINED
 };
 
-inline const char* GeneratorToString(const Generator gen) {
+inline const char* GeneratorTypeToString(const GeneratorType gen) {
     switch (gen) {
-        case Generator::GNM_DIRECTED:
+        case GeneratorType::GNM_DIRECTED:
             return "gnm_directed";
-        case Generator::GNM_UNDIRECTED:
+        case GeneratorType::GNM_UNDIRECTED:
             return "gnm_undirected";
-        case Generator::GNP_DIRECTED:
+        case GeneratorType::GNP_DIRECTED:
             return "gnp_directed";
-        case Generator::GNP_UNDIRECTED:
+        case GeneratorType::GNP_UNDIRECTED:
             return "gnp_undirected";
-        case Generator::RGG_2D:
+        case GeneratorType::RGG_2D:
             return "rgg_2d";
-        case Generator::RGG_3D:
+        case GeneratorType::RGG_3D:
             return "rgg_3d";
-        case Generator::RDG_2D:
+        case GeneratorType::RDG_2D:
             return "rdg_2d";
-        case Generator::RDG_3D:
+        case GeneratorType::RDG_3D:
             return "rdg_3d";
-        case Generator::GRID_2D:
+        case GeneratorType::GRID_2D:
             return "grid_2d";
-        case Generator::GRID_3D:
+        case GeneratorType::GRID_3D:
             return "grid_3d";
-        case Generator::BA:
+        case GeneratorType::BA:
             return "ba";
-        case Generator::KRONECKER:
+        case GeneratorType::KRONECKER:
             return "kronecker";
-        case Generator::RHG:
+        case GeneratorType::RHG:
             return "rhg";
         default:
             return "undefined";
     }
 }
 
-inline Generator StringToGenerator(const std::string& name) {
-    for (const Generator gen:
-         {Generator::GNM_DIRECTED, Generator::GNM_UNDIRECTED, Generator::GNP_DIRECTED, Generator::GNP_UNDIRECTED,
-          Generator::RGG_2D, Generator::RGG_3D, Generator::RDG_2D, Generator::RDG_3D, Generator::GRID_2D,
-          Generator::GRID_3D, Generator::BA, Generator::KRONECKER, Generator::RHG}) {
-        if (name == GeneratorToString(gen)) {
+inline GeneratorType StringToGeneratorType(const std::string& name) {
+    for (const GeneratorType gen:
+         {GeneratorType::GNM_DIRECTED, GeneratorType::GNM_UNDIRECTED, GeneratorType::GNP_DIRECTED,
+          GeneratorType::GNP_UNDIRECTED, GeneratorType::RGG_2D, GeneratorType::RGG_3D, GeneratorType::RDG_2D,
+          GeneratorType::RDG_3D, GeneratorType::GRID_2D, GeneratorType::GRID_3D, GeneratorType::BA,
+          GeneratorType::KRONECKER, GeneratorType::RHG}) {
+        if (name == GeneratorTypeToString(gen)) {
             return gen;
         }
     }
 
     if (name == "rmat") {
-        return Generator::KRONECKER;
+        return GeneratorType::KRONECKER;
     }
 
-    return Generator::UNDEFINED;
+    return GeneratorType::UNDEFINED;
 }
 
 enum class Postprocessing {
@@ -162,7 +163,7 @@ struct PGeneratorConfig {
     PGeneratorConfig() {}
 
     // Type of generator
-    Generator generator;
+    GeneratorType generator;
     // Seed for the PRNG
     int seed;
     // Number of nodes/edges

@@ -5,97 +5,42 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
 #pragma once
-
-#include <iostream>
-#include <vector>
 
 #include "hash.hpp"
 #include "kagen/definitions.h"
 #include "kagen/generator_config.h"
-#include "kagen/io/generator_io.h"
+#include "kagen/generators/generator.h"
 #include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
-class GNPDirected {
+class GNPDirected : public Generator {
 public:
-    GNPDirected(PGeneratorConfig& config, const PEID /* rank */, const PEID /* size */)
-        : config_(config),
-          rng_(config),
-          io_(config) {
-        // Init variables
-        if (!config_.self_loops)
-            edges_per_node = config_.n - 1;
-        else
-            edges_per_node = config_.n;
-    }
+    GNPDirected(PGeneratorConfig& config, PEID rank, PEID size);
 
-    void Generate() {
-        PEID rank, size;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &size);
+    GeneratorRequirement Requirements() const final;
 
-        // Chunk distribution
-        SInt nodes_per_chunk = config_.n / config_.k;
-        SInt leftover_chunks = config_.k % size;
-        SInt remaining_nodes = config_.n % config_.k;
-        SInt num_chunks      = (config_.k / size) + ((SInt)rank < leftover_chunks);
-        SInt start_chunk     = rank * num_chunks + ((SInt)rank >= leftover_chunks ? leftover_chunks : 0);
-        SInt end_chunk       = start_chunk + num_chunks;
+    GeneratorFeature Features() const final;
 
-        start_node_ = start_chunk * nodes_per_chunk + std::min(start_chunk, remaining_nodes);
-        end_node_   = end_chunk * nodes_per_chunk + std::min(end_chunk, remaining_nodes);
-        num_nodes_  = end_node_ - start_node_ - 1;
-
-        // Generate chunks
-        SInt current_node = start_node_;
-        for (SInt i = 0; i < num_chunks; i++) {
-            SInt nodes_for_chunk = nodes_per_chunk + (start_chunk < remaining_nodes);
-            GenerateChunk(start_chunk++, current_node, nodes_for_chunk);
-            current_node += nodes_for_chunk;
-        }
-    }
-
-    GeneratorIO& IO() {
-        return io_;
-    }
-
-    std::pair<SInt, SInt> GetVertexRange() {
-        return std::make_pair(start_node_, start_node_ + num_nodes_);
-    }
+protected:
+    void GenerateImpl() final;
 
 private:
     // Config
     PGeneratorConfig& config_;
 
+    PEID rank_;
+    PEID size_;
+
     // Variates
     RNGWrapper rng_;
-
-    // I/O
-    GeneratorIO io_;
 
     // Constants and variables
     SInt edges_per_node;
     SInt start_node_, end_node_, num_nodes_;
 
-    void GenerateChunk(const SInt chunk_id, const SInt node_id, const SInt n) {
-        GenerateEdges(n, config_.p, chunk_id, node_id);
-    }
+    void GenerateChunk(SInt chunk_id, SInt node_id, SInt n);
 
-    void GenerateEdges(const SInt n, const double p, const SInt chunk_id, const SInt offset) {
-        // Generate variate
-        SInt h         = sampling::Spooky::hash(config_.seed + chunk_id);
-        SInt num_edges = rng_.GenerateBinomial(h, n * edges_per_node, p);
-
-        // Sample from [1, num_edges]
-        rng_.GenerateSample(h, n * edges_per_node, num_edges, [&](SInt sample) {
-            SInt source = (sample - 1) / edges_per_node + offset;
-            SInt target = (sample - 1) % edges_per_node;
-            if (!config_.self_loops)
-                target += ((sample - 1) % edges_per_node >= source);
-            io_.PushEdge(source, target);
-        });
-    }
+    void GenerateEdges(SInt n, double p, SInt chunk_id, SInt offset);
 };
 } // namespace kagen

@@ -23,12 +23,12 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
 
     // Generator
     const std::string gen_name = args.Get<std::string>("gen");
-    generator_config.generator = StringToGenerator(gen_name);
+    generator_config.generator = StringToGeneratorType(gen_name);
 
     if (args.IsSet("help") || argn < 2) {
         switch (generator_config.generator) {
-            case Generator::GNM_UNDIRECTED:
-            case Generator::GNM_DIRECTED:
+            case GeneratorType::GNM_UNDIRECTED:
+            case GeneratorType::GNM_DIRECTED:
                 std::cout << "================================================" << std::endl;
                 std::cout << "========== Erdos-Renyi Graphs G(n,m) ===========" << std::endl;
                 std::cout << "================================================" << std::endl;
@@ -43,8 +43,8 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                           << std::endl;
                 break;
 
-            case Generator::GNP_UNDIRECTED:
-            case Generator::GNP_DIRECTED:
+            case GeneratorType::GNP_UNDIRECTED:
+            case GeneratorType::GNP_DIRECTED:
                 std::cout << "================================================" << std::endl;
                 std::cout << "========== Erdos-Renyi Graphs G(n,p) ===========" << std::endl;
                 std::cout << "================================================" << std::endl;
@@ -59,8 +59,8 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                           << std::endl;
                 break;
 
-            case Generator::RGG_2D:
-            case Generator::RGG_3D:
+            case GeneratorType::RGG_2D:
+            case GeneratorType::RGG_3D:
                 std::cout << "================================================" << std::endl;
                 std::cout << "======= Random Geometric Graphs RGG(n,d) ========" << std::endl;
                 std::cout << "================================================" << std::endl;
@@ -73,8 +73,8 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                 std::cout << "mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.00275 -output tmp" << std::endl;
                 break;
 
-            case Generator::RDG_2D:
-            case Generator::RDG_3D:
+            case GeneratorType::RDG_2D:
+            case GeneratorType::RDG_3D:
                 std::cout << "================================================" << std::endl;
                 std::cout << "======== Random Delaunay Graphs RDG(n) =========" << std::endl;
                 std::cout << "================================================" << std::endl;
@@ -86,7 +86,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                 std::cout << "mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp" << std::endl;
                 break;
 
-            case Generator::BA:
+            case GeneratorType::BA:
                 std::cout << "================================================" << std::endl;
                 std::cout << "======= Barabassi-Albert Graphs BA(n,d) ========" << std::endl;
                 std::cout << "================================================" << std::endl;
@@ -99,7 +99,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                 std::cout << "mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp" << std::endl;
                 break;
 
-            case Generator::RHG:
+            case GeneratorType::RHG:
                 std::cout << "Parameters for Random Hyperbolic Graphs RHG(n,gamma,d)" << std::endl;
                 std::cout << "================================================" << std::endl;
                 std::cout << "=== Random Hyperbolic Graphs RHG(n,gamma,d) ====" << std::endl;
@@ -114,7 +114,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                 std::cout << "mpirun -n 16 ./build/app/kagen -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp" << std::endl;
                 break;
 
-            case Generator::KRONECKER:
+            case GeneratorType::KRONECKER:
                 std::cout << "Parameters for Kronecker Graphs RMAT(n,m)" << std::endl;
                 std::cout << "================================================" << std::endl;
                 std::cout << "=========== Kronecker Graphs RMAT(n,m) =========" << std::endl;
@@ -128,8 +128,8 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                 std::cout << "mpirun -n 16 ./build/app/kagen -gen rmat -n 20 -m 22 -output tmp" << std::endl;
                 break;
 
-            case Generator::GRID_2D:
-            case Generator::GRID_3D:
+            case GeneratorType::GRID_2D:
+            case GeneratorType::GRID_3D:
                 std::cout << "Parameters for 2D/3D Grid Graphs G(x,y(,z),periodic)" << std::endl;
                 std::cout << "===================================================" << std::endl;
                 std::cout << "=========== Grid Graphs G(x,y(,z)) ================" << std::endl;
@@ -174,7 +174,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
         std::exit(0);
     }
 
-    if (generator_config.generator == Generator::UNDEFINED) {
+    if (generator_config.generator == GeneratorType::UNDEFINED) {
         std::cerr << "Error: invalid generator type " << gen_name << "\n";
         std::exit(1);
     }
