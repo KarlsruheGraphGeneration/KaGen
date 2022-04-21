@@ -14,8 +14,8 @@
 #include <CGAL/spatial_sort.h>
 #include <sys/stat.h>
 
-#include "geometric/geometric_3d.h"
-#include "io/generator_io.h"
+#include "kagen/generators/geometric/geometric_3d.h"
+#include "kagen/io/generator_io.h"
 
 using K_3d  = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Vb_3d = CGAL::Triangulation_vertex_base_with_info_3<kagen::SInt, K_3d>; // attach an ID to
