@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "kagen/definitions.h"
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 
 namespace kagen {

@@ -10,8 +10,8 @@
 #pragma once
 
 #include "hash.hpp"
-#include "kagen/definitions.h"
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 
 // forward declaration
@@ -32,7 +32,7 @@ protected:
 private:
     // Config
     const PGeneratorConfig& config_;
-    PEID              size_, rank_;
+    PEID                    size_, rank_;
 
     // Constants and variables
     int     log_n_;

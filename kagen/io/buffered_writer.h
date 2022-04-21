@@ -43,7 +43,7 @@ public:
         for (const char* ch = str; *ch; ++ch) {
             WriteChar(*ch);
         }
-	return *this;
+        return *this;
     }
 
     BufferedTextOutput& WriteChar(const char ch) {

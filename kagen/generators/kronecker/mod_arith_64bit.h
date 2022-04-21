@@ -71,8 +71,8 @@ static inline uint_fast32_t mod_mac4(
     assert(f <= 0x7FFFFFFE);
     assert(g <= 0x7FFFFFFE);
     assert(h <= 0x7FFFFFFE);
-    return (uint_fast32_t)(
-        ((uint_fast64_t)a * b + (uint_fast64_t)c * d + (uint_fast64_t)e * f + (uint_fast64_t)g * h + sum) % 0x7FFFFFFF);
+    return (
+        uint_fast32_t)(((uint_fast64_t)a * b + (uint_fast64_t)c * d + (uint_fast64_t)e * f + (uint_fast64_t)g * h + sum) % 0x7FFFFFFF);
 }
 
 /* The two constants x and y are special cases because they are easier to

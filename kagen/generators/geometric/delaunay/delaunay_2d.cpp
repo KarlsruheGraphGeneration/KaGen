@@ -18,7 +18,8 @@ using Fh_2d    = Dt_2d::Face_handle;
 using Circ_2d = CGAL::Circle_2<K_2d>;
 using Box_2d  = CGAL::Bbox_2;
 
-Delaunay2D::Delaunay2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
+Delaunay2D::Delaunay2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
+    : Geometric2D(config, rank, size) {
     // Chunk variables
     total_chunks_   = config_.k;
     chunks_per_dim_ = std::sqrt(total_chunks_);

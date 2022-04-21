@@ -178,7 +178,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         ->check(CLI::IsMember(GetOutputFormatMap()))
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()).description(""));
     app.add_option("--output-header", config.output_header, "Output file header")
-        ->check(CLI::IsMember(GetOutputFormatMap()))
+        ->check(CLI::IsMember(GetOutputHeaderMap()))
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()).description(""));
     app.add_flag("--single-file", config.output_single_file, "Collect graph in a single file");
 }
