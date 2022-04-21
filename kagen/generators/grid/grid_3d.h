@@ -232,7 +232,6 @@ private:
         SInt h         = sampling::Spooky::hash(config_.seed + edge_seed);
         if (rng_.GenerateBinomial(h, 1, edge_probability_)) {
             io_.PushEdge(source, target);
-            io_.PushEdge(target, source);
         }
     }
 

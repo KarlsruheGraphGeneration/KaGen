@@ -9,6 +9,7 @@
 #include "kagen/generators/gnp/gnp_directed.h"
 #include "kagen/generators/gnp/gnp_undirected.h"
 #include "kagen/generators/grid/grid_2d.h"
+#include "kagen/generators/grid/grid_3d.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
 #include "kagen/generators/kronecker/kronecker.h"
 #include "kagen/postprocessing.h"
@@ -242,6 +243,27 @@ KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LPFloat p, con
 
     // Init and run generator
     Grid2D gen(*config_, rank_, size_);
+    gen.Generate();
+
+    if (validate_undirected_graph_) {
+        Postprocess(Postprocessing::VALIDATE_UNDIRECTED, gen);
+    }
+
+    return {std::move(gen.IO().GetEdges()), gen.GetVertexRange()};
+}
+
+KaGenResult KaGen::Generate3DGrid(
+    const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic, const SInt k) {
+    // Update config
+    config_->grid_x   = grid_x;
+    config_->grid_y   = grid_y;
+    config_->grid_z   = grid_z;
+    config_->p        = p;
+    config_->periodic = periodic;
+    config_->k        = (k == 0 ? config_->k : k);
+
+    // Init and run generator
+    Grid3D gen(*config_, rank_, size_);
     gen.Generate();
 
     if (validate_undirected_graph_) {

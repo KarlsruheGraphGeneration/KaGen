@@ -154,7 +154,7 @@ inline void ParseParameters(int argn, char** argv, PEID, PEID size, PGeneratorCo
                           << std::endl;
                 std::cout
                     << "Generators:\t\tgnm_directed|gnm_undirected|gnp_directed|gnp_undirected|rgg_2d|rgg_3d|rdg_2d|"
-                       "rdg_3d|ba|rhg"
+                       "rdg_3d|ba|rhg|grid_2d|grid_3d"
                     << std::endl;
                 std::cout << "Additional help:\t./kagen -gen <generator> -help" << std::endl;
         }
