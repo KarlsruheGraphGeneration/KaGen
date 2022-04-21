@@ -74,21 +74,31 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
     __builtin_unreachable();
 }
 
-std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config) {
+std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template) {
     PEID rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    return Generate(config, rank, size);
+    return Generate(config_template, rank, size);
 }
 
-std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config, const PEID rank, const PEID size) {
+std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template, const PEID rank, const PEID size) {
+    auto config = config_template;
+
+    // Setup chunk count
+    if (config.k == 0) {
+        config.k = size;
+    }
+
+    // Generate graph
     auto generator             = CreateGenerator(config, rank, size);
     auto [edges, vertex_range] = generator->Generate();
 
+    // Postprocessing
     if ((generator->Features() & GeneratorFeature::ALMOST_UNDIRECTED) != GeneratorFeature::NONE) {
         AddReverseEdges(edges, vertex_range);
     }
 
+    // Validation
     if (config.validate_simple_graph) {
         ValidateSimpleGraph(edges, vertex_range);
     }
