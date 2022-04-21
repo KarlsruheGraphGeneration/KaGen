@@ -114,9 +114,33 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
     return out << "<invalid>";
 }
 
+std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap() {
+    return {
+        {"none", StatisticsLevel::NONE},
+        {"basic", StatisticsLevel::BASIC},
+        {"advanced", StatisticsLevel::ADVANCED},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level) {
+    switch (statistics_level) {
+        case StatisticsLevel::NONE:
+            return out << "none";
+
+        case StatisticsLevel::BASIC:
+            return out << "basic";
+
+        case StatisticsLevel::ADVANCED:
+            return out << "advanced";
+    }
+
+    return out << "<invalid>";
+}
+
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Validate simple graph:              " << (config.validate_simple_graph ? "yes" : "no") << "\n";
+    out << "  Statistics level:                   " << config.statistics_level << "\n";
     out << "-------------------------------------------------------------------------------\n";
 
     out << "Generator Parameters:\n";

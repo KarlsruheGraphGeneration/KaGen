@@ -73,6 +73,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-V,--validate-simple", config.validate_simple_graph, "Validate that the generated graph is simple");
     app.add_flag("-S,--seed", config.seed, "Seed for PRNG");
+    app.add_option(
+           "--stats", config.statistics_level, "Controls how much statistics on the generated graph gets calculated")
+        ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()));
 
     // Generator parameters
     app.add_flag("-k,--num-chunks", config.k, "Number of chunks used for graph generation");

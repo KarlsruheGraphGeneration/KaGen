@@ -56,11 +56,22 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
 
 std::ostream& operator<<(std::ostream& out, GeneratorType generator_type);
 
+enum class StatisticsLevel {
+    NONE,
+    BASIC,
+    ADVANCED,
+};
+
+std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
+
+std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     // General settings
-    bool quiet                 = false; // Disable all console output
-    bool validate_simple_graph = false; // Validate that the result is a simple graph
+    bool            quiet                 = false; // Disable all console output
+    bool            validate_simple_graph = false; // Validate that the result is a simple graph
+    StatisticsLevel statistics_level      = StatisticsLevel::BASIC;
 
     // Generator settings
     GeneratorType generator;          // Generator type
