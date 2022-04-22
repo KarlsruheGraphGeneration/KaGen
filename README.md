@@ -43,11 +43,12 @@ In order to compile the generators you need GCC, OpenMPI and [Google Sparsehash]
 If you want to generate random delaunay graphs, you also need CGAL.
 You can install these dependencies via your package manager:
 ```shell
-sudo apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libcgal-qt5-dev libsparsehash-dev 
+sudo apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libsparsehash-dev 
+sudo pacman -S gcc sparsehash openmpi cgal
 ```
 
 #### Compiling 
-To compile the code either run `compile.sh` or use the following instruction
+To compile the code either run `compile.sh` or use the following instructions:
 ```shell
 git submodule update --init --recursive
 mkdir build && cd build
@@ -56,76 +57,98 @@ make -j
 ```
 
 #### Output
-By default our generators will output the generated graphs in the DIMACS format.
-For a list of all output options, see `-help`.
+By default our generators will output the generated graphs as a DIMACS edge list. 
+Other output formats are available:
+
+- `-f edge-list`: DIMACS edge list format (default)
+- `-f binary-edge-list`: DIMACS binary edge list format
+- `-f metis`: Metis undirected graph format (only works with undirected graph generators)
+- `-f hmetis`: hMetis hypergraph format 
+
+For a list of all output options, see `--help`.
 
 #### As a Library 
 
 To use KaGen as a library, simply add this repository as a Git submodule, 
 include its CMake script using `add_subdirectory(extern/KaGen)` and link 
-against the `kagen_library` target.
+against the `KaGen::KaGen` target.
 
 ## Graph Models
 
 ### Erdos-Renyi Graphs G(n, m)
-Generate a random graph using the Erdos-Renyi model G(n,m).
+Generate a random graph using the Erdos-Renyi model G(n, m).
 The graph can either be directed or undirected and can contain self-loops.
 
 #### Parameters
 ```
--gen <gnm_directed|gnm_undirected>
--n <number of vertices as a power of two>
--m <number of edges as a power of two>
--k <number of chunks> 
--seed <seed for PRNGs>
--self_loops 
+./kagen <gnm_directed|gnm_undirected> 
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  -m <number of edges>
+  [-M <number of edges as a power of two>]
+  [--self-loops]
+  [-k <number of chunks>]
+  [-S <seed>]
 ```
 
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, k, self_loops, seed);
-auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, k, self_loops, seed);
+auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops);
+auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, self_loops);
 ```
 
-#### Command Line Example
-Generate a directed G(n,m) graph with 2^20 vertices and 2^22 edges with self-loops on 16 processors and write it to tmp
-```shell
-mpirun -n 16 ./build/app/kagen -gen gnm_directed -n 20 -m 22 -self_loops -output tmp
+---
+
+### Erdos-Renyi Graphs G(n, p)
+Generate a random graph using the Erdos-Renyi model G(n, p).
+The graph can either be directed or undirected and can contain self-loops.
+
+#### Parameters
+```
+./kagen <gnp_directed|gnp_undirected> 
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  -p <edge probability>
+  [--self-loops]
+  [-k <number of chunks>]
+  [-S <seed>]
+```
+
+#### Interface
+```c++
+KaGen gen(proc_rank, proc_size);
+auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops);
+auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP(n, p, self_loops);
 ```
 
 ---
 
 ### Random Geometric Graphs RGG(n, r)
-Generate a random graph using the random geometric graph model RGG(n,r).
-NOTE: The number of processes must be a power of 2. Unless set explicitly, the number of chunks will be set to the next larger square (cubic) number for the two-dimensional (three-dimensional) generator.
+Generate a random graph using the random geometric graph model RGG(n, r).
+NOTE: The number of processes must be a power of 2. 
 
 #### Parameters
 ```
--gen <rgg_2d|rgg_3d>
--n <number of vertices as a power of two>
--r <radius>
--k <number of chunks> 
--seed <seed for PRNGs>
+./kagen <rgg2d|rgg3d> 
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  -r <edge radius>
+  [-k <number of chunks>]
+  [-S <seed>]
 ```
 
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRGG(n, r, k, seed);
-auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRGG(n, r, k, seed);
+auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRGG(n, r);
+auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRGG(n, r);
 ```
 
-#### Command Line Example
-Generate a three dimensional RGG(n,r) graph with 2^20 vertices and a radius of 0.001 on 16 processors and write it to tmp
-```shell
-mpirun -n 16 ./build/app/kagen -gen rgg_3d -n 20 -r 0.001 -output tmp
-```
 --- 
 
 ### Random Delaunay Graphs RDG(n)
 Generate a random graph using the random Delaunay graph model RDG(n).
-NOTE: Use a square (cubic) number of chunks/processes for the two-dimensional (three-dimensional) generator.
 NOTE: The graph is generated with periodic boundary conditions to avoid long edges at the border.
 
 #### Parameters

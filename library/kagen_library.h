@@ -43,35 +43,37 @@ public:
 
     void EnableUndirectedGraphVerification();
 
-    KaGenResult GenerateDirectedGMM(SInt n, SInt m, SInt k = 0, bool self_loops = false);
+    void SetNumberOfChunks(SInt k);
 
-    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, SInt k = 0, bool self_loops = false);
+    KaGenResult GenerateDirectedGMM(SInt n, SInt m = 0, bool self_loops = false);
 
-    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false);
+    KaGenResult GenerateUndirectedGNM(SInt n, SInt m = 0, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, SInt k = 0, bool self_loops = false);
+    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p = 0, bool self_loops = false);
 
-    KaGenResult Generate2DRGG(SInt n, LPFloat r, SInt k = 0);
+    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p = 0, bool self_loops = false);
 
-    KaGenResult Generate3DRGG(SInt n, LPFloat r, SInt k = 0);
+    KaGenResult Generate2DRGG(SInt n, LPFloat r = 0);
 
-    KaGenResult Generate2DRDG(SInt n, SInt k = 0);
+    KaGenResult Generate3DRGG(SInt n, LPFloat r = 0);
 
-    KaGenResult Generate3DRDG(SInt n, SInt k = 0);
+    KaGenResult Generate2DRDG(SInt n = 0);
 
-    KaGenResult GenerateBA(SInt n, SInt d, SInt k = 0);
+    KaGenResult Generate3DRDG(SInt n = 0);
 
-    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d, SInt k = 0);
+    KaGenResult GenerateBA(SInt n, SInt d = 0);
 
-    KaGenResult Generate2DGrid(SInt n, LPFloat p, bool periodic, SInt k = 0);
+    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d = 0);
 
-    KaGenResult Generate2DGrid(SInt grid_x, SInt grid_y, LPFloat p, bool periodic, SInt k = 0);
+    KaGenResult Generate2DGrid(SInt n, LPFloat p, bool periodic = 0);
 
-    KaGenResult Generate3DGrid(SInt n, LPFloat p, bool periodic, SInt k = 0);
+    KaGenResult Generate2DGrid(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = 0);
 
-    KaGenResult Generate3DGrid(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic, SInt k = 0);
+    KaGenResult Generate3DGrid(SInt n, LPFloat p, bool periodic = 0);
 
-    KaGenResult GenerateKronecker(SInt n, SInt m, SInt k = 0);
+    KaGenResult Generate3DGrid(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = 0);
+
+    KaGenResult GenerateKronecker(SInt n, SInt m = 0);
 
 private:
     void SetDefaults();
