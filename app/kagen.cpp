@@ -213,7 +213,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // KRONECKER
         auto* cmd = app.add_subcommand("kronecker", "Kronecker Graph");
         cmd->callback([&] { config.generator = GeneratorType::KRONECKER; });
-        // @todo
+        add_option_n(cmd)->required();
+        add_option_m(cmd)->required();
     }
 
     { // RHG
