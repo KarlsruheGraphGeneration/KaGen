@@ -93,7 +93,7 @@ DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global
 
     SInt cur_from   = std::get<0>(edges.front());
     SInt cur_degree = 0;
- 
+
     auto update = [&](const SInt deg) {
         min = std::min(min, deg);
         max = std::max(max, deg);
@@ -105,7 +105,10 @@ DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global
             ++cur_degree;
         } else {
             update(cur_degree);
-	    cur_degree = 1;
+            cur_degree = 1;
+            if (cur_from + 1 != from) {
+                min = 0; // Skipped dgeree 0 vertex
+            }
             cur_from = from;
         }
     }
@@ -139,7 +142,7 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
             ++cur_degree;
         } else {
             yield(cur_degree);
-	    cur_degree = 1;
+            cur_degree = 1;
             while (++cur_from < from) {
                 ++bins[0];
             }
