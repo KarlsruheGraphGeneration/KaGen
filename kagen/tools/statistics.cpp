@@ -1,6 +1,9 @@
 #include "kagen/tools/statistics.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
+#include <limits>
 
 #include <mpi.h>
 
@@ -79,5 +82,77 @@ LPFloat ReduceSD(const SInt value) {
         return std::sqrt(1.0 / (1.0 * values.size()) * sd_sum);
     }
     return 0.0; // non-root
+}
+
+DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global_num_nodes) {
+    assert(std::is_sorted(edges.begin(), edges.end()));
+
+    SInt min = std::numeric_limits<SInt>::max();
+    SInt sum = 0;
+    SInt max = std::numeric_limits<SInt>::lowest();
+
+    SInt cur_from   = std::get<0>(edges.front());
+    SInt cur_degree = 0;
+ 
+    auto update = [&](const SInt deg) {
+        min = std::min(min, deg);
+        max = std::max(max, deg);
+        sum += deg;
+    };
+
+    for (const auto& [from, to]: edges) {
+        if (from == cur_from) {
+            ++cur_degree;
+        } else {
+            update(cur_degree);
+	    cur_degree = 1;
+            cur_from = from;
+        }
+    }
+    update(cur_degree);
+
+    SInt global_min, global_sum, global_max;
+    MPI_Reduce(&min, &global_min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&sum, &global_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&max, &global_max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, MPI_COMM_WORLD);
+
+    PEID size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    return {global_min, 1.0 * global_sum / global_num_nodes, global_max};
+}
+
+std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange vertex_range) {
+    assert(std::is_sorted(edges.begin(), edges.end()));
+
+    std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
+    SInt              cur_from   = std::get<0>(edges.front());
+    SInt              cur_degree = 0;
+
+    auto yield = [&](const SInt deg) {
+        const SInt bin = std::log2(deg) + 1;
+        ++bins[bin];
+    };
+
+    for (const auto& [from, to]: edges) {
+        if (from == cur_from) {
+            ++cur_degree;
+        } else {
+            yield(cur_degree);
+	    cur_degree = 1;
+            while (++cur_from < from) {
+                ++bins[0];
+            }
+        }
+    }
+    yield(cur_degree);
+    while (++cur_from < vertex_range.second) {
+        ++bins[0];
+    }
+
+    std::vector<SInt> global_bins(bins.size());
+    MPI_Reduce(bins.data(), global_bins.data(), bins.size(), MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+
+    return global_bins;
 }
 } // namespace kagen

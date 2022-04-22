@@ -275,11 +275,46 @@ void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range,
     }
 }
 
-void PrintAdvancedStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
-    ((void)edges);
-    ((void)vertex_range);
-    ((void)root);
-    // @todo
+void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    // Sort edges for degree computation
+    if (!std::is_sorted(edges.begin(), edges.end())) {
+        std::sort(edges.begin(), edges.end());
+    }
+
+    // Compute more statistics
+    const auto local_num_nodes  = vertex_range.second - vertex_range.first;
+    const auto global_num_nodes = ReduceSum(local_num_nodes);
+    const auto local_num_edges  = edges.size();
+    const auto global_num_edges = ReduceSum(local_num_edges);
+
+    const double density = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
+    const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes);
+    const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range);
+
+    // Print on root
+    if (root) {
+        std::cout << "Density: " << std::fixed << std::setprecision(4) << density << "\n";
+        std::cout << "Degrees: [Min=" << min_degree << " | Mean=" << std::fixed << std::setprecision(1) << mean_degree
+                  << " | Max=" << max_degree << "]\n";
+
+        // Find last non-empty degree bin
+        SInt last_nonempty_degree_bin = 0;
+        for (SInt i = 0; i < degree_bins.size(); ++i) {
+            if (degree_bins[i] > 0) {
+                last_nonempty_degree_bin = i;
+            }
+        }
+
+	// Print degree bins
+	const SInt digits10 = std::log10(1 << last_nonempty_degree_bin) + 1;
+
+	std::cout << "Degree bins:\n";
+	for (SInt i = 0; i <= last_nonempty_degree_bin; ++i) {
+		const SInt from = (i == 0) ? 0 : 1 << (i - 1);
+		const SInt to = 2 * from;
+		std::cout << "  Degree in [" << std::setw(digits10) << from << ", " << std::setw(digits10) << to << "): " << degree_bins[i] << "\n";
+	}
+    }
 }
 
 int main(int argc, char* argv[]) {

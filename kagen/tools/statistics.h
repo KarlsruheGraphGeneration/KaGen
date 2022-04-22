@@ -16,4 +16,14 @@ SInt    ReduceMin(SInt value);
 LPFloat ReduceMean(SInt value);
 SInt    ReduceMax(SInt value);
 LPFloat ReduceSD(SInt value);
+
+struct DegreeStatistics {
+    SInt    min;
+    LPFloat mean;
+    SInt    max;
+};
+
+DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, SInt global_num_nodes);
+
+std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, VertexRange vertex_range);
 } // namespace kagen
