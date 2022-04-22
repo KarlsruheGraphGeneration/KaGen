@@ -120,7 +120,7 @@ SInt FindMultipleCube(const SInt value) {
         return value;
     }
     if (IsPowerOfTwo(value)) {
-        return IsCubic(value * 2) ? value * 2 : value * 3;
+        return IsCubic(value * 2) ? value * 2 : value * 4;
     }
 
     // find smallest cubic number that is a multiple of value
