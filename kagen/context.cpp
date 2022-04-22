@@ -9,7 +9,7 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
         {"metis", OutputFormat::METIS},
         {"hmetis", OutputFormat::HMETIS},
     };
-};
+}
 
 std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
     switch (output_format) {
