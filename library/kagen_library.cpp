@@ -86,11 +86,11 @@ KaGenResult KaGen::Generate3DRDG(const SInt n) {
     return Generate(*config_, rank_, size_);
 }
 #else  // KAGEN_CGAL_FOUND
-KaGenResult KaGen::Generate2DRDG(SInt, SInt) {
+KaGenResult KaGen::Generate2DRDG(SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
-KaGenResult KaGen::Generate3DRDG(SInt, SInt) {
+KaGenResult KaGen::Generate3DRDG(SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 #endif // KAGEN_CGAL_FOUND
