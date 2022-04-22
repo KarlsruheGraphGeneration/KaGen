@@ -45,12 +45,8 @@ Delaunay3D::Delaunay3D(const PGeneratorConfig& config, const PEID rank, const PE
     InitDatastructures();
 }
 
-GeneratorRequirement Delaunay3D::Requirements() const {
+int Delaunay3D::Requirements() const {
     return GeneratorRequirement::CUBIC_CHUNKS;
-}
-
-GeneratorFeature Delaunay3D::Features() const {
-    return GeneratorFeature::UNDIRECTED;
 }
 
 void Delaunay3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, const SInt chunk_depth) {

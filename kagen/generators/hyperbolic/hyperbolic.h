@@ -37,9 +37,9 @@ public:
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    GeneratorRequirement Requirements() const final;
+    int Requirements() const final;
 
-    GeneratorFeature Features() const final;
+    bool AlmostUndirected() const final;
 
 protected:
     void GenerateImpl() final;

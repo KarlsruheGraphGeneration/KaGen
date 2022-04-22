@@ -16,9 +16,7 @@ class RGG3D : public Geometric3D {
 public:
     RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
-    GeneratorRequirement Requirements() const final;
-
-    GeneratorFeature Features() const final;
+    int Requirements() const final;
 
 protected:
     LPFloat target_r_;

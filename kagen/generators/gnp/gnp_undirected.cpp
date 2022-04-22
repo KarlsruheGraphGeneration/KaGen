@@ -9,18 +9,6 @@ GNPUndirected::GNPUndirected(const PGeneratorConfig& config, const PEID rank, co
       size_(size),
       rng_(config) {}
 
-GeneratorRequirement GNPUndirected::Requirements() const {
-    return GeneratorRequirement::NONE;
-}
-
-GeneratorFeature GNPUndirected::Features() const {
-    if (config_.self_loops) {
-        return GeneratorFeature::UNDIRECTED | GeneratorFeature::SELF_LOOPS;
-    } else {
-        return GeneratorFeature::UNDIRECTED;
-    }
-}
-
 void GNPUndirected::GenerateImpl() {
     // Chunk distribution
     nodes_per_chunk      = config_.n / config_.k;

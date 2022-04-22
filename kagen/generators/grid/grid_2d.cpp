@@ -13,12 +13,8 @@ Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       rank_(rank),
       size_(size) {}
 
-GeneratorRequirement Grid2D::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS;
-}
-
-GeneratorFeature Grid2D::Features() const {
-    return GeneratorFeature::UNDIRECTED;
+int Grid2D::Requirements() const {
+    return GeneratorRequirement::SQAURE_CHUNKS;
 }
 
 void Grid2D::GenerateImpl() {

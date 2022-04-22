@@ -15,9 +15,7 @@ class Delaunay3D : public Geometric3D {
 public:
     Delaunay3D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    GeneratorRequirement Requirements() const final;
-
-    GeneratorFeature Features() const final;
+    int Requirements() const final;
 
 protected:
     static constexpr SInt COPY_FLAG = SInt(1) << (sizeof(SInt) * CHAR_BIT - 1);

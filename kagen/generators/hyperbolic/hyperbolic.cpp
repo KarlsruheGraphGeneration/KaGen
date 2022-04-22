@@ -55,12 +55,12 @@ Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PE
     num_nodes_  = 0;
 }
 
-GeneratorRequirement Hyperbolic::Requirements() const {
+int Hyperbolic::Requirements() const {
     return GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
-GeneratorFeature Hyperbolic::Features() const {
-    return GeneratorFeature::ALMOST_UNDIRECTED;
+bool Hyperbolic::AlmostUndirected() const {
+    return true;
 }
 
 void Hyperbolic::GenerateImpl() {

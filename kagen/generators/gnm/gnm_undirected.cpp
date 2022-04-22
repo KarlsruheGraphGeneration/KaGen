@@ -7,18 +7,6 @@ GNMUndirected::GNMUndirected(const PGeneratorConfig& config, const PEID rank, co
       size_(size),
       rng_(config) {}
 
-GeneratorRequirement GNMUndirected::Requirements() const {
-    return GeneratorRequirement::NONE;
-}
-
-GeneratorFeature GNMUndirected::Features() const {
-    if (config_.self_loops) {
-        return GeneratorFeature::UNDIRECTED | GeneratorFeature::SELF_LOOPS;
-    } else {
-        return GeneratorFeature::UNDIRECTED;
-    }
-}
-
 void GNMUndirected::GenerateImpl() {
     leftover_chunks_ = config_.k % size_;
     SInt num_chunks  = config_.k / size_ + ((SInt)rank_ < leftover_chunks_);

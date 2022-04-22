@@ -16,9 +16,9 @@ class Delaunay2D : public Geometric2D {
 public:
     Delaunay2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    GeneratorRequirement Requirements() const final;
+    int Requirements() const final;
 
-    GeneratorFeature Features() const final;
+    bool AlmostUndirected() const final;
 
 protected:
     static constexpr SInt COPY_FLAG = SInt(1) << (sizeof(SInt) * CHAR_BIT - 1);

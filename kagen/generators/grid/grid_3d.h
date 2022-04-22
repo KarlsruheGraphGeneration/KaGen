@@ -17,9 +17,7 @@ class Grid3D : public Generator {
 public:
     Grid3D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    GeneratorRequirement Requirements() const final;
-
-    GeneratorFeature Features() const final;
+    int Requirements() const final;
 
 protected:
     void GenerateImpl() final;

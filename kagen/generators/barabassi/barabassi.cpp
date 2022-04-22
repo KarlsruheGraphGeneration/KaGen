@@ -17,14 +17,6 @@ Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID
     std::cout << "f " << from_ << " t " << to_ << std::endl;
 }
 
-GeneratorRequirement Barabassi::Requirements() const {
-    return GeneratorRequirement::NONE;
-}
-
-GeneratorFeature Barabassi::Features() const {
-    return GeneratorFeature::NONE;
-}
-
 void Barabassi::GenerateImpl() {
     GenerateEdges();
     SetVertexRange(from_, to_ + 1);

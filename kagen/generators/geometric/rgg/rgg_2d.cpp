@@ -2,36 +2,8 @@
 
 namespace kagen {
 RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
-    // Number of PEs must be a power of 2 -- crash if violated
-    if (size < 0 || (size & (size - 1)) != 0) {
-        if (rank == ROOT) {
-            std::cerr << "Error: number of PEs must be a power of 2\n";
-        }
-        std::exit(1);
-    }
-    const bool size_is_square = (size & 0x5555555555555555) != 0;
-
     // Number of chunks must be (a) a multiple of size and (b) be a quadratic number
     total_chunks_ = config_.k;
-
-    // default chunk value -> change it silently if it does not work
-    if (static_cast<SInt>(size) == total_chunks_) {
-        if (!size_is_square) {
-            if (rank == ROOT) {
-                std::cerr << "Note: changing number of chunks from " << total_chunks_ << " to " << 2 * total_chunks_
-                          << "\n";
-            }
-            total_chunks_ *= 2; // next power of two is square
-        }
-    } else if (
-        total_chunks_ < static_cast<SInt>(size) || (total_chunks_ % size) != 0
-        || (total_chunks_ & 0x5555555555555555) == 0) {
-        // custom value -> crash if it does not work
-        if (rank == ROOT) {
-            std::cerr << "Error: number of chunks must be a multiple of size (" << size << ") and be square\n";
-        }
-        std::exit(1);
-    }
 
     // Chunk variables
     chunks_per_dim_ = std::sqrt(total_chunks_);
@@ -46,12 +18,8 @@ RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     InitDatastructures();
 }
 
-GeneratorRequirement RGG2D::Requirements() const {
-    return GeneratorRequirement::SQAURE_CHUNKS & GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
-}
-
-GeneratorFeature RGG2D::Features() const {
-    return GeneratorFeature::UNDIRECTED;
+int RGG2D::Requirements() const {
+    return GeneratorRequirement::SQAURE_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
 void RGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {

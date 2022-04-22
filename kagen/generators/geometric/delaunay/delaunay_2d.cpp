@@ -41,12 +41,12 @@ Delaunay2D::Delaunay2D(const PGeneratorConfig& config, const PEID rank, const PE
     InitDatastructures();
 }
 
-GeneratorRequirement Delaunay2D::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS;
+int Delaunay2D::Requirements() const {
+    return GeneratorRequirement::SQAURE_CHUNKS;
 }
 
-GeneratorFeature Delaunay2D::Features() const {
-    return GeneratorFeature::ALMOST_UNDIRECTED;
+bool Delaunay2D::AlmostUndirected() const {
+    return true;
 }
 
 void Delaunay2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {

@@ -18,10 +18,6 @@ class GNMUndirected : public Generator {
 public:
     GNMUndirected(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    GeneratorRequirement Requirements() const final;
-
-    GeneratorFeature Features() const final;
-
 protected:
     void GenerateImpl() final;
 

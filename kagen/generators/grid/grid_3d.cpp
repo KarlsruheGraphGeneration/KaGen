@@ -11,12 +11,8 @@ Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       rank_(rank),
       size_(size) {}
 
-GeneratorRequirement Grid3D::Requirements() const {
+int Grid3D::Requirements() const {
     return GeneratorRequirement::CUBIC_CHUNKS;
-}
-
-GeneratorFeature Grid3D::Features() const {
-    return GeneratorFeature::UNDIRECTED;
 }
 
 void Grid3D::GenerateImpl() {

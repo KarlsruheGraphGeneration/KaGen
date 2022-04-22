@@ -93,14 +93,6 @@ Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID
     num_edges_           = edges_per_pe_ + ((SInt)rank < remaining_edges);
 }
 
-GeneratorRequirement Kronecker::Requirements() const {
-    return GeneratorRequirement::NONE;
-}
-
-GeneratorFeature Kronecker::Features() const {
-    return GeneratorFeature::NONE;
-}
-
 void Kronecker::GenerateImpl() {
     uint_fast32_t seed[5];
     make_mrg_seed(sampling::Spooky::hash((config_.seed + 1) * size_), sampling::Spooky::hash(rank_), seed);

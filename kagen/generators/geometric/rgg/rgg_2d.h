@@ -16,9 +16,7 @@ class RGG2D : public Geometric2D {
 public:
     RGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    GeneratorRequirement Requirements() const final;
-
-    GeneratorFeature Features() const final;
+    int Requirements() const final;
 
 private:
     LPFloat target_r_;

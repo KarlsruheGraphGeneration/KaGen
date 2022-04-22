@@ -13,18 +13,6 @@ GNPDirected::GNPDirected(const PGeneratorConfig& config, const PEID rank, const 
         edges_per_node = config_.n;
 }
 
-GeneratorRequirement GNPDirected::Requirements() const {
-    return GeneratorRequirement::NONE;
-}
-
-GeneratorFeature GNPDirected::Features() const {
-    if (config_.self_loops) {
-        return GeneratorFeature::SELF_LOOPS;
-    } else {
-        return GeneratorFeature::NONE;
-    }
-}
-
 void GNPDirected::GenerateImpl() {
     // Chunk distribution
     SInt nodes_per_chunk = config_.n / config_.k;

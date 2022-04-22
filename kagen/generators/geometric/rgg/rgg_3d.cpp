@@ -16,12 +16,8 @@ RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     InitDatastructures();
 }
 
-GeneratorRequirement RGG3D::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS;
-}
-
-GeneratorFeature RGG3D::Features() const {
-    return GeneratorFeature::UNDIRECTED;
+int RGG3D::Requirements() const {
+    return GeneratorRequirement::CUBIC_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
 void RGG3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, const SInt chunk_depth) {
