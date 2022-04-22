@@ -1,0 +1,41 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        compiler:
+          - { name: Clang, cc: clang, cxx: clang++ }
+          - { name: GNU, cc: gcc, cxx: g++ }
+        build-mode: [Debug, Release]
+    timeout-minutes: 60
+    steps:
+    - name: Install dependencies
+      run: sudo apt-get install -y libopenmpi3 libopenmpi-dev libsparsehash-dev
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: export-compiler
+      run: |
+        echo CXX=${{ matrix.compiler.cxx }} >> $GITHUB_ENV
+        echo CC=${{ matrix.compiler.cc }} >> $GITHUB_ENV
+    - name: cpu-cores
+      uses: SimenB/github-actions-cpu-cores@v1
+      id: cpu-cores
+    - name: print-cpu-cores
+      run: echo ${{ steps.cpu-cores.outputs.count }}
+    - name: cmake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build-mode }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }}
+    - name: build
+      run: cmake --build build/ --parallel ${{ steps.cpu-cores.outputs.count }}

@@ -6,179 +6,324 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-//#define DEL_STATS 1
+#include <iomanip>
 
 #include <mpi.h>
 
-#include "benchmark.h"
-#include "generator_config.h"
-#include "io/generator_io.h"
-#include "parse_parameters.h"
-#include "timer.h"
+#include "kagen/context.h"
+#include "kagen/facade.h"
+#include "kagen/io/io.h"
 
-#include "geometric/delaunay/delaunay_2d.h"
-#include "geometric/delaunay/delaunay_3d.h"
-#include "geometric/rgg/rgg_2d.h"
-#include "geometric/rgg/rgg_3d.h"
-#include "gnm/gnm_directed.h"
-#include "gnm/gnm_undirected.h"
-#include "gnp/gnp_directed.h"
-#include "gnp/gnp_undirected.h"
-#include "hyperbolic/hyperbolic.h"
-#include "barabassi/barabassi.h"
-#include "kronecker/kronecker.h"
-#include "grid/grid_2d.h"
-#include "grid/grid_3d.h"
+#include "CLI11.h"
+#include "kagen/tools/statistics.h"
 
 using namespace kagen;
 
-void OutputParameters(PGeneratorConfig &config, const PEID /* rank */,
-                      const PEID size) {
-  if (config.generator == "gnm_directed" ||
-      config.generator == "gnm_undirected" ||
-      config.generator == "gnp_directed" ||
-      config.generator == "gnp_undirected")
-    std::cout << "generate graph (n=" << config.n << ", m=" << config.m
-              << " (p=" << config.p << "), k=" << config.k
-              << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
+    auto log_cb = [&](SInt& result) {
+        return [&](const SInt value) {
+            result = static_cast<SInt>(1) << value;
+        };
+    };
 
-  else if (config.generator == "rgg_2d" || config.generator == "rgg_3d")
-    std::cout << "generate graph (n=" << config.n << ", r=" << config.r
-              << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
-              << ")" << std::endl;
+    auto add_option_n = [&](CLI::App* cmd) {
+        auto* opt_log_n = cmd->add_option_function<SInt>("-N,--log-nodes", log_cb(config.n), "Logarithm value");
+        auto* opt_n     = cmd->add_option("-n,--num-nodes", config.n, "Exact value");
+        auto* group     = cmd->add_option_group("Number of nodes");
+        group->add_options(opt_log_n, opt_n);
+        group->require_option(1);
+        group->silent();
+        return group;
+    };
+    auto add_option_m = [&](CLI::App* cmd) {
+        auto* opt_log_m = cmd->add_option_function<SInt>("-M,--log-edges", log_cb(config.m), "Logarithm value");
+        auto* opt_m     = cmd->add_option("-m,--num-edges", config.m, "Exact value");
+        auto* group     = cmd->add_option_group("Number of edges");
+        group->add_options(opt_log_m, opt_m);
+        group->require_option(1);
+        group->silent();
+        return group;
+    };
+    auto add_option_p = [&](CLI::App* cmd) {
+        return cmd->add_option("-p,--prob", config.p, "Edge probability");
+    };
+    auto add_option_self_loops = [&](CLI::App* cmd) {
+        return cmd->add_flag("--self-loops", config.self_loops, "Allow self loops");
+    };
+    auto add_option_r = [&](CLI::App* cmd) {
+        return cmd->add_option("-r,--radius", config.r, "Edge radius");
+    };
+    auto add_option_x = [&](CLI::App* cmd) {
+        auto* opt_log_x = cmd->add_option_function<SInt>("-X,--grid-log-x", log_cb(config.grid_x), "Logarithm value");
+        auto* opt_x     = cmd->add_option("-x,--grid-x", config.grid_x, "Exact value");
+        auto* group     = cmd->add_option_group("Grid x dimension");
+        group->add_options(opt_log_x, opt_x);
+        group->require_option(1);
+        group->silent();
+        return group;
+    };
+    auto add_option_y = [&](CLI::App* cmd) {
+        auto* opt_log_y = cmd->add_option_function<SInt>("-Y,--grid-log-y", log_cb(config.grid_y), "Logarithm value");
+        auto* opt_y     = cmd->add_option("-y,--grid-y", config.grid_y, "Exact value");
+        auto* group     = cmd->add_option_group("Grid y dimension");
+        group->add_options(opt_log_y, opt_y);
+        group->require_option(1);
+        group->silent();
+        return group;
+    };
+    auto add_option_z = [&](CLI::App* cmd) {
+        auto* opt_log_z = cmd->add_option_function<SInt>("-Z,--grid-log-z", log_cb(config.grid_z), "Logarithm value");
+        auto* opt_z     = cmd->add_option("-z,--grid-z", config.grid_z, "Exact value");
+        auto* group     = cmd->add_option_group("Grid z dimension");
+        group->add_options(opt_log_z, opt_z);
+        group->require_option(1);
+        group->silent();
+        return group;
+    };
+    auto add_option_min_deg = [&](CLI::App* cmd) {
+        return cmd->add_option("-d,--min-deg", config.min_degree, "Minimal vertex degree");
+    };
+    auto add_option_gamma = [&](CLI::App* cmd) {
+        return cmd->add_option("-g,--gamma", config.plexp, "Power-law exponent");
+    };
+    auto add_option_avg_deg = [&](CLI::App* cmd) {
+        return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
+    };
 
-  else if (config.generator == "rdg_2d" || config.generator == "rdg_3d")
-    std::cout << "generate graph (n=" << config.n << ", k=" << config.k
-              << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+    // Use 40 characters width for help
+    auto formatter = std::make_shared<CLI::Formatter>();
+    formatter->column_width(40);
+    app.formatter(formatter);
 
-  else if (config.generator == "rhg")
-    std::cout << "generate graph (n=" << config.n << ", d=" << config.avg_degree
-              << ", gamma=" << config.plexp << ", k=" << config.k
-              << ", s=" << config.seed << ", P=" << size << ")" << std::endl;
+    // Enable help-all
+    app.set_help_all_flag("--help-all", "Show all help options");
 
-  else if (config.generator == "ba")
-    std::cout << "generate graph (n=" << config.n << ", d=" << config.min_degree
-              << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
-              << ")" << std::endl;
+    // Require exactly one subcommand == graph generator
+    app.require_subcommand(1, 1);
+    app.ignore_case();
+    app.ignore_underscore();
 
-  else if (config.generator == "rmat")
-    std::cout << "generate graph (n=" << config.n << ", m=" << config.m
-              << ", k=" << config.k << ", s=" << config.seed << ", P=" << size
-              << ")" << std::endl;
+    // Allow toplevel options to occur after the generator name
+    app.fallthrough();
 
-  else if (config.generator == "grid_2d")
-    std::cout << "generate graph (row=" << config.grid_x << ", col=" << config.grid_y
-              << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed 
-              << ", P=" << size << ")" << std::endl;
+    // General parameters
+    app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
+    app.add_flag("-V,--validate-simple", config.validate_simple_graph, "Validate that the generated graph is simple");
+    app.add_flag("-S,--seed", config.seed, "Seed for PRNG");
+    app.add_option(
+           "--stats", config.statistics_level, "Controls how much statistics on the generated graph gets calculated")
+        ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()));
 
-  else if (config.generator == "grid_3d")
-    std::cout << "generate graph (x=" << config.grid_x << ", y=" << config.grid_y << ", z=" << config.grid_z
-              << ", p=" << config.p << ", k=" << config.k << ", s=" << config.seed 
-              << ", P=" << size << ")" << std::endl;
+    // Generator parameters
+    app.add_flag("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
+
+    { // GNM_DIRECTED
+        auto* cmd =
+            app.add_subcommand("gnm-directed", "Directed Erdos-Renyi Graph")->alias("gnm_directed")->callback([&] {
+                config.generator = GeneratorType::GNM_DIRECTED;
+            });
+        add_option_n(cmd)->required();
+        add_option_m(cmd)->required();
+        add_option_self_loops(cmd);
+    }
+
+    { // GNM_UNDIRECTED
+        auto* cmd = app.add_subcommand("gnm-undirected", "Undirected Erdos-Renyi Graph");
+        cmd->alias("gnm_undirected");
+        cmd->callback([&] { config.generator = GeneratorType::GNM_UNDIRECTED; });
+        add_option_n(cmd)->required();
+        add_option_m(cmd)->required();
+        add_option_self_loops(cmd);
+    }
+
+    { // GNP_DIRECTED
+        auto* cmd = app.add_subcommand("gnp-directed", "Directed Erdos-Renyi Graph");
+        cmd->alias("gnp_directed");
+        cmd->callback([&] { config.generator = GeneratorType::GNP_DIRECTED; });
+        add_option_n(cmd)->required();
+        add_option_p(cmd)->required();
+        add_option_self_loops(cmd);
+    }
+
+    { // GNP_UNDIRECTED
+        auto* cmd = app.add_subcommand("gnp-undirected", "Undirected Erdos-Renyi Graph");
+        cmd->alias("gnp_undirected");
+        cmd->callback([&] { config.generator = GeneratorType::GNP_UNDIRECTED; });
+        add_option_n(cmd)->required();
+        add_option_p(cmd)->required();
+        add_option_self_loops(cmd);
+    }
+
+    { // RGG2D
+        auto* cmd = app.add_subcommand("rgg2d", "2D Random Geometric Graph");
+        cmd->alias("rgg_2d")->alias("rgg-2d");
+        cmd->callback([&] { config.generator = GeneratorType::RGG_2D; });
+        add_option_n(cmd)->required();
+        add_option_r(cmd)->required();
+    }
+
+    { // RGG3D
+        auto* cmd = app.add_subcommand("rgg3d", "3D Random Geometric Graph");
+        cmd->alias("rgg_3d")->alias("rgg-3d");
+        cmd->callback([&] { config.generator = GeneratorType::RGG_3D; });
+        add_option_n(cmd)->required();
+        add_option_r(cmd)->required();
+    }
+
+#ifdef KAGEN_CGAL_FOUND
+    { // RDG2D
+        auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");
+        cmd->alias("rdg_2d")->alias("rdg-2d");
+        cmd->callback([&] { config.generator = GeneratorType::RDG_2D; });
+        add_option_n(cmd)->required();
+    }
+
+    { // RDG3D
+        auto* cmd = app.add_subcommand("rdg3d", "3D Random Delaunay Graph");
+        cmd->alias("rdg_3d")->alias("rdg-3d");
+        cmd->callback([&] { config.generator = GeneratorType::RDG_3D; });
+        add_option_n(cmd)->required();
+    }
+#endif // KAGEN_CGAL_FOUND
+
+    { // GRID 2D
+        auto* cmd = app.add_subcommand("grid2d", "2D Grid Graph");
+        cmd->alias("grid_2d")->alias("grid-2d");
+        cmd->callback([&] { config.generator = GeneratorType::GRID_2D; });
+        add_option_x(cmd)->required();
+        add_option_y(cmd)->required();
+    }
+
+    { // GRID 3D
+        auto* cmd = app.add_subcommand("grid3d", "3D Grid Graph");
+        cmd->alias("grid_3d")->alias("grid-3d");
+        cmd->callback([&] { config.generator = GeneratorType::GRID_3D; });
+        add_option_x(cmd)->required();
+        add_option_y(cmd)->required();
+        add_option_z(cmd)->required();
+    }
+
+    { // BA
+        auto* cmd = app.add_subcommand("ba", "Barabassi Graph");
+        cmd->callback([&] { config.generator = GeneratorType::BA; });
+        add_option_n(cmd)->required();
+        add_option_min_deg(cmd)->required();
+    }
+
+    { // KRONECKER
+        auto* cmd = app.add_subcommand("kronecker", "Kronecker Graph");
+        cmd->callback([&] { config.generator = GeneratorType::KRONECKER; });
+        // @todo
+    }
+
+    { // RHG
+        auto* cmd = app.add_subcommand("rhg", "Random Hyperbolic Graph");
+        cmd->callback([&] { config.generator = GeneratorType::RHG; });
+        add_option_n(cmd)->required();
+        add_option_gamma(cmd)->required();
+        add_option_avg_deg(cmd)->required();
+    }
+
+    // IO options
+    app.add_option("-o,--output", config.output_file, "Output filename");
+    app.add_option("-f,--output-format", config.output_format, "Output format")
+        ->transform(CLI::CheckedTransformer(GetOutputFormatMap()));
+    app.add_option("--output-header", config.output_header, "Output file header")
+        ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()));
+    app.add_flag("--single-file", config.output_single_file, "Collect graph in a single file");
 }
 
-template <typename Generator, typename EdgeCallback>
-void RunGenerator(PGeneratorConfig &config, const PEID rank,
-                  const PEID /* size */, Statistics &stats, Statistics &edge_stats,
-                  Statistics &edges, const EdgeCallback &cb) {
-  // Start timers
-  Timer t;
-  double local_time = 0.0;
-  double total_time = 0.0;
-  t.Restart();
+void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    // Compute statistics
+    const auto local_num_nodes  = vertex_range.second - vertex_range.first;
+    const auto global_num_nodes = ReduceSum(local_num_nodes);
+    const auto local_min_nodes  = ReduceMin(local_num_nodes);
+    const auto local_mean_nodes = ReduceMean(local_num_nodes);
+    const auto local_max_nodes  = ReduceMax(local_num_nodes);
+    const auto local_sd_nodes   = ReduceSD(local_num_nodes);
 
-  // Chunk distribution
-  Generator gen(config, rank, cb);
-  gen.Generate();
+    const auto local_num_edges  = edges.size();
+    const auto global_num_edges = ReduceSum(local_num_edges);
+    const auto local_min_edges  = ReduceMin(local_num_edges);
+    const auto local_mean_edges = ReduceMean(local_num_edges);
+    const auto local_max_edges  = ReduceMax(local_num_edges);
+    const auto local_sd_edges   = ReduceSD(local_num_edges);
 
-  // Output
-  local_time = t.Elapsed();
-  MPI_Reduce(&local_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, ROOT,
-             MPI_COMM_WORLD);
-  if (rank == ROOT) {
-    stats.Push(total_time);
-    edge_stats.Push(total_time / gen.NumberOfEdges());
-    edges.Push(gen.NumberOfEdges());
-  }
+    // Print statistics on root
+    if (root) {
+        const int global_space = std::max<int>(std::log10(global_num_nodes), std::log10(global_num_edges)) + 1;
+        const int local_space  = std::max<int>(std::log10(local_max_nodes), std::log10(local_max_edges)) + 1;
 
-  if (rank == ROOT) std::cout << "write output..." << std::endl;
-  gen.Output();
+        std::cout << "Number of vertices: " << std::setw(global_space) << global_num_nodes << " ["
+                  << "Min=" << std::setw(local_space) << local_min_nodes << " | "
+                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_nodes
+                  << " | "
+                  << "Max=" << std::setw(local_space) << local_max_nodes << " | "
+                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_nodes
+                  << "]\n";
+        std::cout << "Number of edges:    " << std::setw(global_space) << global_num_edges << " ["
+                  << "Min=" << std::setw(local_space) << local_min_edges << " | "
+                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_edges
+                  << " | "
+                  << "Max=" << std::setw(local_space) << local_max_edges << " | "
+                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_edges
+                  << "]\n";
+    }
 }
 
-int main(int argn, char **argv) {
-  // Init MPI
-  MPI_Init(&argn, &argv);
-  PEID rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+void PrintAdvancedStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    ((void)edges);
+    ((void)vertex_range);
+    ((void)root);
+    // @todo
+}
 
-  // Read command-line args
-  PGeneratorConfig generator_config;
-  ParseParameters(argn, argv, rank, size, generator_config);
+int main(int argc, char* argv[]) {
+    MPI_Init(&argc, &argv);
 
-  if (rank == ROOT) OutputParameters(generator_config, rank, size);
+    PEID rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Statistics
-  Statistics stats;
-  Statistics edge_stats;
-  Statistics edges;
+    // Parse parameters
+    PGeneratorConfig config;
+    CLI::App         app("KaGen: Karlsruhe Graph Generator");
+    SetupCommandLineArguments(app, config);
+    CLI11_PARSE(app, argc, argv);
 
-  auto edge_cb = [](SInt, SInt){};
-  ULONG user_seed = generator_config.seed;
-  for (ULONG i = 0; i < generator_config.iterations; ++i) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    generator_config.seed = user_seed + i;
-    if (generator_config.generator == "gnm_directed")
-      RunGenerator<GNMDirected<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "gnm_undirected")
-      RunGenerator<GNMUndirected<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "gnp_directed")
-      RunGenerator<GNPDirected<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "gnp_undirected")
-      RunGenerator<GNPUndirected<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "rgg_2d")
-      RunGenerator<RGG2D<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "rgg_3d")
-      RunGenerator<RGG3D<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "rdg_2d")
-      RunGenerator<Delaunay2D<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "rdg_3d")
-      RunGenerator<Delaunay3D<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "rhg")
-      RunGenerator<Hyperbolic<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "ba")
-      RunGenerator<Barabassi<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "rmat")
-      RunGenerator<Kronecker<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "grid_2d")
-      RunGenerator<Grid2D<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else if (generator_config.generator == "grid_3d")
-      RunGenerator<Grid3D<decltype(edge_cb)>, decltype(edge_cb)>
-        (generator_config, rank, size, stats, edge_stats, edges, edge_cb);
-    else 
-      if (rank == ROOT) std::cout << "generator not supported" << std::endl;
-  }
+    // Only output on root if not in quiet mode
+    const bool output = !config.quiet && rank == ROOT;
+    if (output) {
+        std::cout << config;
+    }
 
-  if (rank == ROOT) {
-    std::cout << "RESULT runner=" << generator_config.generator
-              << " time=" << stats.Avg() << " stddev=" << stats.Stddev()
-              << " iterations=" << generator_config.iterations
-              << " edges=" << edges.Avg()
-              << " time_per_edge=" << edge_stats.Avg() << std::endl;
-  }
+    // Generate graph
+    const auto start_graphgen = MPI_Wtime();
+    if (output) {
+        std::cout << "Generating graph ..." << std::endl;
+    }
+    auto [edges, vertex_range] = Generate(config);
+    const auto end_graphgen    = MPI_Wtime();
 
-  MPI_Finalize();
-  return 0;
+    // Print statistics
+    if (!config.quiet) {
+        if (config.statistics_level >= StatisticsLevel::BASIC) {
+            if (output) {
+                std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
+                          << " seconds" << std::endl;
+            }
+            PrintBasicStatistics(edges, vertex_range, rank == ROOT);
+        }
+        if (config.statistics_level >= StatisticsLevel::ADVANCED) {
+            PrintAdvancedStatistics(edges, vertex_range, rank == ROOT);
+        }
+    }
+
+    // Output graph
+    if (output) {
+        std::cout << "Writing graph ..." << std::endl;
+    }
+    WriteGraph(config, edges, vertex_range);
+
+    MPI_Finalize();
+    return 0;
 }

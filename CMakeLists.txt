@@ -8,10 +8,11 @@
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16)
 
-project(kagen)
-#set_target_properties(kagen PROPERTIES LINKER_LANGUAGE CXX)
+project(kagen LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
 
 # prohibit in-source builds
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
@@ -25,32 +26,16 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
-
-option(KAGEN_OUTPUT_EDGES "Output edge list." ON)
-option(KAGEN_SINGLE_OUTPUT "Output single edge list." ON)
-option(KAGEN_OMIT_HEADER "Omit header in edge list" OFF)
-option(KAGEN_BINARY_OUTPUT "Output edge lists in binary format" ON)
+option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 
 ################################################################################
 
 # variables to collect compile-time definitions, include dirs, and libraries
 set(KAGEN_DEFINITIONS "")
 set(KAGEN_INCLUDE_DIRS 
-  ${PROJECT_SOURCE_DIR}/app
   ${PROJECT_SOURCE_DIR}/extlib/sampling/sampling
   ${PROJECT_SOURCE_DIR}/extlib/libmorton/include/
-  ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/include/generators
-  ${PROJECT_SOURCE_DIR}/include/generators/barabassi
-  ${PROJECT_SOURCE_DIR}/include/generators/geometric
-  ${PROJECT_SOURCE_DIR}/include/generators/geometric/delaunay
-  ${PROJECT_SOURCE_DIR}/include/generators/geometric/rgg
-  ${PROJECT_SOURCE_DIR}/include/generators/gnm
-  ${PROJECT_SOURCE_DIR}/include/generators/gnp
-  ${PROJECT_SOURCE_DIR}/include/generators/hyperbolic
-  ${PROJECT_SOURCE_DIR}/include/io
-  ${PROJECT_SOURCE_DIR}/include/tools
-  ${PROJECT_SOURCE_DIR}/interface/
+  ${PROJECT_SOURCE_DIR}
   )
 
 if(NOT MSVC)
@@ -102,7 +87,7 @@ if(NOT MSVC)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wcast-qual")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Winit-self -Wnoexcept")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Winit-self")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual -Wredundant-decls")
     #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-null-sentinel -Wstrict-overflow=5")
     #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wtautological-compare")
@@ -222,19 +207,7 @@ if(KAGEN_USE_LTO)
   endif()
 endif()
 
-if(KAGEN_OUTPUT_EDGES)
-  set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DOUTPUT_EDGES")
-  if (KAGEN_SINGLE_OUTPUT)
-    set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DSINGLE_LIST")
-  endif()
-  if (KAGEN_OMIT_HEADER)
-    set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DOMIT_HEADER")
-  endif()
-  if (KAGEN_BINARY_OUTPUT)
-    set(KAGEN_DEFINITIONS "${KAGEN_DEFINITIONS} -DBINARY_OUT")
-  endif()
-endif()
-
+# @todo does not work with Clang 13+ on macOS
 if(APPLE)
   # disable warnings about "ranlib: file: libsampling.a(...cpp.o) has no symbols"
   set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
@@ -245,73 +218,34 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KAGEN_DEFINITIONS}")
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ###############################################################################
-
-# set_join(VAR "foo" "bar" "abc") sets VAR="foo bar abc"
-macro(set_join var)
-  set(${var})
-  foreach(v ${ARGN})
-    set(${var} "${${var}} ${v}")
-  endforeach()
-  string(STRIP ${var} "${${var}}")
-endmacro(set_join)
-
-###############################################################################
 # find MPI
 find_package(MPI REQUIRED)
-if(MPI_FOUND)
-  include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-else()
-  message(STATUS "Could not find MPI library")
-endif()
 
 # find CGAL
-set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
-find_package(CGAL)
-if(CGAL_FOUND)
-  include(${CGAL_USE_FILE})
-else()
-  message(STATUS "Could not find CGAL library")
+if (KAGEN_USE_CGAL)
+  set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
+  find_package(CGAL QUIET)
+  if(CGAL_FOUND)
+    add_definitions(-DKAGEN_CGAL_FOUND) 
+    include(${CGAL_USE_FILE})
+  else()
+    message(STATUS "Could not find CGAL library: Random Delaunay Graphs will not be available")
+  endif()
 endif()
 
 # use sampling lib
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 add_subdirectory(extlib/sampling)
 set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
 set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
-
-################################################################################
-### Build Macros
-
-# macro for building main programs with correct libraries
-macro(do_build TARGETNAME)
-  add_executable(${TARGETNAME} ${ARGN})
-  target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
-  target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES})
-endmacro(do_build)
-
-# macro for building main programs with correct libraries
-macro(mpi_build TARGETNAME)
-  add_executable(${TARGETNAME} ${ARGN})
-  target_include_directories(${TARGETNAME} PUBLIC ${KAGEN_INCLUDE_DIRS})
-  target_link_libraries(${TARGETNAME} ${KAGEN_LINK_LIBRARIES} ${MPI_LIBRARIES})
-endmacro(mpi_build)
-
-# macro for building a single-source thrill program
-macro(build_prog PROGNAME)
-  string(REPLACE "/" "_" TARGETNAME "${PROGNAME}") # replace slashes
-  do_build(${TARGETNAME} ${PROGNAME}.cpp ${ARGN})
-endmacro(build_prog)
-
-macro(build_mpi_prog PROGNAME)
-  string(REPLACE "/" "_" TARGETNAME "${PROGNAME}") # replace slashes
-  mpi_build(${TARGETNAME} ${PROGNAME}.cpp ${ARGN})
-endmacro(build_mpi_prog)
+set(KAGEN_LINK_LIBRARIES MPI::MPI_CXX "${KAGEN_LINK_LIBRARIES}")
 
 ################################################################################
 
-# descend into library source
-# add_subdirectory(include)
-
-# descend into apps
+add_subdirectory(kagen)
 add_subdirectory(app)
+add_subdirectory(library)
 
 ################################################################################
+
+add_library(KaGen::KaGen ALIAS kagen_library)
