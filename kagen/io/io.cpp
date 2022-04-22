@@ -5,28 +5,10 @@
 #include <mpi.h>
 
 #include "kagen/io/buffered_writer.h"
+#include "kagen/tools/statistics.h"
 
 namespace kagen {
 namespace {
-// First invalid node on the last PE is the number of nodes in the graph
-SInt FindNumberOfGlobalNodes(const VertexRange vertex_range) {
-    PEID size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    SInt first_invalid_node = vertex_range.second;
-    MPI_Bcast(&first_invalid_node, 1, MPI_UNSIGNED_LONG_LONG, size - 1, MPI_COMM_WORLD);
-
-    return first_invalid_node;
-}
-
-// Length of all edge lists is the number of edges in the graph
-SInt FindNumberOfGlobalEdges(const EdgeList& edges) {
-    SInt local_num_edges = edges.size();
-    SInt global_num_edges;
-    MPI_Allreduce(&local_num_edges, &global_num_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    return global_num_edges;
-}
-
 void CreateFile(const std::string& filename) {
     BufferedTextOutput<>(tag::create, filename);
 }
@@ -34,6 +16,10 @@ void CreateFile(const std::string& filename) {
 
 void WriteGraph(const PGeneratorConfig& config, EdgeList& edges, const VertexRange vertex_range) {
     switch (config.output_format) {
+        case OutputFormat::NONE:
+            // do nothing
+            break;
+
         case OutputFormat::EDGE_LIST:
             WriteEdgeList(
                 config.output_file, config.output_header == OutputHeader::NEVER, config.output_single_file, edges,

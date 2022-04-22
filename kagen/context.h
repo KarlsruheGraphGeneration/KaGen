@@ -16,6 +16,7 @@
 
 namespace kagen {
 enum class OutputFormat {
+    NONE,
     EDGE_LIST,
     BINARY_EDGE_LIST,
     METIS,
@@ -56,11 +57,13 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
 
 std::ostream& operator<<(std::ostream& out, GeneratorType generator_type);
 
-enum class StatisticsLevel {
-    NONE,
-    BASIC,
-    ADVANCED,
+enum class StatisticsLevel : std::uint8_t {
+    NONE     = 0,
+    BASIC    = 1,
+    ADVANCED = 2,
 };
+
+bool operator<=(StatisticsLevel a, StatisticsLevel b);
 
 std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
 

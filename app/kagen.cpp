@@ -6,7 +6,7 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-//#define DEL_STATS 1
+#include <iomanip>
 
 #include <mpi.h>
 
@@ -15,6 +15,7 @@
 #include "kagen/io/io.h"
 
 #include "CLI11.h"
+#include "kagen/tools/statistics.h"
 
 using namespace kagen;
 
@@ -220,6 +221,51 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     app.add_flag("--single-file", config.output_single_file, "Collect graph in a single file");
 }
 
+void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    // Compute statistics
+    const auto local_num_nodes  = vertex_range.second - vertex_range.first;
+    const auto global_num_nodes = ReduceSum(local_num_nodes);
+    const auto local_min_nodes  = ReduceMin(local_num_nodes);
+    const auto local_mean_nodes = ReduceMean(local_num_nodes);
+    const auto local_max_nodes  = ReduceMax(local_num_nodes);
+    const auto local_sd_nodes   = ReduceSD(local_num_nodes);
+
+    const auto local_num_edges  = edges.size();
+    const auto global_num_edges = ReduceSum(local_num_edges);
+    const auto local_min_edges  = ReduceMin(local_num_edges);
+    const auto local_mean_edges = ReduceMean(local_num_edges);
+    const auto local_max_edges  = ReduceMax(local_num_edges);
+    const auto local_sd_edges   = ReduceSD(local_num_edges);
+
+    // Print statistics on root
+    if (root) {
+        const int global_space = std::max<int>(std::log10(global_num_nodes), std::log10(global_num_edges)) + 1;
+        const int local_space  = std::max<int>(std::log10(local_max_nodes), std::log10(local_max_edges)) + 1;
+
+        std::cout << "Number of vertices: " << std::setw(global_space) << global_num_nodes << " ["
+                  << "Min=" << std::setw(local_space) << local_min_nodes << " | "
+                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_nodes
+                  << " | "
+                  << "Max=" << std::setw(local_space) << local_max_nodes << " | "
+                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_nodes
+                  << "]\n";
+        std::cout << "Number of edges:    " << std::setw(global_space) << global_num_edges << " ["
+                  << "Min=" << std::setw(local_space) << local_min_edges << " | "
+                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_edges
+                  << " | "
+                  << "Max=" << std::setw(local_space) << local_max_edges << " | "
+                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_edges
+                  << "]\n";
+    }
+}
+
+void PrintAdvancedStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    ((void)edges);
+    ((void)vertex_range);
+    ((void)root);
+    // @todo
+}
+
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 
@@ -239,12 +285,26 @@ int main(int argc, char* argv[]) {
     }
 
     // Generate graph
+    const auto start_graphgen = MPI_Wtime();
     if (output) {
         std::cout << "Generating graph ..." << std::endl;
     }
     auto [edges, vertex_range] = Generate(config);
+    const auto end_graphgen    = MPI_Wtime();
 
     // Print statistics
+    if (!config.quiet) {
+        if (config.statistics_level >= StatisticsLevel::BASIC) {
+            if (output) {
+                std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
+                          << " seconds" << std::endl;
+            }
+            PrintBasicStatistics(edges, vertex_range, rank == ROOT);
+        }
+        if (config.statistics_level >= StatisticsLevel::ADVANCED) {
+            PrintAdvancedStatistics(edges, vertex_range, rank == ROOT);
+        }
+    }
 
     // Output graph
     if (output) {

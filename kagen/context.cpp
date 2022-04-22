@@ -3,6 +3,7 @@
 namespace kagen {
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
     return {
+        {"none", OutputFormat::NONE},
         {"edge-list", OutputFormat::EDGE_LIST},
         {"binary-edge-list", OutputFormat::BINARY_EDGE_LIST},
         {"metis", OutputFormat::METIS},
@@ -12,6 +13,9 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
 
 std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
     switch (output_format) {
+        case OutputFormat::NONE:
+            return out << "none";
+
         case OutputFormat::EDGE_LIST:
             return out << "edge-list";
 
@@ -112,6 +116,10 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
     }
 
     return out << "<invalid>";
+}
+
+bool operator<=(StatisticsLevel a, StatisticsLevel b) {
+    return static_cast<std::uint8_t>(a) <= static_cast<std::uint8_t>(b);
 }
 
 std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap() {
