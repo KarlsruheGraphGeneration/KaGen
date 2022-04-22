@@ -81,7 +81,7 @@ The graph can either be directed or undirected and can contain self-loops.
 
 #### Parameters
 ```
-./kagen <gnm_directed|gnm_undirected> 
+mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -m <number of edges>
@@ -106,7 +106,7 @@ The graph can either be directed or undirected and can contain self-loops.
 
 #### Parameters
 ```
-./kagen <gnp_directed|gnp_undirected> 
+mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -p <edge probability>
@@ -130,7 +130,7 @@ NOTE: The number of processes must be a power of 2.
 
 #### Parameters
 ```
-./kagen <rgg2d|rgg3d> 
+mpirun -n <nproc> ./kagen <rgg2d|rgg3d> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -r <edge radius>
@@ -153,75 +153,61 @@ NOTE: The graph is generated with periodic boundary conditions to avoid long edg
 
 #### Parameters
 ```
--gen <rdg_2d|rdg_3d>
--n <number of vertices as a power of two>
--k <number of chunks>
--seed <seed for PRNGs>
+mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  [-k <number of chunks>]
+  [-S <seed>]
 ```
 
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n, k, seed);
-auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n, k, seed);
+auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n);
+auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
 ```
 
-#### Command Line Example
-Generate a three dimensional RDG(n,r) graph with 2^20 vertices on 16 processors and write it to tmp
-```shell
-mpirun -n 16 ./build/app/kagen -gen rdg_3d -n 20 -output tmp
-```
 --- 
 
 ### Barabassi-Albert Graphs BA(n, d)
-Generate a random graph using the Barabassi-Albert graph model BA(n,d)
+Generate a random graph using the Barabassi-Albert graph model BA(n, d)
 
 #### Parameters
 ```
--gen ba
--n <number of vertices as a power of two>
--md <min degree for each vertex> 
--k <number of chunks>
--seed <seed for PRNGs>
+mpirun -n <nproc> ./kagen ba 
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  -d <minimum degree for each vertex>
+  [-k <number of chunks>]
+  [-S <seed>]
 ```
 
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto [edge_list, vertex_range] = gen.GenerateBA(n, md, seed);
-```
-
-#### Command Line Example
-Generate a BA(n,d) graph with 2^20 vertices and a minimum degree of 4 on 16 processors and write it to tmp
-```shell
-mpirun -n 16 ./build/app/kagen -gen ba -n 20 -md 4 -output tmp
+auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
 ```
 
 --- 
 
 ### Random Hyperbolic Graphs RHG(n, gamma, d)
-Generate a two dimensional random graph using the random hyperbolic graph model RHG(n,gamma,d)
+Generate a two dimensional random graph using the random hyperbolic graph model RHG(n, gamma, d)
 
 #### Parameters
 ```
--gen rhg
--n <number of vertices as a power of two>
--gamma <power-law exponent> 
--d <average degree> 
--k <number of chunks>
--seed <seed for PRNGs>
+mpirun -n <nproc> ./kagen 
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  -g <power-law exponent>
+  -d <average vertex degree>
+  [-k <number of chunks>]
+  [-S <seed>]
 ```
 
 #### Interface
 ```c++
 KaGen gen(proc_rank, proc_size);
-auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d, seed);
-```
-
-#### Command Line Example
-Generate a two dimensional RHG(n,r) graph with 2^20 vertices and an average degree of 8 with a power-law exponent of 2.2 on 16 processors and write it to tmp
-```shell
-mpirun -n 16 ./build/app/ -gen rhg -n 20 -d 8 -gamma 2.2 -output tmp
+auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d);
 ```
 
 --- 
