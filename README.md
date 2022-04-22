@@ -71,7 +71,12 @@ For a list of all output options, see `--help`.
 
 To use KaGen as a library, simply add this repository as a Git submodule, 
 include its CMake script using `add_subdirectory(extern/KaGen)` and link 
-against the `KaGen::KaGen` target.
+against the `KaGen::KaGen` target:
+
+```cmake 
+add_subdirectory(external/KaGen)
+target_link_libraries(<target> PUBLIC KaGen::KaGen)
+```
 
 ## Graph Models
 
@@ -171,6 +176,7 @@ auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
 
 ### Barabassi-Albert Graphs BA(n, d)
 Generate a random directed graph using the Barabassi-Albert graph model BA(n, d).
+The graph may contain self-loops and multi edges.
 
 #### Parameters
 ```
