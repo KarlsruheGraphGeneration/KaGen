@@ -19,7 +19,7 @@ RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
 }
 
 int RGG2D::Requirements() const {
-    return GeneratorRequirement::SQAURE_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
+    return GeneratorRequirement::SQUARE_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
 void RGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {

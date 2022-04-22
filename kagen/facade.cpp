@@ -136,7 +136,7 @@ SInt FindMultipleCube(const SInt value) {
 } // namespace
 
 std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template, const PEID rank, const PEID size) {
-    const bool output = !config_template.quiet && rank == ROOT;
+    const bool output = rank == ROOT; // && !config_template.quiet; // Always output errors that crash the program
     auto       config = config_template;
 
     // Get generator requirements @todo this is ugly
@@ -145,8 +145,9 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
     config.k               = config_template.k;
 
     const bool require_power_of_two_communicator = requirements & GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
-    const bool require_square_chunks             = requirements & GeneratorRequirement::SQAURE_CHUNKS;
+    const bool require_square_chunks             = requirements & GeneratorRequirement::SQUARE_CHUNKS;
     const bool require_cubic_chunks              = requirements & GeneratorRequirement::CUBIC_CHUNKS;
+    const bool require_one_chunk_per_pe          = requirements & GeneratorRequirement::ONE_CHUNK_PER_PE;
 
     // Validate number of PEs
     if (require_power_of_two_communicator && !IsPowerOfTwo(size)) {
@@ -183,6 +184,12 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
             std::exit(1);
         }
     }
+    if (require_one_chunk_per_pe && config.k != static_cast<SInt>(size)) {
+        if (output) {
+            std::cerr << "Generator requires exactly one chunk per PE\n";
+        }
+        std::exit(1);
+    }
 
     // Generate graph
     auto generator             = CreateGenerator(config, rank, size);
@@ -198,6 +205,9 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
         bool success = ValidateSimpleGraph(edges, vertex_range);
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
         if (!success) {
+            if (output) {
+                std::cerr << "Simple graph validation failed\n";
+            }
             std::exit(1);
         }
     }

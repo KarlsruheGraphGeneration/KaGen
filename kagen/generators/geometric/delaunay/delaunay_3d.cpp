@@ -46,7 +46,7 @@ Delaunay3D::Delaunay3D(const PGeneratorConfig& config, const PEID rank, const PE
 }
 
 int Delaunay3D::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS;
+    return GeneratorRequirement::CUBIC_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
 void Delaunay3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, const SInt chunk_depth) {

@@ -42,7 +42,8 @@ Delaunay2D::Delaunay2D(const PGeneratorConfig& config, const PEID rank, const PE
 }
 
 int Delaunay2D::Requirements() const {
-    return GeneratorRequirement::SQAURE_CHUNKS;
+    return GeneratorRequirement::SQUARE_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE
+           | GeneratorRequirement::ONE_CHUNK_PER_PE;
 }
 
 bool Delaunay2D::AlmostUndirected() const {

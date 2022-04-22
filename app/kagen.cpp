@@ -126,6 +126,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_m(cmd)->required();
         add_option_self_loops(cmd);
     }
+
     { // GNM_UNDIRECTED
         auto* cmd = app.add_subcommand("gnm-undirected", "Undirected Erdos-Renyi Graph");
         cmd->alias("gnm_undirected");
@@ -134,6 +135,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_m(cmd)->required();
         add_option_self_loops(cmd);
     }
+
     { // GNP_DIRECTED
         auto* cmd = app.add_subcommand("gnp-directed", "Directed Erdos-Renyi Graph");
         cmd->alias("gnp_directed");
@@ -142,6 +144,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_p(cmd)->required();
         add_option_self_loops(cmd);
     }
+
     { // GNP_UNDIRECTED
         auto* cmd = app.add_subcommand("gnp-undirected", "Undirected Erdos-Renyi Graph");
         cmd->alias("gnp_undirected");
@@ -150,6 +153,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_p(cmd)->required();
         add_option_self_loops(cmd);
     }
+
     { // RGG2D
         auto* cmd = app.add_subcommand("rgg2d", "2D Random Geometric Graph");
         cmd->alias("rgg_2d")->alias("rgg-2d");
@@ -157,6 +161,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_n(cmd)->required();
         add_option_r(cmd)->required();
     }
+
     { // RGG3D
         auto* cmd = app.add_subcommand("rgg3d", "3D Random Geometric Graph");
         cmd->alias("rgg_3d")->alias("rgg-3d");
@@ -164,6 +169,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_n(cmd)->required();
         add_option_r(cmd)->required();
     }
+
 #ifdef KAGEN_CGAL_FOUND
     { // RDG2D
         auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");
@@ -171,20 +177,23 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->callback([&] { config.generator = GeneratorType::RDG_2D; });
         add_option_n(cmd)->required();
     }
+
     { // RDG3D
         auto* cmd = app.add_subcommand("rdg3d", "3D Random Delaunay Graph");
         cmd->alias("rdg_3d")->alias("rdg-3d");
-        cmd->callback([&] { config.generator = GeneratorType::RDG_2D; });
+        cmd->callback([&] { config.generator = GeneratorType::RDG_3D; });
         add_option_n(cmd)->required();
     }
 #endif // KAGEN_CGAL_FOUND
-    {  // GRID 2D
+
+    { // GRID 2D
         auto* cmd = app.add_subcommand("grid2d", "2D Grid Graph");
         cmd->alias("grid_2d")->alias("grid-2d");
         cmd->callback([&] { config.generator = GeneratorType::GRID_2D; });
         add_option_x(cmd)->required();
         add_option_y(cmd)->required();
     }
+
     { // GRID 3D
         auto* cmd = app.add_subcommand("grid3d", "3D Grid Graph");
         cmd->alias("grid_3d")->alias("grid-3d");
@@ -193,17 +202,20 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_y(cmd)->required();
         add_option_z(cmd)->required();
     }
+
     { // BA
         auto* cmd = app.add_subcommand("ba", "Barabassi Graph");
         cmd->callback([&] { config.generator = GeneratorType::BA; });
         add_option_n(cmd)->required();
         add_option_min_deg(cmd)->required();
     }
+
     { // KRONECKER
         auto* cmd = app.add_subcommand("kronecker", "Kronecker Graph");
         cmd->callback([&] { config.generator = GeneratorType::KRONECKER; });
         // @todo
     }
+
     { // RHG
         auto* cmd = app.add_subcommand("rhg", "Random Hyperbolic Graph");
         cmd->callback([&] { config.generator = GeneratorType::RHG; });

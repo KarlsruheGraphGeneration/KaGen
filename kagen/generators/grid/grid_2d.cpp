@@ -14,7 +14,7 @@ Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       size_(size) {}
 
 int Grid2D::Requirements() const {
-    return GeneratorRequirement::SQAURE_CHUNKS;
+    return GeneratorRequirement::SQUARE_CHUNKS;
 }
 
 void Grid2D::GenerateImpl() {

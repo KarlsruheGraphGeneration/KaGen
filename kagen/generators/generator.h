@@ -5,16 +5,11 @@
 #include "kagen/definitions.h"
 
 namespace kagen {
-enum GeneratorFeature {
-    UNDIRECTED        = 1 << 0,
-    ALMOST_UNDIRECTED = 1 << 1,
-    SELF_LOOPS        = 1 << 2,
-};
-
 enum GeneratorRequirement {
     POWER_OF_TWO_COMMUNICATOR_SIZE = 1 << 0,
-    SQAURE_CHUNKS                  = 1 << 1,
+    SQUARE_CHUNKS                  = 1 << 1,
     CUBIC_CHUNKS                   = 1 << 2,
+    ONE_CHUNK_PER_PE               = 1 << 3,
 };
 
 class Generator {
