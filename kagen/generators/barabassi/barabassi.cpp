@@ -11,10 +11,8 @@ Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID
     : config_(config),
       min_degree_(config_.min_degree),
       total_degree_(2 * config_.min_degree) {
-    // Init variables
     from_ = rank * std::ceil(config_.n / (LPFloat)size);
     to_   = std::min((SInt)((rank + 1) * ceil(config_.n / (LPFloat)size) - 1), config_.n - 1);
-    std::cout << "f " << from_ << " t " << to_ << std::endl;
 }
 
 void Barabassi::GenerateImpl() {

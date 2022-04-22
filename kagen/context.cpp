@@ -191,6 +191,10 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             break;
 
         case GeneratorType::BA:
+            out << "  Number of nodes:                    " << config.n << "\n";
+            out << "  Minimum degree:                     " << config.min_degree << "\n";
+            break;
+
         case GeneratorType::KRONECKER:
             break;
 

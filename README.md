@@ -170,7 +170,7 @@ auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
 ---
 
 ### Barabassi-Albert Graphs BA(n, d)
-Generate a random graph using the Barabassi-Albert graph model BA(n, d)
+Generate a random directed graph using the Barabassi-Albert graph model BA(n, d).
 
 #### Parameters
 ```
@@ -191,7 +191,7 @@ auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
 --- 
 
 ### Random Hyperbolic Graphs RHG(n, gamma, d)
-Generate a two dimensional random graph using the random hyperbolic graph model RHG(n, gamma, d)
+Generate a two dimensional random graph using the random hyperbolic graph model RHG(n, gamma, d).
 
 #### Parameters
 ```
