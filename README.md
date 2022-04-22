@@ -167,7 +167,7 @@ auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n);
 auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
 ```
 
---- 
+---
 
 ### Barabassi-Albert Graphs BA(n, d)
 Generate a random graph using the Barabassi-Albert graph model BA(n, d)

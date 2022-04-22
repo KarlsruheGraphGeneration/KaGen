@@ -3,7 +3,6 @@
 #include "kagen/generators/generator.h"
 #include "kagen/generators/grid/grid_2d.h"
 
-// #include "morton2D.h"
 #include "hash.hpp"
 
 namespace kagen {
@@ -206,12 +205,10 @@ SInt Grid2D::OffsetForChunk(const SInt chunk) const {
 inline void Grid2D::Decode(const SInt id, SInt& x, SInt& y) const {
     x = id / chunks_per_dim_;
     y = id % chunks_per_dim_;
-    // m2D_d_sLUT(id, y, x);
 }
 
 // Chunk/vertex coding
 inline SInt Grid2D::Encode(const SInt x, const SInt y) const {
     return x * chunks_per_dim_ + y;
-    // return m2D_e_sLUT<SInt>(y, x);
 }
 } // namespace kagen

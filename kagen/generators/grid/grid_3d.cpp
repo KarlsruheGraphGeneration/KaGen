@@ -2,7 +2,6 @@
 
 #include "hash.hpp"
 #include "kagen/generators/grid/grid_3d.h"
-// #include "morton2D.h"
 
 namespace kagen {
 Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
@@ -53,7 +52,7 @@ void Grid3D::GenerateImpl() {
         GenerateChunk(start_chunk + i);
     }
 
-    SetVertexRange(start_node_, start_node_ + num_nodes_ - 1);
+    SetVertexRange(start_node_, start_node_ + num_nodes_);
 }
 
 void Grid3D::GenerateChunk(const SInt chunk) {
@@ -252,7 +251,6 @@ SInt Grid3D::OffsetForChunk(const SInt chunk) const {
 }
 
 inline void Grid3D::Decode(const SInt id, SInt& x, SInt& y, SInt& z) const {
-    // m3D_d_sLUT(id, x, y, z);
     x = id % chunks_per_dim_;
     y = (id / chunks_per_dim_) % chunks_per_dim_;
     z = id / (chunks_per_dim_ * chunks_per_dim_);
@@ -260,7 +258,6 @@ inline void Grid3D::Decode(const SInt id, SInt& x, SInt& y, SInt& z) const {
 
 // Chunk/vertex coding
 inline SInt Grid3D::Encode(const SInt x, const SInt y, const SInt z) const {
-    // return m3D_e_sLUT<SInt>(x, y, z);
     return x + y * chunks_per_dim_ + z * (chunks_per_dim_ * chunks_per_dim_);
 }
 } // namespace kagen

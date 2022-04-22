@@ -306,13 +306,10 @@ protected:
     // Chunk coding
     inline SInt Encode(const SInt x, const SInt y) const {
         return libmorton::m2D_e_sLUT<SInt>(x, y);
-        // return x + y * chunks_per_dim_;
     }
 
     inline void Decode(const SInt id, SInt& x, SInt& y) const {
         libmorton::m2D_d_sLUT(id, x, y);
-        // x = id % chunks_per_dim_;
-        // y = id / chunks_per_dim_;
     }
 };
 } // namespace kagen
