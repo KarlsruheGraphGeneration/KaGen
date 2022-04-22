@@ -196,6 +196,8 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             break;
 
         case GeneratorType::KRONECKER:
+            out << "  Number of nodes:                    " << config.n << "\n";
+            out << "  Number of edges:                    " << config.m << "\n";
             break;
 
         case GeneratorType::RHG:
