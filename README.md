@@ -195,7 +195,7 @@ Generate a two dimensional random graph using the random hyperbolic graph model 
 
 #### Parameters
 ```
-mpirun -n <nproc> ./kagen 
+mpirun -n <nproc> ./kagen rhg
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -g <power-law exponent>
