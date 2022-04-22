@@ -32,3 +32,5 @@ docs/*
 build
 *.pdf
 logs
+
+.cache/

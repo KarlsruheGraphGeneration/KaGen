@@ -100,7 +100,11 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
 
     // Validation
     if (config.validate_simple_graph) {
-        ValidateSimpleGraph(edges, vertex_range);
+        bool success = ValidateSimpleGraph(edges, vertex_range);
+        MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
+        if (!success) {
+            std::exit(1);
+        }
     }
 
     return {std::move(edges), vertex_range};

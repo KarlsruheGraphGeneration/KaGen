@@ -19,11 +19,29 @@
 using namespace kagen;
 
 void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
+    auto log_cb = [&](SInt& result) {
+        return [&](const SInt value) {
+            result = static_cast<SInt>(1) << value;
+        };
+    };
+
     auto add_option_n = [&](CLI::App* cmd) {
-        return cmd->add_option("-n,--num-nodes", config.n, "Number of nodes");
+        auto* opt_log_n = cmd->add_option_function<SInt>("-N,--log-nodes", log_cb(config.n), "Logarithm value");
+        auto* opt_n     = cmd->add_option("-n,--num-nodes", config.n, "Exact value");
+        auto* group     = cmd->add_option_group("Number of nodes");
+        group->add_options(opt_log_n, opt_n);
+        group->require_option(1);
+        group->silent();
+        return group;
     };
     auto add_option_m = [&](CLI::App* cmd) {
-        return cmd->add_option("-m,--num-edges", config.m, "Number of edges");
+        auto* opt_log_m = cmd->add_option_function<SInt>("-M,--log-edges", log_cb(config.m), "Logarithm value");
+        auto* opt_m     = cmd->add_option("-m,--num-edges", config.m, "Exact value");
+        auto* group     = cmd->add_option_group("Number of edges");
+        group->add_options(opt_log_m, opt_m);
+        group->require_option(1);
+        group->silent();
+        return group;
     };
     auto add_option_p = [&](CLI::App* cmd) {
         return cmd->add_option("-p,--prob", config.p, "Edge probability");
@@ -35,13 +53,31 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         return cmd->add_option("-r,--radius", config.r, "Edge radius");
     };
     auto add_option_x = [&](CLI::App* cmd) {
-        return cmd->add_option("-x,--grid-x", config.grid_x, "Grid x dimension");
+        auto* opt_log_x = cmd->add_option_function<SInt>("-X,--grid-log-x", log_cb(config.grid_x), "Logarithm value");
+        auto* opt_x     = cmd->add_option("-x,--grid-x", config.grid_x, "Exact value");
+        auto* group     = cmd->add_option_group("Grid x dimension");
+        group->add_options(opt_log_x, opt_x);
+        group->require_option(1);
+        group->silent();
+        return group;
     };
     auto add_option_y = [&](CLI::App* cmd) {
-        return cmd->add_option("-y,--grid-y", config.grid_y, "Grid y dimension");
+        auto* opt_log_y = cmd->add_option_function<SInt>("-Y,--grid-log-y", log_cb(config.grid_y), "Logarithm value");
+        auto* opt_y     = cmd->add_option("-y,--grid-y", config.grid_y, "Exact value");
+        auto* group     = cmd->add_option_group("Grid y dimension");
+        group->add_options(opt_log_y, opt_y);
+        group->require_option(1);
+        group->silent();
+        return group;
     };
     auto add_option_z = [&](CLI::App* cmd) {
-        return cmd->add_option("-z,--grid-z", config.grid_z, "Gird z dimension");
+        auto* opt_log_z = cmd->add_option_function<SInt>("-Z,--grid-log-z", log_cb(config.grid_z), "Logarithm value");
+        auto* opt_z     = cmd->add_option("-z,--grid-z", config.grid_z, "Exact value");
+        auto* group     = cmd->add_option_group("Grid z dimension");
+        group->add_options(opt_log_z, opt_z);
+        group->require_option(1);
+        group->silent();
+        return group;
     };
     auto add_option_min_deg = [&](CLI::App* cmd) {
         return cmd->add_option("-d,--min-deg", config.min_degree, "Minimal vertex degree");
