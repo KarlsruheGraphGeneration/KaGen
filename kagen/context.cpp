@@ -63,8 +63,10 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"gnp-undirected", GeneratorType::GNP_UNDIRECTED},
         {"rgg2d", GeneratorType::RGG_2D},
         {"rgg3d", GeneratorType::RGG_3D},
+#ifdef KAGEN_CGAL_FOUND
         {"rdg2d", GeneratorType::RDG_2D},
         {"rdg3d", GeneratorType::RDG_3D},
+#endif // KAGEN_CGAL_FOUND
         {"grid2d", GeneratorType::GRID_2D},
         {"grid3d", GeneratorType::GRID_3D},
         {"ba", GeneratorType::BA},
@@ -93,11 +95,13 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
         case GeneratorType::RGG_3D:
             return out << "rgg3d";
 
+#ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
             return out << "rdg2d";
 
         case GeneratorType::RDG_3D:
             return out << "rdg3d";
+#endif // KAGEN_CGAL_FOUND
 
         case GeneratorType::GRID_2D:
             return out << "grid2d";
@@ -171,9 +175,11 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             out << "  Edge radius:                        " << config.r << "\n";
             break;
 
+#ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
         case GeneratorType::RDG_3D:
             break;
+#endif // KAGEN_CGAL_FOUND
 
         case GeneratorType::GRID_3D:
             out << "  Grid z:                             " << config.grid_z << "\n";

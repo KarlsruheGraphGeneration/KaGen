@@ -44,8 +44,10 @@ enum class GeneratorType {
     GNP_UNDIRECTED,
     RGG_2D,
     RGG_3D,
+#ifdef KAGEN_CGAL_FOUND
     RDG_2D,
     RDG_3D,
+#endif // KAGEN_CGAL_FOUND
     GRID_2D,
     GRID_3D,
     BA,
