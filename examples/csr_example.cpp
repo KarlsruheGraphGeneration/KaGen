@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
         }
         std::cout << out.str() << std::endl;
     }
+    delete[] vtxdist;
 
     // Get CSR format
     int* xadj;
@@ -52,6 +53,8 @@ int main(int argc, char* argv[]) {
         }
         std::cout << out.str() << std::endl;
     }
+    delete[] xadj;
+    delete[] adjncy;
 
     MPI_Finalize();
 }
