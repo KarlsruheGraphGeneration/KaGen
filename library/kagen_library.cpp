@@ -6,6 +6,8 @@
 #include "kagen/facade.h"
 
 namespace kagen {
+namespace {}
+
 KaGen::KaGen(MPI_Comm comm) : comm_(comm), config_(std::make_unique<PGeneratorConfig>()) {
     SetDefaults();
 }
