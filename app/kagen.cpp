@@ -13,9 +13,9 @@
 #include "kagen/context.h"
 #include "kagen/facade.h"
 #include "kagen/io/io.h"
+#include "kagen/tools/statistics.h"
 
 #include "CLI11.h"
-#include "kagen/tools/statistics.h"
 
 using namespace kagen;
 
