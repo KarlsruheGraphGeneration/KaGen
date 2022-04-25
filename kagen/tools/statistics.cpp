@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <unordered_set>
 
 #include <mpi.h>
 
@@ -161,6 +162,37 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
     return global_bins;
 }
 
+double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_range) {
+    const SInt num_local_cut_edges = std::count_if(edges.begin(), edges.end(), [&vertex_range](const auto& edge) {
+        return std::get<0>(edge) < vertex_range.first || std::get<1>(edge) >= vertex_range.second;
+    });
+    const SInt num_local_edges     = edges.size();
+
+    SInt num_global_cut_edges;
+    SInt num_global_edges;
+
+    MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+
+    return 1.0 * num_global_cut_edges / num_global_edges;
+}
+
+SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_range) {
+    std::unordered_set<SInt> ghost_nodes;
+
+    for (const auto& [from, to]: edges) {
+        if (to < vertex_range.first || to >= vertex_range.second) {
+            ghost_nodes.insert(to);
+        }
+    }
+
+    const SInt num_local_ghost_nodes = ghost_nodes.size();
+    SInt       num_global_ghost_nodes;
+    MPI_Reduce(
+        &num_local_ghost_nodes, &num_global_ghost_nodes, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    return num_global_ghost_nodes;
+}
+
 void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
     // Compute statistics
     const auto local_num_nodes  = vertex_range.second - vertex_range.first;
@@ -208,7 +240,7 @@ void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, co
         std::sort(edges.begin(), edges.end());
     }
 
-    // Compute more statistics
+    // Compute degree statistics
     const auto local_num_nodes  = vertex_range.second - vertex_range.first;
     const auto global_num_nodes = ReduceSum(local_num_nodes);
     const auto local_num_edges  = edges.size();
@@ -217,6 +249,11 @@ void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, co
     const double density = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
     const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes);
     const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range);
+
+    // Compute locality statistics
+    const double edge_locality          = ComputeEdgeLocalicty(edges, vertex_range);
+    const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range);
+    const double ghost_node_fraction    = 1.0 * global_num_ghost_nodes / (global_num_nodes + global_num_ghost_nodes);
 
     // Print on root
     if (root) {
@@ -242,6 +279,12 @@ void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, co
             std::cout << "  Degree in [" << std::setw(digits10) << from << ", " << std::setw(digits10) << to
                       << "): " << degree_bins[i] << "\n";
         }
+
+        // Print locality statistics
+        std::cout << "Edge locality: " << std::fixed << std::setprecision(4) << edge_locality << std::endl;
+        std::cout << "Fraction of ghost nodes: " << std::fixed << std::setprecision(4) << ghost_node_fraction
+                  << std::endl;
+	std::cout << "  There are " << global_num_nodes << " real vertices and " << global_num_ghost_nodes << " ghost vertices" << std::endl;
     }
 }
 } // namespace kagen
