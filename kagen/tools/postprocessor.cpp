@@ -21,14 +21,14 @@ inline PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SIn
     return -1;
 }
 
-std::vector<VertexRange> AllgatherVertexRange(VertexRange vertex_range) {
+std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
     std::vector<VertexRange> ranges(static_cast<std::size_t>(size));
     ranges[static_cast<std::size_t>(rank)] = vertex_range;
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, MPI_COMM_WORLD);
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, comm);
 
     return ranges;
 }
@@ -38,12 +38,12 @@ void SortEdges(EdgeList& edge_list) {
     std::sort(edge_list.begin(), edge_list.end());
 }
 
-void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range) {
+void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    const auto ranges = AllgatherVertexRange(vertex_range);
+    const auto ranges = AllgatherVertexRange(vertex_range, comm);
 
     const SInt edge_list_size_before = edge_list.size();
 
@@ -71,7 +71,7 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range) {
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
     const std::size_t total_send_count = send_displs.back() + send_counts.back();
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
     const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
     send_buf.reserve(total_send_count);
@@ -85,7 +85,7 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range) {
     recv_buf.resize(total_recv_count);
     MPI_Alltoallv(
         send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
-        recv_displs.data(), MPI_UINT64_T, MPI_COMM_WORLD);
+        recv_displs.data(), MPI_UINT64_T, comm);
     send_buf.clear();
     send_buf.resize(0);
     for (std::size_t i = 0; i < recv_buf.size(); i += 2) {
@@ -104,20 +104,17 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range) {
 
     // Generate some statistics
     SInt edge_list_global_size_before = 0;
-    MPI_Reduce(
-        &edge_list_size_before, &edge_list_global_size_before, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT,
-        MPI_COMM_WORLD);
+    MPI_Reduce(&edge_list_size_before, &edge_list_global_size_before, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     SInt edge_list_global_size_after = 0;
-    MPI_Reduce(
-        &edge_list_size_after, &edge_list_global_size_after, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&edge_list_size_after, &edge_list_global_size_after, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 }
 
-void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange vertex_range) {
+void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    const auto ranges = AllgatherVertexRange(vertex_range);
+    const auto ranges = AllgatherVertexRange(vertex_range, comm);
     const auto from   = ranges[rank].first;
     const auto to     = ranges[rank].second;
 
@@ -157,7 +154,7 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
     const SInt total_send_count = send_displs.back() + send_counts.back();
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
     const SInt total_recv_count = recv_displs.back() + recv_counts.back();
 
@@ -174,7 +171,7 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
 
     MPI_Alltoallv(
         send_buf.data(), send_counts.data(), send_displs.data(), MPI_UNSIGNED_LONG_LONG, recv_buf.data(),
-        recv_counts.data(), recv_displs.data(), MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+        recv_counts.data(), recv_displs.data(), MPI_UNSIGNED_LONG_LONG, comm);
     { [[maybe_unused]] auto _clear = std::move(send_buf); }
 
     for (std::size_t i = 0; i < recv_buf.size(); i += 2) {

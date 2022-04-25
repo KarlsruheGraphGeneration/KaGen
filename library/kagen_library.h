@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include <mpi.h>
+
 namespace kagen {
 struct PGeneratorConfig;
 
@@ -36,7 +38,7 @@ struct KaGenResult {
 
 class KaGen {
 public:
-    KaGen(PEID rank, PEID size);
+    KaGen(MPI_Comm comm);
     ~KaGen();
 
     void SetSeed(int seed);
@@ -78,7 +80,7 @@ public:
 private:
     void SetDefaults();
 
-    PEID                              rank_, size_;
+    MPI_Comm                          comm_;
     std::unique_ptr<PGeneratorConfig> config_;
 };
 } // namespace kagen

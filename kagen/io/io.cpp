@@ -14,7 +14,7 @@ void CreateFile(const std::string& filename) {
 }
 } // namespace
 
-void WriteGraph(const PGeneratorConfig& config, EdgeList& edges, const VertexRange vertex_range) {
+void WriteGraph(const PGeneratorConfig& config, EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
     switch (config.output_format) {
         case OutputFormat::NONE:
             // do nothing
@@ -23,21 +23,21 @@ void WriteGraph(const PGeneratorConfig& config, EdgeList& edges, const VertexRan
         case OutputFormat::EDGE_LIST:
             WriteEdgeList(
                 config.output_file, config.output_header == OutputHeader::NEVER, config.output_single_file, edges,
-                vertex_range);
+                vertex_range, comm);
             break;
 
         case OutputFormat::BINARY_EDGE_LIST:
             WriteBinaryEdgeList(
                 config.output_file, config.output_header == OutputHeader::NEVER, config.output_single_file, edges,
-                vertex_range);
+                vertex_range, comm);
             break;
 
         case OutputFormat::METIS:
-            WriteMetis(config.output_file, edges, vertex_range);
+            WriteMetis(config.output_file, edges, vertex_range, comm);
             break;
 
         case OutputFormat::HMETIS:
-            WriteHMetis(config.output_file, edges, vertex_range);
+            WriteHMetis(config.output_file, edges, vertex_range, comm);
             break;
     }
 }
@@ -61,13 +61,13 @@ void AppendEdgeListHeader(const std::string& filename, const SInt number_of_node
 
 void WriteEdgeList(
     const std::string& filename, const bool omit_header, const bool single_file, const EdgeList& edges,
-    const VertexRange vertex_range) {
+    const VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
-    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges) : edges.size();
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range, comm);
+    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges, comm) : edges.size();
 
     if (single_file) {
         if (rank == ROOT) {
@@ -81,7 +81,7 @@ void WriteEdgeList(
             if (pe == rank) {
                 AppendEdgeList(filename, edges);
             }
-            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(comm);
         }
     } else {
         const std::string my_filename = filename + "_" + std::to_string(rank);
@@ -116,13 +116,13 @@ void AppendBinaryEdgeListHeader(const std::string& filename, const SInt number_o
 
 void WriteBinaryEdgeList(
     const std::string& filename, const bool omit_header, const bool single_file, const EdgeList& edges,
-    const VertexRange vertex_range) {
+    const VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
-    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges) : edges.size();
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range, comm);
+    const SInt number_of_edges = single_file ? FindNumberOfGlobalEdges(edges, comm) : edges.size();
 
     if (single_file) {
         if (rank == ROOT) {
@@ -136,7 +136,7 @@ void WriteBinaryEdgeList(
             if (pe == rank) {
                 AppendBinaryEdgeList(filename, edges);
             }
-            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(comm);
         }
     } else {
         const std::string my_filename = filename + "_" + std::to_string(rank);
@@ -151,17 +151,17 @@ void WriteBinaryEdgeList(
 //
 // Metis
 //
-void WriteMetis(const std::string& filename, EdgeList& edges, const VertexRange vertex_range) {
+void WriteMetis(const std::string& filename, EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
     if (!std::is_sorted(edges.begin(), edges.end())) {
         std::sort(edges.begin(), edges.end());
     }
 
-    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
-    const SInt number_of_edges = FindNumberOfGlobalEdges(edges);
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range, comm);
+    const SInt number_of_edges = FindNumberOfGlobalEdges(edges, comm);
 
     if (rank == ROOT) {
         BufferedTextOutput<> out(tag::create, filename);
@@ -184,20 +184,20 @@ void WriteMetis(const std::string& filename, EdgeList& edges, const VertexRange 
             }
         }
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
     }
 }
 
 //
 // hMetis hypergraph
 //
-void WriteHMetis(const std::string& filename, EdgeList& edges, VertexRange vertex_range) {
+void WriteHMetis(const std::string& filename, EdgeList& edges, VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range);
-    const SInt number_of_edges = FindNumberOfGlobalEdges(edges);
+    const SInt number_of_nodes = FindNumberOfGlobalNodes(vertex_range, comm);
+    const SInt number_of_edges = FindNumberOfGlobalEdges(edges, comm);
 
     if (rank == ROOT) {
         BufferedTextOutput<> out(tag::create, filename);
@@ -213,7 +213,7 @@ void WriteHMetis(const std::string& filename, EdgeList& edges, VertexRange verte
             }
         }
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
     }
 }
 } // namespace kagen

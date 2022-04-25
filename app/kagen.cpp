@@ -256,13 +256,13 @@ int main(int argc, char* argv[]) {
     if (output) {
         std::cout << "Generating graph ..." << std::endl;
     }
-    auto [edges, vertex_range] = Generate(config);
+    auto [edges, vertex_range] = Generate(config, MPI_COMM_WORLD);
 
     // Output graph
     if (output) {
         std::cout << "Writing graph ..." << std::endl;
     }
-    WriteGraph(config, edges, vertex_range);
+    WriteGraph(config, edges, vertex_range, MPI_COMM_WORLD);
 
     MPI_Finalize();
     return 0;

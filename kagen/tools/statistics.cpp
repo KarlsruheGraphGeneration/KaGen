@@ -12,69 +12,69 @@
 
 namespace kagen {
 // First invalid node on the last PE is the number of nodes in the graph
-SInt FindNumberOfGlobalNodes(const VertexRange vertex_range) {
+SInt FindNumberOfGlobalNodes(const VertexRange vertex_range, MPI_Comm comm) {
     PEID size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(comm, &size);
 
     SInt first_invalid_node = vertex_range.second;
-    MPI_Bcast(&first_invalid_node, 1, MPI_UNSIGNED_LONG_LONG, size - 1, MPI_COMM_WORLD);
+    MPI_Bcast(&first_invalid_node, 1, MPI_UNSIGNED_LONG_LONG, size - 1, comm);
 
     return first_invalid_node;
 }
 
 // Length of all edge lists is the number of edges in the graph
-SInt FindNumberOfGlobalEdges(const EdgeList& edges) {
+SInt FindNumberOfGlobalEdges(const EdgeList& edges, MPI_Comm comm) {
     SInt local_num_edges = edges.size();
     SInt global_num_edges;
-    MPI_Allreduce(&local_num_edges, &global_num_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&local_num_edges, &global_num_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
     return global_num_edges;
 }
 
 namespace {
-std::vector<SInt> GatherValue(const SInt value) {
+std::vector<SInt> GatherValue(const SInt value, MPI_Comm comm) {
     PEID size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(comm, &size);
     std::vector<SInt> values(size);
-    MPI_Allgather(&value, 1, MPI_UNSIGNED_LONG_LONG, values.data(), 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+    MPI_Allgather(&value, 1, MPI_UNSIGNED_LONG_LONG, values.data(), 1, MPI_UNSIGNED_LONG_LONG, comm);
     return values;
 }
 } // namespace
 
-std::vector<SInt> GatherNumberOfEdges(const EdgeList& edges) {
-    return GatherValue(edges.size());
+std::vector<SInt> GatherNumberOfEdges(const EdgeList& edges, MPI_Comm comm) {
+    return GatherValue(edges.size(), comm);
 }
 
-SInt ReduceSum(const SInt value) {
+SInt ReduceSum(const SInt value, MPI_Comm comm) {
     SInt sum;
-    MPI_Reduce(&value, &sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&value, &sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     return sum;
 }
 
-SInt ReduceMin(const SInt value) {
+SInt ReduceMin(const SInt value, MPI_Comm comm) {
     SInt min;
-    MPI_Reduce(&value, &min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&value, &min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, comm);
     return min;
 }
 
-LPFloat ReduceMean(const SInt value) {
+LPFloat ReduceMean(const SInt value, MPI_Comm comm) {
     SInt sum;
-    MPI_Reduce(&value, &sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&value, &sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 
     PEID size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(comm, &size);
 
     return 1.0 * sum / size;
 }
 
-SInt ReduceMax(const SInt value) {
+SInt ReduceMax(const SInt value, MPI_Comm comm) {
     SInt max;
-    MPI_Reduce(&value, &max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&value, &max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, comm);
     return max;
 }
 
-LPFloat ReduceSD(const SInt value) {
-    const auto values = GatherValue(value);
-    const auto mean   = ReduceMean(value);
+LPFloat ReduceSD(const SInt value, MPI_Comm comm) {
+    const auto values = GatherValue(value, comm);
+    const auto mean   = ReduceMean(value, comm);
 
     LPFloat sd_sum = 0.0;
     for (const auto& e: values) {
@@ -87,7 +87,7 @@ LPFloat ReduceSD(const SInt value) {
     return 0.0; // non-root
 }
 
-DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global_num_nodes) {
+DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global_num_nodes, MPI_Comm comm) {
     assert(std::is_sorted(edges.begin(), edges.end()));
 
     SInt min = std::numeric_limits<SInt>::max();
@@ -118,17 +118,17 @@ DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global
     update(cur_degree);
 
     SInt global_min, global_sum, global_max;
-    MPI_Reduce(&min, &global_min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, MPI_COMM_WORLD);
-    MPI_Reduce(&sum, &global_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
-    MPI_Reduce(&max, &global_max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&min, &global_min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, comm);
+    MPI_Reduce(&sum, &global_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
+    MPI_Reduce(&max, &global_max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, comm);
 
     PEID size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(comm, &size);
 
     return {global_min, 1.0 * global_sum / global_num_nodes, global_max};
 }
 
-std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange vertex_range) {
+std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
     assert(std::is_sorted(edges.begin(), edges.end()));
 
     std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
@@ -157,12 +157,12 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
     }
 
     std::vector<SInt> global_bins(bins.size());
-    MPI_Reduce(bins.data(), global_bins.data(), bins.size(), MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(bins.data(), global_bins.data(), bins.size(), MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 
     return global_bins;
 }
 
-double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_range) {
+double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
     const SInt num_local_cut_edges = std::count_if(edges.begin(), edges.end(), [&vertex_range](const auto& edge) {
         return std::get<0>(edge) < vertex_range.first || std::get<1>(edge) >= vertex_range.second;
     });
@@ -171,13 +171,13 @@ double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_rang
     SInt num_global_cut_edges;
     SInt num_global_edges;
 
-    MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
-    MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
+    MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 
     return 1.0 * num_global_cut_edges / num_global_edges;
 }
 
-SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_range) {
+SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
     std::unordered_set<SInt> ghost_nodes;
 
     for (const auto& [from, to]: edges) {
@@ -189,25 +189,25 @@ SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_r
     const SInt num_local_ghost_nodes = ghost_nodes.size();
     SInt       num_global_ghost_nodes;
     MPI_Reduce(
-        &num_local_ghost_nodes, &num_global_ghost_nodes, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
+        &num_local_ghost_nodes, &num_global_ghost_nodes, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     return num_global_ghost_nodes;
 }
 
-void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
+void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
     // Compute statistics
     const auto local_num_nodes  = vertex_range.second - vertex_range.first;
-    const auto global_num_nodes = ReduceSum(local_num_nodes);
-    const auto local_min_nodes  = ReduceMin(local_num_nodes);
-    const auto local_mean_nodes = ReduceMean(local_num_nodes);
-    const auto local_max_nodes  = ReduceMax(local_num_nodes);
-    const auto local_sd_nodes   = ReduceSD(local_num_nodes);
+    const auto global_num_nodes = ReduceSum(local_num_nodes, comm);
+    const auto local_min_nodes  = ReduceMin(local_num_nodes, comm);
+    const auto local_mean_nodes = ReduceMean(local_num_nodes, comm);
+    const auto local_max_nodes  = ReduceMax(local_num_nodes, comm);
+    const auto local_sd_nodes   = ReduceSD(local_num_nodes, comm);
 
     const auto local_num_edges  = edges.size();
-    const auto global_num_edges = ReduceSum(local_num_edges);
-    const auto local_min_edges  = ReduceMin(local_num_edges);
-    const auto local_mean_edges = ReduceMean(local_num_edges);
-    const auto local_max_edges  = ReduceMax(local_num_edges);
-    const auto local_sd_edges   = ReduceSD(local_num_edges);
+    const auto global_num_edges = ReduceSum(local_num_edges, comm);
+    const auto local_min_edges  = ReduceMin(local_num_edges, comm);
+    const auto local_mean_edges = ReduceMean(local_num_edges, comm);
+    const auto local_max_edges  = ReduceMax(local_num_edges, comm);
+    const auto local_sd_edges   = ReduceSD(local_num_edges, comm);
 
     const double edge_imbalance = 1.0 * local_max_edges / local_mean_edges;
 
@@ -234,7 +234,7 @@ void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range,
     }
 }
 
-void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, const bool root) {
+void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
     // Sort edges for degree computation
     if (!std::is_sorted(edges.begin(), edges.end())) {
         std::sort(edges.begin(), edges.end());
@@ -242,17 +242,17 @@ void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, co
 
     // Compute degree statistics
     const auto local_num_nodes  = vertex_range.second - vertex_range.first;
-    const auto global_num_nodes = ReduceSum(local_num_nodes);
+    const auto global_num_nodes = ReduceSum(local_num_nodes, comm);
     const auto local_num_edges  = edges.size();
-    const auto global_num_edges = ReduceSum(local_num_edges);
+    const auto global_num_edges = ReduceSum(local_num_edges, comm);
 
     const double density = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
-    const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes);
-    const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range);
+    const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes, comm);
+    const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range, comm);
 
     // Compute locality statistics
-    const double edge_locality          = ComputeEdgeLocalicty(edges, vertex_range);
-    const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range);
+    const double edge_locality          = ComputeEdgeLocalicty(edges, vertex_range, comm);
+    const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range, comm);
     const double ghost_node_fraction    = 1.0 * global_num_ghost_nodes / (global_num_nodes + global_num_ghost_nodes);
 
     // Print on root

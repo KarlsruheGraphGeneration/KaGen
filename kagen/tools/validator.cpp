@@ -20,28 +20,28 @@ PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SInt>>& ra
     return -1;
 }
 
-std::vector<VertexRange> AllgatherVertexRange(VertexRange vertex_range) {
+std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
     std::vector<VertexRange> ranges(static_cast<std::size_t>(size));
     ranges[static_cast<std::size_t>(rank)] = vertex_range;
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, MPI_COMM_WORLD);
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, comm);
 
     return ranges;
 }
 } // namespace
 
-bool ValidateVertexRanges(const EdgeList& edge_list, VertexRange vertex_range, const bool expect_consecutive) {
+bool ValidateVertexRanges(const EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    const auto ranges = AllgatherVertexRange(vertex_range);
+    const auto ranges = AllgatherVertexRange(vertex_range, comm);
 
     if (static_cast<std::size_t>(size) != ranges.size()) {
-        std::cerr << "Number of vertex ranges (" << ranges.size() << ") differs from the size of the MPI_COMM_WORLD ("
+        std::cerr << "Number of vertex ranges (" << ranges.size() << ") differs from the size of the communicator ("
                   << size << ")\n";
     }
 
@@ -53,20 +53,17 @@ bool ValidateVertexRanges(const EdgeList& edge_list, VertexRange vertex_range, c
         }
     }
 
-    if (expect_consecutive) {
-        if (ranges.front().first != 0) {
-            std::cerr << "Expected consecutive vertex ranges, but nodes on PE 0 do not start at 0, but "
-                      << ranges.front().first << "\n";
-            return false;
-        }
+    if (ranges.front().first != 0) {
+        std::cerr << "Expected consecutive vertex ranges, but nodes on PE 0 do not start at 0, but "
+                  << ranges.front().first << "\n";
+        return false;
+    }
 
-        for (std::size_t i = 1; i < ranges.size(); ++i) {
-            if (ranges[i].first != ranges[i - 1].second) {
-                std::cerr << "Expected consecutive vertex ranges, but end of PE " << i - 1 << " ("
-                          << ranges[i - 1].second << ") differs from start of PE " << i << " (" << ranges[i].first
-                          << ")\n";
-                return false;
-            }
+    for (std::size_t i = 1; i < ranges.size(); ++i) {
+        if (ranges[i].first != ranges[i - 1].second) {
+            std::cerr << "Expected consecutive vertex ranges, but end of PE " << i - 1 << " (" << ranges[i - 1].second
+                      << ") differs from start of PE " << i << " (" << ranges[i].first << ")\n";
+            return false;
         }
     }
 
@@ -89,13 +86,13 @@ bool ValidateVertexRanges(const EdgeList& edge_list, VertexRange vertex_range, c
     return true;
 }
 
-bool ValidateSimpleGraph(EdgeList& edge_list, VertexRange vertex_range) {
+bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     // Validate vertex ranges first
-    if (!ValidateVertexRanges(edge_list, vertex_range, true)) {
+    if (!ValidateVertexRanges(edge_list, vertex_range, comm)) {
         return false; // failed, following checks could crash if vertex ranges are broken
     }
 
-    const auto ranges = AllgatherVertexRange(vertex_range);
+    const auto ranges = AllgatherVertexRange(vertex_range, comm);
 
     // Sort edges to allow binary search to find reverse edges
     if (!std::is_sorted(edge_list.begin(), edge_list.end())) {
@@ -125,7 +122,7 @@ bool ValidateSimpleGraph(EdgeList& edge_list, VertexRange vertex_range) {
 
     // Precompute offset for each node
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(comm, &rank);
     const auto [from, to] = ranges[rank];
 
     std::vector<SInt> node_offset(to - from + 1);
@@ -148,7 +145,7 @@ bool ValidateSimpleGraph(EdgeList& edge_list, VertexRange vertex_range) {
 
     // Check that there are reverse edges for edges across PEs
     int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(comm, &size);
 
     std::vector<std::vector<SInt>> message_buffers(size);
     for (const auto& [u, v]: edge_list) {
@@ -171,7 +168,7 @@ bool ValidateSimpleGraph(EdgeList& edge_list, VertexRange vertex_range) {
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
     const std::size_t total_send_count = send_displs.back() + send_counts.back();
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
     const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
 
@@ -186,7 +183,7 @@ bool ValidateSimpleGraph(EdgeList& edge_list, VertexRange vertex_range) {
     recv_buf.resize(total_recv_count);
     MPI_Alltoallv(
         send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
-        recv_displs.data(), MPI_UINT64_T, MPI_COMM_WORLD);
+        recv_displs.data(), MPI_UINT64_T, comm);
 
     for (std::size_t i = 0; i < recv_buf.size(); i += 2) {
         const SInt u = recv_buf[i];

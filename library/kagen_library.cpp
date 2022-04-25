@@ -6,10 +6,7 @@
 #include "kagen/facade.h"
 
 namespace kagen {
-KaGen::KaGen(const PEID rank, const PEID size)
-    : rank_(rank),
-      size_(size),
-      config_(std::make_unique<PGeneratorConfig>()) {
+KaGen::KaGen(MPI_Comm comm) : comm_(comm), config_(std::make_unique<PGeneratorConfig>()) {
     SetDefaults();
 }
 
@@ -32,7 +29,7 @@ KaGenResult KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const bool se
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool self_loops) {
@@ -40,7 +37,7 @@ KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool 
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -48,7 +45,7 @@ KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -56,34 +53,34 @@ KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bo
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r) {
     config_->generator = GeneratorType::RGG_2D;
     config_->n         = n;
     config_->r         = r;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r) {
     config_->generator = GeneratorType::RGG_3D;
     config_->n         = n;
     config_->r         = r;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 #ifdef KAGEN_CGAL_FOUND
 KaGenResult KaGen::Generate2DRDG(const SInt n) {
     config_->generator = GeneratorType::RDG_2D;
     config_->n         = n;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::Generate3DRDG(const SInt n) {
     config_->generator = GeneratorType::RDG_3D;
     config_->n         = n;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 #else  // KAGEN_CGAL_FOUND
 KaGenResult KaGen::Generate2DRDG(SInt) {
@@ -100,7 +97,7 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d) {
     config_->generator  = GeneratorType::BA;
     config_->n          = n;
     config_->min_degree = d;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d) {
@@ -108,7 +105,7 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d) 
     config_->n          = n;
     config_->plexp      = gamma;
     config_->avg_degree = d;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::Generate2DGrid(const SInt n, const LPFloat p, const bool periodic) {
@@ -122,7 +119,7 @@ KaGenResult KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LP
     config_->grid_y    = grid_y;
     config_->p         = p;
     config_->periodic  = periodic;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 KaGenResult KaGen::Generate3DGrid(const SInt n, const LPFloat p, const bool periodic) {
@@ -138,7 +135,7 @@ KaGen::Generate3DGrid(const SInt grid_x, const SInt grid_y, const SInt grid_z, c
     config_->grid_z    = grid_z;
     config_->p         = p;
     config_->periodic  = periodic;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 // @todo broken generator
@@ -146,7 +143,7 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m) {
     config_->generator = GeneratorType::KRONECKER;
     config_->n         = n;
     config_->m         = m;
-    return Generate(*config_, rank_, size_);
+    return Generate(*config_, comm_);
 }
 
 void KaGen::SetDefaults() {

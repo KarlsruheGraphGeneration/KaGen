@@ -78,13 +78,6 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
     __builtin_unreachable();
 }
 
-std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template) {
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    return Generate(config_template, rank, size);
-}
-
 namespace {
 bool IsPowerOfTwo(const SInt value) {
     return (value & (value - 1)) == 0;
@@ -139,7 +132,11 @@ SInt FindMultipleCube(const SInt value) {
 }
 } // namespace
 
-std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template, const PEID rank, const PEID size) {
+std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
+    PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
     const bool output = rank == ROOT; // && !config_template.quiet; // Always output errors that crash the program
     auto       config = config_template;
 
@@ -202,14 +199,14 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
 
     // Postprocessing
     if (generator->AlmostUndirected()) {
-        AddReverseEdges(edges, vertex_range);
+        AddReverseEdges(edges, vertex_range, comm);
     }
     const auto end_graphgen = MPI_Wtime();
 
     // Validation
     if (config.validate_simple_graph) {
-        bool success = ValidateSimpleGraph(edges, vertex_range);
-        MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
+        bool success = ValidateSimpleGraph(edges, vertex_range, comm);
+        MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
             if (output) {
                 std::cerr << "Simple graph validation failed\n";
@@ -225,10 +222,10 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
                 std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
                           << " seconds" << std::endl;
             }
-            PrintBasicStatistics(edges, vertex_range, rank == ROOT);
+            PrintBasicStatistics(edges, vertex_range, rank == ROOT, comm);
         }
         if (config.statistics_level >= StatisticsLevel::ADVANCED) {
-            PrintAdvancedStatistics(edges, vertex_range, rank == ROOT);
+            PrintAdvancedStatistics(edges, vertex_range, rank == ROOT, comm);
         }
     }
 
