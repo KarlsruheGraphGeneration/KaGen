@@ -26,4 +26,8 @@ struct DegreeStatistics {
 DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, SInt global_num_nodes);
 
 std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, VertexRange vertex_range);
+
+void PrintBasicStatistics(const EdgeList& edges, VertexRange vertex_range, bool root);
+
+void PrintAdvancedStatistics(EdgeList& edges, VertexRange vertex_range, bool root);
 } // namespace kagen

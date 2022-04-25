@@ -1,9 +1,13 @@
 #include "kagen/facade.h"
 
+#include <iomanip>
+#include <iostream>
+
 #include <mpi.h>
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/tools/statistics.h"
 
 // Generators
 #include "kagen/generators/barabassi/barabassi.h"
@@ -192,13 +196,15 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
     }
 
     // Generate graph
-    auto generator             = CreateGenerator(config, rank, size);
+    const auto start_graphgen  = MPI_Wtime();
+    auto       generator       = CreateGenerator(config, rank, size);
     auto [edges, vertex_range] = generator->Generate();
 
     // Postprocessing
     if (generator->AlmostUndirected()) {
         AddReverseEdges(edges, vertex_range);
     }
+    const auto end_graphgen = MPI_Wtime();
 
     // Validation
     if (config.validate_simple_graph) {
@@ -209,6 +215,20 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
                 std::cerr << "Simple graph validation failed\n";
             }
             std::exit(1);
+        }
+    }
+
+    // Statistics
+    if (!config.quiet) {
+        if (config.statistics_level >= StatisticsLevel::BASIC) {
+            if (output) {
+                std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
+                          << " seconds" << std::endl;
+            }
+            PrintBasicStatistics(edges, vertex_range, rank == ROOT);
+        }
+        if (config.statistics_level >= StatisticsLevel::ADVANCED) {
+            PrintAdvancedStatistics(edges, vertex_range, rank == ROOT);
         }
     }
 

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <iomanip>
+#include <iostream>
 #include <limits>
 
 #include <mpi.h>
@@ -157,5 +159,89 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
     MPI_Reduce(bins.data(), global_bins.data(), bins.size(), MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, MPI_COMM_WORLD);
 
     return global_bins;
+}
+
+void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    // Compute statistics
+    const auto local_num_nodes  = vertex_range.second - vertex_range.first;
+    const auto global_num_nodes = ReduceSum(local_num_nodes);
+    const auto local_min_nodes  = ReduceMin(local_num_nodes);
+    const auto local_mean_nodes = ReduceMean(local_num_nodes);
+    const auto local_max_nodes  = ReduceMax(local_num_nodes);
+    const auto local_sd_nodes   = ReduceSD(local_num_nodes);
+
+    const auto local_num_edges  = edges.size();
+    const auto global_num_edges = ReduceSum(local_num_edges);
+    const auto local_min_edges  = ReduceMin(local_num_edges);
+    const auto local_mean_edges = ReduceMean(local_num_edges);
+    const auto local_max_edges  = ReduceMax(local_num_edges);
+    const auto local_sd_edges   = ReduceSD(local_num_edges);
+
+    const double edge_imbalance = 1.0 * local_max_edges / local_mean_edges;
+
+    // Print statistics on root
+    if (root) {
+        const int global_space = std::max<int>(std::log10(global_num_nodes), std::log10(global_num_edges)) + 1;
+        const int local_space  = std::max<int>(std::log10(local_max_nodes), std::log10(local_max_edges)) + 1;
+
+        std::cout << "Number of vertices: " << std::setw(global_space) << global_num_nodes << " ["
+                  << "Min=" << std::setw(local_space) << local_min_nodes << " | "
+                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_nodes
+                  << " | "
+                  << "Max=" << std::setw(local_space) << local_max_nodes << " | "
+                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_nodes
+                  << "]\n";
+        std::cout << "Number of edges:    " << std::setw(global_space) << global_num_edges << " ["
+                  << "Min=" << std::setw(local_space) << local_min_edges << " | "
+                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_edges
+                  << " | "
+                  << "Max=" << std::setw(local_space) << local_max_edges << " | "
+                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_edges
+                  << "]\n";
+        std::cout << "  Edge imbalance: " << std::fixed << std::setprecision(3) << edge_imbalance << std::endl;
+    }
+}
+
+void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, const bool root) {
+    // Sort edges for degree computation
+    if (!std::is_sorted(edges.begin(), edges.end())) {
+        std::sort(edges.begin(), edges.end());
+    }
+
+    // Compute more statistics
+    const auto local_num_nodes  = vertex_range.second - vertex_range.first;
+    const auto global_num_nodes = ReduceSum(local_num_nodes);
+    const auto local_num_edges  = edges.size();
+    const auto global_num_edges = ReduceSum(local_num_edges);
+
+    const double density = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
+    const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes);
+    const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range);
+
+    // Print on root
+    if (root) {
+        std::cout << "Density: " << std::fixed << std::setprecision(4) << density << "\n";
+        std::cout << "Degrees: [Min=" << min_degree << " | Mean=" << std::fixed << std::setprecision(1) << mean_degree
+                  << " | Max=" << max_degree << "]\n";
+
+        // Find last non-empty degree bin
+        SInt last_nonempty_degree_bin = 0;
+        for (SInt i = 0; i < degree_bins.size(); ++i) {
+            if (degree_bins[i] > 0) {
+                last_nonempty_degree_bin = i;
+            }
+        }
+
+        // Print degree bins
+        const SInt digits10 = std::log10(1 << last_nonempty_degree_bin) + 1;
+
+        std::cout << "Degree bins:\n";
+        for (SInt i = 0; i <= last_nonempty_degree_bin; ++i) {
+            const SInt from = (i == 0) ? 0 : 1 << (i - 1);
+            const SInt to   = 2 * from;
+            std::cout << "  Degree in [" << std::setw(digits10) << from << ", " << std::setw(digits10) << to
+                      << "): " << degree_bins[i] << "\n";
+        }
+    }
 }
 } // namespace kagen
