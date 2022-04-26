@@ -46,6 +46,10 @@ public:
 
     void EnableUndirectedGraphVerification();
 
+    void EnableBasicStatistics();
+
+    void EnableAdvancedStatistics();
+
     void SetNumberOfChunks(SInt k);
 
     KaGenResult GenerateDirectedGMM(SInt n, SInt m = 0, bool self_loops = false);

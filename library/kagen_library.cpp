@@ -22,6 +22,16 @@ void KaGen::EnableUndirectedGraphVerification() {
     config_->validate_simple_graph = true;
 }
 
+void KaGen::EnableBasicStatistics() {
+    config_->statistics_level = StatisticsLevel::BASIC;
+    config_->quiet            = false;
+}
+
+void KaGen::EnableAdvancedStatistics() {
+    config_->statistics_level = StatisticsLevel::ADVANCED;
+    config_->quiet            = false;
+}
+
 void KaGen::SetNumberOfChunks(const SInt k) {
     config_->k = k;
 }
