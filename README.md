@@ -43,7 +43,10 @@ In order to compile the generators you need GCC, OpenMPI and [Google Sparsehash]
 If you want to generate random delaunay graphs, you also need CGAL.
 You can install these dependencies via your package manager:
 ```shell
+# Ubuntu, Debian 
 sudo apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libsparsehash-dev 
+
+# Arch
 sudo pacman -S gcc sparsehash openmpi cgal
 ```
 
@@ -70,8 +73,7 @@ For a list of all output options, see `--help`.
 #### As a Library 
 
 To use KaGen as a library, simply add this repository as a Git submodule, 
-include its CMake script using `add_subdirectory(extern/KaGen)` and link 
-against the `KaGen::KaGen` target:
+include it as a CMake subdirectory and link against the `KaGen::KaGen` target:
 
 ```cmake 
 add_subdirectory(external/KaGen)
@@ -85,7 +87,7 @@ Generate a random graph using the Erdos-Renyi model G(n, m).
 The graph can either be directed or undirected and can contain self-loops.
 
 #### Parameters
-```
+```shell
 mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -98,7 +100,7 @@ mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected>
 
 #### Interface
 ```c++
-KaGen gen(proc_rank, proc_size);
+KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops);
 auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, self_loops);
 ```
@@ -110,7 +112,7 @@ Generate a random graph using the Erdos-Renyi model G(n, p).
 The graph can either be directed or undirected and can contain self-loops.
 
 #### Parameters
-```
+```shell
 mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -122,7 +124,7 @@ mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected>
 
 #### Interface
 ```c++
-KaGen gen(proc_rank, proc_size);
+KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops);
 auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP(n, p, self_loops);
 ```
@@ -130,11 +132,12 @@ auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP
 ---
 
 ### Random Geometric Graphs RGG(n, r)
-Generate a random graph using the random geometric graph model RGG(n, r).
-NOTE: The number of processes must be a power of 2. 
+Generate an undirected random graph using the random geometric graph model RGG(n, r).
+
+NOTE: This generator requires the number of PEs to be a number of 2.
 
 #### Parameters
-```
+```shell
 mpirun -n <nproc> ./kagen <rgg2d|rgg3d> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -145,7 +148,7 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
 
 #### Interface
 ```c++
-KaGen gen(proc_rank, proc_size);
+KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRGG(n, r);
 auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRGG(n, r);
 ```
@@ -153,11 +156,12 @@ auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRGG(n, r);
 --- 
 
 ### Random Delaunay Graphs RDG(n)
-Generate a random graph using the random Delaunay graph model RDG(n).
+Generate an undirected random graph using the random Delaunay graph model RDG(n).
+
 NOTE: The graph is generated with periodic boundary conditions to avoid long edges at the border.
 
 #### Parameters
-```
+```shell
 mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -167,9 +171,33 @@ mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
 
 #### Interface
 ```c++
-KaGen gen(proc_rank, proc_size);
+KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n);
 auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
+```
+
+---
+
+### Random Grid Graphs GRID(x, y [, z])
+Generate an undirected random grid graph. 
+
+#### Parameters 
+```shell
+mpirun -n <nproc> ./kagen <grid2d|grid3d>
+  -x <width of grid>
+  [-X <width of grid as a power of two>]
+  -y <height of grid>
+  [-Y <height of grid as a power of two>]
+  -z <depth of grid (grid3d only)>
+  [-Z <depth of grid as a power of two (grid3d only)>]
+  [-S <seed>]
+```
+
+#### Interface 
+```c++
+KaGen gen(MPI_COMM_WORLD);
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateGrid2D(x, y);
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateGrid3D(x, y, z);
 ```
 
 ---
@@ -179,7 +207,7 @@ Generate a random directed graph using the Barabassi-Albert graph model BA(n, d)
 The graph may contain self-loops and multi edges.
 
 #### Parameters
-```
+```shell
 mpirun -n <nproc> ./kagen ba 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -190,17 +218,17 @@ mpirun -n <nproc> ./kagen ba
 
 #### Interface
 ```c++
-KaGen gen(proc_rank, proc_size);
+KaGen gen(MPI_COMM_WORLD);
 auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
 ```
 
 --- 
 
 ### Random Hyperbolic Graphs RHG(n, gamma, d)
-Generate a two dimensional random graph using the random hyperbolic graph model RHG(n, gamma, d).
+Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
 
 #### Parameters
-```
+```shell
 mpirun -n <nproc> ./kagen rhg
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -212,7 +240,7 @@ mpirun -n <nproc> ./kagen rhg
 
 #### Interface
 ```c++
-KaGen gen(proc_rank, proc_size);
+KaGen gen(MPI_COMM_WORLD);
 auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d);
 ```
 
