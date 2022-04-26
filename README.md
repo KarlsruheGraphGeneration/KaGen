@@ -36,7 +36,7 @@ The resulting generators are often embarrassingly parallel and have a near optim
 This allows us to generate instances of up to 2^43 vertices and 2^47 edges in less than 22 minutes on 32768 cores.
 Therefore, our generators allow new graph families to be used on an unprecedented scale.
 
-## Installation
+## Installation and Usage
 
 #### Prerequisites
 In order to compile the generators you need GCC, OpenMPI and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
