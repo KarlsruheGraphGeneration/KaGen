@@ -86,8 +86,8 @@ target_link_libraries(<target> PUBLIC KaGen::KaGen)
 Generate a random graph using the Erdos-Renyi model G(n, m).
 The graph can either be directed or undirected and can contain self-loops.
 
-#### Parameters
-```shell
+#### Application
+```
 mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -98,7 +98,7 @@ mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected>
   [-S <seed>]
 ```
 
-#### Interface
+#### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops);
@@ -111,8 +111,8 @@ auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM
 Generate a random graph using the Erdos-Renyi model G(n, p).
 The graph can either be directed or undirected and can contain self-loops.
 
-#### Parameters
-```shell
+#### Application
+```
 mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -122,7 +122,7 @@ mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected>
   [-S <seed>]
 ```
 
-#### Interface
+#### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops);
@@ -136,8 +136,8 @@ Generate an undirected random graph using the random geometric graph model RGG(n
 
 NOTE: This generator requires the number of PEs to be a number of 2.
 
-#### Parameters
-```shell
+#### Application
+```
 mpirun -n <nproc> ./kagen <rgg2d|rgg3d> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -146,7 +146,7 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
   [-S <seed>]
 ```
 
-#### Interface
+#### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRGG(n, r);
@@ -160,8 +160,8 @@ Generate an undirected random graph using the random Delaunay graph model RDG(n)
 
 NOTE: The graph is generated with periodic boundary conditions to avoid long edges at the border.
 
-#### Parameters
-```shell
+#### Application
+```
 mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -169,7 +169,7 @@ mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
   [-S <seed>]
 ```
 
-#### Interface
+#### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n);
@@ -181,8 +181,8 @@ auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
 ### Random Grid Graphs GRID(x, y [, z])
 Generate an undirected random grid graph. 
 
-#### Parameters 
-```shell
+#### Application 
+```
 mpirun -n <nproc> ./kagen <grid2d|grid3d>
   -x <width of grid>
   [-X <width of grid as a power of two>]
@@ -193,7 +193,7 @@ mpirun -n <nproc> ./kagen <grid2d|grid3d>
   [-S <seed>]
 ```
 
-#### Interface 
+#### Library 
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.GenerateGrid2D(x, y);
@@ -206,8 +206,8 @@ auto [edge_list_3d, vertex_range_3d] = gen.GenerateGrid3D(x, y, z);
 Generate a random directed graph using the Barabassi-Albert graph model BA(n, d).
 The graph may contain self-loops and multi edges.
 
-#### Parameters
-```shell
+#### Application
+```
 mpirun -n <nproc> ./kagen ba 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -216,7 +216,7 @@ mpirun -n <nproc> ./kagen ba
   [-S <seed>]
 ```
 
-#### Interface
+#### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
@@ -227,8 +227,8 @@ auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
 ### Random Hyperbolic Graphs RHG(n, gamma, d)
 Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
 
-#### Parameters
-```shell
+#### Application
+```
 mpirun -n <nproc> ./kagen rhg
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
@@ -238,7 +238,7 @@ mpirun -n <nproc> ./kagen rhg
   [-S <seed>]
 ```
 
-#### Interface
+#### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d);
@@ -246,4 +246,4 @@ auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d);
 
 --- 
 
-**[License](/LICENSE):** 2-clause BSD
+**[License](/LICENSE):** 2-clause BS
