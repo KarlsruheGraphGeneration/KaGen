@@ -12,6 +12,9 @@ KaGen::KaGen(MPI_Comm comm) : comm_(comm), config_(std::make_unique<PGeneratorCo
     SetDefaults();
 }
 
+KaGen::KaGen(KaGen &&) noexcept = default;
+KaGen &KaGen::operator=(KaGen &&) noexcept = default;
+
 KaGen::~KaGen() = default;
 
 void KaGen::SetSeed(const int seed) {

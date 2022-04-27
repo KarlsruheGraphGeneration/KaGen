@@ -41,11 +41,13 @@ class KaGen {
 public:
     KaGen(MPI_Comm comm);
 
-    KaGen(const KaGen&)     = delete;
-    KaGen(KaGen&&) noexcept = default;
+    KaGen(const KaGen&) = delete;
+
+    KaGen(KaGen&&) noexcept;
 
     KaGen& operator=(const KaGen&) = delete;
-    KaGen& operator=(KaGen&&) noexcept = default;
+
+    KaGen& operator=(KaGen&&) noexcept;
 
     ~KaGen();
 
