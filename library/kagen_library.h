@@ -40,6 +40,13 @@ struct KaGenResult {
 class KaGen {
 public:
     KaGen(MPI_Comm comm);
+
+    KaGen(const KaGen&)     = delete;
+    KaGen(KaGen&&) noexcept = default;
+
+    KaGen& operator=(const KaGen&) = delete;
+    KaGen& operator=(KaGen&&) noexcept = default;
+
     ~KaGen();
 
     void SetSeed(int seed);
