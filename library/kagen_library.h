@@ -59,35 +59,35 @@ public:
 
     void SetNumberOfChunks(SInt k);
 
-    KaGenResult GenerateDirectedGMM(SInt n, SInt m = 0, bool self_loops = false);
+    KaGenResult GenerateDirectedGMM(SInt n, SInt m, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNM(SInt n, SInt m = 0, bool self_loops = false);
+    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);
 
-    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p = 0, bool self_loops = false);
+    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p = 0, bool self_loops = false);
+    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, bool self_loops = false);
 
-    KaGenResult Generate2DRGG(SInt n, LPFloat r = 0);
+    KaGenResult GenerateRGG2D(SInt n, LPFloat r);
 
-    KaGenResult Generate3DRGG(SInt n, LPFloat r = 0);
+    KaGenResult GenerateRGG3D(SInt n, LPFloat r);
 
-    KaGenResult Generate2DRDG(SInt n = 0);
+    KaGenResult GenerateRDG2D(SInt n);
 
-    KaGenResult Generate3DRDG(SInt n = 0);
+    KaGenResult GenerateRDG3D(SInt n);
 
-    KaGenResult GenerateBA(SInt n, SInt d = 0);
+    KaGenResult GenerateBA(SInt n, SInt d);
 
-    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d = 0);
+    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d);
 
-    KaGenResult Generate2DGrid(SInt n, LPFloat p, bool periodic = 0);
+    KaGenResult GenerateGrid2D(SInt n, LPFloat p, bool periodic = false);
 
-    KaGenResult Generate2DGrid(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = 0);
+    KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
 
-    KaGenResult Generate3DGrid(SInt n, LPFloat p, bool periodic = 0);
+    KaGenResult GenerateGrid3D(SInt n, LPFloat p, bool periodic = false);
 
-    KaGenResult Generate3DGrid(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = 0);
+    KaGenResult GenerateGrid3D(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
 
-    KaGenResult GenerateKronecker(SInt n, SInt m = 0);
+    KaGenResult GenerateKronecker(SInt n, SInt m);
 
 private:
     void SetDefaults();

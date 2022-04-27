@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Generate 2D RGG graph with 16 nodes and edge radius 0.125
-    auto graph = kagen::KaGen(MPI_COMM_WORLD).Generate2DRGG(16, 0.125);
+    auto graph = kagen::KaGen(MPI_COMM_WORLD).GenerateRGG2D(16, 0.125);
     std::cout << "Vertices on PE " << rank << ": [" << graph.vertex_range.first << ", " << graph.vertex_range.second
               << ")" << std::endl;
 

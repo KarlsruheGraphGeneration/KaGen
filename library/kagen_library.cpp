@@ -68,14 +68,14 @@ KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bo
     return Generate(*config_, comm_);
 }
 
-KaGenResult KaGen::Generate2DRGG(const SInt n, const LPFloat r) {
+KaGenResult KaGen::GenerateRGG2D(const SInt n, const LPFloat r) {
     config_->generator = GeneratorType::RGG_2D;
     config_->n         = n;
     config_->r         = r;
     return Generate(*config_, comm_);
 }
 
-KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r) {
+KaGenResult KaGen::GenerateRGG3D(const SInt n, const LPFloat r) {
     config_->generator = GeneratorType::RGG_3D;
     config_->n         = n;
     config_->r         = r;
@@ -83,23 +83,23 @@ KaGenResult KaGen::Generate3DRGG(const SInt n, const LPFloat r) {
 }
 
 #ifdef KAGEN_CGAL_FOUND
-KaGenResult KaGen::Generate2DRDG(const SInt n) {
+KaGenResult KaGen::GenerateRDG2D(const SInt n) {
     config_->generator = GeneratorType::RDG_2D;
     config_->n         = n;
     return Generate(*config_, comm_);
 }
 
-KaGenResult KaGen::Generate3DRDG(const SInt n) {
+KaGenResult KaGen::GenerateRDG3D(const SInt n) {
     config_->generator = GeneratorType::RDG_3D;
     config_->n         = n;
     return Generate(*config_, comm_);
 }
 #else  // KAGEN_CGAL_FOUND
-KaGenResult KaGen::Generate2DRDG(SInt) {
+KaGenResult KaGen::GenerateRDG2D(SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
-KaGenResult KaGen::Generate3DRDG(SInt) {
+KaGenResult KaGen::GenerateRDG3D(SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 #endif // KAGEN_CGAL_FOUND
@@ -120,12 +120,12 @@ KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d) 
     return Generate(*config_, comm_);
 }
 
-KaGenResult KaGen::Generate2DGrid(const SInt n, const LPFloat p, const bool periodic) {
+KaGenResult KaGen::GenerateGrid2D(const SInt n, const LPFloat p, const bool periodic) {
     const SInt sqrt_n = std::sqrt(n);
-    return Generate2DGrid(sqrt_n, sqrt_n, p, periodic);
+    return GenerateGrid2D(sqrt_n, sqrt_n, p, periodic);
 }
 
-KaGenResult KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic) {
+KaGenResult KaGen::GenerateGrid2D(const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic) {
     config_->generator = GeneratorType::GRID_2D;
     config_->grid_x    = grid_x;
     config_->grid_y    = grid_y;
@@ -134,13 +134,13 @@ KaGenResult KaGen::Generate2DGrid(const SInt grid_x, const SInt grid_y, const LP
     return Generate(*config_, comm_);
 }
 
-KaGenResult KaGen::Generate3DGrid(const SInt n, const LPFloat p, const bool periodic) {
+KaGenResult KaGen::GenerateGrid3D(const SInt n, const LPFloat p, const bool periodic) {
     const SInt cbrt_n = std::cbrt(n);
-    return Generate3DGrid(cbrt_n, cbrt_n, cbrt_n, p, periodic);
+    return GenerateGrid3D(cbrt_n, cbrt_n, cbrt_n, p, periodic);
 }
 
 KaGenResult
-KaGen::Generate3DGrid(const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic) {
+KaGen::GenerateGrid3D(const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic) {
     config_->generator = GeneratorType::GRID_3D;
     config_->grid_x    = grid_x;
     config_->grid_y    = grid_y;

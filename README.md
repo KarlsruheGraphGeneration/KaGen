@@ -149,8 +149,8 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRGG(n, r);
-auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRGG(n, r);
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2D(n, r);
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3D(n, r);
 ```
 
 --- 
@@ -172,8 +172,8 @@ mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_2d, vertex_range_2d] = gen.Generate2DRDG(n);
-auto [edge_list_3d, vertex_range_3d] = gen.Generate3DRDG(n);
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateRDG2D(n);
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateRDG3D(n);
 ```
 
 ---
