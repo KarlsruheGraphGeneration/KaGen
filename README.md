@@ -81,7 +81,7 @@ make kagen kagen_library -j
 
 After building KaGen, the standalone application is located at `build/app/kagen`. 
 A list of all command line options is available using the `./kagen --help` option. 
-To view options of a specific graph generate, use:
+To view the options of a specific graph generator, use:
 
 ```shell 
 ./kagen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker> --help
@@ -99,8 +99,8 @@ To write one file `out_<PEID>` per PE, use `--single-file=false`.
 
 ## Using the KaGen Library
 
-The KaGen library is located as `build/library/libkagen_library.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared-library instead).
-Alternatively, you can use KaGen by adding this repository as a Git submodule to your project and include it in your CMake configuration:
+The KaGen library is located at `build/library/libkagen_library.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead).
+Alternatively, you can use KaGen by adding this repository as a Git submodule to your project and including it in your CMake configuration:
 
 ```cmake 
 add_subdirectory(external/KaGen)
