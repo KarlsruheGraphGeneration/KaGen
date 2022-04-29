@@ -1,5 +1,6 @@
 #include "kagen/facade.h"
 
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 
@@ -198,10 +199,12 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
     auto [edges, vertex_range] = generator->Generate();
 
     // Postprocessing
+    const SInt num_edges_before_postprocessing = edges.size();
     if (generator->AlmostUndirected()) {
         AddReverseEdges(edges, vertex_range, comm);
     }
-    const auto end_graphgen = MPI_Wtime();
+    const SInt num_edges_after_postprocessing = edges.size();
+    const auto end_graphgen                   = MPI_Wtime();
 
     // Validation
     if (config.validate_simple_graph) {
@@ -218,10 +221,31 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
     // Statistics
     if (!config.quiet) {
         if (config.statistics_level >= StatisticsLevel::BASIC) {
+            // Running time
             if (output) {
                 std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
                           << " seconds" << std::endl;
             }
+
+            // Postprocessing
+            if (generator->AlmostUndirected()) {
+                SInt num_global_edges_before, num_global_edges_after;
+                MPI_Reduce(
+                    &num_edges_before_postprocessing, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+                MPI_Reduce(
+                    &num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+
+                if (output) {
+                    std::cout << "Postprocessing:" << std::endl;
+                    std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
+                              << num_global_edges_after << " edges: by "
+                              << static_cast<SSInt>(num_edges_after_postprocessing)
+                                     - static_cast<SSInt>(num_edges_before_postprocessing)
+                              << std::endl;
+                }
+            }
+
+            // Basic graph statistics
             PrintBasicStatistics(edges, vertex_range, rank == ROOT, comm);
         }
         if (config.statistics_level >= StatisticsLevel::ADVANCED) {

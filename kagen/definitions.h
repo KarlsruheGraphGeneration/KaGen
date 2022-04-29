@@ -11,6 +11,8 @@
 #include <tuple>
 #include <vector>
 
+#include <mpi.h>
+
 namespace kagen {
 // Constants
 typedef long long          LONG;
@@ -26,6 +28,16 @@ typedef long double HPFloat;
 typedef double      LPFloat;
 typedef ULONG       SInt;
 typedef LONG        SSInt;
+
+#define KAGEN_MPI_LONG    MPI_LONG_LONG
+#define KAGEN_MPI_ULONG   MPI_UNSIGNED_LONG_LONG
+#define KAGEN_MPI_INT     MPI_INT
+#define KAGEN_MPI_UINT    MPI_UNSIGNED
+#define KAGEN_MPI_PEID    MPI_INT
+#define KAGEN_MPI_HPFLOAT MPI_LONG_DOUBLE
+#define KAGEN_MPI_LPFLOAT MPI_DOUBLE
+#define KAGEN_MPI_SINT    MPI_UNSIGNED_LONG_LONG
+#define KAGEN_MPI_SSINT   MPI_LONG_LONG
 
 enum Direction { Up, Down, Left, Right, Front, Back };
 
