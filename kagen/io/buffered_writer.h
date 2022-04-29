@@ -76,8 +76,8 @@ public:
 
 private:
     void ForceFlush() {
-        write(fd_, buffer_, buffer_pos_ - buffer_);
-        buffer_pos_ = buffer_;
+        [[maybe_unused]] auto nbytes_writte = write(fd_, buffer_, buffer_pos_ - buffer_);
+        buffer_pos_                          = buffer_;
     }
 
     int   fd_;
