@@ -27,6 +27,7 @@ endif()
 
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
+option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 
 ################################################################################
 
@@ -41,9 +42,9 @@ set(KAGEN_INCLUDE_DIRS
 if(NOT MSVC)
   # enable warnings
   if(CMAKE_BUILD_TYPE MATCHES Debug)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -W -Wall -Wextra -fPIC -fpermissive")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -W -Wall -Wextra -fPIC -fpermissive")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -g -W -Wall -Wextra -fPIC -fpermissive")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -W -Wall -Wextra -fPIC -fpermissive")
   endif()
 
   # enable more warnings
@@ -162,7 +163,6 @@ elseif(MSVC)
   list(APPEND KAGEN_DEFINITIONS "NOMINMAX")
 endif()
 
-
 if(KAGEN_USE_IWYU)
   # Generate clang compilation database
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -214,8 +214,12 @@ if(APPLE)
   set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif()
 
+if (KAGEN_WARNINGS_ARE_ERRORS)
+    set(CMAKE_CXX_FLAGS "-Werror ${CMAKE_CXX_FLAGS}")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KAGEN_DEFINITIONS}")
-message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+message(STATUS "KaGen CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ###############################################################################
 # find MPI
