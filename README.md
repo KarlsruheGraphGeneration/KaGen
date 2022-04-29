@@ -217,6 +217,7 @@ mpirun -n <nproc> ./kagen <grid2d|grid3d>
   [-Y <height of grid as a power of two>]
   -z <depth of grid (grid3d only)>
   [-Z <depth of grid as a power of two (grid3d only)>]
+  [-k <number of cunks>]
   [-S <seed>]
 ```
 
