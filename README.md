@@ -4,6 +4,7 @@ This is the code to accompany our eponymous paper: *Funke, D., Lamm, S., Sanders
 You can find a freely accessible online version [in the arXiv](https://arxiv.org/abs/1710.07565).
 
 If you use this library in the context of an academic publication, we ask that you cite our paper:
+
 ```bibtex
 @inproceedings{funke2017communication,
   title={Communication-free Massively Distributed Graph Generation},
@@ -14,6 +15,7 @@ If you use this library in the context of an academic publication, we ask that y
 ```
 
 Additionally, if you use the Barabassi-Albert generator, we ask that you cite the paper:
+
 ```bibtex
 @article{sanders2016generators,
   title={Scalable generation of scale-free graphs},
@@ -36,48 +38,73 @@ The resulting generators are often embarrassingly parallel and have a near optim
 This allows us to generate instances of up to 2^43 vertices and 2^47 edges in less than 22 minutes on 32768 cores.
 Therefore, our generators allow new graph families to be used on an unprecedented scale.
 
-## Installation and Usage
+## Requirements 
 
-#### Prerequisites
-In order to compile the generators you need GCC, OpenMPI and [Google Sparsehash](https://github.com/sparsehash/sparsehash).
-If you want to generate random delaunay graphs, you also need CGAL.
+In order to compile the generators, you require: 
+
+* A modern, C++17-ready compiler such as `g++` version 9 or higher or `clang` version 11 or higher. 
+  * Note: Apple Clang is **not** supported. 
+* OpenMPI
+* [Google Sparsehash](https://github.com/sparsehash/sparsehash)
+* The random delaunay graph generators also require CGAL. 
+
 You can install these dependencies via your package manager:
+
 ```shell
 # Ubuntu, Debian 
-sudo apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libsparsehash-dev 
+apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libsparsehash-dev 
 
-# Arch
-sudo pacman -S gcc sparsehash openmpi cgal
+# Arch Linux, Manjaro
+pacman -S gcc sparsehash openmpi cgal
+
+# Fedora 
+dnf install gcc openmpi sparsehash-devel CGAL-devel
+
+# macOS using Homebrew 
+brew install gcc open-mpi google-sparsehash cgal
+
+# macOS using MacPorts 
+port install gcc11 openmpi sparsehash cgal5
 ```
 
-#### Compiling 
+## Building KaGen 
 To compile the code either run `compile.sh` or use the following instructions:
+
 ```shell
 git submodule update --init --recursive
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j
+make kagen kagen_library -j
 ```
 
-#### Output
-By default our generators will output the generated graphs as a DIMACS edge list. 
+## Running KaGen 
+
+After building KaGen, the standalone application is located at `build/app/kagen`. 
+A list of all command line options is available using the `./kagen --help` option. 
+To view options of a specific graph generate, use:
+
+```shell 
+./kagen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker> --help
+```
+
+By default, the generated graph is written to a single file `out` (`-o` option) in DIMACS edge list format (`-f` option).
 Other output formats are available:
 
 - `-f edge-list`: DIMACS edge list format (default)
 - `-f binary-edge-list`: DIMACS binary edge list format
-- `-f metis`: Metis undirected graph format (only works with undirected graph generators)
+- `-f metis`: Metis graph format
 - `-f hmetis`: hMetis hypergraph format 
 
-For a list of all output options, see `--help`.
+To write one file `out_<PEID>` per PE, use `--single-file=false`. 
 
-#### As a Library 
+## Using the KaGen Library
 
-To use KaGen as a library, simply add this repository as a Git submodule, 
-include it as a CMake subdirectory and link against the `KaGen::KaGen` target:
+The KaGen library is located as `build/library/libkagen_library.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared-library instead).
+Alternatively, you can use KaGen by adding this repository as a Git submodule to your project and include it in your CMake configuration:
 
 ```cmake 
 add_subdirectory(external/KaGen)
-target_link_libraries(<target> PUBLIC KaGen::KaGen)
+target_link_libraries(<your-target> PUBLIC KaGen::KaGen)
 ```
 
 ## Graph Models

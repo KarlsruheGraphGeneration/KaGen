@@ -4,8 +4,8 @@
 git submodule update --init --recursive
 
 # Compile code
-mkdir build
+mkdir -p build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../
-make -j4
+make kagen kagen_library -j4
 
