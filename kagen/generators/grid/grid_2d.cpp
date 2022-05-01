@@ -1,16 +1,14 @@
 #include <vector>
 
-#include "kagen/generators/generator.h"
-#include "kagen/generators/grid/grid_2d.h"
-
 #include "hash.hpp"
+#include "kagen/generators/grid/grid_2d.h"
 
 namespace kagen {
 Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
-      rng_(config),
       rank_(rank),
-      size_(size) {}
+      size_(size),
+      rng_(config) {}
 
 int Grid2D::Requirements() const {
     return GeneratorRequirement::SQUARE_CHUNKS;

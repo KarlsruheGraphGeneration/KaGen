@@ -1,6 +1,8 @@
 #include "kagen/generators/generator.h"
 
 namespace kagen {
+Generator::~Generator() = default;
+
 int Generator::Requirements() const {
     return 0;
 }

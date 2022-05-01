@@ -14,7 +14,7 @@ enum GeneratorRequirement {
 
 class Generator {
 public:
-    virtual ~Generator() = default;
+    virtual ~Generator();
 
     virtual int Requirements() const;
 

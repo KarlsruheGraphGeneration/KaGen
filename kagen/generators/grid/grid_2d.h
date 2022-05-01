@@ -27,6 +27,9 @@ private:
     // Config
     PGeneratorConfig config_;
 
+    PEID rank_;
+    PEID size_;
+
     // Variates
     RNGWrapper rng_;
 
@@ -38,9 +41,6 @@ private:
     SInt    rows_per_chunk_, cols_per_chunk_;
     SInt    remaining_rows_, remaining_cols_;
     SInt    vertices_per_chunk_;
-
-    PEID rank_;
-    PEID size_;
 
     void GenerateChunk(SInt chunk);
 
