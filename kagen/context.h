@@ -22,6 +22,7 @@ enum class OutputFormat {
     METIS,
     HMETIS,
     DOT,
+    COORDINATES,
 };
 
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();

@@ -68,7 +68,7 @@ public:
     }
 
     BufferedTextOutput& WriteFloat(const double value) {
-        int written = std::sprintf(buffer_pos_, "%lf", value);
+        int written = std::sprintf(buffer_pos_, "%.5lf", value);
         buffer_pos_ += written;
         return *this;
     }

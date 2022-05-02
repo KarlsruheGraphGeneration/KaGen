@@ -7,7 +7,7 @@ HMetisWriter::HMetisWriter(EdgeList& edges, const VertexRange vertex_range, Coor
     : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
 
 std::string HMetisWriter::DefaultExtension() const {
-    return "hmetis";
+    return "hgr";
 }
 
 void HMetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {

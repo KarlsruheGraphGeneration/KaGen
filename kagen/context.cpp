@@ -9,6 +9,7 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
         {"metis", OutputFormat::METIS},
         {"hmetis", OutputFormat::HMETIS},
         {"dot", OutputFormat::DOT},
+        {"coordinates", OutputFormat::COORDINATES},
     };
 }
 
@@ -31,6 +32,9 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
 
         case OutputFormat::DOT:
             return out << "dot";
+
+        case OutputFormat::COORDINATES:
+            return out << "coordinates";
     }
 
     return out << "<invalid>";

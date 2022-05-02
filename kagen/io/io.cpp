@@ -7,6 +7,7 @@
 
 #include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
+#include "kagen/io/coordinates.h"
 #include "kagen/io/dot.h"
 #include "kagen/io/edgelist.h"
 #include "kagen/io/graph_writer.h"
@@ -37,6 +38,9 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(
 
         case OutputFormat::DOT:
             return std::make_unique<DotWriter>(edges, vertex_range, coordinates, comm);
+
+        case OutputFormat::COORDINATES:
+            return std::make_unique<CoordinatesWriter>(edges, vertex_range, coordinates, comm);
     }
 
     __builtin_unreachable();

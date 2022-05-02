@@ -7,7 +7,7 @@ MetisWriter::MetisWriter(EdgeList& edges, const VertexRange vertex_range, Coordi
     : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
 
 std::string MetisWriter::DefaultExtension() const {
-    return "metis";
+    return "graph";
 }
 
 void MetisWriter::AppendHeaderTo(const std::string &filename, const SInt n, const SInt m) {
