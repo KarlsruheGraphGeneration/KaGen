@@ -5,30 +5,26 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
 #pragma once
 
 #include <tuple>
 #include <vector>
 
-#include <mpi.h>
-
 namespace kagen {
 // Constants
-typedef long long          LONG;
-typedef unsigned long long ULONG;
-typedef int                INT;
-typedef unsigned int       UINT;
-typedef int                PEID;
-
-const PEID ROOT = 0;
+using LONG = long long;
+using ULONG = unsigned long long; 
+using INT = int;
+using UINT = unsigned int;
+using PEID = int;
+using SInt = ULONG;
+using SSInt = LONG;
 
 // High/low prec
-typedef long double HPFloat;
-typedef double      LPFloat;
-typedef ULONG       SInt;
-typedef LONG        SSInt;
+using HPFloat = long double;
+using LPFloat = double;
 
+const PEID ROOT = 0;
 #define KAGEN_MPI_LONG    MPI_LONG_LONG
 #define KAGEN_MPI_ULONG   MPI_UNSIGNED_LONG_LONG
 #define KAGEN_MPI_INT     MPI_INT
