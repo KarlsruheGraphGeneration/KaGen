@@ -94,6 +94,8 @@ Other output formats are available:
 - `-f binary-edge-list`: DIMACS binary edge list format
 - `-f metis`: Metis graph format
 - `-f hmetis`: hMetis hypergraph format 
+- `-f dot`: GraphViz dot file 
+- `-f coordinates`: Text file containing vertex coordinates
 
 To write one file `out_<PEID>` per PE, use `--single-file=false`. 
 
