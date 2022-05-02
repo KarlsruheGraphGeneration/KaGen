@@ -87,7 +87,7 @@ To view the options of a specific graph generator, use:
 ./kagen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker> --help
 ```
 
-By default, the generated graph is written to a single file `out` (`-o` option) in DIMACS edge list format (`-f` option).
+By default, the generated graph is written to a single file `out.edgelist` (`-o` option) in DIMACS edge list format (`-f` option).
 Other output formats are available:
 
 - `-f edge-list`: DIMACS edge list format (default)
@@ -97,7 +97,8 @@ Other output formats are available:
 - `-f dot`: GraphViz dot file 
 - `-f coordinates`: Text file containing vertex coordinates
 
-To write one file `out_<PEID>` per PE, use `--single-file=false`. 
+If you are interested in vertex coordinates, add also activate the `-C` option.
+To write one file `out.<format>.<PEID>` per PE, use `--single-file=false`. 
 
 ## Using the KaGen Library
 
