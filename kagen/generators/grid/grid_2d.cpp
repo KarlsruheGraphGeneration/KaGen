@@ -17,8 +17,8 @@ int Grid2D::Requirements() const {
 void Grid2D::GenerateImpl() {
     // Init dimensions
     // @todo Only tested for cube PEs and one chunk per PE
-    total_rows_       = config_.grid_x;
-    total_cols_       = config_.grid_y;
+    total_rows_       = config_.grid_y;
+    total_cols_       = config_.grid_x;
     config_.n         = total_rows_ * total_cols_;
     edge_probability_ = config_.p;
 
@@ -46,6 +46,14 @@ void Grid2D::GenerateImpl() {
 
     for (SInt i = 0; i < num_chunks; i++) {
         GenerateChunk(start_chunk + i);
+    }
+
+    if (config_.coordinates) {
+        for (SInt y = 0; y < total_rows_; ++y) {
+            for (SInt x = 0; x < total_cols_; ++x) {
+                PushCoordinate(1.0 * x / total_cols_, 1.0 * y / total_rows_);
+            }
+        }
     }
 
     SetVertexRange(start_node_, start_node_ + num_nodes_);

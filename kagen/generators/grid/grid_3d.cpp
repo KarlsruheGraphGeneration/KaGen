@@ -52,6 +52,16 @@ void Grid3D::GenerateImpl() {
         GenerateChunk(start_chunk + i);
     }
 
+    if (config_.coordinates) {
+        for (SInt z = 0; z < total_z_; ++z) {
+            for (SInt y = 0; y < total_y_; ++y) {
+                for (SInt x = 0; x < total_x_; ++x) {
+                    PushCoordinate(1.0 * x / total_x_, 1.0 * y / total_y_, 1.0 * z / total_z_);
+                }
+            }
+        }
+    }
+
     SetVertexRange(start_node_, start_node_ + num_nodes_);
 }
 
