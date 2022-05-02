@@ -12,8 +12,8 @@ KaGen::KaGen(MPI_Comm comm) : comm_(comm), config_(std::make_unique<PGeneratorCo
     SetDefaults();
 }
 
-KaGen::KaGen(KaGen &&) noexcept = default;
-KaGen &KaGen::operator=(KaGen &&) noexcept = default;
+KaGen::KaGen(KaGen&&) noexcept = default;
+KaGen& KaGen::operator=(KaGen&&) noexcept = default;
 
 KaGen::~KaGen() = default;
 
@@ -115,12 +115,24 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d) {
     return Generate(*config_, comm_);
 }
 
+namespace {
+KaGenResult2D GenerateRHGImpl(
+    PGeneratorConfig& config, const SInt n, const LPFloat gamma, const SInt d, const bool coordinates, MPI_Comm comm) {
+    config.generator   = GeneratorType::RHG;
+    config.n           = n;
+    config.plexp       = gamma;
+    config.avg_degree  = d;
+    config.coordinates = coordinates;
+    return Generate(config, comm);
+}
+} // namespace
+
 KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d) {
-    config_->generator  = GeneratorType::RHG;
-    config_->n          = n;
-    config_->plexp      = gamma;
-    config_->avg_degree = d;
-    return Generate(*config_, comm_);
+    return GenerateRHGImpl(*config_, n, gamma, d, false, comm_);
+}
+
+KaGenResult2D KaGen::GenerateRHGWithCoordinates(const SInt n, const LPFloat gamma, const SInt d) {
+    return GenerateRHGImpl(*config_, n, gamma, d, true, comm_);
 }
 
 KaGenResult KaGen::GenerateGrid2D(const SInt n, const LPFloat p, const bool periodic) {

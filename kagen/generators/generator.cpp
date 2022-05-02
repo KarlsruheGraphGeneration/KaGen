@@ -1,5 +1,5 @@
 #include "kagen/generators/generator.h"
-
+#include "kagen/definitions.h"
 namespace kagen {
 Generator::~Generator() = default;
 
@@ -11,8 +11,30 @@ bool Generator::AlmostUndirected() const {
     return false;
 }
 
-std::pair<EdgeList, VertexRange> Generator::Generate() {
+void Generator::Generate() {
+    edges_.clear();
+    coordinates_.first.clear();
+    coordinates_.second.clear();
     GenerateImpl();
-    return {std::move(edges_), vertex_range_};
+}
+
+const EdgeList& Generator::GetEdges() const {
+    return edges_;
+}
+
+EdgeList&& Generator::TakeEdges() {
+    return std::move(edges_);
+}
+
+VertexRange Generator::GetVertexRange() const {
+    return vertex_range_;
+}
+
+const Coordinates& Generator::GetCoordinates() const {
+    return coordinates_;
+}
+
+Coordinates&& Generator::TakeCoordinates() {
+    return std::move(coordinates_);
 }
 } // namespace kagen

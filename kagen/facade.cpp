@@ -133,7 +133,7 @@ SInt FindMultipleCube(const SInt value) {
 }
 } // namespace
 
-std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
+std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -194,9 +194,14 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
     }
 
     // Generate graph
-    const auto start_graphgen  = MPI_Wtime();
-    auto       generator       = CreateGenerator(config, rank, size);
-    auto [edges, vertex_range] = generator->Generate();
+    const auto start_graphgen = MPI_Wtime();
+
+    auto generator = CreateGenerator(config, rank, size);
+    generator->Generate();
+
+    auto edges        = generator->TakeEdges();
+    auto vertex_range = generator->GetVertexRange();
+    auto coordinates  = generator->GetCoordinates();
 
     // Postprocessing
     const SInt num_edges_before_postprocessing = edges.size();
@@ -204,7 +209,8 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
         AddReverseEdges(edges, vertex_range, comm);
     }
     const SInt num_edges_after_postprocessing = edges.size();
-    const auto end_graphgen                   = MPI_Wtime();
+
+    const auto end_graphgen = MPI_Wtime();
 
     // Validation
     if (config.validate_simple_graph) {
@@ -253,6 +259,6 @@ std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config_templat
         }
     }
 
-    return {std::move(edges), vertex_range};
+    return {std::move(edges), vertex_range, std::move(coordinates)};
 }
 } // namespace kagen

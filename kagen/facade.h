@@ -11,5 +11,5 @@
 namespace kagen {
 std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, PEID rank, PEID size);
 
-std::pair<EdgeList, VertexRange> Generate(const PGeneratorConfig& config, MPI_Comm comm);
+std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& config, MPI_Comm comm);
 } // namespace kagen

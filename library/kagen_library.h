@@ -19,19 +19,48 @@
 namespace kagen {
 struct PGeneratorConfig;
 
-using SInt        = unsigned long long;
-using SSInt       = long long;
-using EdgeList    = std::vector<std::tuple<SInt, SInt>>;
-using VertexRange = std::pair<SInt, SInt>;
-using PEID        = int;
-using HPFloat     = long double;
-using LPFloat     = double;
+using SInt          = unsigned long long;
+using SSInt         = long long;
+using EdgeList      = std::vector<std::tuple<SInt, SInt>>;
+using VertexRange   = std::pair<SInt, SInt>;
+using PEID          = int;
+using HPFloat       = long double;
+using LPFloat       = double;
+using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
+using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
+using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 
+//! Result with 2D coordinates
+struct KaGenResult2D {
+    inline KaGenResult2D(std::tuple<EdgeList, VertexRange, Coordinates> result)
+        : edges(std::move(std::get<0>(result))),
+          vertex_range(std::get<1>(result)),
+          coordinates(std::move(std::get<2>(result).first)) {}
+
+    EdgeList      edges;
+    VertexRange   vertex_range;
+    Coordinates2D coordinates;
+};
+
+//! Result with 3D coordinates
+struct KaGenResult3D {
+    inline KaGenResult3D(std::tuple<EdgeList, VertexRange, Coordinates> result)
+        : edges(std::move(std::get<0>(result))),
+          vertex_range(std::get<1>(result)),
+          coordinates(std::move(std::get<2>(result).second)) {}
+
+    EdgeList      edges;
+    VertexRange   vertex_range;
+    Coordinates3D coordinates;
+};
+
+//! Result without coordinates
 struct KaGenResult {
-    // Implicitly convert result of kagen::Generator to KaGenResult
-    inline KaGenResult(std::pair<EdgeList, VertexRange> result)
-        : edges(std::move(result.first)),
-          vertex_range(std::move(result.second)) {}
+    inline KaGenResult(std::tuple<EdgeList, VertexRange, Coordinates> result)
+        : edges(std::move(std::get<0>(result))),
+          vertex_range(std::move(std::get<1>(result))) {}
+    inline KaGenResult(KaGenResult2D&& result) : edges(std::move(result.edges)), vertex_range(result.vertex_range) {}
+    inline KaGenResult(KaGenResult3D&& result) : edges(std::move(result.edges)), vertex_range(result.vertex_range) {}
 
     EdgeList    edges;
     VertexRange vertex_range;
@@ -79,7 +108,8 @@ public:
 
     KaGenResult GenerateBA(SInt n, SInt d);
 
-    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d);
+    KaGenResult   GenerateRHG(SInt n, LPFloat gamma, SInt d);
+    KaGenResult2D GenerateRHGWithCoordinates(SInt n, LPFloat gamma, SInt d);
 
     KaGenResult GenerateGrid2D(SInt n, LPFloat p, bool periodic = false);
 

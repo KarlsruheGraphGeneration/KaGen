@@ -12,12 +12,12 @@
 
 namespace kagen {
 // Constants
-using LONG = long long;
-using ULONG = unsigned long long; 
-using INT = int;
-using UINT = unsigned int;
-using PEID = int;
-using SInt = ULONG;
+using LONG  = long long;
+using ULONG = unsigned long long;
+using INT   = int;
+using UINT  = unsigned int;
+using PEID  = int;
+using SInt  = ULONG;
 using SSInt = LONG;
 
 // High/low prec
@@ -42,4 +42,5 @@ using VertexRange = std::pair<SInt, SInt>;
 
 using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
 using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
+using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 } // namespace kagen
