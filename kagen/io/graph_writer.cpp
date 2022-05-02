@@ -74,16 +74,26 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
             }
             MPI_Barrier(comm_);
         }
+
+        if (rank == ROOT) {
+            AppendFooterTo(filename);
+        }
     } else {
-        const SInt n = vertex_range_.second - vertex_range_.first;
-        const SInt m = edges_.size();
-        if ((rank == ROOT && config.output_header == OutputHeader::ROOT)
-            || config.output_header == OutputHeader::ALWAYS) {
+        const SInt n                   = vertex_range_.second - vertex_range_.first;
+        const SInt m                   = edges_.size();
+        const bool write_header_footer = (rank == ROOT && config.output_header == OutputHeader::ROOT)
+                                         || config.output_header == OutputHeader::ALWAYS;
+        if (write_header_footer) {
             AppendHeaderTo(filename, n, m);
         }
         AppendTo(filename);
+        if (write_header_footer) {
+            AppendFooterTo(filename);
+        }
     }
 }
+
+void SequentialGraphWriter::AppendFooterTo(const std::string&) {}
 
 SequentialGraphWriter::Requirement SequentialGraphWriter::Requirements() const {
     return Requirement::NONE;

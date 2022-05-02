@@ -44,6 +44,8 @@ protected:
 
     virtual void AppendTo(const std::string& filename) = 0;
 
+    virtual void AppendFooterTo(const std::string &filename);
+
     virtual Requirement Requirements() const;
 
 private:

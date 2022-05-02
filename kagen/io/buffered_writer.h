@@ -67,6 +67,12 @@ public:
         return *this;
     }
 
+    BufferedTextOutput& WriteFloat(const double value) {
+        int written = std::sprintf(buffer_pos_, "%lf", value);
+        buffer_pos_ += written;
+        return *this;
+    }
+
     BufferedTextOutput& Flush() {
         if (static_cast<std::size_t>(buffer_pos_ - buffer_) >= kBufferSizeLimit) {
             ForceFlush();

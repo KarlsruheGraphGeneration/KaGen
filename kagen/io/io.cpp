@@ -7,6 +7,7 @@
 
 #include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
+#include "kagen/io/dot.h"
 #include "kagen/io/edgelist.h"
 #include "kagen/io/graph_writer.h"
 #include "kagen/io/hmetis.h"
@@ -33,6 +34,9 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(
 
         case OutputFormat::HMETIS:
             return std::make_unique<HMetisWriter>(edges, vertex_range, coordinates, comm);
+
+        case OutputFormat::DOT:
+            return std::make_unique<DotWriter>(edges, vertex_range, coordinates, comm);
     }
 
     __builtin_unreachable();

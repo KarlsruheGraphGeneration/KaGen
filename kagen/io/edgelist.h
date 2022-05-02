@@ -15,7 +15,7 @@ public:
 protected:
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
 
-    void AppendTo(const std::string& filename);
+    void AppendTo(const std::string& filename) final;
 };
 
 class BinaryEdgeListWriter : public SequentialGraphWriter {
@@ -27,6 +27,6 @@ public:
 protected:
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
 
-    void AppendTo(const std::string& filename);
+    void AppendTo(const std::string& filename) final;
 };
 } // namespace kagen

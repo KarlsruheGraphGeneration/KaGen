@@ -21,6 +21,7 @@ enum class OutputFormat {
     BINARY_EDGE_LIST,
     METIS,
     HMETIS,
+    DOT,
 };
 
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();

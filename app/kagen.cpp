@@ -116,6 +116,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     // Generator parameters
     app.add_flag("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
+    app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
     { // GNM_DIRECTED
         auto* cmd =
