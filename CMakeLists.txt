@@ -243,6 +243,14 @@ add_subdirectory(extlib/sampling)
 set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
 set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
 set(KAGEN_LINK_LIBRARIES MPI::MPI_CXX "${KAGEN_LINK_LIBRARIES}")
+set_target_properties(run_methodD 
+    run_methodSH 
+    run_methodSR
+    run_methodP
+    run_methodR 
+    run_methodH 
+    run_methodB
+    PROPERTIES EXCLUDE_FROM_ALL 1)
 
 ################################################################################
 
