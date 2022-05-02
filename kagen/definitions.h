@@ -39,4 +39,7 @@ enum Direction { Up, Down, Left, Right, Front, Back };
 
 using EdgeList    = std::vector<std::tuple<SInt, SInt>>;
 using VertexRange = std::pair<SInt, SInt>;
+
+using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
+using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
 } // namespace kagen

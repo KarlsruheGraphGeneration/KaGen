@@ -96,6 +96,8 @@ struct PGeneratorConfig {
     SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
     bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
 
+    bool coordinates = false; // Store vertex coordinates
+
     // Hashing / sampling settings
     int   seed        = 1;      // Seed for PRNG
     bool  hash_sample = false;  // Use hash tryagain sampling

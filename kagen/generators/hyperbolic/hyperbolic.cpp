@@ -296,6 +296,10 @@ void Hyperbolic::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SI
             start_node_ = offset;
         if (pe_min_phi_ <= angle && pe_max_phi_ > angle)
             num_nodes_++;
+
+        if (config_.coordinates) {
+            PushCoordinate(x, y);
+        }
     }
     std::get<3>(cell) = true;
 }

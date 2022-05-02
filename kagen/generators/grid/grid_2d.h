@@ -5,7 +5,6 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
 #pragma once
 
 #include "kagen/context.h"

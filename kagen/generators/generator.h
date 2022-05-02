@@ -25,6 +25,14 @@ public:
 protected:
     virtual void GenerateImpl() = 0;
 
+    inline void PushCoordinate(const HPFloat x, const HPFloat y) {
+        coordinates2d_.emplace_back(x, y);
+    }
+
+    inline void PushCoordinate(const HPFloat x, const HPFloat y, const HPFloat z) {
+        coordinates3d_.emplace_back(x, y, z);
+    }
+
     inline void PushEdge(const SInt from, const SInt to) {
         edges_.emplace_back(from, to);
     }
@@ -34,7 +42,9 @@ protected:
     }
 
 private:
-    EdgeList    edges_;
-    VertexRange vertex_range_;
+    EdgeList      edges_;
+    VertexRange   vertex_range_;
+    Coordinates2D coordinates2d_;
+    Coordinates3D coordinates3d_;
 };
 } // namespace kagen
