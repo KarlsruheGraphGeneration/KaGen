@@ -94,7 +94,7 @@ DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global
     SInt sum = 0;
     SInt max = std::numeric_limits<SInt>::lowest();
 
-    SInt cur_from   = std::get<0>(edges.front());
+    SInt cur_from   = edges.empty() ? 0 : std::get<0>(edges.front());
     SInt cur_degree = 0;
 
     auto update = [&](const SInt deg) {
@@ -132,7 +132,7 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
     assert(std::is_sorted(edges.begin(), edges.end()));
 
     std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
-    SInt              cur_from   = std::get<0>(edges.front());
+    SInt              cur_from   = edges.empty() ? 0 : std::get<0>(edges.front());
     SInt              cur_degree = 0;
 
     auto yield = [&](const SInt deg) {
