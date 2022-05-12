@@ -94,10 +94,9 @@ Other output formats are available:
 - `-f binary-edge-list`: DIMACS binary edge list format
 - `-f metis`: Metis graph format
 - `-f hmetis`: hMetis hypergraph format 
-- `-f dot`: GraphViz dot file 
-- `-f coordinates`: Text file containing vertex coordinates
+- `-f dot`: GraphViz dot file (add `-C` to include vertex coordinates for 2D graph generators)
+- `-f coordinates -C`: Text file containing vertex coordinates 
 
-If you are interested in vertex coordinates, add also activate the `-C` option.
 To write one file `out.<format>.<PEID>` per PE, use `--single-file=false`. 
 
 ## Using the KaGen Library
