@@ -174,7 +174,7 @@ double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_rang
     MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 
-    return 1.0 * num_global_cut_edges / num_global_edges;
+    return 1.0 - 1.0 * num_global_cut_edges / num_global_edges;
 }
 
 SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
