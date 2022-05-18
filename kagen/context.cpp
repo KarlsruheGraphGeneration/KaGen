@@ -161,6 +161,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Validate simple graph:              " << (config.validate_simple_graph ? "yes" : "no") << "\n";
     out << "  Statistics level:                   " << config.statistics_level << "\n";
+    out << "  Generate coordinates:               " << config.coordinates << "\n";
     out << "-------------------------------------------------------------------------------\n";
 
     out << "Generator Parameters:\n";

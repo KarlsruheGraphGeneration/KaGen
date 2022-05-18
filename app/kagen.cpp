@@ -234,6 +234,11 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()));
     app.add_flag(
         "--distributed-output", [&config](auto) { config.output_single_file = false; }, "Output one file for each PE");
+
+    // coordinates output format implies --coordinates
+    if (config.output_format == OutputFormat::COORDINATES) {
+        config.coordinates = true;
+    }
 }
 
 int main(int argc, char* argv[]) {
