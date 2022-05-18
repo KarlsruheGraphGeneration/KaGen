@@ -232,7 +232,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()));
     app.add_option("--output-header", config.output_header, "Output file header")
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()));
-    app.add_flag("--single-file", config.output_single_file, "Collect graph in a single file");
+    app.add_flag(
+        "--distributed-output", [&config](auto) { config.output_single_file = false; }, "Output one file for each PE");
 }
 
 int main(int argc, char* argv[]) {

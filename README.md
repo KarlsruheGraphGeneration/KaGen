@@ -97,7 +97,7 @@ Other output formats are available:
 - `-f dot`: GraphViz dot file (add `-C` to include vertex coordinates for 2D graph generators)
 - `-f coordinates -C`: Text file containing vertex coordinates 
 
-To write one file `out.<format>.<PEID>` per PE, use `--single-file=false`. 
+If you want each PE to write its edges to a seperate file, use the `--distributed-output` flag.
 
 ## Using the KaGen Library
 
