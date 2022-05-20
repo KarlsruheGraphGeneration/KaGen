@@ -153,9 +153,9 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
     }
     if (!edges.empty()) {
         yield(cur_degree);
-    }
-    while (++cur_from < vertex_range.second) {
-        ++bins[0];
+        while (++cur_from < vertex_range.second) {
+            ++bins[0];
+        }
     }
 
     std::vector<SInt> global_bins(bins.size());
@@ -211,7 +211,7 @@ void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range,
     const auto local_sd_edges   = ReduceSD(local_num_edges, comm);
 
     const double vertex_imbalance = 1.0 * local_max_nodes / local_mean_nodes;
-    const double edge_imbalance = 1.0 * local_max_edges / local_mean_edges;
+    const double edge_imbalance   = 1.0 * local_max_edges / local_mean_edges;
 
     // Print statistics on root
     if (root) {
@@ -251,8 +251,8 @@ void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, co
 
     const double density = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
     const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes, comm);
-    const auto degree_bins = ComputeDegreeBins(edges, vertex_range, comm);
-    
+    const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range, comm);
+
     // Compute locality statistics
     const double edge_locality          = ComputeEdgeLocalicty(edges, vertex_range, comm);
     const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range, comm);
