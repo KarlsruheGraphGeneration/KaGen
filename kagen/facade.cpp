@@ -245,8 +245,9 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
                     std::cout << "Postprocessing:" << std::endl;
                     std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
                               << num_global_edges_after << " edges: by "
-                              << static_cast<SSInt>(num_edges_after_postprocessing)
-                                     - static_cast<SSInt>(num_edges_before_postprocessing)
+                              << std::abs(
+                                     static_cast<SSInt>(num_global_edges_after)
+                                     - static_cast<SSInt>(num_global_edges_before))
                               << std::endl;
                 }
             }
