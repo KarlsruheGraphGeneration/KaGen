@@ -20,6 +20,8 @@ public:
 
     virtual bool AlmostUndirected() const;
 
+    virtual bool InvalidVertexRangeIfEmpty() const;
+
     void Generate();
 
     const EdgeList& GetEdges() const;
@@ -27,6 +29,8 @@ public:
     EdgeList&& TakeEdges();
 
     VertexRange GetVertexRange() const;
+
+    void SetVertexRange(VertexRange vetrex_range);
 
     const Coordinates& GetCoordinates() const;
 

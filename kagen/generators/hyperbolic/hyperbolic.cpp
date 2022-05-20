@@ -63,6 +63,10 @@ bool Hyperbolic::AlmostUndirected() const {
     return true;
 }
 
+bool Hyperbolic::InvalidVertexRangeIfEmpty() const {
+    return true;
+}
+
 void Hyperbolic::GenerateImpl() {
     // Compute local chunks
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {

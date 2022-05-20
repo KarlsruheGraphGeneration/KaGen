@@ -187,4 +187,11 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
     // Set original edge list to new edge list
     std::swap(local_edges, edge_list);
 }
+
+VertexRange RecomputeVertexRanges(const VertexRange vertex_range, MPI_Comm comm) {
+    const SInt num_vertices    = vertex_range.second - vertex_range.first;
+    SInt       vertices_before = 0;
+    MPI_Exscan(&num_vertices, &vertices_before, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    return std::make_pair(vertices_before, vertices_before + num_vertices);
+}
 } // namespace kagen

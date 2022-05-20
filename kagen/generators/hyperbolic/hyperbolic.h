@@ -41,6 +41,8 @@ public:
 
     bool AlmostUndirected() const final;
 
+    bool InvalidVertexRangeIfEmpty() const final;
+
 protected:
     void GenerateImpl() final;
 
