@@ -210,6 +210,7 @@ void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range,
     const auto local_max_edges  = ReduceMax(local_num_edges, comm);
     const auto local_sd_edges   = ReduceSD(local_num_edges, comm);
 
+    const double vertex_imbalance = 1.0 * local_max_nodes / local_mean_nodes;
     const double edge_imbalance = 1.0 * local_max_edges / local_mean_edges;
 
     // Print statistics on root
@@ -224,6 +225,7 @@ void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range,
                   << "Max=" << std::setw(local_space) << local_max_nodes << " | "
                   << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_nodes
                   << "]\n";
+        std::cout << "  Vertex imbalance: " << std::fixed << std::setprecision(3) << vertex_imbalance << std::endl;
         std::cout << "Number of edges:    " << std::setw(global_space) << global_num_edges << " ["
                   << "Min=" << std::setw(local_space) << local_min_edges << " | "
                   << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_edges
@@ -231,7 +233,7 @@ void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range,
                   << "Max=" << std::setw(local_space) << local_max_edges << " | "
                   << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_edges
                   << "]\n";
-        std::cout << "  Edge imbalance: " << std::fixed << std::setprecision(3) << edge_imbalance << std::endl;
+        std::cout << "  Edge imbalance:   " << std::fixed << std::setprecision(3) << edge_imbalance << std::endl;
     }
 }
 
