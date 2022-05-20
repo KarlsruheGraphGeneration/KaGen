@@ -109,10 +109,24 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     // General parameters
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-V,--validate-simple", config.validate_simple_graph, "Validate that the generated graph is simple");
-    app.add_flag("-S,--seed", config.seed, "Seed for PRNG");
-    app.add_option(
-           "--stats", config.statistics_level, "Controls how much statistics on the generated graph gets calculated")
+    app.add_flag("-s,--seed", config.seed, "Seed for PRNG");
+    auto* stats_group = app.add_option_group("Statistics output");
+    stats_group
+        ->add_option(
+            "--stats", config.statistics_level, "Controls how much statistics on the generated graph gets calculated")
         ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()));
+    stats_group->add_flag(
+        "-S",
+        [&config](const auto count) {
+            if (count == 1) {
+                config.statistics_level = StatisticsLevel::BASIC;
+            } else if (count > 1) {
+                config.statistics_level = StatisticsLevel::ADVANCED;
+            }
+        },
+        "Controls how much statistics on the generated graph gets calculated; pass flag multiple times to increase "
+        "extend");
+    stats_group->silent();
 
     // Generator parameters
     app.add_flag("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
