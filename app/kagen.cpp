@@ -283,15 +283,9 @@ int main(int argc, char* argv[]) {
     }
 
     // Generate graph
-    if (output) {
-        std::cout << "Generating graph ..." << std::endl;
-    }
     auto [edges, vertex_range, coordinates] = Generate(config, MPI_COMM_WORLD);
 
     // Output graph
-    if (output) {
-        std::cout << "Writing graph ..." << std::endl;
-    }
     WriteGraph(config, edges, vertex_range, coordinates, MPI_COMM_WORLD);
 
     MPI_Finalize();

@@ -138,8 +138,13 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    const bool output = rank == ROOT; // && !config_template.quiet; // Always output errors that crash the program
-    auto       config = config_template;
+    const bool output_error = rank == ROOT;
+    const bool output_info  = rank == ROOT && !config_template.quiet;
+    auto       config       = config_template;
+
+    if (output_info) {
+        std::cout << "Generating graph ..." << std::endl;
+    }
 
     // Get generator requirements @todo this is ugly
     config.k               = size;
@@ -153,7 +158,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
     // Validate number of PEs
     if (require_power_of_two_communicator && !IsPowerOfTwo(size)) {
-        if (output) {
+        if (output_error) {
             std::cerr << "Generator requires the number of PEs to be a power of two\n";
         }
         std::exit(1);
@@ -169,25 +174,25 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
             config.k = size;
         }
 
-        if (output) {
+        if (output_info) {
             std::cout << "Set number of chunks to " << config.k << std::endl;
         }
     } else { // only validation
         if (require_square_chunks && !IsSquare(config.k)) {
-            if (output) {
+            if (output_error) {
                 std::cerr << "Generator requires a square number of chunks\n";
             }
             std::exit(1);
         }
         if (require_cubic_chunks && !IsCubic(config.k)) {
-            if (output) {
+            if (output_error) {
                 std::cerr << "Generator requires a cubic number of chunks\n";
             }
             std::exit(1);
         }
     }
     if (require_one_chunk_per_pe && config.k != static_cast<SInt>(size)) {
-        if (output) {
+        if (output_error) {
             std::cerr << "Generator requires exactly one chunk per PE\n";
         }
         std::exit(1);
@@ -223,7 +228,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         bool success = ValidateSimpleGraph(edges, vertex_range, comm);
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
-            if (output) {
+            if (output_error) {
                 std::cerr << "Simple graph validation failed\n";
             }
             std::exit(1);
@@ -234,13 +239,13 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     if (!config.quiet) {
         if (config.statistics_level >= StatisticsLevel::BASIC) {
             // Running time
-            if (output) {
+            if (output_error) {
                 std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
                           << " seconds" << std::endl;
             }
 
             // Postprocessing
-            if (output && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
+            if (output_error && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
                 std::cout << "Postprocessing:" << std::endl;
             }
             if (generator->AlmostUndirected()) {
@@ -250,7 +255,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
                 MPI_Reduce(
                     &num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
 
-                if (output) {
+                if (output_error) {
                     std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
                               << num_global_edges_after << " edges: by "
                               << std::abs(
@@ -265,7 +270,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
                 MPI_Gather(from_before.data(), 1, KAGEN_MPI_SINT, from_before.data(), 1, KAGEN_MPI_SINT, ROOT, comm);
                 MPI_Gather(from_after.data(), 1, KAGEN_MPI_SINT, from_after.data(), 1, KAGEN_MPI_SINT, ROOT, comm);
 
-                if (output) {
+                if (output_error) {
                     bool nothing_changed = true;
                     for (PEID pe = 0; pe < size; ++pe) {
                         if (from_before[pe] != from_after[pe]) {

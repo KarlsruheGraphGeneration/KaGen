@@ -24,6 +24,7 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
     PEID rank, size;
     MPI_Comm_rank(comm_, &rank);
     MPI_Comm_size(comm_, &size);
+    const bool output = !config.quiet && rank == ROOT;
 
     const std::string base_filename = config.output_file + "." + DefaultExtension();
     const std::string filename = config.output_single_file ? base_filename : base_filename + "." + std::to_string(rank);
@@ -64,13 +65,23 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
         const SInt n = FindNumberOfGlobalNodes(vertex_range_, comm_);
         const SInt m = FindNumberOfGlobalEdges(edges_, comm_);
 
+        if (output) {
+            std::cout << "Writing graph to " << filename << " in " << config.output_format << " format" << std::endl;
+        }
+
         if (rank == ROOT) {
             AppendHeaderTo(filename, n, m);
         }
 
         for (PEID pe = 0; pe < size; ++pe) {
+            if (output) {
+                std::cout << "  Writing subgraph of PE " << pe << " ... " << std::flush;
+            }
             if (rank == pe) {
                 AppendTo(filename);
+            }
+            if (output) {
+                std::cout << "done" << std::endl;
             }
             MPI_Barrier(comm_);
         }
@@ -83,6 +94,12 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
         const SInt m                   = edges_.size();
         const bool write_header_footer = (rank == ROOT && config.output_header == OutputHeader::ROOT)
                                          || config.output_header == OutputHeader::ALWAYS;
+
+        if (output) {
+            std::cout << "Writing graph to [" << base_filename << ".0, ..., " << base_filename << "." << size - 1
+                      << "] in " << config.output_format << " format" << std::endl;
+        }
+
         if (write_header_footer) {
             AppendHeaderTo(filename, n, m);
         }
