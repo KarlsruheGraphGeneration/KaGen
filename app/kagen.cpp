@@ -270,6 +270,15 @@ int main(int argc, char* argv[]) {
     // Only output on root if not in quiet mode
     const bool output = !config.quiet && rank == ROOT;
     if (output) {
+        std::cout << "###############################################################################\n";
+        std::cout << "#                         _  __      ____                                     #\n";
+        std::cout << "#                        | |/ /__ _ / ___| ___ _ __                           #\n";
+        std::cout << "#                        | ' // _` | |  _ / _ \\ '_ \\                          #\n";
+        std::cout << "#                        | . \\ (_| | |_| |  __/ | | |                         #\n";
+        std::cout << "#                        |_|\\_\\__,_|\\____|\\___|_| |_|                         #\n";
+        std::cout << "#                         Karlsruhe Graph Generation                          #\n";
+        std::cout << "#                                                                             #\n";
+        std::cout << "###############################################################################\n";
         std::cout << config;
     }
 
