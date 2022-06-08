@@ -80,6 +80,58 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
 }
 
 namespace {
+template <typename ApproxRadius, typename ApproxNumNodes>
+void SetupRGGParameters(
+    PGeneratorConfig& config, ApproxRadius&& approx_radius, ApproxNumNodes&& approx_num_nodes, const bool output_error,
+    const bool output_info) {
+    // We have three parameters, from which two must be given:
+    // - Number of nodes
+    // - Number of edges
+    // - Radius
+    // If number of nodes or radius is missing, compute it from the other two values
+    if (config.r == 0.0) {
+        if (config.n == 0 || config.m == 0) {
+            if (output_error) {
+                std::cerr << "At least two parameters out of {n, m, r} must be nonzero\n";
+            }
+            std::exit(1);
+        }
+
+        config.r = approx_radius(config.n, config.m);
+        if (output_info) {
+            std::cout << "Setting radius to " << config.r << std::endl;
+        }
+    } else if (config.n == 0) {
+        if (config.r == 0.0 || config.m == 0) {
+            if (output_error) {
+                std::cerr << "At least two parameters out of {n, m, r} must be nonzero\n";
+            }
+            std::exit(1);
+        }
+
+        config.n = approx_num_nodes(config.m, config.r);
+        if (output_info) {
+            std::cout << "Setting number of nodes to " << config.n << std::endl;
+        }
+    }
+}
+
+void ApproxMissingParameters(PGeneratorConfig& config, const double output_error, const double output_info) {
+    switch (config.generator) {
+        case GeneratorType::RGG_2D:
+            SetupRGGParameters(config, &RGG2D::ApproxRadius, &RGG2D::ApproxNumNodes, output_error, output_info);
+            break;
+
+        case GeneratorType::RGG_3D:
+            SetupRGGParameters(config, &RGG3D::ApproxRadius, &RGG3D::ApproxNumNodes, output_error, output_info);
+            break;
+
+        default:
+            // do nothing
+            break;
+    }
+}
+
 bool IsPowerOfTwo(const SInt value) {
     return (value & (value - 1)) == 0;
 }
@@ -142,10 +194,6 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     const bool output_info  = rank == ROOT && !config_template.quiet;
     auto       config       = config_template;
 
-    if (output_info) {
-        std::cout << "Generating graph ..." << std::endl;
-    }
-
     // Get generator requirements @todo this is ugly
     config.k               = size;
     const int requirements = CreateGenerator(config, rank, size)->Requirements();
@@ -175,7 +223,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         }
 
         if (output_info) {
-            std::cout << "Set number of chunks to " << config.k << std::endl;
+            std::cout << "Setting number of chunks to " << config.k << std::endl;
         }
     } else { // only validation
         if (require_square_chunks && !IsSquare(config.k)) {
@@ -197,8 +245,13 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         }
         std::exit(1);
     }
+    ApproxMissingParameters(config, output_error, output_info);
 
     // Generate graph
+    if (output_info) {
+        std::cout << "Generating graph ..." << std::endl;
+    }
+
     const auto start_graphgen = MPI_Wtime();
 
     auto generator = CreateGenerator(config, rank, size);

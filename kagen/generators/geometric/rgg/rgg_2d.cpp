@@ -1,6 +1,30 @@
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 
+#include <cassert>
+
+#include "kagen/tools/newton.h"
+
 namespace kagen {
+double RGG2D::ApproxRadius(const SInt n, const SInt m) {
+    const SInt max_m = n * (n - 1);
+    return FindRoot(
+        [max_m, m](const double r) {
+            const double r2        = r * r;
+            const double edge_prob = r2 * (r2 / 2.0 - 8.0 / 3.0 * r + M_PI);
+            return max_m * edge_prob - m;
+        },
+        [max_m](const double r) {
+            const double r2           = r * r;
+            const double de_edge_prob = (2 * r * (0.5 * r2 - 8.0 / 3.0 * r + M_PI) + r2 * (r - 8.0 / 3.0));
+            return max_m * de_edge_prob;
+        },
+        0.5, NEWTON_EPS, NEWTON_MAX_ITERS);
+}
+
+SInt RGG2D::ApproxNumNodes(const SInt m, const double radius) {
+    return 0; // @todo
+}
+
 RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
     // Number of chunks must be (a) a multiple of size and (b) be a quadratic number
     total_chunks_ = config_.k;

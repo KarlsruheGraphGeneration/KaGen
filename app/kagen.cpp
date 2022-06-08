@@ -173,16 +173,26 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         auto* cmd = app.add_subcommand("rgg2d", "2D Random Geometric Graph");
         cmd->alias("rgg_2d")->alias("rgg-2d");
         cmd->callback([&] { config.generator = GeneratorType::RGG_2D; });
-        add_option_n(cmd)->required();
-        add_option_r(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_r(params);
+        add_option_m(params);
+        params->require_option(2);
+        params->silent();
     }
 
     { // RGG3D
         auto* cmd = app.add_subcommand("rgg3d", "3D Random Geometric Graph");
         cmd->alias("rgg_3d")->alias("rgg-3d");
         cmd->callback([&] { config.generator = GeneratorType::RGG_3D; });
-        add_option_n(cmd)->required();
-        add_option_r(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_r(params);
+        add_option_m(params);
+        params->require_option(2);
+        params->silent();
     }
 
 #ifdef KAGEN_CGAL_FOUND

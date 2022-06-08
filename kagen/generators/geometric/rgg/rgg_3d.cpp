@@ -1,14 +1,36 @@
 #include "kagen/generators/geometric/rgg/rgg_3d.h"
 
+#include "kagen/tools/newton.h"
+
 namespace kagen {
+double RGG3D::ApproxRadius(const SInt n, const SInt m) {
+    const SInt max_m = n * (n - 1);
+    return FindRoot(
+        [max_m, m](const double r) {
+            const double r3        = r * r * r;
+            const double r5        = r3 * r * r;
+            const double edge_prob = (1.0 / 30.0) * ((48.0 - 5.0 * r) * r5 - 5 * M_PI * r3 * (9.0 * r - 8.0));
+            return max_m * edge_prob - m;
+        },
+        [max_m](const double r) {
+            const double de_edge_prob = -1.0 * r * r * ((r - 8.0) * r * r + M_PI * (6 * r - 4));
+            return max_m * de_edge_prob;
+        },
+        0.5, NEWTON_EPS, NEWTON_MAX_ITERS);
+}
+
+SInt RGG3D::ApproxNumNodes(const SInt m, const double radius) {
+    return 0; // @todo
+}
+
 RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
     // Chunk variables
     total_chunks_   = config_.k;
-    chunks_per_dim_ = cbrt(config_.k);
+    chunks_per_dim_ = std::cbrt(config_.k);
     chunk_size_     = 1.0 / chunks_per_dim_;
 
     // Cell variables
-    cells_per_dim_   = floor(chunk_size_ / config_.r);
+    cells_per_dim_   = std::floor(chunk_size_ / config_.r);
     cells_per_chunk_ = cells_per_dim_ * cells_per_dim_ * cells_per_dim_;
     cell_size_       = config_.r + (chunk_size_ - cells_per_dim_ * config_.r) / cells_per_dim_;
     target_r_        = config_.r * config_.r;

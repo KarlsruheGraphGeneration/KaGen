@@ -24,7 +24,7 @@ using SSInt = LONG;
 using HPFloat = long double;
 using LPFloat = double;
 
-const PEID ROOT = 0;
+constexpr PEID ROOT = 0;
 #define KAGEN_MPI_LONG    MPI_LONG_LONG
 #define KAGEN_MPI_ULONG   MPI_UNSIGNED_LONG_LONG
 #define KAGEN_MPI_INT     MPI_INT
@@ -43,4 +43,7 @@ using VertexRange = std::pair<SInt, SInt>;
 using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
 using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
 using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
+
+constexpr std::size_t NEWTON_MAX_ITERS = 10;
+constexpr double      NEWTON_EPS       = 0.001;
 } // namespace kagen

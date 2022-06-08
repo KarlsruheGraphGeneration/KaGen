@@ -181,7 +181,12 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
 
         case GeneratorType::RGG_2D:
         case GeneratorType::RGG_3D:
-            out << "  Edge radius:                        " << config.r << "\n";
+            out << "  Number of nodes:                    " << (config.n == 0 ? "auto" : std::to_string(config.n))
+                << "\n";
+            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
+                << "\n";
+            out << "  Edge radius:                        " << (config.r == 0.0 ? "auto" : std::to_string(config.r))
+                << "\n";
             break;
 
 #ifdef KAGEN_CGAL_FOUND

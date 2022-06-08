@@ -14,6 +14,10 @@
 namespace kagen {
 class RGG2D : public Geometric2D {
 public:
+    static double ApproxRadius(SInt n, SInt m);
+
+    static SInt ApproxNumNodes(SInt m, double radius);
+
     RGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
     int Requirements() const final;

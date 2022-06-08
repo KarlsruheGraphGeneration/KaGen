@@ -55,8 +55,8 @@ protected:
     }
 
     // Config
-    const PGeneratorConfig& config_;
-    PEID                    rank_, size_;
+    PGeneratorConfig config_;
+    PEID             rank_, size_;
 
     // Variates
     RNGWrapper rng_;
