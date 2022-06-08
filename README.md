@@ -165,9 +165,9 @@ Generate an undirected random graph using the random geometric graph model RGG(n
 
 **Note:** This generator requires the number of PEs to be a power of 2.
 
-**Note:** The generator is parameterized by the number of nodes in the graph and its edge radius. 
+**Note:** This generator is parameterized by the number of nodes in the graph and its edge radius. 
 Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 
-parameter is approximated such that the expected number of edges matches the configured number of edges.
+parameter is approximated such that the expected number of edges matches the desired number of edges.
 
 #### Application
 ```
