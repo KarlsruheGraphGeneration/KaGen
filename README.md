@@ -185,11 +185,11 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2D(n, r);
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DNM(n, m); // deduce r
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DMR(m, r); // deduce n
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DNM(n, m); // deduce r s.t. E[# edges] = m
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DMR(m, r); // deduce n s.t. E[# edges] = m
 auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3D(n, r);
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DNM(n, m); // deduce r 
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DMR(m, r); // deduce n
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DNM(n, m); // deduce r s.t. E[# edges] = m
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DMR(m, r); // deduce n s.t. E[# edges] = m
 ```
 
 --- 
