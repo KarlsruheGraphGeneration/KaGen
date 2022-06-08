@@ -116,7 +116,8 @@ public:
 
     KaGenResult GenerateBA(SInt n, SInt d);
 
-    KaGenResult   GenerateRHG(SInt n, LPFloat gamma, SInt d);
+    KaGenResult GenerateRHG(SInt n, LPFloat gamma, SInt d);
+
     KaGenResult2D GenerateRHGWithCoordinates(SInt n, LPFloat gamma, SInt d);
 
     KaGenResult GenerateGrid2D(SInt n, LPFloat p, bool periodic = false);

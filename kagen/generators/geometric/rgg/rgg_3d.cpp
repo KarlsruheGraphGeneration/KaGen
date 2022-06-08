@@ -3,24 +3,29 @@
 #include "kagen/tools/newton.h"
 
 namespace kagen {
+namespace {
+inline double ComputeEdgeProability(const LPFloat r) {
+    const double r3 = r * r * r;
+    const double r5 = r3 * r * r;
+    return (1.0 / 30.0) * ((48.0 - 5.0 * r) * r5 - 5 * M_PI * r3 * (9.0 * r - 8.0));
+}
+
+inline double ComputeDerivedEdgeProbability(const LPFloat r) {
+    return -1.0 * r * r * ((r - 8.0) * r * r + M_PI * (6 * r - 4));
+}
+} // namespace
+
 double RGG3D::ApproxRadius(const SInt n, const SInt m) {
     const SInt max_m = n * (n - 1);
     return FindRoot(
-        [max_m, m](const double r) {
-            const double r3        = r * r * r;
-            const double r5        = r3 * r * r;
-            const double edge_prob = (1.0 / 30.0) * ((48.0 - 5.0 * r) * r5 - 5 * M_PI * r3 * (9.0 * r - 8.0));
-            return max_m * edge_prob - m;
-        },
-        [max_m](const double r) {
-            const double de_edge_prob = -1.0 * r * r * ((r - 8.0) * r * r + M_PI * (6 * r - 4));
-            return max_m * de_edge_prob;
-        },
-        0.5, NEWTON_EPS, NEWTON_MAX_ITERS);
+        [max_m, m](const double r) { return max_m * ComputeEdgeProability(r) - m; },
+        [max_m](const double r) { return max_m * ComputeDerivedEdgeProbability(r); }, 0.5, NEWTON_EPS,
+        NEWTON_MAX_ITERS);
 }
 
-SInt RGG3D::ApproxNumNodes(const SInt m, const double radius) {
-    return 0; // @todo
+SInt RGG3D::ApproxNumNodes(const SInt m, const double r) {
+    const double p = ComputeEdgeProability(r);
+    return (p + std::sqrt(p * p + 4 * p * m)) / (2.0 * p);
 }
 
 RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
