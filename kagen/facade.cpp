@@ -223,6 +223,44 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
     const auto end_graphgen = MPI_Wtime();
 
+    // Postprocessing
+    if (output_error && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
+        std::cout << "Postprocessing:" << std::endl;
+    }
+    if (generator->AlmostUndirected()) {
+        SInt num_global_edges_before, num_global_edges_after;
+        MPI_Reduce(&num_edges_before_postprocessing, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+        MPI_Reduce(&num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+
+        if (output_error) {
+            std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
+                      << num_global_edges_after << " edges: by "
+                      << std::abs(
+                             static_cast<SSInt>(num_global_edges_after) - static_cast<SSInt>(num_global_edges_before))
+                      << std::endl;
+        }
+    }
+    if (generator->InvalidVertexRangeIfEmpty()) {
+        std::vector<SInt> from_before(size, old_vertex_range.first);
+        std::vector<SInt> from_after(size, vertex_range.first);
+        MPI_Gather(from_before.data(), 1, KAGEN_MPI_SINT, from_before.data(), 1, KAGEN_MPI_SINT, ROOT, comm);
+        MPI_Gather(from_after.data(), 1, KAGEN_MPI_SINT, from_after.data(), 1, KAGEN_MPI_SINT, ROOT, comm);
+
+        if (output_error) {
+            bool nothing_changed = true;
+            for (PEID pe = 0; pe < size; ++pe) {
+                if (from_before[pe] != from_after[pe]) {
+                    std::cout << "  Changed start of vertex range for PE " << std::setw(std::log10(size) + 1) << pe
+                              << " from " << from_before[pe] << " to " << from_after[pe] << std::endl;
+                    nothing_changed = false;
+                }
+            }
+            if (nothing_changed) {
+                std::cout << "  Vertex ranges where already correct on all PEs" << std::endl;
+            }
+        }
+    }
+
     // Validation
     if (config.validate_simple_graph) {
         bool success = ValidateSimpleGraph(edges, vertex_range, comm);
@@ -237,54 +275,13 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
     // Statistics
     if (!config.quiet) {
+        // Running time
+        if (output_info) {
+            std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
+                      << " seconds" << std::endl;
+        }
+
         if (config.statistics_level >= StatisticsLevel::BASIC) {
-            // Running time
-            if (output_error) {
-                std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
-                          << " seconds" << std::endl;
-            }
-
-            // Postprocessing
-            if (output_error && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
-                std::cout << "Postprocessing:" << std::endl;
-            }
-            if (generator->AlmostUndirected()) {
-                SInt num_global_edges_before, num_global_edges_after;
-                MPI_Reduce(
-                    &num_edges_before_postprocessing, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
-                MPI_Reduce(
-                    &num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
-
-                if (output_error) {
-                    std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
-                              << num_global_edges_after << " edges: by "
-                              << std::abs(
-                                     static_cast<SSInt>(num_global_edges_after)
-                                     - static_cast<SSInt>(num_global_edges_before))
-                              << std::endl;
-                }
-            }
-            if (generator->InvalidVertexRangeIfEmpty()) {
-                std::vector<SInt> from_before(size, old_vertex_range.first);
-                std::vector<SInt> from_after(size, vertex_range.first);
-                MPI_Gather(from_before.data(), 1, KAGEN_MPI_SINT, from_before.data(), 1, KAGEN_MPI_SINT, ROOT, comm);
-                MPI_Gather(from_after.data(), 1, KAGEN_MPI_SINT, from_after.data(), 1, KAGEN_MPI_SINT, ROOT, comm);
-
-                if (output_error) {
-                    bool nothing_changed = true;
-                    for (PEID pe = 0; pe < size; ++pe) {
-                        if (from_before[pe] != from_after[pe]) {
-                            std::cout << "  Changed start of vertex range for PE " << std::setw(std::log10(size) + 1)
-                                      << pe << " from " << from_before[pe] << " to " << from_after[pe] << std::endl;
-                            nothing_changed = false;
-                        }
-                    }
-                    if (nothing_changed) {
-                        std::cout << "  Vertex ranges where already correct on all PEs" << std::endl;
-                    }
-                }
-            }
-
             // Basic graph statistics
             PrintBasicStatistics(edges, vertex_range, rank == ROOT, comm);
         }
