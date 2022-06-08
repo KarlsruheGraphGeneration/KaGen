@@ -163,7 +163,11 @@ auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP
 ### Random Geometric Graphs RGG(n, r)
 Generate an undirected random graph using the random geometric graph model RGG(n, r).
 
-NOTE: This generator requires the number of PEs to be a number of 2.
+NOTE: This generator requires the number of PEs to be a power of 2.
+
+NOTE: The generator is parameterized by the number of nodes in the graph and its edge radius. 
+Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 
+parameter is approximated such that the expected number of edges matches the configured number of edges.
 
 #### Application
 ```
@@ -171,7 +175,9 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -r <edge radius>
-  [-k <number of chunks>]
+  -m <number of edges>                     # only if -n or -r are omitted
+  [-M <number of edges as a power of two>] # only if -n or -r are omitted
+  [-k <number of chunks>] 
   [-S <seed>]
 ```
 
@@ -179,7 +185,11 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2D(n, r);
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DNM(n, m); // deduce r
+auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DMR(m, r); // deduce n
 auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3D(n, r);
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DNM(n, m); // deduce r 
+auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DMR(m, r); // deduce n
 ```
 
 --- 
