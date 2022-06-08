@@ -100,7 +100,15 @@ public:
 
     KaGenResult GenerateRGG2D(SInt n, LPFloat r);
 
+    KaGenResult GenerateRGG2DNM(SInt n, SInt m);
+
+    KaGenResult GenerateRGG2DMR(SInt m, LPFloat r);
+
     KaGenResult GenerateRGG3D(SInt n, LPFloat r);
+
+    KaGenResult GenerateRGG3DNM(SInt n, SInt m);
+
+    KaGenResult GenerateRGG3DMR(SInt m, LPFloat r);
 
     KaGenResult GenerateRDG2D(SInt n);
 

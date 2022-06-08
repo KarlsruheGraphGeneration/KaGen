@@ -78,9 +78,37 @@ KaGenResult KaGen::GenerateRGG2D(const SInt n, const LPFloat r) {
     return Generate(*config_, comm_);
 }
 
+KaGenResult KaGen::GenerateRGG2DNM(const SInt n, const SInt m) {
+    config_->generator = GeneratorType::RGG_2D;
+    config_->n         = n;
+    config_->m         = m;
+    return Generate(*config_, comm_);
+}
+
+KaGenResult KaGen::GenerateRGG2DMR(const SInt m, const LPFloat r) {
+    config_->generator = GeneratorType::RGG_2D;
+    config_->m         = m;
+    config_->r         = r;
+    return Generate(*config_, comm_);
+}
+
 KaGenResult KaGen::GenerateRGG3D(const SInt n, const LPFloat r) {
     config_->generator = GeneratorType::RGG_3D;
     config_->n         = n;
+    config_->r         = r;
+    return Generate(*config_, comm_);
+}
+
+KaGenResult KaGen::GenerateRGG3DNM(const SInt n, const SInt m) {
+    config_->generator = GeneratorType::RGG_3D;
+    config_->n         = n;
+    config_->m         = m;
+    return Generate(*config_, comm_);
+}
+
+KaGenResult KaGen::GenerateRGG3DMR(const SInt m, const LPFloat r) {
+    config_->generator = GeneratorType::RGG_3D;
+    config_->m         = m;
     config_->r         = r;
     return Generate(*config_, comm_);
 }
