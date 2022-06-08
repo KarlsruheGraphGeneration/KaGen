@@ -163,9 +163,9 @@ auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP
 ### Random Geometric Graphs RGG(n, r)
 Generate an undirected random graph using the random geometric graph model RGG(n, r).
 
-NOTE: This generator requires the number of PEs to be a power of 2.
+**Note:** This generator requires the number of PEs to be a power of 2.
 
-NOTE: The generator is parameterized by the number of nodes in the graph and its edge radius. 
+**Note:** The generator is parameterized by the number of nodes in the graph and its edge radius. 
 Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 
 parameter is approximated such that the expected number of edges matches the configured number of edges.
 
@@ -197,7 +197,7 @@ auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DMR(m, r); // deduce n
 ### Random Delaunay Graphs RDG(n)
 Generate an undirected random graph using the random Delaunay graph model RDG(n).
 
-NOTE: The graph is generated with periodic boundary conditions to avoid long edges at the border.
+**Note:** The graph is generated with periodic boundary conditions to avoid long edges at the border.
 
 #### Application
 ```
