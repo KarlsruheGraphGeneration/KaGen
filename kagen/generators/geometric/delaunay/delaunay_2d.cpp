@@ -98,6 +98,15 @@ void Delaunay2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
                 SSInt neighbor_chunk_col = chunk_column + chunk_col_diff;
                 SSInt neighbor_chunk_row = chunk_row + chunk_row_diff;
 
+                if (!config_.periodic) {
+                    if (neighbor_chunk_row < 0 || static_cast<SInt>(neighbor_chunk_row) >= chunks_per_dim_) {
+                        continue;
+                    }
+                    if (neighbor_chunk_col < 0 || static_cast<SInt>(neighbor_chunk_col) >= chunks_per_dim_) {
+                        continue;
+                    }
+                }
+
                 LPFloat x_offset = 0;
                 if (neighbor_chunk_row < 0) {
                     x_offset = -1.0 * (std::ceil(std::abs(neighbor_chunk_row) / static_cast<LPFloat>(chunks_per_dim_)));
@@ -147,7 +156,7 @@ void Delaunay2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
                         // Check if vertices not generated
                         SInt neighbor_cell_offset = ComputeGlobalCellId(neighbor_chunk_id, neighbor_cell_id);
                         // lazily generate vertices
-                        GenerateVertices(neighbor_chunk_id, neighbor_cell_id);
+                        GenerateVertices(neighbor_chunk_id, neighbor_cell_id, false);
 
                         SortCellVertices(vertices_[neighbor_cell_offset]);
                         for (const auto& v: vertices_[neighbor_cell_offset]) {
@@ -180,38 +189,62 @@ void Delaunay2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
         }
     }
 
-    if (!conflictFree) {
+    if (config_.periodic && !conflictFree) {
         fprintf(stderr, "[%llu] EXCEPTION: triangulation did not converge\n", chunk_id);
         return;
     }
 
-    // we have a conflict free triangulation, output edges
-    for (auto e = tria.finite_edges_begin(); e != tria.finite_edges_end(); ++e) {
-        // we only save outgoing edges from a vertices within our chunk
+    auto get_vertex_id = [](auto& handle) {
+        return (handle->info() & COPY_FLAG) ? handle->info() - COPY_FLAG : handle->info();
+    };
 
-        if (tria.is_infinite(e->first))
+    for (auto vh: tria.finite_vertex_handles()) {
+        // Only consider vertex if it is within this PE's bounding box
+        auto p = vh->point();
+        bool owned =
+            bbChunk.xmin() <= p.x() && p.x() <= bbChunk.xmax() && bbChunk.ymin() <= p.y() && p.y() <= bbChunk.ymax();
+        if (!owned) {
             continue;
-
-        auto v1 = e->first->vertex(e->second);
-        auto v2 = e->first->vertex(Dt_2d::cw(e->second));
-
-        if (v1 == nullptr || v2 == nullptr)
-            continue;
-
-        // bool touches = true;
-        if (!tria.is_infinite(v1) && !(v1->info() & COPY_FLAG)) {
-            // v1 is in chunk we save the edge
-            PushEdge(
-                (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(),
-                (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
         }
-        if (!tria.is_infinite(v2) && !(v2->info() & COPY_FLAG)) {
-            // v1 is not in chunk but v2 is in chunk we save the reverse edge
-            PushEdge(
-                (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(),
-                (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
-        }
+
+        // Iterate over incident vertices
+        auto vc   = tria.incident_vertices(vh);
+        auto done = decltype(vc)(vc);
+        do {
+            if (tria.is_infinite(vc)) {
+                continue;
+            }
+            PushEdge(get_vertex_id(vh), get_vertex_id(vc));
+        } while (++vc != done);
     }
+
+    // we have a conflict free triangulation, output edges
+    //    for (auto e = tria.finite_edges_begin(); e != tria.finite_edges_end(); ++e) {
+    //        // we only save outgoing edges from a vertices within our chunk
+    //
+    //        if (tria.is_infinite(e->first))
+    //            continue;
+    //
+    //        auto v1 = e->first->vertex(e->second);
+    //        auto v2 = e->first->vertex(Dt_2d::cw(e->second));
+    //
+    //        if (v1 == nullptr || v2 == nullptr)
+    //            continue;
+    //
+    //        // bool touches = true;
+    //        if (!tria.is_infinite(v1) && !(v1->info() & COPY_FLAG)) {
+    //            // v1 is in chunk we save the edge
+    //            PushEdge(
+    //                (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info(),
+    //                (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info());
+    //        }
+    //        if (!tria.is_infinite(v2) && !(v2->info() & COPY_FLAG)) {
+    //            // v1 is not in chunk but v2 is in chunk we save the reverse edge
+    //            PushEdge(
+    //                (v2->info() & COPY_FLAG) ? v2->info() - COPY_FLAG : v2->info(),
+    //                (v1->info() & COPY_FLAG) ? v1->info() - COPY_FLAG : v1->info());
+    //        }
+    //    }
 }
 
 void Delaunay2D::SortCellVertices(std::vector<Vertex>& vertices) {

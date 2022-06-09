@@ -201,14 +201,15 @@ auto [edge_list, vertex_range, coordinates] = gen.GenerateRGG3D_Coordinates(n, r
 ### Random Delaunay Graphs RDG(n)
 Generate an undirected random graph using the random Delaunay graph model RDG(n).
 
-**Note:** The graph is generated with periodic boundary conditions to avoid long edges at the border.
+**Note:** The graph can be generated with periodic boundary conditions to avoid long edges at the border using the `-p` flag. 
+However, this can yield unexpected results when using less than 9 PEs to generate the graph.
 
 #### Application
 ```
 mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
-  [-k <number of chunks>]
+  [-p,--periodic]
   [-S <seed>]
 ```
 
@@ -216,8 +217,8 @@ mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateRDG2D(n);
-auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG2D_Coordinates(n);
+auto [edge_list, vertex_range] = gen.GenerateRDG2D(n, periodic);
+auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG2D_Coordinates(n, periodic);
 
 auto [edge_list, vertex_range] = gen.GenerateRDG3D(n);
 auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG3D_Coordinates(n);

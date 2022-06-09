@@ -129,20 +129,22 @@ KaGenResult3D KaGen::GenerateRGG3D_Coordinates(const SInt n, const LPFloat r) {
 
 #ifdef KAGEN_CGAL_FOUND
 namespace {
-KaGenResult2D GenerateRDG2D_Impl(PGeneratorConfig& config, const SInt n, const bool coordinates, MPI_Comm comm) {
+KaGenResult2D
+GenerateRDG2D_Impl(PGeneratorConfig& config, const SInt n, const bool periodic, const bool coordinates, MPI_Comm comm) {
     config.generator   = GeneratorType::RDG_2D;
     config.n           = n;
+    config.periodic    = periodic;
     config.coordinates = coordinates;
     return Generate(config, comm);
 }
 } // namespace
 
-KaGenResult KaGen::GenerateRDG2D(const SInt n) {
-    return GenerateRDG2D_Impl(*config_, n, false, comm_);
+KaGenResult KaGen::GenerateRDG2D(const SInt n, const bool periodic) {
+    return GenerateRDG2D_Impl(*config_, n, periodic, false, comm_);
 }
 
-KaGenResult2D KaGen::GenerateRDG2D_Coordinates(const SInt n) {
-    return GenerateRDG2D_Impl(*config_, n, true, comm_);
+KaGenResult2D KaGen::GenerateRDG2D_Coordinates(const SInt n, const bool periodic) {
+    return GenerateRDG2D_Impl(*config_, n, periodic, true, comm_);
 }
 
 namespace {

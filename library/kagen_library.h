@@ -114,9 +114,9 @@ public:
 
     KaGenResult3D GenerateRGG3D_Coordinates(SInt n, LPFloat r);
 
-    KaGenResult GenerateRDG2D(SInt n);
+    KaGenResult GenerateRDG2D(SInt n, bool periodic = false);
 
-    KaGenResult2D GenerateRDG2D_Coordinates(SInt n);
+    KaGenResult2D GenerateRDG2D_Coordinates(SInt n, bool periodic = true);
 
     KaGenResult GenerateRDG3D(SInt n);
 

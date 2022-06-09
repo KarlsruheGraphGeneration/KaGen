@@ -21,7 +21,7 @@ void DotWriter::AppendTo(const std::string& filename) {
     if (!coordinates_.first.empty()) {
         auto& coordinates = coordinates_.first; // 2D
         for (SInt node = vertex_range_.first; node < vertex_range_.second; ++node) {
-            const auto& [x, y] = coordinates[node];
+            const auto& [x, y] = coordinates[node - vertex_range_.first];
             out.WriteInt(node + 1)
                 .WriteString("[pos=\"")
                 .WriteFloat(x * 10)

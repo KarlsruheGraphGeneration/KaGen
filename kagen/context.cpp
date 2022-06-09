@@ -161,7 +161,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Validate simple graph:              " << (config.validate_simple_graph ? "yes" : "no") << "\n";
     out << "  Statistics level:                   " << config.statistics_level << "\n";
-    out << "  Generate coordinates:               " << config.coordinates << "\n";
+    out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";
     out << "-------------------------------------------------------------------------------\n";
 
     out << "Generator Parameters:\n";
@@ -192,6 +192,8 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
 #ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
         case GeneratorType::RDG_3D:
+            out << "  Number of vertices:                 " << config.n << "\n";
+            out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
             break;
 #endif // KAGEN_CGAL_FOUND
 

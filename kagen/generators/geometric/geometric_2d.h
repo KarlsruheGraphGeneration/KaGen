@@ -175,7 +175,7 @@ protected:
         // Generate local cells and fill
         GenerateCells(chunk_id);
         for (SInt i = 0; i < cells_per_chunk_; ++i)
-            GenerateVertices(chunk_id, i);
+            GenerateVertices(chunk_id, i, true);
         // Generate edges and vertices on demand
         GenerateEdges(chunk_row, chunk_column);
     }
@@ -217,7 +217,7 @@ protected:
         std::get<3>(chunk) = true;
     }
 
-    void GenerateVertices(const SInt chunk_id, const SInt cell_id) {
+    void GenerateVertices(const SInt chunk_id, const SInt cell_id, const bool push_coordinates) {
         // Lazily compute chunk
         if (chunks_.find(chunk_id) == end(chunks_))
             ComputeChunk(chunk_id);
@@ -253,7 +253,7 @@ protected:
 
             cell_vertices.emplace_back(x, y, offset + i);
             // fprintf(edge_file, "v %f %f\n", x, y);
-            if (config_.coordinates) {
+            if (push_coordinates && config_.coordinates) {
                 PushCoordinate(x, y);
             }
         }

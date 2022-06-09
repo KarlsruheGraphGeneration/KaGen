@@ -129,7 +129,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     stats_group->silent();
 
     // Generator parameters
-    app.add_flag("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
+    app.add_option("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
     app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
     { // GNM_DIRECTED
@@ -200,6 +200,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");
         cmd->alias("rdg_2d")->alias("rdg-2d");
         cmd->callback([&] { config.generator = GeneratorType::RDG_2D; });
+        cmd->add_flag(
+            "-p,--periodic", config.periodic,
+            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
         add_option_n(cmd)->required();
     }
 
