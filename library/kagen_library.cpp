@@ -145,22 +145,32 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d) {
 
 namespace {
 KaGenResult2D GenerateRHGImpl(
-    PGeneratorConfig& config, const SInt n, const LPFloat gamma, const SInt d, const bool coordinates, MPI_Comm comm) {
+    PGeneratorConfig& config, const LPFloat gamma, const SInt n, const SInt m, const LPFloat d, const bool coordinates,
+    MPI_Comm comm) {
     config.generator   = GeneratorType::RHG;
     config.n           = n;
-    config.plexp       = gamma;
+    config.m           = m;
     config.avg_degree  = d;
+    config.plexp       = gamma;
     config.coordinates = coordinates;
     return Generate(config, comm);
 }
 } // namespace
 
-KaGenResult KaGen::GenerateRHG(const SInt n, const LPFloat gamma, const SInt d) {
-    return GenerateRHGImpl(*config_, n, gamma, d, false, comm_);
+KaGenResult KaGen::GenerateRHG(const LPFloat gamma, const SInt n, const LPFloat d) {
+    return GenerateRHGImpl(*config_, gamma, n, 0, d, false, comm_);
 }
 
-KaGenResult2D KaGen::GenerateRHGWithCoordinates(const SInt n, const LPFloat gamma, const SInt d) {
-    return GenerateRHGImpl(*config_, n, gamma, d, true, comm_);
+KaGenResult KaGen::GenerateRHGNM(const LPFloat gamma, const SInt n, const SInt m) {
+    return GenerateRHGImpl(*config_, gamma, n, m, 0.0, false, comm_);
+}
+
+KaGenResult KaGen::GenerateRHGMD(const LPFloat gamma, const SInt m, const LPFloat d) {
+    return GenerateRHGImpl(*config_, gamma, 0, m, d, false, comm_);
+}
+
+KaGenResult2D KaGen::GenerateRHGWithCoordinates(const LPFloat gamma, const SInt n, const LPFloat d) {
+    return GenerateRHGImpl(*config_, gamma, n, 0, d, true, comm_);
 }
 
 KaGenResult KaGen::GenerateGrid2D(const SInt n, const LPFloat p, const bool periodic) {

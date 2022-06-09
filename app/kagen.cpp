@@ -245,9 +245,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // RHG
         auto* cmd = app.add_subcommand("rhg", "Random Hyperbolic Graph");
         cmd->callback([&] { config.generator = GeneratorType::RHG; });
-        add_option_n(cmd)->required();
         add_option_gamma(cmd)->required();
-        add_option_avg_deg(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_avg_deg(params);
+        add_option_m(params);
+        params->require_option(2);
+        params->silent();
     }
 
     // IO options

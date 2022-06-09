@@ -89,7 +89,7 @@ struct PGeneratorConfig {
     double        r          = 0.0;   // Edge radius
     bool          self_loops = false; // Allow self loops
     double        plexp      = 2.6;   // Power law exponent
-    double        avg_degree = 5.0;   // Average degree
+    double        avg_degree = 0.0;   // Average degree
     double        thres      = 0.0;   // Clique threshold (RHG)
     bool          query_both = false; // Query strategy (RHG) -- should be set to false
     double        min_degree = 4.0;   // Minimum degree (BA)

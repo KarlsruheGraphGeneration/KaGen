@@ -10,12 +10,12 @@ std::string MetisWriter::DefaultExtension() const {
     return "graph";
 }
 
-void MetisWriter::AppendHeaderTo(const std::string &filename, const SInt n, const SInt m) {
+void MetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteInt(n).WriteChar(' ').WriteInt(m / 2).WriteChar('\n').Flush();
 }
 
-void MetisWriter::AppendTo(const std::string &filename) {
+void MetisWriter::AppendTo(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
 
     SInt cur_edge = 0;

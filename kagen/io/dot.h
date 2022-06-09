@@ -16,6 +16,6 @@ protected:
 
     void AppendTo(const std::string& filename) final;
 
-    void AppendFooterTo(const std::string &filename) final;
+    void AppendFooterTo(const std::string& filename) final;
 };
 } // namespace kagen

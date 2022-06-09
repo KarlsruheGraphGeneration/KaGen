@@ -169,19 +169,19 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     switch (config.generator) {
         case GeneratorType::GNM_DIRECTED:
         case GeneratorType::GNM_UNDIRECTED:
-            out << "  Number of nodes:                    " << config.n << "\n";
+            out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Number of edges:                    " << config.m << "\n";
             break;
 
         case GeneratorType::GNP_DIRECTED:
         case GeneratorType::GNP_UNDIRECTED:
-            out << "  Number of nodes:                    " << config.n << "\n";
+            out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Edge probability:                   " << config.p << "\n";
             break;
 
         case GeneratorType::RGG_2D:
         case GeneratorType::RGG_3D:
-            out << "  Number of nodes:                    " << (config.n == 0 ? "auto" : std::to_string(config.n))
+            out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n))
                 << "\n";
             out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
                 << "\n";
@@ -205,18 +205,23 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             break;
 
         case GeneratorType::BA:
-            out << "  Number of nodes:                    " << config.n << "\n";
+            out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Minimum degree:                     " << config.min_degree << "\n";
             break;
 
         case GeneratorType::KRONECKER:
-            out << "  Number of nodes:                    " << config.n << "\n";
+            out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Number of edges:                    " << config.m << "\n";
             break;
 
         case GeneratorType::RHG:
-            out << "  Average degree:                     " << config.avg_degree << "\n";
             out << "  Power-law exponent:                 " << config.plexp << "\n";
+            out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n))
+                << "\n";
+            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
+                << "\n";
+            out << "  Average degree:                     "
+                << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
             break;
     }
     if (config.k == 0) {

@@ -308,7 +308,7 @@ protected:
 
             cell_vertices.emplace_back(x, y, z, offset + i);
             // fprintf(edge_file, "v %f %f\n", x, y);
-            
+
             if (config_.coordinates) {
                 PushCoordinate(x, y, z);
             }

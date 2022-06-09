@@ -33,15 +33,15 @@ std::string BinaryEdgeListWriter::DefaultExtension() const {
 }
 
 void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
-    auto *fout = std::fopen(filename.c_str(), "ab");
+    auto* fout = std::fopen(filename.c_str(), "ab");
     std::fwrite(&n, sizeof(SInt), 1, fout);
     std::fwrite(&m, sizeof(SInt), 1, fout);
     std::fclose(fout);
 }
 
 void BinaryEdgeListWriter::AppendTo(const std::string& filename) {
-    auto *fout = std::fopen(filename.c_str(), "ab");
-    for (const auto &[from, to] : edges_) {
+    auto* fout = std::fopen(filename.c_str(), "ab");
+    for (const auto& [from, to]: edges_) {
         const SInt edges[2] = {from, to};
         std::fwrite(edges, sizeof(SInt), 2, fout);
     }

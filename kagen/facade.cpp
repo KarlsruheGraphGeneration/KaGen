@@ -116,6 +116,34 @@ void SetupRGGParameters(
     }
 }
 
+void SetupRHGParameters(PGeneratorConfig& config, const bool output_error, const bool output_info) {
+    if (config.avg_degree == 0) {
+        if (config.m == 0 || config.n == 0) {
+            if (output_error) {
+                std::cerr << "At least two parameters out of {n, m, d} must be nonzero\n";
+            }
+            std::exit(1);
+        }
+
+        config.avg_degree = 1.0 * config.m / config.n;
+        if (output_info) {
+            std::cout << "Setting average degree to " << config.avg_degree << std::endl;
+        }
+    } else if (config.n == 0) {
+        if (config.avg_degree == 0 || config.m == 0) {
+            if (output_error) {
+                std::cerr << "At least two parameters out of {n, m, d} must be nonzero\n";
+            }
+            std::exit(1);
+        }
+
+        config.n = static_cast<SInt>(config.m / config.avg_degree);
+        if (output_info) {
+            std::cout << "Setting number of nodes to " << config.n << std::endl;
+        }
+    }
+}
+
 void ApproxMissingParameters(PGeneratorConfig& config, const double output_error, const double output_info) {
     switch (config.generator) {
         case GeneratorType::RGG_2D:
@@ -124,6 +152,10 @@ void ApproxMissingParameters(PGeneratorConfig& config, const double output_error
 
         case GeneratorType::RGG_3D:
             SetupRGGParameters(config, &RGG3D::ApproxRadius, &RGG3D::ApproxNumNodes, output_error, output_info);
+            break;
+
+        case GeneratorType::RHG:
+            SetupRHGParameters(config, output_error, output_info);
             break;
 
         default:
@@ -194,6 +226,10 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     const bool output_info  = rank == ROOT && !config_template.quiet;
     auto       config       = config_template;
 
+    // Some parameters can option or can be deduced from other parameters; do that now, before
+    // instantiating the generators to obtain their chunk / PE requirements
+    ApproxMissingParameters(config, output_error, output_info);
+
     // Get generator requirements @todo this is ugly
     config.k               = size;
     const int requirements = CreateGenerator(config, rank, size)->Requirements();
@@ -245,7 +281,6 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         }
         std::exit(1);
     }
-    ApproxMissingParameters(config, output_error, output_info);
 
     // Generate graph
     if (output_info) {
