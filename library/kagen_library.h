@@ -100,37 +100,49 @@ public:
 
     KaGenResult GenerateRGG2D(SInt n, LPFloat r);
 
-    KaGenResult GenerateRGG2DNM(SInt n, SInt m);
+    KaGenResult GenerateRGG2D_NM(SInt n, SInt m);
 
-    KaGenResult GenerateRGG2DMR(SInt m, LPFloat r);
+    KaGenResult GenerateRGG2D_MR(SInt m, LPFloat r);
+
+    KaGenResult2D GenerateRGG2D_Coordinates(SInt n, LPFloat r);
 
     KaGenResult GenerateRGG3D(SInt n, LPFloat r);
 
-    KaGenResult GenerateRGG3DNM(SInt n, SInt m);
+    KaGenResult GenerateRGG3D_NM(SInt n, SInt m);
 
-    KaGenResult GenerateRGG3DMR(SInt m, LPFloat r);
+    KaGenResult GenerateRGG3D_MR(SInt m, LPFloat r);
+
+    KaGenResult3D GenerateRGG3D_Coordinates(SInt n, LPFloat r);
 
     KaGenResult GenerateRDG2D(SInt n);
 
+    KaGenResult2D GenerateRDG2D_Coordinates(SInt n);
+
     KaGenResult GenerateRDG3D(SInt n);
+
+    KaGenResult3D GenerateRDG3D_Coordinates(SInt n);
 
     KaGenResult GenerateBA(SInt n, SInt d);
 
     KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d);
 
-    KaGenResult GenerateRHGNM(LPFloat gamma, SInt n, SInt m);
+    KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m);
 
-    KaGenResult GenerateRHGMD(LPFloat gamma, SInt m, LPFloat d);
+    KaGenResult GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d);
 
-    KaGenResult2D GenerateRHGWithCoordinates(LPFloat gamma, SInt n, LPFloat d);
-
-    KaGenResult GenerateGrid2D(SInt n, LPFloat p, bool periodic = false);
+    KaGenResult2D GenerateRHG_Coordinates(LPFloat gamma, SInt n, LPFloat d);
 
     KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
 
-    KaGenResult GenerateGrid3D(SInt n, LPFloat p, bool periodic = false);
+    KaGenResult GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false);
+
+    KaGenResult2D GenerateGrid2D_Coordinates(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
 
     KaGenResult GenerateGrid3D(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
+
+    KaGenResult GenerateGrid3D_N(SInt n, LPFloat p, bool periodic = false);
+
+    KaGenResult3D GenerateGrid3D_Coordinates(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
 
     KaGenResult GenerateKronecker(SInt n, SInt m);
 
