@@ -175,15 +175,15 @@ KaGenResult3D KaGen::GenerateRDG3D_Coordinates(const SInt n) {
     return GenerateRDG3D_Impl(*config_, n, 0, true, comm_);
 }
 #else  // KAGEN_CGAL_FOUND
-KaGenResult KaGen::GenerateRDG2D(SInt) {
+KaGenResult KaGen::GenerateRDG2D(SInt, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
-KaGenResult KaGen::GenerateRDG2D_M(SInt) {
+KaGenResult KaGen::GenerateRDG2D_M(SInt, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
-KaGenResult2D KaGen::GenerateRDG2D_Coordinates(SInt) {
+KaGenResult2D KaGen::GenerateRDG2D_Coordinates(SInt, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
