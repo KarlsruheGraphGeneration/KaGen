@@ -184,12 +184,16 @@ mpirun -n <nproc> ./kagen <rgg2d|rgg3d>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2D(n, r);
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DNM(n, m); // deduce r s.t. E[# edges] = m
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateRGG2DMR(m, r); // deduce n s.t. E[# edges] = m
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3D(n, r);
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DNM(n, m); // deduce r s.t. E[# edges] = m
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateRGG3DMR(m, r); // deduce n s.t. E[# edges] = m
+
+auto [edge_list, vertex_range] = gen.GenerateRGG2D(n, r);
+auto [edge_list, vertex_range] = gen.GenerateRGG2D_NM(n, m); // deduce r s.t. E[# edges] = m
+auto [edge_list, vertex_range] = gen.GenerateRGG2D_MR(m, r); // deduce n s.t. E[# edges] = m
+auto [edge_list, vertex_range, coordinates] = gen.GenerateRGG2D_Coordinates(n, r);
+
+auto [edge_list, vertex_range] = gen.GenerateRGG3D(n, r);
+auto [edge_list, vertex_range] = gen.GenerateRGG3D_NM(n, m); // deduce r s.t. E[# edges] = m
+auto [edge_list, vertex_range] = gen.GenerateRGG3D_MR(m, r); // deduce n s.t. E[# edges] = m
+auto [edge_list, vertex_range, coordinates] = gen.GenerateRGG3D_Coordinates(n, r);
 ```
 
 --- 
@@ -211,8 +215,12 @@ mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateRDG2D(n);
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateRDG3D(n);
+
+auto [edge_list, vertex_range] = gen.GenerateRDG2D(n);
+auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG2D_Coordinates(n);
+
+auto [edge_list, vertex_range] = gen.GenerateRDG3D(n);
+auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG3D_Coordinates(n);
 ```
 
 ---
@@ -236,8 +244,14 @@ mpirun -n <nproc> ./kagen <grid2d|grid3d>
 #### Library 
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_2d, vertex_range_2d] = gen.GenerateGrid2D(x, y);
-auto [edge_list_3d, vertex_range_3d] = gen.GenerateGrid3D(x, y, z);
+
+auto [edge_list, vertex_range] = gen.GenerateGrid2D(x, y);
+auto [edge_list, vertex_range] = gen.GenerateGrid2D_N(n); // x, y = sqrt(n)
+auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid2D_Coordinates(x, y);
+
+auto [edge_list, vertex_range] = gen.GenerateGrid3D(x, y, z);
+auto [edge_list, vertex_range] = gen.GenerateGrid3D_N(n); // x, y, z = cbrt(n) 
+auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid3D_Coordinates(x, y, z);
 ```
 
 ---
@@ -281,7 +295,11 @@ mpirun -n <nproc> ./kagen rhg
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list, vertex_range] = gen.GenerateRHG(n, gamma, d);
+
+auto [edge_list, vertex_range] = gen.GenerateRHG(gamma, n, d);
+auto [edge_list, vertex_range] = gen.GenerateRHG_NM(gamma, n, m); // deduce d s.t. E[# edges] = m
+auto [edge_list, vertex_range] = gen.GenerateRHG_MD(gamma, m, d); // deduce n s.t. E[# edges] = m
+auto [edge_list, vertex_range, coordinates] = gen.GenerateRHG_Coordinates(gamma, n, d);
 ```
 
 --- 
