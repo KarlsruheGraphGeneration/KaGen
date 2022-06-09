@@ -122,8 +122,8 @@ void RGG3D::GenerateGridEdges(
     // Check if vertices not generated
     SInt first_global_cell_id  = ComputeGlobalCellId(first_chunk_id, first_cell_id);
     SInt second_global_cell_id = ComputeGlobalCellId(second_chunk_id, second_cell_id);
-    GenerateVertices(first_chunk_id, first_cell_id);
-    GenerateVertices(second_chunk_id, second_cell_id);
+    GenerateVertices(first_chunk_id, first_cell_id, false);
+    GenerateVertices(second_chunk_id, second_cell_id, false);
 
     // Gather vertices
     if (vertices_.find(first_global_cell_id) == end(vertices_))

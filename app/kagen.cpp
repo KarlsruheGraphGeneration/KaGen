@@ -215,10 +215,6 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         auto* cmd = app.add_subcommand("rdg3d", "3D Random Delaunay Graph");
         cmd->alias("rdg_3d")->alias("rdg-3d");
         cmd->callback([&] { config.generator = GeneratorType::RDG_3D; });
-        // @todo
-        //cmd->add_flag(
-            //"-p,--periodic", config.periodic,
-            //"Enables the periodic boundary condition. Can yield unexpected results when using less than 27 PEs.");
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);

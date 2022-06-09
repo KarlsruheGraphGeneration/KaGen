@@ -205,7 +205,7 @@ void Delaunay3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, co
                                 // Check if vertices not generated
                                 SInt neighbor_cell_offset = ComputeGlobalCellId(neighbor_chunk_id, neighbor_cell_id);
                                 // lazily generate vertices
-                                GenerateVertices(neighbor_chunk_id, neighbor_cell_id);
+                                GenerateVertices(neighbor_chunk_id, neighbor_cell_id, false);
 
                                 // Gather vertices
                                 //                            printf("[%llu] adding %lu points

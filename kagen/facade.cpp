@@ -145,7 +145,7 @@ void SetupRHGParameters(PGeneratorConfig& config, const bool output_error, const
 }
 
 #ifdef KAGEN_CGAL_FOUND
-void SetupRDGParameters(PGeneratorConfig& config, const bool output_error, const bool output_info) {
+void SetupRDGParameters(PGeneratorConfig& config, const double factor, const bool output_error, const bool output_info) {
     if (config.n == 0) {
         if (config.m == 0) {
             if (output_error) {
@@ -154,7 +154,7 @@ void SetupRDGParameters(PGeneratorConfig& config, const bool output_error, const
             std::exit(1);
         }
 
-        config.n = config.m / 6 + 2;
+        config.n = config.m / factor + 2;
         if (output_info) {
             std::cout << "Setting number of nodes to " << config.n << std::endl;
         }
@@ -178,8 +178,11 @@ void ApproxMissingParameters(PGeneratorConfig& config, const double output_error
 
 #ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
+            SetupRDGParameters(config, 3, output_error, output_info);
+            break;
+
         case GeneratorType::RDG_3D:
-            SetupRDGParameters(config, output_error, output_info);
+            SetupRDGParameters(config, 15.53, output_error, output_info);
             break;
 #endif // KAGEN_CGAL_FOUND
 
