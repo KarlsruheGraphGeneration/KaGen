@@ -202,7 +202,7 @@ auto [edge_list, vertex_range, coordinates] = gen.GenerateRGG3D_Coordinates(n, r
 Generate an undirected random graph using the random Delaunay graph model RDG(n).
 
 **Note:** The graph can be generated with periodic boundary conditions to avoid long edges at the border using the `-p` flag. 
-However, this can yield unexpected results when using less than 9 PEs to generate the graph.
+However, this can yield unexpected results when using less than 9 PEs (2D) / 27 PEs (3D) to generate the graph.
 
 #### Application
 ```

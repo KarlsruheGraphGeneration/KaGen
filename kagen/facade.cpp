@@ -144,6 +144,7 @@ void SetupRHGParameters(PGeneratorConfig& config, const bool output_error, const
     }
 }
 
+#ifdef KAGEN_CGAL_FOUND
 void SetupRDGParameters(PGeneratorConfig& config, const bool output_error, const bool output_info) {
     if (config.n == 0) {
         if (config.m == 0) {
@@ -159,6 +160,7 @@ void SetupRDGParameters(PGeneratorConfig& config, const bool output_error, const
         }
     }
 }
+#endif // KAGEN_CGAL_FOUND
 
 void ApproxMissingParameters(PGeneratorConfig& config, const double output_error, const double output_info) {
     switch (config.generator) {
