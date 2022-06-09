@@ -129,10 +129,11 @@ KaGenResult3D KaGen::GenerateRGG3D_Coordinates(const SInt n, const LPFloat r) {
 
 #ifdef KAGEN_CGAL_FOUND
 namespace {
-KaGenResult2D
-GenerateRDG2D_Impl(PGeneratorConfig& config, const SInt n, const bool periodic, const bool coordinates, MPI_Comm comm) {
+KaGenResult2D GenerateRDG2D_Impl(
+    PGeneratorConfig& config, const SInt n, const SInt m, const bool periodic, const bool coordinates, MPI_Comm comm) {
     config.generator   = GeneratorType::RDG_2D;
     config.n           = n;
+    config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
     return Generate(config, comm);
@@ -140,31 +141,45 @@ GenerateRDG2D_Impl(PGeneratorConfig& config, const SInt n, const bool periodic, 
 } // namespace
 
 KaGenResult KaGen::GenerateRDG2D(const SInt n, const bool periodic) {
-    return GenerateRDG2D_Impl(*config_, n, periodic, false, comm_);
+    return GenerateRDG2D_Impl(*config_, n, 0, periodic, false, comm_);
+}
+
+KaGenResult KaGen::GenerateRDG2D_M(const SInt m, const bool periodic) {
+    return GenerateRDG2D_Impl(*config_, 0, m, periodic, false, comm_);
 }
 
 KaGenResult2D KaGen::GenerateRDG2D_Coordinates(const SInt n, const bool periodic) {
-    return GenerateRDG2D_Impl(*config_, n, periodic, true, comm_);
+    return GenerateRDG2D_Impl(*config_, n, 0, periodic, true, comm_);
 }
 
 namespace {
-KaGenResult3D GenerateRDG3D_Impl(PGeneratorConfig& config, const SInt n, const bool coordinates, MPI_Comm comm) {
+KaGenResult3D
+GenerateRDG3D_Impl(PGeneratorConfig& config, const SInt n, const SInt m, const bool coordinates, MPI_Comm comm) {
     config.generator   = GeneratorType::RDG_3D;
     config.n           = n;
+    config.m           = m;
     config.coordinates = coordinates;
     return Generate(config, comm);
 }
 } // namespace
 
 KaGenResult KaGen::GenerateRDG3D(const SInt n) {
-    return GenerateRDG3D_Impl(*config_, n, false, comm_);
+    return GenerateRDG3D_Impl(*config_, n, 0, false, comm_);
+}
+
+KaGenResult KaGen::GenerateRDG3D_M(const SInt m) {
+    return GenerateRDG3D_Impl(*config_, 0, m, false, comm_);
 }
 
 KaGenResult3D KaGen::GenerateRDG3D_Coordinates(const SInt n) {
-    return GenerateRDG3D_Impl(*config_, n, true, comm_);
+    return GenerateRDG3D_Impl(*config_, n, 0, true, comm_);
 }
 #else  // KAGEN_CGAL_FOUND
 KaGenResult KaGen::GenerateRDG2D(SInt) {
+    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+}
+
+KaGenResult KaGen::GenerateRDG2D_M(SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 
@@ -173,6 +188,10 @@ KaGenResult2D KaGen::GenerateRDG2D_Coordinates(SInt) {
 }
 
 KaGenResult KaGen::GenerateRDG3D(SInt) {
+    throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+}
+
+KaGenResult KaGen::GenerateRDG3D_M(SInt) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
 }
 

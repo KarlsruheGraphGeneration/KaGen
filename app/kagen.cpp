@@ -203,14 +203,28 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_flag(
             "-p,--periodic", config.periodic,
             "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
-        add_option_n(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_m(params);
+        params->require_option(1);
+        params->silent();
     }
 
     { // RDG3D
         auto* cmd = app.add_subcommand("rdg3d", "3D Random Delaunay Graph");
         cmd->alias("rdg_3d")->alias("rdg-3d");
         cmd->callback([&] { config.generator = GeneratorType::RDG_3D; });
-        add_option_n(cmd)->required();
+        // @todo
+        //cmd->add_flag(
+            //"-p,--periodic", config.periodic,
+            //"Enables the periodic boundary condition. Can yield unexpected results when using less than 27 PEs.");
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_m(params);
+        params->require_option(1);
+        params->silent();
     }
 #endif // KAGEN_CGAL_FOUND
 
