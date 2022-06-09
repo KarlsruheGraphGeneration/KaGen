@@ -218,9 +218,11 @@ mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
 KaGen gen(MPI_COMM_WORLD);
 
 auto [edge_list, vertex_range] = gen.GenerateRDG2D(n, periodic);
+auto [edge_list, vertex_range] = gen.GenerateRDG2D_M(m, periodic);
 auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG2D_Coordinates(n, periodic);
 
 auto [edge_list, vertex_range] = gen.GenerateRDG3D(n);
+auto [edge_list, vertex_range] = gen.GenerateRDG3D_M(m);
 auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG3D_Coordinates(n);
 ```
 
