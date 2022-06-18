@@ -136,6 +136,10 @@ public:
 
     KaGenResult2D GenerateRHG_Coordinates(LPFloat gamma, SInt n, LPFloat d);
 
+    KaGenResult2D GenerateRHG_Coordinates_NM(LPFloat gamma, SInt n, SInt m);
+
+    KaGenResult2D GenerateRHG_Coordinates_MD(LPFloat gamma, SInt m, LPFloat d);
+
     KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
 
     KaGenResult GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false);

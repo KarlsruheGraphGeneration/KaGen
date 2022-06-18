@@ -238,6 +238,14 @@ KaGenResult2D KaGen::GenerateRHG_Coordinates(const LPFloat gamma, const SInt n, 
     return GenerateRHG_Impl(*config_, gamma, n, 0, d, true, comm_);
 }
 
+KaGenResult2D KaGen::GenerateRHG_Coordinates_NM(const LPFloat gamma, const SInt n, const SInt m) {
+    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, true, comm_);
+}
+
+KaGenResult2D KaGen::GenerateRHG_Coordinates_MD(const LPFloat gamma, const SInt m, const LPFloat d) {
+    return GenerateRHG_Impl(*config_, gamma, 0, m, d, true, comm_);
+}
+
 namespace {
 KaGenResult2D GenerateGrid2D_Impl(
     PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic,
