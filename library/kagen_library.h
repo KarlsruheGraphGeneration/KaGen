@@ -177,8 +177,8 @@ void BuildVertexDistribution(
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, (*vtxdist) + 1, 1, idx_mpi_type, comm);
 }
 
-template <typename IDX = SInt>
-void BuildCSR(KaGenResult& graph, IDX** xadj, IDX* xadj_size, IDX** adjncy, IDX* adjncy_size) {
+template <typename Graph = KaGenResult, typename IDX = SInt>
+void BuildCSR(Graph& graph, IDX** xadj, IDX* xadj_size, IDX** adjncy, IDX* adjncy_size) {
     // Edges must be sorted
     if (!std::is_sorted(graph.edges.begin(), graph.edges.end())) {
         std::sort(graph.edges.begin(), graph.edges.end());
