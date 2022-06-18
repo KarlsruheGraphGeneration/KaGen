@@ -161,9 +161,9 @@ private:
     std::unique_ptr<PGeneratorConfig> config_;
 };
 
-template <typename IDX = SInt>
+template <typename Graph = KaGenResult, typename IDX = SInt>
 void BuildVertexDistribution(
-    KaGenResult& graph, IDX** vtxdist, IDX* vtxdist_size, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
+    Graph& graph, IDX** vtxdist, IDX* vtxdist_size, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
