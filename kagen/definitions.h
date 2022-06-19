@@ -44,6 +44,6 @@ using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
 using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
 using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 
-constexpr std::size_t NEWTON_MAX_ITERS = 10;
+constexpr std::size_t NEWTON_MAX_ITERS = 10000;
 constexpr double      NEWTON_EPS       = 0.001;
 } // namespace kagen
