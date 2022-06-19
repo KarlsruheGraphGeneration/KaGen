@@ -4,17 +4,33 @@
 
 namespace kagen {
 namespace {
+// According to https://mathworld.wolfram.com/CubeLinePicking.html,
+// when placing two points at a random position in a unit cube, the probability 
+// that the distance between these points is equal to l (with 0 <= l <= 1) is 
+// given by
+//
+// P(l) = -l^2 [(l - 8) l^2 + pi (6l - 4)]
+//
+// Thus, the probability for there to be an edge is given by 
+//
+// prob. edge = int_0^r P(l) dl 
+//            = 1/30 [(48 - 5 r) r^5 - 5 pi r^3 (9r - 8)]
+//
+// Note that the case where r > 1 is not implemented.
 inline double ComputeEdgeProability(const LPFloat r) {
     const double r3 = r * r * r;
     const double r5 = r3 * r * r;
     return (1.0 / 30.0) * ((48.0 - 5.0 * r) * r5 - 5 * M_PI * r3 * (9.0 * r - 8.0));
 }
 
+// = d/dx ComputeEdgeProability(r)
 inline double ComputeDerivedEdgeProbability(const LPFloat r) {
     return -1.0 * r * r * ((r - 8.0) * r * r + M_PI * (6 * r - 4));
 }
 } // namespace
 
+// Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a naive implementation of 
+// Newton's method
 double RGG3D::ApproxRadius(const SInt n, const SInt m) {
     const SInt max_m = n * (n - 1);
     return FindRoot(

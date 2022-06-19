@@ -4,17 +4,28 @@
 
 namespace kagen {
 namespace {
+// According to https://mathworld.wolfram.com/SquareLinePicking.html, 
+// when placing two points at a random position within a unit square, the 
+// probability that their distance is less than r (where 0 <= r <= 1) 
+// is given by 
+//
+// prob. edge = 1/2 l^4 - 8/3 l^3 + pi l^2
+//
+// Note that the case there r > 1 is not implemented.
 inline double ComputeEdgeProability(const LPFloat r) {
     const double r2 = r * r;
     return r2 * (r2 / 2.0 - 8.0 / 3.0 * r + M_PI);
 }
 
+// = d/dx ComputeEdgeProability(x)
 inline double ComputeDerivedEdgeProbability(const LPFloat r) {
     const double r2 = r * r;
     return (2 * r * (0.5 * r2 - 8.0 / 3.0 * r + M_PI) + r2 * (r - 8.0 / 3.0));
 }
 } // namespace
 
+// Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a 
+// naive implementation of Newton's method
 double RGG2D::ApproxRadius(const SInt n, const SInt m) {
     const SInt max_m = n * (n - 1);
     return FindRoot(
