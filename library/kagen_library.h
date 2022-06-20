@@ -59,6 +59,9 @@ struct KaGenResult {
     inline KaGenResult(std::tuple<EdgeList, VertexRange, Coordinates> result)
         : edges(std::move(std::get<0>(result))),
           vertex_range(std::move(std::get<1>(result))) {}
+    inline KaGenResult(EdgeList edges, VertexRange vertex_range)
+        : edges(std::move(edges)),
+          vertex_range(vertex_range) {}
     inline KaGenResult(KaGenResult2D&& result) : edges(std::move(result.edges)), vertex_range(result.vertex_range) {}
     inline KaGenResult(KaGenResult3D&& result) : edges(std::move(result.edges)), vertex_range(result.vertex_range) {}
 
@@ -162,8 +165,7 @@ private:
 };
 
 template <typename Graph = KaGenResult, typename IDX = SInt>
-void BuildVertexDistribution(
-    Graph& graph, IDX** vtxdist, IDX* vtxdist_size, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
+void BuildVertexDistribution(Graph& graph, IDX** vtxdist, IDX* vtxdist_size, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
