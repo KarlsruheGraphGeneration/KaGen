@@ -333,7 +333,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
     // Postprocessing: cut edges
     const SInt num_edges_before_postprocessing = edges.size();
-    if (generator->AlmostUndirected()) {
+    if (!config.skip_postprocessing && generator->AlmostUndirected()) {
         AddReverseEdges(edges, vertex_range, comm);
     }
     const SInt num_edges_after_postprocessing = edges.size();
