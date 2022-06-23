@@ -5,6 +5,7 @@
 
 #include <mpi.h>
 
+#include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/io/coordinates.h"
@@ -37,7 +38,10 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(
             return std::make_unique<HMetisWriter>(edges, vertex_range, coordinates, comm);
 
         case OutputFormat::DOT:
-            return std::make_unique<DotWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<DotWriter>(edges, vertex_range, coordinates, false, comm);
+
+        case OutputFormat::DOT_DIRECTED:
+            return std::make_unique<DotWriter>(edges, vertex_range, coordinates, true, comm);
 
         case OutputFormat::COORDINATES:
             return std::make_unique<CoordinatesWriter>(edges, vertex_range, coordinates, comm);

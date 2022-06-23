@@ -11,13 +11,13 @@ Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PE
     // Globals
     alpha_         = (config_.plexp - 1) / 2;
     target_r_      = PGGeometry::GetTargetRadius(config_.n, config_.n * config_.avg_degree / 2, alpha_);
-    cosh_target_r_ = cosh(target_r_);
+    cosh_target_r_ = std::cosh(target_r_);
     pdm_target_r_  = (cosh_target_r_ - 1) / 2;
     // clique_thres_ = target_r_ / 2.0;
     clique_thres_ = 0;
 
     // PE-specific
-    total_annuli_        = floor(alpha_ * target_r_ / log(2));
+    total_annuli_        = std::floor(alpha_ * target_r_ / std::log(2));
     SInt chunks_per_pe   = config_.k / size_;
     SInt leftover_chunks = config_.k % size_;
     local_chunks_        = chunks_per_pe + ((SInt)rank_ < leftover_chunks);

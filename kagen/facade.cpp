@@ -145,7 +145,8 @@ void SetupRHGParameters(PGeneratorConfig& config, const bool output_error, const
 }
 
 #ifdef KAGEN_CGAL_FOUND
-void SetupRDGParameters(PGeneratorConfig& config, const double factor, const bool output_error, const bool output_info) {
+void SetupRDGParameters(
+    PGeneratorConfig& config, const double factor, const bool output_error, const bool output_info) {
     if (config.n == 0) {
         if (config.m == 0) {
             if (output_error) {
@@ -340,10 +341,11 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     const auto end_graphgen = MPI_Wtime();
 
     // Postprocessing
-    if (output_error && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
+    if (!config.skip_postprocessing && output_error
+        && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
         std::cout << "Postprocessing:" << std::endl;
     }
-    if (generator->AlmostUndirected()) {
+    if (!config.skip_postprocessing && generator->AlmostUndirected()) {
         SInt num_global_edges_before, num_global_edges_after;
         MPI_Reduce(&num_edges_before_postprocessing, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
         MPI_Reduce(&num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
@@ -356,7 +358,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
                       << std::endl;
         }
     }
-    if (generator->InvalidVertexRangeIfEmpty()) {
+    if (!config.skip_postprocessing && generator->InvalidVertexRangeIfEmpty()) {
         std::vector<SInt> from_before(size, old_vertex_range.first);
         std::vector<SInt> from_after(size, vertex_range.first);
         MPI_Gather(from_before.data(), 1, KAGEN_MPI_SINT, from_before.data(), 1, KAGEN_MPI_SINT, ROOT, comm);

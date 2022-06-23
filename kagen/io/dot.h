@@ -7,7 +7,7 @@
 namespace kagen {
 class DotWriter : public SequentialGraphWriter {
 public:
-    DotWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    DotWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, bool directed_output, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 
@@ -17,5 +17,8 @@ protected:
     void AppendTo(const std::string& filename) final;
 
     void AppendFooterTo(const std::string& filename) final;
+
+private:
+    bool directed_output_;
 };
 } // namespace kagen

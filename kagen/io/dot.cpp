@@ -3,8 +3,11 @@
 #include "kagen/io/buffered_writer.h"
 
 namespace kagen {
-DotWriter::DotWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
+DotWriter::DotWriter(
+    EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, const bool directed_output,
+    MPI_Comm comm)
+    : SequentialGraphWriter(edges, vertex_range, coordinates, comm),
+      directed_output_(directed_output) {}
 
 std::string DotWriter::DefaultExtension() const {
     return "dot";
@@ -12,7 +15,8 @@ std::string DotWriter::DefaultExtension() const {
 
 void DotWriter::AppendHeaderTo(const std::string& filename, SInt, SInt) {
     BufferedTextOutput<> out(tag::append, filename);
-    out.WriteString("graph G{\n").Flush();
+    const char *type = directed_output_ ? "digraph" : "graph";
+    out.WriteString(type).WriteString(" G{\n").Flush();
 }
 
 void DotWriter::AppendTo(const std::string& filename) {
@@ -32,9 +36,11 @@ void DotWriter::AppendTo(const std::string& filename) {
         }
     }
 
+    const char* arrow = directed_output_ ? "->" : "--";
+
     for (const auto& [from, to]: edges_) {
-        if (from < to) { // need edges only once
-            out.WriteInt(from + 1).WriteString("--").WriteInt(to + 1).WriteChar('\n').Flush();
+        if (directed_output_ || from < to) { // need edges only once
+            out.WriteInt(from + 1).WriteString(arrow).WriteInt(to + 1).WriteChar('\n').Flush();
         }
     }
 }

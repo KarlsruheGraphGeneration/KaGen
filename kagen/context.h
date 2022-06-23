@@ -22,6 +22,7 @@ enum class OutputFormat {
     METIS,
     HMETIS,
     DOT,
+    DOT_DIRECTED,
     COORDINATES,
 };
 
@@ -79,6 +80,7 @@ struct PGeneratorConfig {
     bool            quiet                 = false; // Disable all console output
     bool            validate_simple_graph = false; // Validate that the result is a simple graph
     StatisticsLevel statistics_level      = StatisticsLevel::BASIC;
+    bool            skip_postprocessing   = false;
 
     // Generator settings
     GeneratorType generator;          // Generator type

@@ -109,6 +109,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     // General parameters
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-V,--validate-simple", config.validate_simple_graph, "Validate that the generated graph is simple");
+    app.add_flag(
+        "--skip-postprocessing", config.skip_postprocessing, "Skip postprocessing (repair graph, fix vertex ranges)");
     app.add_flag("-s,--seed", config.seed, "Seed for PRNG");
     auto* stats_group = app.add_option_group("Statistics output");
     stats_group
