@@ -109,14 +109,12 @@ bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MP
 
     // Check that there are no duplicate edges
     {
-        const std::size_t size_before = edge_list.size();
-
-        auto it = std::unique(edge_list.begin(), edge_list.end());
-        edge_list.erase(it, edge_list.end());
-
-        if (size_before != edge_list.size()) {
-            std::cerr << "Graph contains duplicated edges\n";
-            return false;
+        for (std::size_t i = 1; i < edge_list.size(); ++i) {
+            if (edge_list[i - 1] == edge_list[i]) {
+                const auto& [from, to] = edge_list[i];
+                std::cerr << "Graph contains a duplicated edge: " << from << " --> " << to << "\n";
+                return false;
+            }
         }
     }
 
