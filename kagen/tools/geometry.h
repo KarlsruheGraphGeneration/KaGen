@@ -49,9 +49,9 @@ public:
     static double getExpectedDegree(double n, double alpha, double R) {
         double gamma          = 2 * alpha + 1;
         double xi             = (gamma - 1) / (gamma - 2);
-        double first_sum_term = exp(-R / 2);
+        double first_sum_term = std::exp(-R / 2);
         double second_sum_term =
-            exp(-alpha * R)
+            std::exp(-alpha * R)
             * (alpha * (R / 2) * ((M_PI / 4) * pow((1 / alpha), 2) - (M_PI - 1) * (1 / alpha) + (M_PI - 2)) - 1);
         double exp_degree = (2 / M_PI) * xi * xi * n * (first_sum_term + second_sum_term);
         return exp_degree;

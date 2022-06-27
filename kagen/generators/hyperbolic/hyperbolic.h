@@ -99,10 +99,10 @@ private:
 
     void Query(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool search_down = true);
 
-    void
+    bool
     QueryRightNeighbor(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down);
 
-    void QueryLeftNeighbor(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down);
+    bool QueryLeftNeighbor(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down);
 
     void GenerateGridEdges(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q);
 

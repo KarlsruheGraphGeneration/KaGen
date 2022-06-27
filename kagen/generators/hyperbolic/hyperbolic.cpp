@@ -2,15 +2,21 @@
 
 #include "kagen/generators/generator.h"
 
+#include <csignal>
+#include <iostream>
+
 namespace kagen {
+static SInt cnt_up   = 0;
+static SInt cnt_down = 0;
 Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),
       rng_(config) {
     // Globals
-    alpha_         = (config_.plexp - 1) / 2;
-    target_r_      = PGGeometry::GetTargetRadius(config_.n, config_.n * config_.avg_degree / 2, alpha_);
+    alpha_    = (config_.plexp - 1) / 2;
+    target_r_ = PGGeometry::GetTargetRadius(config_.n, config_.n * config_.avg_degree / 2, alpha_);
+    // std::cout << "target_r_=" << target_r_ << std::endl;
     cosh_target_r_ = std::cosh(target_r_);
     pdm_target_r_  = (cosh_target_r_ - 1) / 2;
     // clique_thres_ = target_r_ / 2.0;
@@ -39,7 +45,7 @@ Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PE
     SInt total_cells = 0;
     cells_per_annulus_.resize(total_annuli_, std::numeric_limits<SInt>::max());
     for (SInt i = 0; i < total_annuli_; ++i) {
-        global_cell_ids_.emplace_back(total_cells);
+        global_cell_ids_.push_back(total_cells);
         total_cells += GridSizeForAnnulus(i) * size_;
     }
     cells_.set_empty_key(total_cells + 1);
@@ -92,6 +98,7 @@ void Hyperbolic::GenerateImpl() {
     //   std::cout << "generated vertices" << std::endl;
 
     // Local edges
+
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
             GenerateEdges(j, i);
@@ -99,6 +106,8 @@ void Hyperbolic::GenerateImpl() {
     }
 
     SetVertexRange(start_node_, start_node_ + num_nodes_);
+
+    std::cout << "search down=" << cnt_down << ", search up=" << cnt_up << std::endl;
 }
 
 void Hyperbolic::ComputeAnnuli(const SInt chunk_id) {
@@ -120,7 +129,7 @@ void Hyperbolic::ComputeAnnuli(const SInt chunk_id) {
 
         // Push annuli_
         annuli_[ComputeGlobalChunkId(i - 1, chunk_id)] = std::make_tuple(n_annulus, min_r, max_r, false, offset);
-        boundaries_[i - 1]                             = std::make_pair(cosh(min_r), sinh(min_r));
+        boundaries_[i - 1]                             = std::make_pair(std::cosh(min_r), std::sinh(min_r));
         // if (rank_ == 2)
         //   printf("a %llu %f %f %f %f %llu\n", n_annulus, min_r, max_r, std::get<1>(chunks_[chunk_id]),
         //   std::get<2>(chunks_[chunk_id]), offset);
@@ -179,7 +188,7 @@ void Hyperbolic::GenerateCells(const SInt annulus_id, SInt chunk_id) {
     // }
 
     // Lazily compute chunk
-    if (chunks_.find(chunk_id) == end(chunks_)) {
+    if (chunks_.find(chunk_id) == std::end(chunks_)) {
         ComputeChunk(chunk_id);
         ComputeAnnuli(chunk_id);
     }
@@ -243,7 +252,7 @@ void Hyperbolic::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SI
     // }
 
     // Lazily compute chunk
-    if (chunks_.find(chunk_id) == end(chunks_)) {
+    if (chunks_.find(chunk_id) == std::end(chunks_)) {
         ComputeChunk(chunk_id);
         ComputeAnnuli(chunk_id);
     }
@@ -278,20 +287,20 @@ void Hyperbolic::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SI
     SInt h = sampling::Spooky::hash(seed);
     mersenne.RandomInit(h);
     sorted_mersenne.RandomInit(h, n);
-    LPFloat              mincdf        = cosh(alpha_ * min_r);
-    LPFloat              maxcdf        = cosh(alpha_ * max_r);
+    const LPFloat        mincdf        = std::cosh(alpha_ * min_r);
+    const LPFloat        maxcdf        = std::cosh(alpha_ * max_r);
     std::vector<Vertex>& cell_vertices = vertices_[global_cell_id];
     cell_vertices.reserve(n);
     for (SInt i = 0; i < n; i++) {
         // Compute coordinates
         LPFloat angle  = sorted_mersenne.Random() * (max_phi - min_phi) + min_phi;
-        LPFloat radius = acosh(mersenne.Random() * (maxcdf - mincdf) + mincdf) / alpha_;
+        LPFloat radius = std::acosh(mersenne.Random() * (maxcdf - mincdf) + mincdf) / alpha_;
 
         // Perform pdm transformation
-        LPFloat inv_len    = (cosh(radius) + 1.0) / 2.0;
-        LPFloat pdm_radius = sqrt(1.0 - 1.0 / inv_len);
-        LPFloat x          = pdm_radius * sin(angle);
-        LPFloat y          = pdm_radius * cos(angle);
+        LPFloat inv_len    = (std::cosh(radius) + 1.0) / 2.0;
+        LPFloat pdm_radius = std::sqrt(1.0 - 1.0 / inv_len);
+        LPFloat x          = pdm_radius * std::sin(angle);
+        LPFloat y          = pdm_radius * std::cos(angle);
         LPFloat gamma      = 1.0 / (1.0 - pdm_radius * pdm_radius);
         cell_vertices.emplace_back(angle, radius, x, y, gamma, offset + i);
         // if (rank_ == 2)
@@ -330,19 +339,34 @@ void Hyperbolic::GenerateEdges(const SInt annulus_id, const SInt chunk_id) {
 }
 
 void Hyperbolic::QueryBoth(const SInt annulus_id, const SInt chunk_id, const SInt cell_id, const Vertex& q) {
+    /*if ((std::get<5>(q) == 1280) || (std::get<5>(q) == 1807)) {
+        std::cout << "\tQueryBoth(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", " << std::get<5>(q)
+                  << ")" << std::endl;
+    }*/
+
     Query(annulus_id, chunk_id, cell_id, q);
     if (config_.query_both && annulus_id > 0) {
         auto&   chunk         = chunks_[chunk_id];
         LPFloat min_chunk_phi = std::get<1>(chunk);
         LPFloat max_chunk_phi = std::get<2>(chunk);
         LPFloat grid_phi      = (max_chunk_phi - min_chunk_phi) / GridSizeForAnnulus(annulus_id - 1);
-        SInt    next_cell_id  = floor((std::get<0>(q) - min_chunk_phi) / grid_phi);
+        SInt    next_cell_id  = std::floor((std::get<0>(q) - min_chunk_phi) / grid_phi);
         Query(annulus_id - 1, chunk_id, next_cell_id, q, false);
     }
 }
 
 void Hyperbolic::Query(
     const SInt annulus_id, const SInt chunk_id, const SInt cell_id, const Vertex& q, bool search_down) {
+    /*if (std::get<5>(q) == 1280) {
+        std::cout << "\tQuery(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", " << std::get<5>(q) << ", "
+                  << search_down << ")" << std::endl;
+    }*/
+    if (search_down) {
+        ++cnt_down;
+    } else {
+        ++cnt_up;
+    }
+
     // Boundaries
     auto& annulus        = annuli_[ComputeGlobalChunkId(annulus_id, chunk_id)];
     auto  current_bounds = GetBoundaryPhis(std::get<0>(q), std::get<1>(q), annulus_id);
@@ -362,9 +386,10 @@ void Hyperbolic::Query(
     right_processed_cell_  = cell_id;
 
     // Iterate over cell
-    if (search_down || !IsLocalChunk(chunk_id))
+    if (search_down /* || !IsLocalChunk(chunk_id) */) // second condition should be always true?
         GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
 
+    bool found_nonlocal_chunk = false;
     if (std::get<1>(annulus) >= clique_thres_ && std::max(TotalGridSizeForAnnulus(annulus_id), config_.k) > 1) {
         // Continue right
         if (current_min_phi_ < min_cell_phi
@@ -376,7 +401,7 @@ void Hyperbolic::Query(
             // if (rank_ == 2)
             //   std::cout << "go right " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
             GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
-            QueryRightNeighbor(
+            found_nonlocal_chunk |= QueryRightNeighbor(
                 annulus_id, next_chunk_id, next_cell_id, q, std::abs(min_cell_phi - 0.0) < cell_eps_, search_down);
         }
 
@@ -390,7 +415,7 @@ void Hyperbolic::Query(
             // if (rank_ == 2)
             //   std::cout << "go left " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
             GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
-            QueryLeftNeighbor(
+            found_nonlocal_chunk |= QueryLeftNeighbor(
                 annulus_id, next_chunk_id, next_cell_id, q, std::abs(max_cell_phi - 2 * M_PI) < cell_eps_, search_down);
         }
     }
@@ -405,24 +430,42 @@ void Hyperbolic::Query(
     if (next_annulus >= total_annuli_ || (LONG)next_annulus < 0)
         return;
 
+    if (!search_down && !found_nonlocal_chunk) {
+        return; // search space fully contained on this PE
+    }
+
     // Find next cell
     auto&   chunk         = chunks_[chunk_id];
     LPFloat min_chunk_phi = std::get<1>(chunk);
     LPFloat max_chunk_phi = std::get<2>(chunk);
     LPFloat grid_phi      = (max_chunk_phi - min_chunk_phi) / GridSizeForAnnulus(next_annulus);
-    SInt    next_cell_id  = floor((std::get<0>(q) - min_chunk_phi) / grid_phi);
+    SInt    next_cell_id  = std::floor((std::get<0>(q) - min_chunk_phi) / grid_phi);
 
     Query(next_annulus, chunk_id, next_cell_id, q, search_down);
 }
 
-void Hyperbolic::QueryRightNeighbor(
-    const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down) {
+bool Hyperbolic::QueryRightNeighbor(
+    const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase,
+    [[maybe_unused]] bool search_down) {
+    /*bool out = false;
+    if (std::get<5>(q) == 1280) {
+        std::cout << "\tQueryRightNeighbor(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", "
+                  << std::get<5>(q) << ", " << phase << ", " << search_down << ")" << std::endl;
+        out = true;
+    }*/
+    bool found_nonlocal_chunk = false;
+
     while (true) {
+        /*if (out) {
+            std::cout << "phase=" << phase << ", current_min_phi_=" << current_min_phi_
+                      << ", OutOfBounds=" << OutOfBounds(current_min_phi_) << std::endl;
+        }*/
+
         // Boundaries
         if (phase && current_min_phi_ < 0.0)
             current_min_phi_ += 2 * M_PI;
         if (phase && OutOfBounds(current_min_phi_))
-            return;
+            return found_nonlocal_chunk;
         // || std::get<1>(annuli_[annulus_id]) < clique_thres_))
 
         auto&   cell           = cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)];
@@ -431,8 +474,20 @@ void Hyperbolic::QueryRightNeighbor(
         right_processed_cell_  = cell_id;
 
         // Iterate over cell
-        if ((search_down && IsLocalChunk(chunk_id) && min_cell_phi > std::get<0>(q)) || !IsLocalChunk(chunk_id))
+        /*if (out) {
+            std::cout << "IsLocalChunk=" << IsLocalChunk(chunk_id) << ", min_cell_phi=" << min_cell_phi
+                      << ", get<0>(q)=" << std::get<0>(q) << std::endl;
+            std::cout << "current_cell=" << current_cell_ << ", phi="
+                      << std::get<1>(cells_[ComputeGlobalCellId(current_annulus_, current_chunk_, current_cell_)])
+                      << std::endl;
+        }*/
+
+        // if ((false && search_down && IsLocalChunk(chunk_id) && min_cell_phi > std::get<0>(q)) ||
+        // !IsLocalChunk(chunk_id))
+        if (!IsLocalChunk(chunk_id)) {
+            found_nonlocal_chunk = true;
             GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
+        }
 
         phase = phase || std::abs(min_cell_phi - 0.0) < cell_eps_;
         if (current_min_phi_ < min_cell_phi || OutOfBounds(current_min_phi_)) {
@@ -447,28 +502,39 @@ void Hyperbolic::QueryRightNeighbor(
             chunk_id = next_chunk_id;
             continue;
         }
-        return;
+
+        return found_nonlocal_chunk;
     }
 }
 
-void Hyperbolic::QueryLeftNeighbor(
+bool Hyperbolic::QueryLeftNeighbor(
     const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down) {
+    /*if (std::get<5>(q) == 1280) {
+        std::cout << "\tQueryLeftNeighbor(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", "
+                  << std::get<5>(q) << ", " << phase << ", " << search_down << ")" << std::endl;
+    }*/
+    bool found_nonlocal_chunk = false;
+
     while (true) {
         // Boundaries
         if (phase && current_max_phi_ >= 2 * M_PI)
             current_max_phi_ -= 2 * M_PI;
         if (phase && OutOfBounds(current_max_phi_))
-            return;
+            return found_nonlocal_chunk;
         // || std::get<1>(annuli_[annulus_id]) < clique_thres_))
         if (chunk_id == right_processed_chunk_ && cell_id == right_processed_cell_)
-            return;
+            return found_nonlocal_chunk;
 
         auto&   cell         = cells_[ComputeGlobalCellId(annulus_id, chunk_id, cell_id)];
         LPFloat max_cell_phi = std::get<2>(cell);
 
         // Iterate over cell
-        if (search_down || !IsLocalChunk(chunk_id))
+        if (search_down || !IsLocalChunk(chunk_id)) {
+            if (!search_down) {
+                found_nonlocal_chunk = true;
+            }
             GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
+        }
 
         phase = phase || std::abs(max_cell_phi - 2 * M_PI) < cell_eps_;
         if (current_max_phi_ > max_cell_phi || OutOfBounds(current_max_phi_)) {
@@ -483,11 +549,16 @@ void Hyperbolic::QueryLeftNeighbor(
             chunk_id = next_chunk_id;
             continue;
         }
-        return;
+        return found_nonlocal_chunk;
     }
 }
 
 void Hyperbolic::GenerateGridEdges(const SInt annulus_id, const SInt chunk_id, const SInt cell_id, const Vertex& q) {
+    /*if (std::get<5>(q) == 1280) {
+        std::cout << "GenerateGridEdges(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", " << std::get<5>(q)
+                  << ")" << std::endl;
+    }*/
+
     // Check if vertices not generated
     SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
     GenerateVertices(annulus_id, chunk_id, cell_id);
@@ -517,6 +588,16 @@ void Hyperbolic::GenerateGridEdges(const SInt annulus_id, const SInt chunk_id, c
         for (SInt j = 0; j < cell_vertices.size(); ++j) {
             const Vertex& v = cell_vertices[j];
             if (PGGeometry::HyperbolicDistance(q, v) <= pdm_target_r_) {
+                /*
+                if ((std::get<5>(q) == 1280 && std::get<5>(v) == 1807)
+                    || (std::get<5>(q) == 1807 && std::get<5>(v) == 1280)) {
+                    std::cout << "Annulus: " << annulus_id << ", Chunk: " << chunk_id << ", Cell: " << cell_id
+                              << std::endl;
+                    std::cout << "Adding edge " << std::get<5>(q) << " --> " << std::get<5>(v) << std::endl;
+                    std::raise(SIGINT);
+                }
+                */
+
                 PushEdge(std::get<5>(q), std::get<5>(v));
                 if (IsLocalChunk(chunk_id)) {
                     PushEdge(std::get<5>(v), std::get<5>(q));
@@ -528,14 +609,15 @@ void Hyperbolic::GenerateGridEdges(const SInt annulus_id, const SInt chunk_id, c
 
 inline std::pair<LPFloat, LPFloat>
 Hyperbolic::GetBoundaryPhis(const LPFloat boundary_phi, const LPFloat boundary_r, const SInt annulus_id) const {
-    auto&   boundary    = boundaries_[annulus_id];
-    LPFloat cosh_min_r  = std::get<0>(boundary);
-    LPFloat sinh_min_r  = std::get<1>(boundary);
-    LPFloat diff        = acos((cosh(boundary_r) * cosh_min_r - cosh_target_r_) / (sinh(boundary_r) * sinh_min_r));
-    LPFloat lower_bound = boundary_phi - diff;
-    LPFloat upper_bound = boundary_phi + diff;
-    LPFloat min_phi     = std::min(lower_bound, upper_bound);
-    LPFloat max_phi     = std::max(lower_bound, upper_bound);
+    const auto&   boundary   = boundaries_[annulus_id];
+    const LPFloat cosh_min_r = std::get<0>(boundary);
+    const LPFloat sinh_min_r = std::get<1>(boundary);
+    const LPFloat diff =
+        std::acos((std::cosh(boundary_r) * cosh_min_r - cosh_target_r_) / (std::sinh(boundary_r) * sinh_min_r));
+    const LPFloat lower_bound = boundary_phi - diff;
+    const LPFloat upper_bound = boundary_phi + diff;
+    const LPFloat min_phi     = std::min(lower_bound, upper_bound);
+    const LPFloat max_phi     = std::max(lower_bound, upper_bound);
     return std::make_pair(min_phi, max_phi);
 }
 
