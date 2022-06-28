@@ -327,7 +327,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
     // Postprocessing: vertex ranges
     const VertexRange old_vertex_range = generator->GetVertexRange();
-    if (generator->InvalidVertexRangeIfEmpty()) {
+    if (!config.skip_postprocessing && generator->InvalidVertexRangeIfEmpty()) {
         generator->SetVertexRange(RecomputeVertexRanges(generator->GetVertexRange(), comm));
     }
 
@@ -345,7 +345,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     const auto end_graphgen = MPI_Wtime();
 
     // Postprocessing
-    if (!config.skip_postprocessing && output_error
+    if (!config.skip_postprocessing && output_info
         && (generator->AlmostUndirected() || generator->InvalidVertexRangeIfEmpty())) {
         std::cout << "Postprocessing:" << std::endl;
     }
@@ -354,7 +354,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         MPI_Reduce(&num_edges_before_postprocessing, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
         MPI_Reduce(&num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
 
-        if (output_error) {
+        if (output_info) {
             std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
                       << num_global_edges_after << " edges: by "
                       << std::abs(
