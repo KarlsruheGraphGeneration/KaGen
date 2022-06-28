@@ -6,8 +6,6 @@
 #include <iostream>
 
 namespace kagen {
-static SInt cnt_up   = 0;
-static SInt cnt_down = 0;
 Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
@@ -22,6 +20,8 @@ Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PE
     // clique_thres_ = target_r_ / 2.0;
     clique_thres_ = 0;
 
+    std::cout << "alpha_=" << alpha_ << ", target_r_=" << target_r_ << std::endl;
+    
     // PE-specific
     total_annuli_        = std::floor(alpha_ * target_r_ / std::log(2));
     SInt chunks_per_pe   = config_.k / size_;
@@ -106,8 +106,6 @@ void Hyperbolic::GenerateImpl() {
     }
 
     SetVertexRange(start_node_, start_node_ + num_nodes_);
-
-    std::cout << "search down=" << cnt_down << ", search up=" << cnt_up << std::endl;
 }
 
 void Hyperbolic::ComputeAnnuli(const SInt chunk_id) {
@@ -361,11 +359,6 @@ void Hyperbolic::Query(
         std::cout << "\tQuery(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", " << std::get<5>(q) << ", "
                   << search_down << ")" << std::endl;
     }*/
-    if (search_down) {
-        ++cnt_down;
-    } else {
-        ++cnt_up;
-    }
 
     // Boundaries
     auto& annulus        = annuli_[ComputeGlobalChunkId(annulus_id, chunk_id)];
@@ -430,9 +423,11 @@ void Hyperbolic::Query(
     if (next_annulus >= total_annuli_ || (LONG)next_annulus < 0)
         return;
 
+    /* skips too much 
     if (!search_down && !found_nonlocal_chunk) {
         return; // search space fully contained on this PE
     }
+    */
 
     // Find next cell
     auto&   chunk         = chunks_[chunk_id];

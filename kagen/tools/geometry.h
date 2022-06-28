@@ -23,7 +23,7 @@ public:
     virtual ~PGGeometry();
 
     static inline double HyperbolicAreaToRadius(double area) {
-        return acosh(area / (2 * M_PI) + 1);
+        return std::acosh(area / (2 * M_PI) + 1);
     }
 
     static double GetTargetRadius(double n, double m, double alpha = 1, double /* T */ = 0, double epsilon = 0.01) {
@@ -31,45 +31,45 @@ public:
         double target_avg_degree = (m / n) * 2;
         double xi_inv            = ((pl_exp - 2) / (pl_exp - 1));
         double v                 = target_avg_degree * (M_PI / 2) * xi_inv * xi_inv;
-        double current_r         = 2 * log(n / v);
+        double current_r         = 2 * std::log(n / v);
         double lower_bound       = current_r / 2;
         double upper_bound       = current_r * 2;
         do {
             current_r        = (lower_bound + upper_bound) / 2;
-            double current_k = getExpectedDegree(n, alpha, current_r);
+            double current_k = GetExpectedDegree(n, alpha, current_r);
             if (current_k < target_avg_degree) {
                 upper_bound = current_r;
             } else {
                 lower_bound = current_r;
             }
-        } while (std::abs(getExpectedDegree(n, alpha, current_r) - target_avg_degree) > epsilon);
+        } while (std::abs(GetExpectedDegree(n, alpha, current_r) - target_avg_degree) > epsilon);
         return current_r;
     }
 
-    static double getExpectedDegree(double n, double alpha, double R) {
+    static double GetExpectedDegree(double n, double alpha, double R) {
         double gamma          = 2 * alpha + 1;
         double xi             = (gamma - 1) / (gamma - 2);
         double first_sum_term = std::exp(-R / 2);
         double second_sum_term =
             std::exp(-alpha * R)
-            * (alpha * (R / 2) * ((M_PI / 4) * pow((1 / alpha), 2) - (M_PI - 1) * (1 / alpha) + (M_PI - 2)) - 1);
+            * (alpha * (R / 2) * ((M_PI / 4) * std::pow((1 / alpha), 2) - (M_PI - 1) * (1 / alpha) + (M_PI - 2)) - 1);
         double exp_degree = (2 / M_PI) * xi * xi * n * (first_sum_term + second_sum_term);
         return exp_degree;
     }
 
     static double EuclideanRadiusToHyperbolic(double euclidean_radius) {
         double eusq   = euclidean_radius * euclidean_radius;
-        double result = acosh(1 + 2 * eusq / ((1 - eusq)));
+        double result = std::acosh(1 + 2 * eusq / ((1 - eusq)));
         return result;
     }
 
     static double HyperbolicRadiusToEuclidean(double hyperbolic_radius) {
-        double ch = cosh(hyperbolic_radius);
-        return sqrt((ch - 1) / (ch + 1));
+        double ch = std::cosh(hyperbolic_radius);
+        return std::sqrt((ch - 1) / (ch + 1));
     }
 
     static std::pair<double, double> PolarToCartesian(double phi, double r) {
-        return std::pair<double, double>(r * cos(phi), r * sin(phi));
+        return std::pair<double, double>(r * std::cos(phi), r * std::sin(phi));
     }
 
     template <typename HypVertex>
@@ -93,9 +93,9 @@ public:
             result = std::abs(r1 - r2);
         } else {
             double delta_phi = M_PI - std::abs(M_PI - std::abs(phi1 - phi2));
-            double cosh_dist = cosh(r1) * cosh(r2) - sinh(r1) * sinh(r2) * cos(delta_phi);
+            double cosh_dist = std::cosh(r1) * std::cosh(r2) - std::sinh(r1) * std::sinh(r2) * std::cos(delta_phi);
             if (cosh_dist >= 1)
-                result = acosh(cosh_dist);
+                result = std::acosh(cosh_dist);
             else
                 result = 0;
         }
@@ -114,9 +114,9 @@ public:
         if (r == 0)
             phi = 0;
         else if (a.second >= 0) {
-            phi = acos(a.first / r);
+            phi = std::acos(a.first / r);
         } else {
-            phi = -acos(a.first / r);
+            phi = -std::acos(a.first / r);
         }
         if (phi < 0)
             phi += 2 * M_PI;
@@ -134,14 +134,14 @@ public:
 
     static void
     GetEuclideanCircle(double r_h, double hyperbolic_radius, double& euclidean_center_r, double& euclidean_radius) {
-        double a           = cosh(hyperbolic_radius) - 1;
+        double a           = std::cosh(hyperbolic_radius) - 1;
         double b           = 1 - (r_h * r_h);
         euclidean_center_r = (2 * r_h) / (b * a + 2);
-        euclidean_radius   = sqrt(euclidean_center_r * euclidean_center_r - (2 * r_h * r_h - b * a) / (b * a + 2));
+        euclidean_radius   = std::sqrt(euclidean_center_r * euclidean_center_r - (2 * r_h * r_h - b * a) / (b * a + 2));
     }
 
     static inline double RadiusToHyperbolicArea(double radius) {
-        return 2 * M_PI * (cosh(radius) - 1);
+        return 2 * M_PI * (std::cosh(radius) - 1);
     }
 };
 
