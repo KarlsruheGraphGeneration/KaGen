@@ -5,9 +5,7 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
-#ifndef _GEOMETRY_H_
-#define _GEOMETRY_H_
+#pragma once
 
 #include <cmath>
 
@@ -16,27 +14,24 @@
 #endif // KAGEN_CGAL_FOUND
 
 namespace kagen {
-
+template <typename Double>
 class PGGeometry {
 public:
-    PGGeometry();
-    virtual ~PGGeometry();
-
-    static inline double HyperbolicAreaToRadius(double area) {
+    static inline Double HyperbolicAreaToRadius(const Double area) {
         return std::acosh(area / (2 * M_PI) + 1);
     }
 
-    static double GetTargetRadius(double n, double m, double alpha = 1, double /* T */ = 0, double epsilon = 0.01) {
-        double pl_exp            = 2 * alpha + 1;
-        double target_avg_degree = (m / n) * 2;
-        double xi_inv            = ((pl_exp - 2) / (pl_exp - 1));
-        double v                 = target_avg_degree * (M_PI / 2) * xi_inv * xi_inv;
-        double current_r         = 2 * std::log(n / v);
-        double lower_bound       = current_r / 2;
-        double upper_bound       = current_r * 2;
+    static Double GetTargetRadius(const Double n, const Double m, const Double alpha, const Double epsilon = 0.01) {
+        const Double pl_exp            = 2 * alpha + 1;
+        const Double target_avg_degree = (m / n) * 2;
+        const Double xi_inv            = ((pl_exp - 2) / (pl_exp - 1));
+        const Double v                 = target_avg_degree * (M_PI / 2) * xi_inv * xi_inv;
+        Double       current_r         = 2 * std::log(n / v);
+        Double       lower_bound       = current_r / 2;
+        Double       upper_bound       = current_r * 2;
         do {
             current_r        = (lower_bound + upper_bound) / 2;
-            double current_k = GetExpectedDegree(n, alpha, current_r);
+            Double current_k = GetExpectedDegree(n, alpha, current_r);
             if (current_k < target_avg_degree) {
                 upper_bound = current_r;
             } else {
@@ -46,101 +41,99 @@ public:
         return current_r;
     }
 
-    static double GetExpectedDegree(double n, double alpha, double R) {
-        double gamma          = 2 * alpha + 1;
-        double xi             = (gamma - 1) / (gamma - 2);
-        double first_sum_term = std::exp(-R / 2);
-        double second_sum_term =
+    static Double GetExpectedDegree(const Double n, const Double alpha, const Double R) {
+        const Double gamma          = 2 * alpha + 1;
+        const Double xi             = (gamma - 1) / (gamma - 2);
+        const Double first_sum_term = std::exp(-R / 2);
+        const Double second_sum_term =
             std::exp(-alpha * R)
             * (alpha * (R / 2) * ((M_PI / 4) * std::pow((1 / alpha), 2) - (M_PI - 1) * (1 / alpha) + (M_PI - 2)) - 1);
-        double exp_degree = (2 / M_PI) * xi * xi * n * (first_sum_term + second_sum_term);
+        const Double exp_degree = (2 / M_PI) * xi * xi * n * (first_sum_term + second_sum_term);
         return exp_degree;
     }
 
-    static double EuclideanRadiusToHyperbolic(double euclidean_radius) {
-        double eusq   = euclidean_radius * euclidean_radius;
-        double result = std::acosh(1 + 2 * eusq / ((1 - eusq)));
+    static Double EuclideanRadiusToHyperbolic(const Double euclidean_radius) {
+        const Double eusq   = euclidean_radius * euclidean_radius;
+        const Double result = std::acosh(1 + 2 * eusq / ((1 - eusq)));
         return result;
     }
 
-    static double HyperbolicRadiusToEuclidean(double hyperbolic_radius) {
-        double ch = std::cosh(hyperbolic_radius);
+    static Double HyperbolicRadiusToEuclidean(const Double hyperbolic_radius) {
+        const Double ch = std::cosh(hyperbolic_radius);
         return std::sqrt((ch - 1) / (ch + 1));
     }
 
-    static std::pair<double, double> PolarToCartesian(double phi, double r) {
-        return std::pair<double, double>(r * std::cos(phi), r * std::sin(phi));
+    static std::pair<Double, Double> PolarToCartesian(const Double phi, const Double r) {
+        return std::make_pair(r * std::cos(phi), r * std::sin(phi));
     }
 
-    template <typename HypVertex>
-    static double HyperbolicDistance(const HypVertex& v1, const HypVertex& v2) {
-        double x1      = std::get<2>(v1);
-        double x2      = std::get<2>(v2);
-        double y1      = std::get<3>(v1);
-        double y2      = std::get<3>(v2);
-        double gamma1  = std::get<4>(v1);
-        double gamma2  = std::get<4>(v2);
-        double delta_x = x1 - x2;
-        double delta_y = y1 - y2;
-        // return hyperbolicDistance(std::get<1>(v1), std::get<1>(v2),
-        // std::get<0>(v1), std::get<0>(v2));
+    template <typename HybVertex>
+    static Double HyperbolicDistance(const HybVertex& v1, const HybVertex& v2) {
+        const Double x1      = std::get<2>(v1);
+        const Double x2      = std::get<2>(v2);
+        const Double y1      = std::get<3>(v1);
+        const Double y2      = std::get<3>(v2);
+        const Double gamma1  = std::get<4>(v1);
+        const Double gamma2  = std::get<4>(v2);
+        const Double delta_x = x1 - x2;
+        const Double delta_y = y1 - y2;
         return (delta_x * delta_x + delta_y * delta_y) * gamma1 * gamma2;
     }
 
-    static double HyperbolicDistance(double r1, double r2, double phi1, double phi2) {
-        double result;
+    static Double HyperbolicDistance(const Double r1, const Double r2, const Double phi1, const Double phi2) {
+        Double result;
         if (phi1 == phi2) {
             result = std::abs(r1 - r2);
         } else {
-            double delta_phi = M_PI - std::abs(M_PI - std::abs(phi1 - phi2));
-            double cosh_dist = std::cosh(r1) * std::cosh(r2) - std::sinh(r1) * std::sinh(r2) * std::cos(delta_phi);
-            if (cosh_dist >= 1)
-                result = std::acosh(cosh_dist);
-            else
-                result = 0;
+            const Double delta_phi = M_PI - std::abs(M_PI - std::abs(phi1 - phi2));
+            const Double cosh_dist =
+                std::cosh(r1) * std::cosh(r2) - std::sinh(r1) * std::sinh(r2) * std::cos(delta_phi);
+            result = (cosh_dist >= 1) ? std::acosh(cosh_dist) : 0;
         }
         return result;
     }
 
     template <typename EucVertex>
-    static inline double SquaredEuclideanDistance(const EucVertex& v1, const EucVertex& v2) {
-        LPFloat x = std::get<0>(v1) - std::get<0>(v2);
-        LPFloat y = std::get<1>(v1) - std::get<1>(v2);
+    static inline Double SquaredEuclideanDistance(const EucVertex& v1, const EucVertex& v2) {
+        const Double x = std::get<0>(v1) - std::get<0>(v2);
+        const Double y = std::get<1>(v1) - std::get<1>(v2);
         return x * x + y * y;
     }
 
-    static void CartesianToPolar(std::pair<double, double> a, double& phi, double& r) {
+    static void CartesianToPolar(const std::pair<Double, Double> a, Double& phi, Double& r) {
         r = sqrt(a.first * a.first + a.second * a.second);
-        if (r == 0)
+        if (r == 0) {
             phi = 0;
-        else if (a.second >= 0) {
+        } else if (a.second >= 0) {
             phi = std::acos(a.first / r);
         } else {
             phi = -std::acos(a.first / r);
         }
-        if (phi < 0)
+
+        if (phi < 0) {
             phi += 2 * M_PI;
+        }
     }
 
     static void GetEuclideanCircle(
-        std::pair<double, double> hyperbolic_center, double hyperbolic_radius,
-        std::pair<double, double>& euclidean_center, double& euclidean_radius) {
-        double phi_h, r_h;
+        const std::pair<Double, Double> hyperbolic_center, const Double hyperbolic_radius,
+        std::pair<Double, Double>& euclidean_center, Double& euclidean_radius) {
+        Double phi_h, r_h;
         PGGeometry::CartesianToPolar(hyperbolic_center, phi_h, r_h);
-        double r_c;
+        Double r_c;
         PGGeometry::GetEuclideanCircle(r_h, hyperbolic_radius, r_c, euclidean_radius);
         euclidean_center = PGGeometry::PolarToCartesian(phi_h, r_c);
     }
 
-    static void
-    GetEuclideanCircle(double r_h, double hyperbolic_radius, double& euclidean_center_r, double& euclidean_radius) {
-        double a           = std::cosh(hyperbolic_radius) - 1;
-        double b           = 1 - (r_h * r_h);
+    static void GetEuclideanCircle(
+        const Double r_h, const Double hyperbolic_radius, Double& euclidean_center_r, Double& euclidean_radius) {
+        const Double a     = std::cosh(hyperbolic_radius) - 1;
+        const Double b     = 1 - (r_h * r_h);
         euclidean_center_r = (2 * r_h) / (b * a + 2);
         euclidean_radius   = std::sqrt(euclidean_center_r * euclidean_center_r - (2 * r_h * r_h - b * a) / (b * a + 2));
     }
 
-    static inline double RadiusToHyperbolicArea(double radius) {
+    static inline Double RadiusToHyperbolicArea(const Double radius) {
         return 2 * M_PI * (std::cosh(radius) - 1);
     }
 };
@@ -200,4 +193,3 @@ static bool boxContains(const BOX& box, const SPHERE& sphere) {
 }
 #endif // KAGEN_CGAL_FOUND
 } // namespace kagen
-#endif

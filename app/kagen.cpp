@@ -260,7 +260,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // RHG
         auto* cmd = app.add_subcommand("rhg", "Random Hyperbolic Graph");
         cmd->callback([&] { config.generator = GeneratorType::RHG; });
-        cmd->add_flag("--query-both", config.query_both, "(Experimental)");
+        cmd->add_flag("--query-both", config.query_both, "Generate reverse cut edges communication-free (slow!)");
+        cmd->add_flag("--hi-res", config.hi_res, "Use 80 bit floating point numbers");
         add_option_gamma(cmd)->required();
 
         auto* params = cmd->add_option_group("Parameters");

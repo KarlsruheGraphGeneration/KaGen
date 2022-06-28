@@ -4,10 +4,10 @@
 
 namespace kagen {
 namespace {
-// According to https://mathworld.wolfram.com/SquareLinePicking.html, 
-// when placing two points at a random position within a unit square, the 
-// probability that their distance is less than r (where 0 <= r <= 1) 
-// is given by 
+// According to https://mathworld.wolfram.com/SquareLinePicking.html,
+// when placing two points at a random position within a unit square, the
+// probability that their distance is less than r (where 0 <= r <= 1)
+// is given by
 //
 // prob. edge = 1/2 l^4 - 8/3 l^3 + pi l^2
 //
@@ -24,7 +24,7 @@ inline double ComputeDerivedEdgeProbability(const LPFloat r) {
 }
 } // namespace
 
-// Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a 
+// Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a
 // naive implementation of Newton's method
 double RGG2D::ApproxRadius(const SInt n, const SInt m) {
     const SInt max_m = n * (n - 1);
@@ -145,7 +145,7 @@ void RGG2D::GenerateGridEdges(
             const Vertex& v1 = vertices_first[i];
             for (SInt j = i + 1; j < vertices_second.size(); ++j) {
                 const Vertex& v2 = vertices_second[j];
-                if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+                if (PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
                     PushEdge(std::get<2>(v1), std::get<2>(v2));
                     PushEdge(std::get<2>(v2), std::get<2>(v1));
                 }
@@ -156,7 +156,7 @@ void RGG2D::GenerateGridEdges(
             const Vertex& v1 = vertices_first[i];
             for (SInt j = 0; j < vertices_second.size(); ++j) {
                 const Vertex& v2 = vertices_second[j];
-                if (PGGeometry::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+                if (PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
                     PushEdge(std::get<2>(v1), std::get<2>(v2));
                     if (IsLocalChunk(second_chunk_id)) {
                         PushEdge(std::get<2>(v2), std::get<2>(v1));

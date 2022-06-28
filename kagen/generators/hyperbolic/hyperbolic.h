@@ -21,19 +21,19 @@
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 #include "kagen/tools/sorted_mersenne.h"
-#include "methodD.hpp"
 
 namespace kagen {
+template <typename Double>
 class Hyperbolic : public Generator {
 public:
     // n, min_r, max_r, generated, offset
-    using Annulus = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
+    using Annulus = std::tuple<SInt, Double, Double, bool, SInt>;
     // n, min_phi, max_phi, offset
-    using Chunk = std::tuple<SInt, LPFloat, LPFloat, SInt>;
+    using Chunk = std::tuple<SInt, Double, Double, SInt>;
     // n, min_phi, max_phi, generated, generated
-    using Cell = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
+    using Cell = std::tuple<SInt, Double, Double, bool, SInt>;
     // phi, r, x, y, gamma, id
-    using Vertex = std::tuple<LPFloat, LPFloat, LPFloat, LPFloat, LPFloat, SInt>;
+    using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
@@ -55,19 +55,19 @@ private:
     SortedMersenne sorted_mersenne;
 
     // Constants and variables
-    LPFloat alpha_, target_r_, cosh_target_r_, pdm_target_r_;
-    LPFloat pe_min_phi_, pe_max_phi_;
-    LPFloat clique_thres_;
-    SInt    local_chunks_;
-    SInt    local_chunk_start_, local_chunk_end_;
-    SInt    total_annuli_;
-    SInt    num_nodes_;
+    Double alpha_, target_r_, cosh_target_r_, pdm_target_r_;
+    Double pe_min_phi_, pe_max_phi_;
+    Double clique_thres_;
+    SInt   local_chunks_;
+    SInt   local_chunk_start_, local_chunk_end_;
+    SInt   total_annuli_;
+    SInt   num_nodes_;
     // Eps
-    LPFloat chunk_eps_, cell_eps_, point_eps_;
+    Double chunk_eps_, cell_eps_, point_eps_;
     // State
-    SInt    current_annulus_, current_chunk_, current_cell_;
-    LPFloat current_min_phi_, current_max_phi_;
-    SInt    right_processed_chunk_, right_processed_cell_;
+    SInt   current_annulus_, current_chunk_, current_cell_;
+    Double current_min_phi_, current_max_phi_;
+    SInt   right_processed_chunk_, right_processed_cell_;
 
     // Data structures
     google::dense_hash_map<SInt, Annulus>             annuli_;
@@ -76,16 +76,16 @@ private:
     google::dense_hash_map<SInt, std::vector<Vertex>> vertices_;
 
     // Avoid costly recomputations
-    std::vector<SInt>                        global_cell_ids_;
-    std::vector<SInt>                        cells_per_annulus_;
-    std::vector<std::pair<LPFloat, LPFloat>> boundaries_;
+    std::vector<SInt>                      global_cell_ids_;
+    std::vector<SInt>                      cells_per_annulus_;
+    std::vector<std::pair<Double, Double>> boundaries_;
 
     void ComputeAnnuli(SInt chunk_id);
 
     void ComputeChunk(SInt chunk_id);
 
     void ComputeChunk(
-        SInt chunk_id, SInt n, SInt k, LPFloat min_phi, LPFloat max_phi, SInt chunk_start, SInt level, SInt offset);
+        SInt chunk_id, SInt n, SInt k, Double min_phi, Double max_phi, SInt chunk_start, SInt level, SInt offset);
 
     void GenerateCells(SInt annulus_id, SInt chunk_id);
 
@@ -104,9 +104,9 @@ private:
 
     void GenerateGridEdges(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q);
 
-    std::pair<LPFloat, LPFloat> GetBoundaryPhis(LPFloat boundary_phi, LPFloat boundary_r, SInt annulus_id) const;
+    std::pair<Double, Double> GetBoundaryPhis(Double boundary_phi, Double boundary_r, SInt annulus_id) const;
 
-    bool OutOfBounds(LPFloat num) const;
+    bool OutOfBounds(Double num) const;
 
     SInt ComputeGlobalChunkId(SInt annulus, SInt chunk) const;
 
@@ -118,4 +118,7 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 };
+
+using LoResHyperbolic = Hyperbolic<LPFloat>;
+using HiResHyperbolic = Hyperbolic<HPFloat>;
 } // namespace kagen
