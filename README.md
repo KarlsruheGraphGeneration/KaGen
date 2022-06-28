@@ -165,7 +165,7 @@ Generate an undirected random graph using the random geometric graph model RGG(n
 
 **Note:** This generator requires the number of PEs to be a power of 2.
 
-**Note:** This generator is parameterized by the number of nodes in the graph and its edge radius. 
+**Note:** This generator is parameterized by the number of vertices in the graph and its edge radius. 
 Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 
 parameter is approximated such that the expected number of edges matches the desired number of edges.
 
@@ -284,6 +284,10 @@ auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
 ### Random Hyperbolic Graphs RHG(n, gamma, d)
 Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
 
+Note that on a x86 system, the generator can use 64 bit or 80 bit floating point numbers.
+This can be controlled explicitly by using the `--hp-floats` or `--no-hp-floats` flags. 
+If neither flag is set, KaGen switches to 80 bit precision automatically if the generated graph contains more than 2^29 vertices.
+
 #### Application
 ```
 mpirun -n <nproc> ./kagen rhg
@@ -292,6 +296,8 @@ mpirun -n <nproc> ./kagen rhg
   -g <power-law exponent>
   -d <average vertex degree>
   [-k <number of chunks>]
+  [--hp-floats]
+  [--no-hp-floats]
   [-S <seed>]
 ```
 
