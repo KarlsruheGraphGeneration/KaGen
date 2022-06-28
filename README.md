@@ -284,9 +284,9 @@ auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
 ### Random Hyperbolic Graphs RHG(n, gamma, d)
 Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
 
-Note that on a x86 system, the generator can use 64 bit or 80 bit floating point numbers.
+**Note:** On x86 systems, the generator can use 64 bit or 80 bit floating point numbers.
 This can be controlled explicitly by using the `--hp-floats` or `--no-hp-floats` flags. 
-If neither flag is set, KaGen switches to 80 bit precision automatically if the generated graph contains more than 2^29 vertices.
+If neither flag is set, KaGen switches to 80 bit precision automatically if the generated graph has more than 2^29 vertices.
 
 #### Application
 ```
