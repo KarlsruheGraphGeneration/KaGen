@@ -131,17 +131,17 @@ public:
 
     KaGenResult GenerateBA(SInt n, SInt d);
 
-    KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d);
+    KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d, bool high_res = false);
 
-    KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m);
+    KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m, bool high_res = false);
 
-    KaGenResult GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d);
+    KaGenResult GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d, bool high_res = false);
 
-    KaGenResult2D GenerateRHG_Coordinates(LPFloat gamma, SInt n, LPFloat d);
+    KaGenResult2D GenerateRHG_Coordinates(LPFloat gamma, SInt n, LPFloat d, bool high_res = false);
 
-    KaGenResult2D GenerateRHG_Coordinates_NM(LPFloat gamma, SInt n, SInt m);
+    KaGenResult2D GenerateRHG_Coordinates_NM(LPFloat gamma, SInt n, SInt m, bool high_res = false);
 
-    KaGenResult2D GenerateRHG_Coordinates_MD(LPFloat gamma, SInt m, LPFloat d);
+    KaGenResult2D GenerateRHG_Coordinates_MD(LPFloat gamma, SInt m, LPFloat d, bool high_res = false);
 
     KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
 

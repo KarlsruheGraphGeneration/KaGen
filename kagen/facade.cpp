@@ -73,7 +73,7 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
             return std::make_unique<Kronecker>(config, rank, size);
 
         case GeneratorType::RHG:
-            if (config.hi_res) {
+            if (config.high_res_fp) {
                 return std::make_unique<HiResHyperbolic>(config, rank, size);
             } else {
                 return std::make_unique<LoResHyperbolic>(config, rank, size);
