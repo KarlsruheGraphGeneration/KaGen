@@ -74,9 +74,9 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
 
         case GeneratorType::RHG:
             if (config.hp_floats == 1) {
-                return std::make_unique<HiResHyperbolic>(config, rank, size);
+                return std::make_unique<HighPrecisionHyperbolic>(config, rank, size);
             } else {
-                return std::make_unique<LoResHyperbolic>(config, rank, size);
+                return std::make_unique<LowPrecisionHyperbolic>(config, rank, size);
             }
     }
 

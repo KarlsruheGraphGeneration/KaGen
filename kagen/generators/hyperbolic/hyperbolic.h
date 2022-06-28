@@ -119,6 +119,6 @@ private:
     bool IsLocalChunk(SInt chunk_id) const;
 };
 
-using LoResHyperbolic = Hyperbolic<LPFloat>;
-using HiResHyperbolic = Hyperbolic<HPFloat>;
+using LowPrecisionHyperbolic = Hyperbolic<LPFloat>;
+using HighPrecisionHyperbolic = Hyperbolic<HPFloat>;
 } // namespace kagen
