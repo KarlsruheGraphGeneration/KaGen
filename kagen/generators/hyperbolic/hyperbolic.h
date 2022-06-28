@@ -41,8 +41,6 @@ public:
 
     bool AlmostUndirected() const final;
 
-    bool InvalidVertexRangeIfEmpty() const final;
-
 protected:
     void GenerateImpl() final;
 
@@ -63,7 +61,7 @@ private:
     SInt    local_chunks_;
     SInt    local_chunk_start_, local_chunk_end_;
     SInt    total_annuli_;
-    SInt    start_node_, num_nodes_;
+    SInt    num_nodes_;
     // Eps
     LPFloat chunk_eps_, cell_eps_, point_eps_;
     // State

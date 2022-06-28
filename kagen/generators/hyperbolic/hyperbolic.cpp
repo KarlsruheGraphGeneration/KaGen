@@ -20,8 +20,10 @@ Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PE
     // clique_thres_ = target_r_ / 2.0;
     clique_thres_ = 0;
 
-    std::cout << "alpha_=" << alpha_ << ", target_r_=" << target_r_ << std::endl;
-    
+    if (rank_ == ROOT) { // @todo
+        std::cout << "alpha_=" << alpha_ << ", target_r_=" << target_r_ << std::endl;
+    }
+
     // PE-specific
     total_annuli_        = std::floor(alpha_ * target_r_ / std::log(2));
     SInt chunks_per_pe   = config_.k / size_;
@@ -57,7 +59,6 @@ Hyperbolic::Hyperbolic(const PGeneratorConfig& config, const PEID rank, const PE
     point_eps_ = std::numeric_limits<LPFloat>::epsilon();
 
     // Vertex range
-    start_node_ = std::numeric_limits<SInt>::max();
     num_nodes_  = 0;
 }
 
@@ -69,16 +70,14 @@ bool Hyperbolic::AlmostUndirected() const {
     return true;
 }
 
-bool Hyperbolic::InvalidVertexRangeIfEmpty() const {
-    return true;
-}
-
 void Hyperbolic::GenerateImpl() {
     // Compute local chunks
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         ComputeChunk(i);
         ComputeAnnuli(i);
     }
+
+    //start_node_ = std::get<3>(chunks_[local_chunk_start_]);
 
     // if (rank_ == ROOT)
     //   std::cout << "computed chunks" << std::endl;
@@ -105,7 +104,8 @@ void Hyperbolic::GenerateImpl() {
         }
     }
 
-    SetVertexRange(start_node_, start_node_ + num_nodes_);
+    const SInt start_node = std::get<3>(chunks_[local_chunk_start_]);
+    SetVertexRange(start_node, start_node + num_nodes_);
 }
 
 void Hyperbolic::ComputeAnnuli(const SInt chunk_id) {
@@ -303,12 +303,10 @@ void Hyperbolic::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SI
         cell_vertices.emplace_back(angle, radius, x, y, gamma, offset + i);
         // if (rank_ == 2)
         //   printf("p %lld %f %f %d\n", offset + i, radius, angle, rank_);
-        if ((start_node_ > offset + i) && (pe_min_phi_ <= angle && pe_max_phi_ > angle))
-            start_node_ = offset;
         if (pe_min_phi_ <= angle && pe_max_phi_ > angle)
             num_nodes_++;
 
-        if (config_.coordinates) {
+        if (config_.coordinates) { // @todo only generate coordinates for local vertices
             PushCoordinate(x, y);
         }
     }
@@ -423,7 +421,7 @@ void Hyperbolic::Query(
     if (next_annulus >= total_annuli_ || (LONG)next_annulus < 0)
         return;
 
-    /* skips too much 
+    /* skips too much
     if (!search_down && !found_nonlocal_chunk) {
         return; // search space fully contained on this PE
     }
