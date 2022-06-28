@@ -98,7 +98,7 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
         if (output) {
             std::cout << "Writing graph to [" << base_filename << ".0";
             if (size > 2) {
-                std::cout << ", ...,";
+                std::cout << ", ...";
             }
             if (size > 1) {
                 std::cout << ", " << base_filename << "." << size - 1;
