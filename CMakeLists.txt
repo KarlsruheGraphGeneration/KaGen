@@ -28,6 +28,7 @@ endif()
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
+option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
 
 ################################################################################
 
@@ -216,6 +217,10 @@ endif()
 
 if (KAGEN_WARNINGS_ARE_ERRORS)
     set(CMAKE_CXX_FLAGS "-Werror ${CMAKE_CXX_FLAGS}")
+endif()
+
+if (KAGEN_USE_FAST_MATH) 
+    set(CMAKE_CXX_FLAGS "-ffast-math ${CMAKE_CXX_FLAGS}") 
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KAGEN_DEFINITIONS}")

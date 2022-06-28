@@ -73,7 +73,7 @@ std::unique_ptr<Generator> CreateGenerator(const PGeneratorConfig& config, const
             return std::make_unique<Kronecker>(config, rank, size);
 
         case GeneratorType::RHG:
-            if (config.high_res_fp) {
+            if (config.hp_floats == 1) {
                 return std::make_unique<HiResHyperbolic>(config, rank, size);
             } else {
                 return std::make_unique<LoResHyperbolic>(config, rank, size);
@@ -262,6 +262,17 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     // Some parameters can option or can be deduced from other parameters; do that now, before
     // instantiating the generators to obtain their chunk / PE requirements
     ApproxMissingParameters(config, output_error, output_info);
+
+    // Automatically enable high-resolution FP for some generators, if set to auto
+    if (config.hp_floats == 0) { // auto
+        // @todo Magic constant based on observation ... needs better analysis
+        if (config.generator == GeneratorType::RHG && std::log2(config.n) > 29) {
+            if (output_info) {
+                std::cout << "Enabling high-resolution FP for RHG generator" << std::endl;
+            }
+            config.hp_floats = 1;
+        }
+    }
 
     // Get generator requirements @todo this is ugly
     config.k               = size;

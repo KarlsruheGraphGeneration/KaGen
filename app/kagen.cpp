@@ -261,7 +261,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         auto* cmd = app.add_subcommand("rhg", "Random Hyperbolic Graph");
         cmd->callback([&] { config.generator = GeneratorType::RHG; });
         cmd->add_flag("--query-both", config.query_both, "Generate reverse cut edges communication-free (slow!)");
-        cmd->add_flag("--hi-res", config.high_res_fp, "Use 80 bit floating point numbers");
+        cmd->add_flag("--hp-floats,!--no-hp-floats", config.hp_floats, "Use 80 bit floating point numbers");
         add_option_gamma(cmd)->required();
 
         auto* params = cmd->add_option_group("Parameters");

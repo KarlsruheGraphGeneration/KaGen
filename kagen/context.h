@@ -83,23 +83,23 @@ struct PGeneratorConfig {
     bool            skip_postprocessing   = false;
 
     // Generator settings
-    GeneratorType generator;           // Generator type
-    SInt          n           = 0;     // Number of nodes
-    SInt          m           = 0;     // Number of edges
-    SInt          k           = 0;     // Number of chunks
-    double        p           = 0.5;   // Edge probability
-    double        r           = 0.0;   // Edge radius
-    bool          self_loops  = false; // Allow self loops
-    double        plexp       = 2.6;   // Power law exponent
-    double        avg_degree  = 0.0;   // Average degree
-    double        thres       = 0.0;   // Clique threshold (RHG)
-    bool          query_both  = false; // Query strategy (RHG) -- should be set to false
-    double        min_degree  = 4.0;   // Minimum degree (BA)
-    SInt          grid_x      = 0;     // Grid x dimension (Grid2D, Grid3D)
-    SInt          grid_y      = 0;     // Grid y dimension (Grid2D, Grid3D)
-    SInt          grid_z      = 0;     // Grid z dimension (Grid3D)
-    bool          periodic    = false; // Use periodic boundary (Grid2D, Grid3D)
-    bool          high_res_fp = false; // Use 80 bit floating point numbers for RHG generator
+    GeneratorType generator;          // Generator type
+    SInt          n          = 0;     // Number of nodes
+    SInt          m          = 0;     // Number of edges
+    SInt          k          = 0;     // Number of chunks
+    double        p          = 0.5;   // Edge probability
+    double        r          = 0.0;   // Edge radius
+    bool          self_loops = false; // Allow self loops
+    double        plexp      = 2.6;   // Power law exponent
+    double        avg_degree = 0.0;   // Average degree
+    double        thres      = 0.0;   // Clique threshold (RHG)
+    bool          query_both = false; // Query strategy (RHG) -- should be set to false
+    double        min_degree = 4.0;   // Minimum degree (BA)
+    SInt          grid_x     = 0;     // Grid x dimension (Grid2D, Grid3D)
+    SInt          grid_y     = 0;     // Grid y dimension (Grid2D, Grid3D)
+    SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
+    bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
+    int           hp_floats  = 0;    // Use 80 bit floating point numbers for RHG generator, 0 for auto
 
     bool coordinates = false; // Store vertex coordinates
 

@@ -35,6 +35,10 @@ void KaGen::EnableAdvancedStatistics() {
     config_->quiet            = false;
 }
 
+void KaGen::UseHPFloats(const bool state) {
+    config_->hp_floats = state ? 1 : -1;
+}
+
 void KaGen::SetNumberOfChunks(const SInt k) {
     config_->k = k;
 }
@@ -210,42 +214,40 @@ KaGenResult KaGen::GenerateBA(const SInt n, const SInt d) {
 
 namespace {
 KaGenResult2D GenerateRHG_Impl(
-    PGeneratorConfig& config, const LPFloat gamma, const SInt n, const SInt m, const LPFloat d, const bool high_res,
-    const bool coordinates, MPI_Comm comm) {
+    PGeneratorConfig& config, const LPFloat gamma, const SInt n, const SInt m, const LPFloat d, const bool coordinates,
+    MPI_Comm comm) {
     config.generator   = GeneratorType::RHG;
     config.n           = n;
     config.m           = m;
     config.avg_degree  = d;
     config.plexp       = gamma;
     config.coordinates = coordinates;
-    config.high_res_fp = high_res;
     return Generate(config, comm);
 }
 } // namespace
 
-KaGenResult KaGen::GenerateRHG(const LPFloat gamma, const SInt n, const LPFloat d, const bool high_res) {
-    return GenerateRHG_Impl(*config_, gamma, n, 0, d, high_res, false, comm_);
+KaGenResult KaGen::GenerateRHG(const LPFloat gamma, const SInt n, const LPFloat d) {
+    return GenerateRHG_Impl(*config_, gamma, n, 0, d, false, comm_);
 }
 
-KaGenResult KaGen::GenerateRHG_NM(const LPFloat gamma, const SInt n, const SInt m, const bool high_res) {
-    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, high_res, false, comm_);
+KaGenResult KaGen::GenerateRHG_NM(const LPFloat gamma, const SInt n, const SInt m) {
+    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, false, comm_);
 }
 
-KaGenResult KaGen::GenerateRHG_MD(const LPFloat gamma, const SInt m, const LPFloat d, const bool high_res) {
-    return GenerateRHG_Impl(*config_, gamma, 0, m, d, high_res, false, comm_);
+KaGenResult KaGen::GenerateRHG_MD(const LPFloat gamma, const SInt m, const LPFloat d) {
+    return GenerateRHG_Impl(*config_, gamma, 0, m, d, false, comm_);
 }
 
-KaGenResult2D KaGen::GenerateRHG_Coordinates(const LPFloat gamma, const SInt n, const LPFloat d, const bool high_res) {
-    return GenerateRHG_Impl(*config_, gamma, n, 0, d, high_res, true, comm_);
+KaGenResult2D KaGen::GenerateRHG_Coordinates(const LPFloat gamma, const SInt n, const LPFloat d) {
+    return GenerateRHG_Impl(*config_, gamma, n, 0, d, true, comm_);
 }
 
-KaGenResult2D KaGen::GenerateRHG_Coordinates_NM(const LPFloat gamma, const SInt n, const SInt m, const bool high_res) {
-    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, high_res, true, comm_);
+KaGenResult2D KaGen::GenerateRHG_Coordinates_NM(const LPFloat gamma, const SInt n, const SInt m) {
+    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, true, comm_);
 }
 
-KaGenResult2D
-KaGen::GenerateRHG_Coordinates_MD(const LPFloat gamma, const SInt m, const LPFloat d, const bool high_res) {
-    return GenerateRHG_Impl(*config_, gamma, 0, m, d, high_res, true, comm_);
+KaGenResult2D KaGen::GenerateRHG_Coordinates_MD(const LPFloat gamma, const SInt m, const LPFloat d) {
+    return GenerateRHG_Impl(*config_, gamma, 0, m, d, true, comm_);
 }
 
 namespace {
