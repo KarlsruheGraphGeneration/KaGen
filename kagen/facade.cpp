@@ -96,7 +96,7 @@ void SetupRGGParameters(
     if (config.r == 0.0) {
         if (config.n == 0 || config.m == 0) {
             if (output_error) {
-                std::cerr << "At least two parameters out of {n, m, r} must be nonzero\n";
+                std::cerr << "Error: at least two parameters out of {n, m, r} must be nonzero\n";
             }
             std::exit(1);
         }
@@ -108,7 +108,7 @@ void SetupRGGParameters(
     } else if (config.n == 0) {
         if (config.r == 0.0 || config.m == 0) {
             if (output_error) {
-                std::cerr << "At least two parameters out of {n, m, r} must be nonzero\n";
+                std::cerr << "Error: at least two parameters out of {n, m, r} must be nonzero\n";
             }
             std::exit(1);
         }
@@ -124,7 +124,7 @@ void SetupRHGParameters(PGeneratorConfig& config, const bool output_error, const
     if (config.avg_degree == 0) {
         if (config.m == 0 || config.n == 0) {
             if (output_error) {
-                std::cerr << "At least two parameters out of {n, m, d} must be nonzero\n";
+                std::cerr << "Error: at least two parameters out of {n, m, d} must be nonzero\n";
             }
             std::exit(1);
         }
@@ -136,7 +136,7 @@ void SetupRHGParameters(PGeneratorConfig& config, const bool output_error, const
     } else if (config.n == 0) {
         if (config.avg_degree == 0 || config.m == 0) {
             if (output_error) {
-                std::cerr << "At least two parameters out of {n, m, d} must be nonzero\n";
+                std::cerr << "Error: at least two parameters out of {n, m, d} must be nonzero\n";
             }
             std::exit(1);
         }
@@ -154,7 +154,7 @@ void SetupRDGParameters(
     if (config.n == 0) {
         if (config.m == 0) {
             if (output_error) {
-                std::cerr << "At least one parameter out of {n, m} must be nonzero\n";
+                std::cerr << "Error: at least one parameter out of {n, m} must be nonzero\n";
             }
             std::exit(1);
         }
@@ -276,7 +276,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     // Validate number of PEs
     if (require_power_of_two_communicator && !IsPowerOfTwo(size)) {
         if (output_error) {
-            std::cerr << "Generator requires the number of PEs to be a power of two\n";
+            std::cerr << "Error: generator requires the number of PEs to be a power of two\n";
         }
         std::exit(1);
     }
@@ -297,20 +297,20 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     } else { // only validation
         if (require_square_chunks && !IsSquare(config.k)) {
             if (output_error) {
-                std::cerr << "Generator requires a square number of chunks\n";
+                std::cerr << "Error: generator requires a square number of chunks\n";
             }
             std::exit(1);
         }
         if (require_cubic_chunks && !IsCubic(config.k)) {
             if (output_error) {
-                std::cerr << "Generator requires a cubic number of chunks\n";
+                std::cerr << "Error: generator requires a cubic number of chunks\n";
             }
             std::exit(1);
         }
     }
     if (require_one_chunk_per_pe && config.k != static_cast<SInt>(size)) {
         if (output_error) {
-            std::cerr << "Generator requires exactly one chunk per PE\n";
+            std::cerr << "Error: generator requires exactly one chunk per PE\n";
         }
         std::exit(1);
     }
@@ -389,7 +389,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
             if (output_error) {
-                std::cerr << "Simple graph validation failed\n";
+                std::cerr << "Error: simple graph validation failed\n";
             }
             std::exit(1);
         }

@@ -163,7 +163,7 @@ std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level) {
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
-    out << "  Validate simple graph:              " << (config.validate_simple_graph ? "yes" : "no") << "\n";
+    out << "  Validate generated graph:           " << (config.validate_simple_graph ? "yes" : "no") << "\n";
     out << "  Statistics level:                   " << config.statistics_level << "\n";
     out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";
     out << "-------------------------------------------------------------------------------\n";
@@ -242,7 +242,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "  Filename:                           " << config.output_file << "\n";
     out << "  Output format:                      " << config.output_format << "\n";
     out << "  Output header:                      " << config.output_header << "\n";
-    out << "  Single file:                        " << (config.output_single_file ? "yes" : "no") << "\n";
+    out << "  Distributed output:                 " << (config.output_single_file ? "no" : "yes") << "\n";
     out << "-------------------------------------------------------------------------------\n";
 
     return out << std::flush;
