@@ -290,34 +290,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 
-    PEID rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
     // Parse parameters
     PGeneratorConfig config;
     CLI::App         app("KaGen: Karlsruhe Graph Generator");
     SetupCommandLineArguments(app, config);
     CLI11_PARSE(app, argc, argv);
 
-    // Only output on root if not in quiet mode
-    const bool output = !config.quiet && rank == ROOT;
-    if (output) {
-        std::cout << "###############################################################################\n";
-        std::cout << "#                         _  __      ____                                     #\n";
-        std::cout << "#                        | |/ /__ _ / ___| ___ _ __                           #\n";
-        std::cout << "#                        | ' // _` | |  _ / _ \\ '_ \\                          #\n";
-        std::cout << "#                        | . \\ (_| | |_| |  __/ | | |                         #\n";
-        std::cout << "#                        |_|\\_\\__,_|\\____|\\___|_| |_|                         #\n";
-        std::cout << "#                         Karlsruhe Graph Generation                          #\n";
-        std::cout << "#                                                                             #\n";
-        std::cout << "###############################################################################\n";
-        std::cout << config;
-    }
-
-    // Generate graph
+    // Run KaGen
     auto [edges, vertex_range, coordinates] = Generate(config, MPI_COMM_WORLD);
-
-    // Output graph
     WriteGraph(config, edges, vertex_range, coordinates, MPI_COMM_WORLD);
 
     MPI_Finalize();

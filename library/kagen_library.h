@@ -91,6 +91,8 @@ public:
 
     void EnableAdvancedStatistics();
 
+    void EnableOutput();
+
     void UseHPFloats(bool state);
 
     void SetNumberOfChunks(SInt k);

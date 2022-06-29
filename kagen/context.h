@@ -81,6 +81,7 @@ struct PGeneratorConfig {
     bool            validate_simple_graph = false; // Validate that the result is a simple graph
     StatisticsLevel statistics_level      = StatisticsLevel::BASIC;
     bool            skip_postprocessing   = false;
+    bool            print_header          = true;
 
     // Generator settings
     GeneratorType generator;          // Generator type
@@ -99,7 +100,7 @@ struct PGeneratorConfig {
     SInt          grid_y     = 0;     // Grid y dimension (Grid2D, Grid3D)
     SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
     bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
-    int           hp_floats  = 0;    // Use 80 bit floating point numbers for RHG generator, 0 for auto
+    int           hp_floats  = 0;     // Use 80 bit floating point numbers for RHG generator, 0 for auto
 
     bool coordinates = false; // Store vertex coordinates
 

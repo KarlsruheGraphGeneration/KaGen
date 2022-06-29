@@ -129,6 +129,19 @@ SInt FindMultipleCube(const SInt value) {
     }
     return value * value * value;
 }
+
+void PrintHeader(const PGeneratorConfig& config) {
+    std::cout << "###############################################################################\n";
+    std::cout << "#                         _  __      ____                                     #\n";
+    std::cout << "#                        | |/ /__ _ / ___| ___ _ __                           #\n";
+    std::cout << "#                        | ' // _` | |  _ / _ \\ '_ \\                          #\n";
+    std::cout << "#                        | . \\ (_| | |_| |  __/ | | |                         #\n";
+    std::cout << "#                        |_|\\_\\__,_|\\____|\\___|_| |_|                         #\n";
+    std::cout << "#                         Karlsruhe Graph Generation                          #\n";
+    std::cout << "#                                                                             #\n";
+    std::cout << "###############################################################################\n";
+    std::cout << config;
+}
 } // namespace
 
 std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
@@ -139,7 +152,11 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     const bool output_error = rank == ROOT;
     const bool output_info  = rank == ROOT && !config_template.quiet;
 
-    auto factory = CreateGeneratorFactory(config_template.generator);
+    if (output_info && config_template.print_header) {
+        PrintHeader(config_template);
+    }
+
+    auto             factory = CreateGeneratorFactory(config_template.generator);
     PGeneratorConfig config;
     try {
         config = factory->NormalizeParameters(config_template, output_info);
