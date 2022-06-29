@@ -322,7 +322,8 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m) {
 }
 
 void KaGen::SetDefaults() {
-    config_->quiet = true;
+    config_->quiet         = true;
+    config_->output_format = OutputFormat::NONE; // ignored anyways
     // keep all other defaults
 }
 } // namespace kagen
