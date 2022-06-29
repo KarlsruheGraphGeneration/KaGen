@@ -248,13 +248,13 @@ mpirun -n <nproc> ./kagen <grid2d|grid3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateGrid2D(x, y);
-auto [edge_list, vertex_range] = gen.GenerateGrid2D_N(n); // x, y = sqrt(n)
-auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid2D_Coordinates(x, y);
+auto [edge_list, vertex_range] = gen.GenerateGrid2D(x, y, p, periodic);
+auto [edge_list, vertex_range] = gen.GenerateGrid2D_N(n, p, periodic); // x, y = sqrt(n)
+auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid2D_Coordinates(x, y, p, periodic);
 
-auto [edge_list, vertex_range] = gen.GenerateGrid3D(x, y, z);
-auto [edge_list, vertex_range] = gen.GenerateGrid3D_N(n); // x, y, z = cbrt(n) 
-auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid3D_Coordinates(x, y, z);
+auto [edge_list, vertex_range] = gen.GenerateGrid3D(x, y, z, p, periodic);
+auto [edge_list, vertex_range] = gen.GenerateGrid3D_N(n, p, periodic); // x, y, z = cbrt(n) 
+auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid3D_Coordinates(x, y, z, p, periodic);
 ```
 
 ---
