@@ -140,10 +140,15 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     const bool output_info  = rank == ROOT && !config_template.quiet;
 
     auto factory = CreateGeneratorFactory(config_template.generator);
-    if (!factory->CheckParameters(config_template, output_info, output_error)) {
+    PGeneratorConfig config;
+    try {
+        config = factory->NormalizeParameters(config_template, output_info);
+    } catch (ConfigurationError& ex) {
+        if (output_error) {
+            std::cerr << "Error: " << ex.what() << "\n";
+        }
         std::exit(1);
     }
-    PGeneratorConfig config = factory->NormalizeParameters(config_template, output_info, output_error);
 
     // Get generator requirements
     const int  requirements                      = factory->Requirements();

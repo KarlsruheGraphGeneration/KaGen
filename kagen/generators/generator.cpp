@@ -45,11 +45,7 @@ int GeneratorFactory::Requirements() const {
     return GeneratorRequirement::NONE;
 }
 
-bool GeneratorFactory::CheckParameters(const PGeneratorConfig&, bool, bool) const {
-    return true;
-}
-
-PGeneratorConfig GeneratorFactory::NormalizeParameters(const PGeneratorConfig config, bool, bool) const {
+PGeneratorConfig GeneratorFactory::NormalizeParameters(const PGeneratorConfig config, bool) const {
     return config;
 }
 } // namespace kagen

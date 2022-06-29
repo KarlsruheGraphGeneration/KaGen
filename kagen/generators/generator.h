@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <exception>
 #include <memory>
 
 #include "kagen/context.h"
@@ -60,15 +61,25 @@ private:
     Coordinates coordinates_;
 };
 
+class ConfigurationError : public std::exception {
+public:
+    ConfigurationError(std::string what) : _what(std::move(what)) {}
+
+    const char* what() const noexcept override {
+        return _what.c_str();
+    }
+
+private:
+    std::string _what;
+};
+
 class GeneratorFactory {
 public:
     virtual ~GeneratorFactory();
 
     virtual int Requirements() const;
 
-    virtual bool CheckParameters(const PGeneratorConfig& config, bool output_info, bool output_error) const;
-
-    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output_info, bool output_error) const;
+    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output) const;
 
     virtual std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const = 0;
 };

@@ -11,42 +11,35 @@ int HyperbolicFactory::Requirements() const {
     return GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
-bool HyperbolicFactory::CheckParameters(
-    const PGeneratorConfig& config, const bool output_info, const bool output_error) const {
-    return true;
-}
-
-PGeneratorConfig
-HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, const bool output_info, const bool output_error) const {
+PGeneratorConfig HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, const bool output) const {
     if (config.avg_degree == 0) {
         if (config.m == 0 || config.n == 0) {
-            if (output_error) {
-                std::cerr << "Error: at least two parameters out of {n, m, d} must be nonzero\n";
-            }
-            std::exit(1);
+            throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");
         }
 
         config.avg_degree = 1.0 * config.m / config.n;
-        if (output_info) {
+        if (output) {
             std::cout << "Setting average degree to " << config.avg_degree << std::endl;
         }
     } else if (config.n == 0) {
         if (config.avg_degree == 0 || config.m == 0) {
-            if (output_error) {
-                std::cerr << "Error: at least two parameters out of {n, m, d} must be nonzero\n";
-            }
-            std::exit(1);
+            throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");
         }
 
         config.n = static_cast<SInt>(config.m / config.avg_degree);
-        if (output_info) {
+        if (output) {
             std::cout << "Setting number of nodes to " << config.n << std::endl;
         }
     }
 
+    const HPFloat alpha = (config.plexp - 1) / 2;
+    if (!PGGeometry<HPFloat>::TestTargetRadius(config.n, config.n + config.avg_degree / 2, alpha)) {
+        throw ConfigurationError("generator configuration is infeasible");
+    }
+
     // @todo Magic constant based on observation ... needs better analysis
     if (std::log2(config.n) > 29) {
-        if (output_info) {
+        if (output) {
             std::cout << "Enabling high-resolution FP for RHG generator" << std::endl;
         }
         config.hp_floats = 1;
