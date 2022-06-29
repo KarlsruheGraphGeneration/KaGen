@@ -13,7 +13,7 @@ file(GLOB_RECURSE KAGEN_SOURCE_FILES CONFIGURE_DEPENDS
 
 # If we do not have CGal, exclude Delaunay generators 
 if (NOT CGAL_FOUND)
-  list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "delaunay_.*")
+  list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "delaunay.*")
   message("Building without CGal")
 endif ()
 
