@@ -445,7 +445,7 @@ void Hyperbolic<Double>::Query(
             //   std::cout << "go right " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
             GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
             found_nonlocal_chunk |= QueryRightNeighbor(
-                annulus_id, next_chunk_id, next_cell_id, q, std::abs(min_cell_phi - 0.0) < cell_eps_, search_down);
+                annulus_id, next_chunk_id, next_cell_id, q, std::abs(min_cell_phi - 0.0) < cell_eps_);
         }
 
         // Continue left
@@ -491,8 +491,7 @@ void Hyperbolic<Double>::Query(
 
 template <typename Double>
 bool Hyperbolic<Double>::QueryRightNeighbor(
-    const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase,
-    [[maybe_unused]] bool search_down) {
+    const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase) {
     /*bool out = false;
     if (std::get<5>(q) == 1280) {
         std::cout << "\tQueryRightNeighbor(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", "
