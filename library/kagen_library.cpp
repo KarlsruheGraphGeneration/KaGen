@@ -26,17 +26,18 @@ void KaGen::EnableUndirectedGraphVerification() {
 }
 
 void KaGen::EnableBasicStatistics() {
-    EnableOutput();
     config_->statistics_level = StatisticsLevel::BASIC;
+    config_->quiet            = false;
 }
 
 void KaGen::EnableAdvancedStatistics() {
-    EnableOutput();
     config_->statistics_level = StatisticsLevel::ADVANCED;
+    config_->quiet            = false;
 }
 
-void KaGen::EnableOutput() {
-    config_->quiet = false;
+void KaGen::EnableOutput(const bool header) {
+    config_->quiet        = false;
+    config_->print_header = header;
 }
 
 void KaGen::UseHPFloats(const bool state) {

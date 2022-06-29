@@ -91,7 +91,7 @@ public:
 
     void EnableAdvancedStatistics();
 
-    void EnableOutput();
+    void EnableOutput(bool header);
 
     void UseHPFloats(bool state);
 
