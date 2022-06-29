@@ -1,11 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
+#include "kagen/context.h"
 #include "kagen/definitions.h"
 
 namespace kagen {
 enum GeneratorRequirement {
+    NONE                           = 0,
     POWER_OF_TWO_COMMUNICATOR_SIZE = 1 << 0,
     SQUARE_CHUNKS                  = 1 << 1,
     CUBIC_CHUNKS                   = 1 << 2,
@@ -16,11 +19,7 @@ class Generator {
 public:
     virtual ~Generator();
 
-    virtual int Requirements() const;
-
-    virtual bool AlmostUndirected() const;
-
-    virtual bool InvalidVertexRangeIfEmpty() const;
+    virtual bool IsAlmostUndirected() const;
 
     void Generate();
 
@@ -59,5 +58,18 @@ private:
     EdgeList    edges_;
     VertexRange vertex_range_;
     Coordinates coordinates_;
+};
+
+class GeneratorFactory {
+public:
+    virtual ~GeneratorFactory();
+
+    virtual int Requirements() const;
+
+    virtual bool CheckParameters(const PGeneratorConfig& config, bool output_info, bool output_error) const;
+
+    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output_info, bool output_error) const;
+
+    virtual std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const = 0;
 };
 } // namespace kagen

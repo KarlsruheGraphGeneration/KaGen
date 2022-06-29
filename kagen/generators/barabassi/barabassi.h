@@ -12,12 +12,17 @@
 #include "kagen/generators/generator.h"
 
 namespace kagen {
+class BarabassiFactory : public GeneratorFactory {
+public:
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+};
+
 class Barabassi : public Generator {
 public:
     Barabassi(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateImpl() override;
 
 private:
     // Config

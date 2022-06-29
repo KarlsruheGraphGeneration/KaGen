@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cmath>
+#include <iostream>
 
 #ifdef KAGEN_CGAL_FOUND
     #include <CGAL/Dimension.h>
@@ -19,6 +20,11 @@ class PGGeometry {
 public:
     static inline Double HyperbolicAreaToRadius(const Double area) {
         return std::acosh(area / (2 * M_PI) + 1);
+    }
+
+    static bool TestTargetRadius(const Double n, const Double m, const Double alpha, const Double epsilon = 0.01) {
+        const Double r = GetTargetRadius(n, m, alpha, epsilon);
+        return std::abs(GetExpectedDegree(n, alpha, r) - (m / n) * 2) <= epsilon;
     }
 
     static Double GetTargetRadius(const Double n, const Double m, const Double alpha, const Double epsilon = 0.01) {
@@ -37,7 +43,8 @@ public:
             } else {
                 lower_bound = current_r;
             }
-        } while (std::abs(GetExpectedDegree(n, alpha, current_r) - target_avg_degree) > epsilon);
+        } while (std::abs(upper_bound - lower_bound) > epsilon // converge if target_avg_degree is infeasible
+                 && std::abs(GetExpectedDegree(n, alpha, current_r) - target_avg_degree) > epsilon);
         return current_r;
     }
 

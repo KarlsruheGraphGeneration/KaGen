@@ -14,22 +14,16 @@
 namespace kagen {
 class RGG2D : public Geometric2D {
 public:
-    static double ApproxRadius(SInt n, SInt m);
-
-    static SInt ApproxNumNodes(SInt m, double radius);
-
     RGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
-
-    int Requirements() const final;
 
 private:
     LPFloat target_r_;
 
-    void GenerateEdges(SInt chunk_row, SInt chunk_column) final;
+    void GenerateEdges(SInt chunk_row, SInt chunk_column) override;
 
     void GenerateGridEdges(SInt first_chunk_id, SInt first_cell_id, SInt second_chunk_id, SInt second_cell_id);
 
-    void GenerateCells(SInt chunk_id) final;
+    void GenerateCells(SInt chunk_id) override;
 
     bool IsAdjacentCell(SInt chunk_id, SInt cell_id);
 

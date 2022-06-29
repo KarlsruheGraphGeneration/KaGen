@@ -15,14 +15,12 @@ class Delaunay3D : public Geometric3D {
 public:
     Delaunay3D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    int Requirements() const final;
-
 protected:
     static constexpr SInt COPY_FLAG = SInt(1) << (sizeof(SInt) * CHAR_BIT - 1);
 
     SInt max_radius_;
 
-    void GenerateEdges(SInt chunk_row, SInt chunk_column, SInt chunk_depth) final;
+    void GenerateEdges(SInt chunk_row, SInt chunk_column, SInt chunk_depth) override;
 
 private:
     void SortCellVertices(std::vector<Vertex>& vertices) const;

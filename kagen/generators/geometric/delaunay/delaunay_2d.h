@@ -16,16 +16,14 @@ class Delaunay2D : public Geometric2D {
 public:
     Delaunay2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    int Requirements() const final;
-
-    bool AlmostUndirected() const final;
+    bool IsAlmostUndirected() const override;
 
 protected:
     static constexpr SInt COPY_FLAG = SInt(1) << (sizeof(SInt) * CHAR_BIT - 1);
 
     SInt max_radius_;
 
-    void GenerateEdges(SInt chunk_row, SInt chunk_column) final;
+    void GenerateEdges(SInt chunk_row, SInt chunk_column) override;
 
 private:
     void SortCellVertices(std::vector<Vertex>& vertices);

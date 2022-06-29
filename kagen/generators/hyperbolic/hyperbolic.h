@@ -23,6 +23,17 @@
 #include "kagen/tools/sorted_mersenne.h"
 
 namespace kagen {
+class HyperbolicFactory : public GeneratorFactory {
+public:
+    int Requirements() const override;
+
+    bool CheckParameters(const PGeneratorConfig &config, bool output_info, bool output_error) const override;
+
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output_info, bool output_error) const override;
+
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+};
+
 template <typename Double>
 class Hyperbolic : public Generator {
 public:
@@ -37,12 +48,10 @@ public:
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    int Requirements() const final;
-
-    bool AlmostUndirected() const final;
+    bool IsAlmostUndirected() const override;
 
 protected:
-    void GenerateImpl() final;
+    void GenerateImpl() override;
 
 private:
     // Config
@@ -119,6 +128,6 @@ private:
     bool IsLocalChunk(SInt chunk_id) const;
 };
 
-using LowPrecisionHyperbolic = Hyperbolic<LPFloat>;
+using LowPrecisionHyperbolic  = Hyperbolic<LPFloat>;
 using HighPrecisionHyperbolic = Hyperbolic<HPFloat>;
 } // namespace kagen

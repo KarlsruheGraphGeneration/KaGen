@@ -1,17 +1,17 @@
 #include "kagen/generators/gnm/gnm_directed.h"
 
 namespace kagen {
+std::unique_ptr<Generator>
+GNMDirectedFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<GNMDirected>(config, rank, size);
+}
+
 GNMDirected::GNMDirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),
-      rng_(config) {
-    // Init variables
-    if (!config_.self_loops)
-        edges_per_node_ = config_.n - 1;
-    else
-        edges_per_node_ = config_.n;
-}
+      rng_(config),
+      edges_per_node_(config_.self_loops ? config_.n : config_.n - 1) {}
 
 void GNMDirected::GenerateImpl() {
     // Chunk distribution

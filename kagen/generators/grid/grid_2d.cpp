@@ -4,15 +4,20 @@
 #include "kagen/generators/grid/grid_2d.h"
 
 namespace kagen {
+int Grid2DFactory::Requirements() const {
+    return GeneratorRequirement::SQUARE_CHUNKS;
+}
+
+std::unique_ptr<Generator>
+Grid2DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<Grid2D>(config, rank, size);
+}
+
 Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),
       rng_(config) {}
-
-int Grid2D::Requirements() const {
-    return GeneratorRequirement::SQUARE_CHUNKS;
-}
 
 void Grid2D::GenerateImpl() {
     // Init dimensions

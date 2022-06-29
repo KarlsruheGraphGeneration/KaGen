@@ -3,42 +3,6 @@
 #include "kagen/tools/newton.h"
 
 namespace kagen {
-namespace {
-// According to https://mathworld.wolfram.com/SquareLinePicking.html,
-// when placing two points at a random position within a unit square, the
-// probability that their distance is less than r (where 0 <= r <= 1)
-// is given by
-//
-// prob. edge = 1/2 l^4 - 8/3 l^3 + pi l^2
-//
-// Note that the case there r > 1 is not implemented.
-inline double ComputeEdgeProability(const LPFloat r) {
-    const double r2 = r * r;
-    return r2 * (r2 / 2.0 - 8.0 / 3.0 * r + M_PI);
-}
-
-// = d/dx ComputeEdgeProability(x)
-inline double ComputeDerivedEdgeProbability(const LPFloat r) {
-    const double r2 = r * r;
-    return (2 * r * (0.5 * r2 - 8.0 / 3.0 * r + M_PI) + r2 * (r - 8.0 / 3.0));
-}
-} // namespace
-
-// Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a
-// naive implementation of Newton's method
-double RGG2D::ApproxRadius(const SInt n, const SInt m) {
-    const SInt max_m = n * (n - 1);
-    return FindRoot(
-        [max_m, m](const double r) { return max_m * ComputeEdgeProability(r) - m; },
-        [max_m](const double r) { return max_m * ComputeDerivedEdgeProbability(r); }, 0.5, NEWTON_EPS,
-        NEWTON_MAX_ITERS);
-}
-
-SInt RGG2D::ApproxNumNodes(const SInt m, const double r) {
-    const double p = ComputeEdgeProability(r);
-    return (p + std::sqrt(p * p + 4 * p * m)) / (2.0 * p);
-}
-
 RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
     // Number of chunks must be (a) a multiple of size and (b) be a quadratic number
     total_chunks_ = config_.k;
@@ -48,16 +12,12 @@ RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     chunk_size_     = 1.0 / chunks_per_dim_;
 
     // Cell variables
-    cells_per_dim_   = floor(chunk_size_ / config_.r);
+    cells_per_dim_   = std::floor(chunk_size_ / config_.r);
     cells_per_chunk_ = cells_per_dim_ * cells_per_dim_;
     cell_size_       = config_.r + (chunk_size_ - cells_per_dim_ * config_.r) / cells_per_dim_;
     target_r_        = config_.r * config_.r;
 
     InitDatastructures();
-}
-
-int RGG2D::Requirements() const {
-    return GeneratorRequirement::SQUARE_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
 void RGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {

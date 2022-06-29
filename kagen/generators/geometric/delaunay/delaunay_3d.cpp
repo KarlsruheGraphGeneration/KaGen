@@ -26,27 +26,23 @@ Delaunay3D::Delaunay3D(const PGeneratorConfig& config, const PEID rank, const PE
     : Geometric3D(config, rank, size) {
     // Chunk variables
     total_chunks_   = config_.k;
-    chunks_per_dim_ = cbrt(config_.k);
+    chunks_per_dim_ = std::cbrt(config_.k);
     chunk_size_     = 1.0 / chunks_per_dim_;
 
     // Cell variables
 
     // upper bound for expected distance to nearest neighbor, according to paper
-    LPFloat edNN      = 4.8 / cbrt(config_.n);
+    LPFloat edNN      = 4.8 / std::cbrt(config_.n);
     LPFloat lCellSize = std::min(edNN, chunk_size_);
 
     // use chunks_per_dim_ as upper bound for cells_per_dim_
-    cells_per_dim_   = std::min(SInt(48), (SInt)floor(chunk_size_ / lCellSize));
+    cells_per_dim_   = std::min(SInt(48), (SInt)std::floor(chunk_size_ / lCellSize));
     cells_per_chunk_ = cells_per_dim_ * cells_per_dim_ * cells_per_dim_;
     cell_size_       = chunk_size_ / cells_per_dim_;
 
     max_radius_ = (cells_per_dim_ * chunks_per_dim_);
 
     InitDatastructures();
-}
-
-int Delaunay3D::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
 }
 
 void Delaunay3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, const SInt chunk_depth) {

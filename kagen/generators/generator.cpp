@@ -1,17 +1,10 @@
 #include "kagen/generators/generator.h"
+#include "kagen/context.h"
 #include "kagen/definitions.h"
 namespace kagen {
 Generator::~Generator() = default;
 
-int Generator::Requirements() const {
-    return 0;
-}
-
-bool Generator::AlmostUndirected() const {
-    return false;
-}
-
-bool Generator::InvalidVertexRangeIfEmpty() const {
+bool Generator::IsAlmostUndirected() const {
     return false;
 }
 
@@ -44,5 +37,19 @@ const Coordinates& Generator::GetCoordinates() const {
 
 Coordinates&& Generator::TakeCoordinates() {
     return std::move(coordinates_);
+}
+
+GeneratorFactory::~GeneratorFactory() = default;
+
+int GeneratorFactory::Requirements() const {
+    return GeneratorRequirement::NONE;
+}
+
+bool GeneratorFactory::CheckParameters(const PGeneratorConfig&, bool, bool) const {
+    return true;
+}
+
+PGeneratorConfig GeneratorFactory::NormalizeParameters(const PGeneratorConfig config, bool, bool) const {
+    return config;
 }
 } // namespace kagen

@@ -4,15 +4,20 @@
 #include "kagen/generators/grid/grid_3d.h"
 
 namespace kagen {
+int Grid3DFactory::Requirements() const {
+    return GeneratorRequirement::CUBIC_CHUNKS;
+}
+
+std::unique_ptr<Generator>
+Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<Grid3D>(config, rank, size);
+}
+
 Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rng_(config),
       rank_(rank),
       size_(size) {}
-
-int Grid3D::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS;
-}
 
 void Grid3D::GenerateImpl() {
     // Init dimensions
@@ -25,7 +30,7 @@ void Grid3D::GenerateImpl() {
 
     // Init chunks
     total_chunks_   = config_.k;
-    chunks_per_dim_ = cbrt(total_chunks_);
+    chunks_per_dim_ = std::cbrt(total_chunks_);
 
     SInt leftover_chunks = total_chunks_ % size_;
     SInt num_chunks      = (total_chunks_ / size_) + ((SInt)rank_ < leftover_chunks);

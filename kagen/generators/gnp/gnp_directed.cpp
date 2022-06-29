@@ -1,6 +1,11 @@
 #include "kagen/generators/gnp/gnp_directed.h"
 
 namespace kagen {
+std::unique_ptr<Generator>
+GNPDirectedFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<GNPDirected>(config, rank, size);
+}
+
 GNPDirected::GNPDirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),

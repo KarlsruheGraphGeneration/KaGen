@@ -13,11 +13,16 @@
 #include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
+class Grid3DFactory : public GeneratorFactory {
+public:
+    int Requirements() const override;
+
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+};
+
 class Grid3D : public Generator {
 public:
     Grid3D(const PGeneratorConfig& config, PEID rank, PEID size);
-
-    int Requirements() const final;
 
 protected:
     void GenerateImpl() final;

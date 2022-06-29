@@ -14,6 +14,11 @@
 #include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
+class GNPDirectedFactory : public GeneratorFactory {
+public:
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+};
+
 class GNPDirected : public Generator {
 public:
     GNPDirected(const PGeneratorConfig& config, PEID rank, PEID size);

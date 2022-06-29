@@ -7,6 +7,11 @@
 #include "kagen/generators/barabassi/barabassi.h"
 
 namespace kagen {
+std::unique_ptr<Generator>
+BarabassiFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<Barabassi>(config, rank, size);
+}
+
 Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       min_degree_(config_.min_degree),

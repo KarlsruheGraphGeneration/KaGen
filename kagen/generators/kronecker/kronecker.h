@@ -18,6 +18,11 @@
 struct mrg_state;
 
 namespace kagen {
+class KroneckerFactory : public GeneratorFactory {
+public:
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+};
+
 class Kronecker : public Generator {
 public:
     Kronecker(const PGeneratorConfig& config, PEID rank, PEID size);

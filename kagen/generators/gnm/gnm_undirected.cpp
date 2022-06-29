@@ -1,6 +1,11 @@
 #include "kagen/generators/gnm/gnm_undirected.h"
 
 namespace kagen {
+std::unique_ptr<Generator>
+GNMUndirectedFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<GNMUndirected>(config, rank, size);
+}
+
 GNMUndirected::GNMUndirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),

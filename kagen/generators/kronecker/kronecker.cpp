@@ -35,6 +35,11 @@
 /* #define SPK_NOISE_LEVEL 1000 -- in INITIATOR_DENOMINATOR units */
 
 namespace kagen {
+std::unique_ptr<Generator>
+KroneckerFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<Kronecker>(config, rank, size);
+}
+
 Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       size_(size),
