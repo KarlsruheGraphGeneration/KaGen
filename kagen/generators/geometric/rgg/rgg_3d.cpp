@@ -112,7 +112,7 @@ void RGG3D::GenerateGridEdges(
     if (first_chunk_id == second_chunk_id && first_cell_id == second_cell_id) {
         for (SInt i = 0; i < vertices_first.size(); ++i) {
             const Vertex& v1 = vertices_first[i];
-            for (SInt j = i + 1; ++j < vertices_second.size();) {
+            for (SInt j = i + 1; j < vertices_second.size(); ++j) {
                 const Vertex& v2 = vertices_second[j];
                 // Euclidean distance
                 LPFloat x = std::get<0>(v1) - std::get<0>(v2);
