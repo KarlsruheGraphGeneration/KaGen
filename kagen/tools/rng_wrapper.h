@@ -11,15 +11,22 @@
 
 #include <random>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+inline std::ostream& operator<<(std::ostream& out, const __int128& i) {
+    return out << std::int64_t(i >> 64) << "-" << std::int64_t(i);
+}
+#pragma GCC diagnostic pop
+
 #include "methodR.hpp"
 
 namespace kagen {
-
+template <typename int_t = std::int64_t>
 class RNGWrapper {
 public:
     RNGWrapper(const PGeneratorConfig& config) : config_(config), rng_(0), hyp_(0){};
 
-    SInt GenerateHypergeometric(SInt seed, SInt n, SInt m, SInt N) {
+    int_t GenerateHypergeometric(SInt seed, int_t n, int_t m, int_t N) {
         SInt variate = 0;
         if (config_.use_binom)
             variate = GenerateBinomial(seed, n, (LPFloat)m / N);
@@ -48,8 +55,8 @@ public:
 private:
     const PGeneratorConfig& config_;
 
-    std::mt19937                            rng_;
-    sampling::hypergeometric_distribution<> hyp_;
+    std::mt19937                                         rng_;
+    sampling::hypergeometric_distribution<int_t, double> hyp_;
 };
 
 } // namespace kagen

@@ -59,8 +59,8 @@ protected:
     PEID             rank_, size_;
 
     // Variates
-    RNGWrapper rng_;
-    Mersenne   mersenne;
+    RNGWrapper<> rng_;
+    Mersenne     mersenne;
 
     // Constants and variables
     LPFloat chunk_size_;

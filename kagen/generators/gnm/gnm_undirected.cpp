@@ -3,16 +3,21 @@
 namespace kagen {
 std::unique_ptr<Generator>
 GNMUndirectedFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
-    return std::make_unique<GNMUndirected>(config, rank, size);
+    if (config.n <= (1ull << 31)) {
+        return std::make_unique<GNMUndirectedSmall>(config, rank, size);
+    }
+    return std::make_unique<GNMUndirectedBig>(config, rank, size);
 }
 
-GNMUndirected::GNMUndirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
+template <typename BigInt>
+GNMUndirected<BigInt>::GNMUndirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size),
       rng_(config) {}
 
-void GNMUndirected::GenerateImpl() {
+template <typename BigInt>
+void GNMUndirected<BigInt>::GenerateImpl() {
     leftover_chunks_ = config_.k % size_;
     SInt num_chunks  = config_.k / size_ + ((SInt)rank_ < leftover_chunks_);
     SInt row         = rank_ * num_chunks + ((SInt)rank_ >= leftover_chunks_ ? leftover_chunks_ : 0);
@@ -35,11 +40,13 @@ void GNMUndirected::GenerateImpl() {
     SetVertexRange(start_node_, start_node_ + num_nodes_);
 }
 
-void GNMUndirected::GenerateChunks(const SInt row) {
+template <typename BigInt>
+void GNMUndirected<BigInt>::GenerateChunks(const SInt row) {
     QueryTriangular(config_.m, config_.k, config_.k, row, row, 0, 0, 1);
 }
 
-void GNMUndirected::QueryTriangular(
+template <typename BigInt>
+void GNMUndirected<BigInt>::QueryTriangular(
     const SInt m, const SInt num_rows, const SInt num_columns, const SInt row_id, const SInt column_id,
     const SInt offset_row, const SInt offset_column, const SInt level) {
     // Stop if there are no edges left
@@ -69,8 +76,8 @@ void GNMUndirected::QueryTriangular(
     HPFloat lr_edges        = NumTriangleEdges(ll_nodes_row, ll_nodes_row);
 
     // Generate variate for quadrants
-    SInt chunk_start   = ChunkStart(offset_row, offset_column);
-    SInt h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
+    SInt   chunk_start   = ChunkStart(offset_row, offset_column);
+    SInt   h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges, m, total_edges);
     SInt ll_variate    = rng_.GenerateHypergeometric(h, ll_edges, m - upper_variate, ll_edges + lr_edges);
 
@@ -90,7 +97,8 @@ void GNMUndirected::QueryTriangular(
     }
 }
 
-void GNMUndirected::QueryRowRectangle(
+template <typename BigInt>
+void GNMUndirected<BigInt>::QueryRowRectangle(
     const SInt m, const SInt num_rows, const SInt num_columns, const SInt row_id, const SInt offset_row,
     const SInt offset_column, const SInt level) {
     // Stop if there are no edges left
@@ -120,8 +128,8 @@ void GNMUndirected::QueryRowRectangle(
     HPFloat ur_edges        = NumRectangleEdges(ul_nodes_row, ur_nodes_column);
 
     // Generate variate for upper/lower half
-    SInt chunk_start   = ChunkStart(offset_row, offset_column);
-    SInt h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
+    SInt   chunk_start   = ChunkStart(offset_row, offset_column);
+    SInt   h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges + ur_edges, m, total_edges);
 
     // Recursive calls for quadrants
@@ -151,7 +159,8 @@ void GNMUndirected::QueryRowRectangle(
     }
 }
 
-void GNMUndirected::QueryColumnRectangle(
+template <typename BigInt>
+void GNMUndirected<BigInt>::QueryColumnRectangle(
     const SInt m, const SInt num_rows, const SInt num_columns, const SInt column_id, const SInt offset_row,
     const SInt offset_column, const SInt level) {
     // Stop if there are no edges left
@@ -210,7 +219,8 @@ void GNMUndirected::QueryColumnRectangle(
     }
 }
 
-void GNMUndirected::GenerateTriangularEdges(const SInt m, const SInt row_id, const SInt column_id) {
+template <typename BigInt>
+void GNMUndirected<BigInt>::GenerateTriangularEdges(const SInt m, const SInt row_id, const SInt column_id) {
     // No self loops -> skip diagonal entries
     SInt offset_row    = OffsetInRow(row_id);
     SInt offset_column = OffsetInColumn(column_id);
@@ -245,7 +255,8 @@ void GNMUndirected::GenerateTriangularEdges(const SInt m, const SInt row_id, con
     });
 }
 
-void GNMUndirected::GenerateRectangleEdges(const SInt m, const SInt row_id, const SInt column_id) {
+template <typename BigInt>
+void GNMUndirected<BigInt>::GenerateRectangleEdges(const SInt m, const SInt row_id, const SInt column_id) {
     SInt                  offset_row    = OffsetInRow(row_id);
     SInt                  offset_column = OffsetInColumn(column_id);
     [[maybe_unused]] bool local_row     = (offset_row >= start_node_ && offset_row < end_node_);
@@ -273,39 +284,48 @@ void GNMUndirected::GenerateRectangleEdges(const SInt m, const SInt row_id, cons
     });
 }
 
-inline SInt GNMUndirected::NodesInRows(const SInt rows, const SInt offset) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::NodesInRows(const SInt rows, const SInt offset) const {
     return nodes_per_chunk_ * rows + std::min(remaining_nodes_ - offset, rows);
 }
 
-inline SInt GNMUndirected::NodesInColumns(const SInt columns, const SInt offset) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::NodesInColumns(const SInt columns, const SInt offset) const {
     return nodes_per_chunk_ * columns + std::min(remaining_nodes_ - offset, columns);
 }
 
-inline SInt GNMUndirected::NodesInRow(const SInt row) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::NodesInRow(const SInt row) const {
     return nodes_per_chunk_ + (row < leftover_chunks_);
 }
 
-inline SInt GNMUndirected::NodesInColumn(const SInt column) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::NodesInColumn(const SInt column) const {
     return nodes_per_chunk_ + (column < leftover_chunks_);
 }
 
-inline SInt GNMUndirected::OffsetInRow(const SInt row) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::OffsetInRow(const SInt row) const {
     return nodes_per_chunk_ * row + std::min(remaining_nodes_, row);
 }
 
-inline SInt GNMUndirected::OffsetInColumn(const SInt column) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::OffsetInColumn(const SInt column) const {
     return nodes_per_chunk_ * column + std::min(remaining_nodes_, column);
 }
 
-inline SInt GNMUndirected::ChunkStart(const SInt row, const SInt column) const {
+template <typename BigInt>
+inline SInt GNMUndirected<BigInt>::ChunkStart(const SInt row, const SInt column) const {
     return (((row + 1) * row) / 2) + column;
 }
 
-inline HPFloat GNMUndirected::NumTriangleEdges(const HPFloat row, const HPFloat column, bool loops) const {
+template <typename BigInt>
+inline HPFloat GNMUndirected<BigInt>::NumTriangleEdges(const HPFloat row, const HPFloat column, bool loops) const {
     return (loops && config_.self_loops) ? row * (column + 1) / 2 : row * (column - 1) / 2;
 }
 
-inline HPFloat GNMUndirected::NumRectangleEdges(const HPFloat row, const HPFloat column) const {
+template <typename BigInt>
+inline HPFloat GNMUndirected<BigInt>::NumRectangleEdges(const HPFloat row, const HPFloat column) const {
     return row * column;
 }
 } // namespace kagen

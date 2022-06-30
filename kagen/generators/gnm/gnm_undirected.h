@@ -19,6 +19,7 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
+template <typename BigInt>
 class GNMUndirected : public Generator {
 public:
     GNMUndirected(const PGeneratorConfig& config, PEID rank, PEID size);
@@ -38,7 +39,7 @@ private:
     SInt start_node_, end_node_, num_nodes_;
 
     // Variates
-    RNGWrapper rng_;
+    RNGWrapper<BigInt> rng_;
 
     void GenerateChunks(SInt row);
 
@@ -74,4 +75,11 @@ private:
 
     inline HPFloat NumRectangleEdges(HPFloat row, HPFloat column) const;
 };
+
+using GNMUndirectedSmall = GNMUndirected<SInt>;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+using GNMUndirectedBig   = GNMUndirected<__int128>;
+#pragma GCC diagnostic pop
 } // namespace kagen

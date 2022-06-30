@@ -34,7 +34,7 @@ private:
     PEID size_;
 
     // Variates
-    RNGWrapper rng_;
+    RNGWrapper<> rng_;
 
     // Constants and variables
     SInt nodes_per_chunk;

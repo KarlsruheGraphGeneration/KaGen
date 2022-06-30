@@ -35,7 +35,7 @@ private:
     PEID size_;
 
     // Variates
-    RNGWrapper rng_;
+    RNGWrapper<> rng_;
 
     // Constants and variables
     SInt    start_node_, end_node_, num_nodes_;
