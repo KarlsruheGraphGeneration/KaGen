@@ -273,7 +273,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     }
 
     { // RMAT
-        auto* cmd = app.add_subcommand("rmat", "rMAT Graph");
+        auto* cmd = app.add_subcommand("rmat", "R-MAT Graph");
         cmd->callback([&] { config.generator = GeneratorType::RMAT; });
 
         auto* params = cmd->add_option_group("Parameters");

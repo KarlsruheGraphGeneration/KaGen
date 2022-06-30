@@ -14,7 +14,7 @@ If you use this library in the context of an academic publication, we ask that y
 }
 ```
 
-Additionally, if you use the Barabassi-Albert generator, we ask that you cite the paper:
+Additionally, if you use the Barabassi-Albert generator, we ask that you cite the [paper](https://arxiv.org/abs/1602.07106):
 
 ```bibtex
 @article{sanders2016generators,
@@ -28,7 +28,7 @@ Additionally, if you use the Barabassi-Albert generator, we ask that you cite th
 }
 ```
 
-If you use the rMAT generator, we ask that you cite the paper:
+If you use the R-MAT generator, we ask that you cite the [paper](https://www.cambridge.org/core/journals/network-science/article/linear-work-generation-of-rmat-graphs/68A0DDA58A7B84E9B3ACA2DBB123A16C):
 
 ```bibtex
 @article{HubSan2020RMAT, 
