@@ -326,6 +326,33 @@ auto [edge_list, vertex_range] = gen.GenerateRHG_MD(gamma, m, d); // deduce n s.
 auto [edge_list, vertex_range, coordinates] = gen.GenerateRHG_Coordinates(gamma, n, d);
 ```
 
---- 
+---
+
+### R-MAT Graphs RMAT(n, m, a, b, c)
+Generate a random graph using the R-MAT graph model RMAT(n, m, a, b, c).
+
+Each PE generates a random R-MAT graph with n vertices and m edges.
+Afterwards, the vertices are assigned to PEs round-robin style and edges are distributed accordingly.
+
+#### Application
+```
+mpirun -n <nproc> ./kagen rmat 
+  -n <number of vertices> # should be a power of two
+  [-N <number of vertices as a power of two>]
+  -m <number of edges PER PE>
+  [-M <number of edges PER PE as a power of two>]
+  -a <probability for an edge to land in block a>
+  -b <probability for an edge to land in block b>
+  -c <probability for an edge to land in block c>
+  [-S <seed>]
+```
+
+#### Library 
+```c++
+KaGen gen(MPI_COMM_WORLD);
+auto [edge_list, vertex_range] = gen.GenerateRMAT(n, m, a, b, c);
+```
+
+---
 
 **[License](/LICENSE):** 2-clause BS
