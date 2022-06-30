@@ -55,6 +55,8 @@ protected:
         vertex_range_ = std::make_pair(first_vertex, first_invalid_vertex);
     }
 
+    void FilterDuplicateEdges();
+
 private:
     EdgeList    edges_;
     VertexRange vertex_range_;

@@ -101,13 +101,13 @@ public:
 
         enum_items(0, 1.0, 0);
 
-        sLOG1 << "generated" << entries.size() << "path prefixes in" << t.get_and_reset() << "ms";
+        //sLOG1 << "generated" << entries.size() << "path prefixes in" << t.get_and_reset() << "ms";
 
         table.init(entries.size());
-        sLOG1 << "init table in" << t.get_and_reset() << "ms";
+        //sLOG1 << "init table in" << t.get_and_reset() << "ms";
 
         table.construct(entries.begin(), entries.end(), /* is_dist */ true);
-        sLOG1 << "construct table in" << t.get_and_reset() << "ms";
+        //sLOG1 << "construct table in" << t.get_and_reset() << "ms";
     }
 
     template <typename RNG>

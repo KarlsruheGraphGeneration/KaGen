@@ -1,6 +1,9 @@
 #include "kagen/generators/generator.h"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
+
+#include <algorithm>
+
 namespace kagen {
 Generator::~Generator() = default;
 
@@ -37,6 +40,12 @@ const Coordinates& Generator::GetCoordinates() const {
 
 Coordinates&& Generator::TakeCoordinates() {
     return std::move(coordinates_);
+}
+
+void Generator::FilterDuplicateEdges() {
+    std::sort(edges_.begin(), edges_.end());
+    auto it = std::unique(edges_.begin(), edges_.end());
+    edges_.erase(it, edges_.end());
 }
 
 GeneratorFactory::~GeneratorFactory() = default;
