@@ -321,6 +321,16 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m) {
     return Generate(*config_, comm_);
 }
 
+KaGenResult KaGen::GenerateRMAT(const SInt n, const SInt m, const LPFloat a, const LPFloat b, const LPFloat c) {
+    config_->generator = GeneratorType::RMAT;
+    config_->n         = n;
+    config_->m         = m;
+    config_->rmat_a    = a;
+    config_->rmat_b    = b;
+    config_->rmat_c    = c;
+    return Generate(*config_, comm_);
+}
+
 void KaGen::SetDefaults() {
     config_->quiet         = true;
     config_->output_format = OutputFormat::NONE; // ignored anyways

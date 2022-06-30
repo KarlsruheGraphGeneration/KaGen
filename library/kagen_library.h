@@ -161,6 +161,8 @@ public:
 
     KaGenResult GenerateKronecker(SInt n, SInt m);
 
+    KaGenResult GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c);
+
 private:
     void SetDefaults();
 
