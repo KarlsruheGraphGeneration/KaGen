@@ -84,6 +84,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"ba", GeneratorType::BA},
         {"kronecker", GeneratorType::KRONECKER},
         {"rhg", GeneratorType::RHG},
+        {"rmat", GeneratorType::RMAT},
     };
 }
 
@@ -129,6 +130,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
 
         case GeneratorType::RHG:
             return out << "rhg";
+
+        case GeneratorType::RMAT:
+            return out << "rmat";
     }
 
     return out << "<invalid>";
@@ -238,11 +242,19 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             }
             out << "\n";
             break;
+
+        case GeneratorType::RMAT:
+            out << "  Number of vertices:                 " << config.n << "\n";
+            break;
     }
-    if (config.k == 0) {
-        out << "  Number of chunks:                   auto\n";
-    } else {
-        out << "  Number of chunks:                   " << config.k << "\n";
+
+    // RMAT does not use chunks
+    if (config.generator != GeneratorType::RMAT) {
+        if (config.k == 0) {
+            out << "  Number of chunks:                   auto\n";
+        } else {
+            out << "  Number of chunks:                   " << config.k << "\n";
+        }
     }
     out << "-------------------------------------------------------------------------------\n";
 

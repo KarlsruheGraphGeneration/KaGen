@@ -1,0 +1,6 @@
+[submodule "extlib/tlx"]
+	path = extlib/tlx
+	url = https://github.com/tlx/tlx
+[submodule "extlib/graph500"]
+	path = extlib/graph500
+	url = https://github.com/graph500/graph500.git

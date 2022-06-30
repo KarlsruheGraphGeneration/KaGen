@@ -80,6 +80,6 @@ using GNMUndirectedSmall = GNMUndirected<SInt>;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
-using GNMUndirectedBig   = GNMUndirected<__int128>;
+using GNMUndirectedBig = GNMUndirected<__int128>;
 #pragma GCC diagnostic pop
 } // namespace kagen

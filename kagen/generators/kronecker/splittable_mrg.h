@@ -54,24 +54,24 @@ static void mrg_orig_step(mrg_state* state) { /* Use original A, not fully optim
 #include "mrg_transitions.c"
 
 /* Returns integer value in [0, 2^31-1) using original transition matrix */
-uint_fast32_t mrg_get_uint_orig(mrg_state* state) {
+inline uint_fast32_t mrg_get_uint_orig(mrg_state* state) {
     mrg_orig_step(state);
     return state->z1;
 }
 
 /* Returns real value in [0, 1) using original transition matrix */
-double mrg_get_double_orig(mrg_state* state) {
+inline double mrg_get_double_orig(mrg_state* state) {
     return (double)mrg_get_uint_orig(state) * .000000000465661287524579692              /* (2^31 - 1)^(-1) */
            + (double)mrg_get_uint_orig(state) * .0000000000000000002168404346990492787; /* (2^31 - 1)^(-2) */
 }
 
-float mrg_get_float_orig(mrg_state* state) {
+inline float mrg_get_float_orig(mrg_state* state) {
     return (float)mrg_get_uint_orig(state) * .000000000465661287524579692; /* (2^31 - 1)^(-1) */
 }
 
 /* Seed PRNG with a given array of five values in the range [0, 0x7FFFFFFE] and
  * not all zero. */
-void mrg_seed(mrg_state* st, const uint_fast32_t seed[5]) {
+inline void mrg_seed(mrg_state* st, const uint_fast32_t seed[5]) {
     st->z1 = seed[0];
     st->z2 = seed[1];
     st->z3 = seed[2];
@@ -103,8 +103,8 @@ static void mrg_step(const mrg_transition_matrix* mat, mrg_state* state) {
 
 /* Skip the PRNG ahead _exponent_ steps.  This code treats the exponent as a
  * 192-bit word, even though the PRNG period is less than that. */
-void mrg_skip(
-    mrg_state* state, uint_least64_t exponent_high, uint_least64_t exponent_middle, uint_least64_t exponent_low) {
+inline void
+mrg_skip(mrg_state* state, uint_least64_t exponent_high, uint_least64_t exponent_middle, uint_least64_t exponent_low) {
     /* fprintf(stderr, "skip(%016" PRIXLEAST64 "%016" PRIXLEAST64 "%016" PRIXLEAST64 ")\n", exponent_high,
      * exponent_middle, exponent_low); */
     int byte_index;

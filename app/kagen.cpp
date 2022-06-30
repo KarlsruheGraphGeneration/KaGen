@@ -272,6 +272,15 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         params->silent();
     }
 
+    { // RMAT
+        auto* cmd = app.add_subcommand("rmat", "rMAT Graph");
+        cmd->callback([&] { config.generator = GeneratorType::RMAT; });
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        params->silent();
+    }
+
     // IO options
     app.add_option("-o,--output", config.output_file, "Output filename");
     app.add_option("-f,--output-format", config.output_format, "Output format")

@@ -76,8 +76,8 @@ void GNMUndirected<BigInt>::QueryTriangular(
     HPFloat lr_edges        = NumTriangleEdges(ll_nodes_row, ll_nodes_row);
 
     // Generate variate for quadrants
-    SInt   chunk_start   = ChunkStart(offset_row, offset_column);
-    SInt   h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
+    SInt chunk_start   = ChunkStart(offset_row, offset_column);
+    SInt h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges, m, total_edges);
     SInt ll_variate    = rng_.GenerateHypergeometric(h, ll_edges, m - upper_variate, ll_edges + lr_edges);
 
@@ -128,8 +128,8 @@ void GNMUndirected<BigInt>::QueryRowRectangle(
     HPFloat ur_edges        = NumRectangleEdges(ul_nodes_row, ur_nodes_column);
 
     // Generate variate for upper/lower half
-    SInt   chunk_start   = ChunkStart(offset_row, offset_column);
-    SInt   h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
+    SInt chunk_start   = ChunkStart(offset_row, offset_column);
+    SInt h             = sampling::Spooky::hash(config_.seed + level * config_.n + chunk_start);
     SInt upper_variate = rng_.GenerateHypergeometric(h, ul_edges + ur_edges, m, total_edges);
 
     // Recursive calls for quadrants

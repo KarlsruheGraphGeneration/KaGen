@@ -15,7 +15,7 @@ std::string DotWriter::DefaultExtension() const {
 
 void DotWriter::AppendHeaderTo(const std::string& filename, SInt, SInt) {
     BufferedTextOutput<> out(tag::append, filename);
-    const char *type = directed_output_ ? "digraph" : "graph";
+    const char*          type = directed_output_ ? "digraph" : "graph";
     out.WriteString(type).WriteString(" G{\n").Flush();
 }
 

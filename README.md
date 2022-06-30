@@ -28,6 +28,21 @@ Additionally, if you use the Barabassi-Albert generator, we ask that you cite th
 }
 ```
 
+If you use the rMAT generator, we ask that you cite the paper:
+
+```bibtex
+@article{HubSan2020RMAT, 
+  title={Linear Work Generation of {R-MAT} Graphs}, 
+  volume={8}, 
+  number={4}, 
+  journal={Network Science}, 
+  publisher={Cambridge University Press}, 
+  author={H{\"u}bschle-Schneider, Lorenz and Sanders, Peter}, 
+  year={2020}, 
+  pages={543–550},
+}
+```
+
 ## Introduction 
 Network generators serve as a tool to alleviate the need for synthethic instances with controllable parameters by algorithm developers and researchers. 
 However, many generators fail to provide instances on a massive scale due to their sequential nature or resource constraints.

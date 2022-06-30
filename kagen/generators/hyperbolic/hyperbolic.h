@@ -104,8 +104,7 @@ private:
 
     void Query(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool search_down = true);
 
-    bool
-    QueryRightNeighbor(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase);
+    bool QueryRightNeighbor(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase);
 
     bool QueryLeftNeighbor(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down);
 

@@ -56,6 +56,7 @@ enum class GeneratorType {
     BA,
     KRONECKER,
     RHG,
+    RMAT,
 };
 
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();

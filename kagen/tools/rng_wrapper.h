@@ -13,7 +13,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
-inline std::ostream& operator<<(std::ostream& out, const __int128& i) {
+inline std::ostream&   operator<<(std::ostream& out, const __int128& i) {
     return out << std::int64_t(i >> 64) << "-" << std::int64_t(i);
 }
 #pragma GCC diagnostic pop
