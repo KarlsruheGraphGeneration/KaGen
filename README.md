@@ -99,7 +99,7 @@ A list of all command line options is available using the `./kagen --help` optio
 To view the options of a specific graph generator, use:
 
 ```shell 
-./kagen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker> --help
+./kagen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker|rmat> --help
 ```
 
 By default, the generated graph is written to a single file `out.edgelist` (`-o` option) in DIMACS edge list format (`-f` option).
