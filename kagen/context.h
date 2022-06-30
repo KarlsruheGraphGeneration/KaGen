@@ -102,6 +102,9 @@ struct PGeneratorConfig {
     SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
     bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
     int           hp_floats  = 0;     // Use 80 bit floating point numbers for RHG generator, 0 for auto
+    double        rmat_a     = 0;
+    double        rmat_b     = 0;
+    double        rmat_c     = 0;
 
     bool coordinates = false; // Store vertex coordinates
 

@@ -278,6 +278,10 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);
+        add_option_m(params);
+        params->add_option("-a", config.rmat_a, "Probability for block a");
+        params->add_option("-b", config.rmat_b, "Probability for block b");
+        params->add_option("-c", config.rmat_c, "Probability for block c");
         params->silent();
     }
 

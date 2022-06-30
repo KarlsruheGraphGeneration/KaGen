@@ -1,4 +1,6 @@
 #include "kagen/context.h"
+#include <iomanip>
+#include <ios>
 
 namespace kagen {
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
@@ -245,6 +247,11 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
 
         case GeneratorType::RMAT:
             out << "  Number of vertices:                 " << config.n << "\n";
+            out << "  Number of edges:                    " << config.m << "\n";
+            out << "  Probabilities:                      " << std::setprecision(3) << std::fixed << config.rmat_a
+                << " / " << config.rmat_b << " / " << config.rmat_c << " / "
+                << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
+
             break;
     }
 
