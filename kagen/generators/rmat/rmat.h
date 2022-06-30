@@ -6,6 +6,8 @@
 namespace kagen {
 class RMATFactory : public GeneratorFactory {
 public:
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output) const override;
+
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 

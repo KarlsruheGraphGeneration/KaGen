@@ -1,6 +1,7 @@
 #include "kagen/generators/rmat/rmat.h"
 
 #include "kagen/context.h"
+#include "kagen/generators/generator.h"
 #include "kagen/generators/rmat/generators/select.hpp"
 #include "kagen/generators/rmat/rmat_impl.hpp"
 
@@ -8,6 +9,27 @@
 #include <mpi.h>
 
 namespace kagen {
+PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+    if (config.rmat_a < 0 || config.rmat_b < 0 || config.rmat_b < 0) {
+        throw ConfigurationError("probabilities may not be negative");
+    }
+    if (config.rmat_a + config.rmat_b + config.rmat_c > 1) {
+        throw ConfigurationError("sum of probabilities may not be larger than 1");
+    }
+
+    const SInt log_n = std::log2(config.n);
+    if (log_n > 31) {
+        throw ConfigurationError("number of vertices is too large (cannot be larger than 31 bits)");
+    }
+
+    if (output && config.n != 1ull << log_n) {
+        std::cout << "Warning: generator requires the number of vertices to be a power of two" << std::endl;
+        std::cout << "  Changing the number of vertices to " << (1ull << log_n) << std::endl;
+    }
+
+    return config;
+}
+
 std::unique_ptr<Generator> RMATFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
     return std::make_unique<RMAT>(config, rank, size);
 }
