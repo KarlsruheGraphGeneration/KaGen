@@ -17,7 +17,7 @@ PGeneratorConfig HyperbolicFactory::NormalizeParameters(PGeneratorConfig config,
             throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");
         }
 
-        config.avg_degree = 1.0 * config.m / config.n;
+        config.avg_degree = 2.0 * config.m / config.n; // x2 because we want undirected edges
         if (output) {
             std::cout << "Setting average degree to " << config.avg_degree << std::endl;
         }
@@ -26,7 +26,7 @@ PGeneratorConfig HyperbolicFactory::NormalizeParameters(PGeneratorConfig config,
             throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");
         }
 
-        config.n = static_cast<SInt>(config.m / config.avg_degree);
+        config.n = static_cast<SInt>(2 * config.m / config.avg_degree); // x2 because we want undirected edges
         if (output) {
             std::cout << "Setting number of nodes to " << config.n << std::endl;
         }

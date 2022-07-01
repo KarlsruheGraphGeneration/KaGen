@@ -90,7 +90,7 @@ PGeneratorConfig NormalizeParametersCommon(
             throw ConfigurationError("at least two parameters out of {n, m, r} must be nonzero");
         }
 
-        config.r = approx_radius(config.n, config.m);
+        config.r = approx_radius(config.n, config.m * 2); // x2 because we want undirected edges
         if (output) {
             std::cout << "Setting radius to " << config.r << std::endl;
         }
@@ -103,7 +103,7 @@ PGeneratorConfig NormalizeParametersCommon(
                 << "Warning: deducing the number of nodes with a radius larger than 1 might give unexpected results\n";
         }
 
-        config.n = approx_num_nodes(config.m, config.r);
+        config.n = approx_num_nodes(config.m * 2, config.r); // x2 because we want undirecte edges
         if (output) {
             std::cout << "Setting number of nodes to " << config.n << std::endl;
         }

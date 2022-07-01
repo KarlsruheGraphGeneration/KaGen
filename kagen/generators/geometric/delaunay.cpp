@@ -37,7 +37,7 @@ int Delaunay3DFactory::Requirements() const {
 }
 
 PGeneratorConfig Delaunay3DFactory::NormalizeParameters(PGeneratorConfig config, const bool output) const {
-    return NormalizeParametersCommon(config, 15.53, output);
+    return NormalizeParametersCommon(config, 15.53 / 2.0, output);
 }
 
 std::unique_ptr<Generator>
