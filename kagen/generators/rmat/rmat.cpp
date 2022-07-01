@@ -38,7 +38,11 @@ RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : Graph500Generator(config, MPI_COMM_WORLD), // @todo
       config_(config),
       rank_(rank),
-      size_(size) {}
+      size_(size) {
+    const SInt edges_per_pe    = config_.m / config_.k;
+    const SInt remaining_edges = config_.m % config_.k;
+    num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
+}
 
 void RMAT::GenerateImpl() {
     using RNG  = rmat::generators::select_t;
@@ -55,7 +59,7 @@ void RMAT::GenerateImpl() {
     r.init(depth);
 
     // Generate local edges
-    r.get_edges([&](const auto u, const auto v) { PushLocalEdge(u, v); }, config_.m, gen);
+    r.get_edges([&](const auto u, const auto v) { PushLocalEdge(u, v); }, num_edges_, gen);
 
     DistributeRoundRobin(n);
 }

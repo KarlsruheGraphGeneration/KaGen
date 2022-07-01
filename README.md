@@ -145,8 +145,8 @@ mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops);
-auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, self_loops);
+auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops = false);
+auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, self_loops = false);
 ```
 
 ---
@@ -169,8 +169,8 @@ mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops);
-auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP(n, p, self_loops);
+auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops = false);
+auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP(n, p, self_loops = false);
 ```
 
 ---
@@ -284,6 +284,8 @@ mpirun -n <nproc> ./kagen ba
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -d <minimum degree for each vertex>
+  [--directed]
+  [--self-loops]
   [-k <number of chunks>]
   [-S <seed>]
 ```
@@ -291,7 +293,10 @@ mpirun -n <nproc> ./kagen ba
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list, vertex_range] = gen.GenerateBA(n, md);
+
+auto [edge_list, vertex_range] = gen.GenerateBA(n, d, directed = false, self_loops = false);
+auto [edge_list, vertex_range] = gen.GenerateBA_NM(n, m, directed = false, self_loops = false);
+auto [edge_list, vertex_range] = gen.GenerateBA_MD(m, d, directed = false, self_loops = false);
 ```
 
 --- 
@@ -339,18 +344,21 @@ Afterwards, the vertices are assigned to PEs round-robin style and edges are dis
 mpirun -n <nproc> ./kagen rmat 
   -n <number of vertices> # should be a power of two
   [-N <number of vertices as a power of two>]
-  -m <number of edges PER PE>
-  [-M <number of edges PER PE as a power of two>]
+  -m <number of edges>
+  [-M <number of edges as a power of two>]
   -a <probability for an edge to land in block a>
   -b <probability for an edge to land in block b>
   -c <probability for an edge to land in block c>
+  [--directed]
+  [--self-loops]
   [-S <seed>]
 ```
 
 #### Library 
 ```c++
 KaGen gen(MPI_COMM_WORLD);
-auto [edge_list, vertex_range] = gen.GenerateRMAT(n, m, a, b, c);
+
+auto [edge_list, vertex_range] = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops = false);
 ```
 
 ---

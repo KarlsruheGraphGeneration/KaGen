@@ -133,11 +133,11 @@ public:
 
     KaGenResult3D GenerateRDG3D_Coordinates(SInt n);
 
-    KaGenResult GenerateBA(SInt n, SInt d);
+    KaGenResult GenerateBA(SInt n, SInt d, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateBA_NM(SInt n, SInt m);
+    KaGenResult GenerateBA_NM(SInt n, SInt m, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateBA_MD(SInt m, SInt d);
+    KaGenResult GenerateBA_MD(SInt m, SInt d, bool directed = false, bool self_loops = false);
 
     KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d);
 
@@ -163,9 +163,10 @@ public:
 
     KaGenResult3D GenerateGrid3D_Coordinates(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
 
-    KaGenResult GenerateKronecker(SInt n, SInt m);
+    KaGenResult GenerateKronecker(SInt n, SInt m, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c);
+    KaGenResult
+    GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
 
 private:
     void SetDefaults();

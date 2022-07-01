@@ -210,27 +210,29 @@ KaGenResult3D KaGen::GenerateRDG3D_Coordinates(SInt) {
 #endif // KAGEN_CGAL_FOUND
 
 namespace {
-KaGenResult GenerateBA_Impl(PGeneratorConfig& config, const SInt n, const SInt m, const SInt d, MPI_Comm comm) {
+KaGenResult GenerateBA_Impl(
+    PGeneratorConfig& config, const SInt n, const SInt m, const SInt d, const bool directed, const bool self_loops,
+    MPI_Comm comm) {
     config.generator  = GeneratorType::BA;
     config.m          = m;
     config.n          = n;
     config.min_degree = d;
-    config.self_loops = false;
-    config.directed   = false;
+    config.self_loops = self_loops;
+    config.directed   = directed;
     return Generate(config, comm);
 }
 } // namespace
 
-KaGenResult KaGen::GenerateBA(const SInt n, const SInt d) {
-    return GenerateBA_Impl(*config_, n, 0, d, comm_);
+KaGenResult KaGen::GenerateBA(const SInt n, const SInt d, const bool directed, const bool self_loops) {
+    return GenerateBA_Impl(*config_, n, 0, d, directed, self_loops, comm_);
 }
 
-KaGenResult KaGen::GenerateBA_NM(const SInt n, const SInt m) {
-    return GenerateBA_Impl(*config_, n, m, 0.0, comm_);
+KaGenResult KaGen::GenerateBA_NM(const SInt n, const SInt m, const bool directed, const bool self_loops) {
+    return GenerateBA_Impl(*config_, n, m, 0.0, directed, self_loops, comm_);
 }
 
-KaGenResult KaGen::GenerateBA_MD(const SInt m, const SInt d) {
-    return GenerateBA_Impl(*config_, 0, m, d, comm_);
+KaGenResult KaGen::GenerateBA_MD(const SInt m, const SInt d, const bool directed, const bool self_loops) {
+    return GenerateBA_Impl(*config_, 0, m, d, directed, self_loops, comm_);
 }
 
 namespace {
@@ -329,21 +331,26 @@ KaGenResult3D KaGen::GenerateGrid3D_Coordinates(
     return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, periodic, true, comm_);
 }
 
-// @todo broken generator
-KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m) {
-    config_->generator = GeneratorType::KRONECKER;
-    config_->n         = n;
-    config_->m         = m;
+KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, const bool self_loops) {
+    config_->generator  = GeneratorType::KRONECKER;
+    config_->n          = n;
+    config_->m          = m;
+    config_->directed   = directed;
+    config_->self_loops = self_loops;
     return Generate(*config_, comm_);
 }
 
-KaGenResult KaGen::GenerateRMAT(const SInt n, const SInt m, const LPFloat a, const LPFloat b, const LPFloat c) {
-    config_->generator = GeneratorType::RMAT;
-    config_->n         = n;
-    config_->m         = m;
-    config_->rmat_a    = a;
-    config_->rmat_b    = b;
-    config_->rmat_c    = c;
+KaGenResult KaGen::GenerateRMAT(
+    const SInt n, const SInt m, const LPFloat a, const LPFloat b, const LPFloat c, const bool directed,
+    const bool self_loops) {
+    config_->generator  = GeneratorType::RMAT;
+    config_->n          = n;
+    config_->m          = m;
+    config_->rmat_a     = a;
+    config_->rmat_b     = b;
+    config_->rmat_c     = c;
+    config_->directed   = directed;
+    config_->self_loops = self_loops;
     return Generate(*config_, comm_);
 }
 

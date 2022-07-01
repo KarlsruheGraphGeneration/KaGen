@@ -39,10 +39,8 @@ private:
 
     // Constants and variables
     int     log_n_;
-    SInt    from_, to_;
     SInt    num_edges_;
     int64_t scramble1_, scramble2_;
-    SInt    edges_per_pe_;
 
     int Bernoulli(mrg_state* st, int level, int nlevels);
 
