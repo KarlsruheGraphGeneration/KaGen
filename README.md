@@ -145,6 +145,7 @@ mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
+
 auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops = false);
 auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, self_loops = false);
 ```
@@ -169,6 +170,7 @@ mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected>
 #### Library
 ```c++
 KaGen gen(MPI_COMM_WORLD);
+
 auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops = false);
 auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP(n, p, self_loops = false);
 ```
