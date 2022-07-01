@@ -41,16 +41,14 @@ KroneckerFactory::Create(const PGeneratorConfig& config, const PEID rank, const 
 }
 
 Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : config_(config),
+    : Graph500Generator(config, MPI_COMM_WORLD), // @todo
+      config_(config),
       size_(size),
       rank_(rank) {
-    // Init variables
-    from_                = 0;
-    to_                  = config_.n - 1;
-    log_n_               = std::log2(config_.n);
-    edges_per_pe_        = config_.m / config_.k;
-    SInt remaining_edges = config_.m % config_.k;
-    num_edges_           = edges_per_pe_ + ((SInt)rank < remaining_edges);
+    log_n_                     = std::log2(config_.n);
+    const SInt edges_per_pe    = config_.m / config_.k;
+    const SInt remaining_edges = config_.m % config_.k;
+    num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
 }
 
 void Kronecker::GenerateImpl() {
@@ -82,7 +80,7 @@ void Kronecker::GenerateImpl() {
         GenerateEdge(config_.n, 0, &new_state);
     }
 
-    SetVertexRange(from_, to_ + 1);
+    DistributeRoundRobin(config_.n);
 }
 
 int Kronecker::Bernoulli(mrg_state* st, int level, int nlevels) {
@@ -212,6 +210,9 @@ void Kronecker::GenerateEdge(int64_t n, int level, mrg_state* st) {
         base_src += n * src_offset;
         base_tgt += n * tgt_offset;
     }
-    PushEdge(Scramble(base_src), Scramble(base_tgt));
+
+    const auto u = Scramble(base_src);
+    const auto v = Scramble(base_tgt);
+    PushLocalEdge(u, v);
 }
 } // namespace kagen

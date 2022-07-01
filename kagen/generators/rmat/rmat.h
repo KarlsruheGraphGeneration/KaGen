@@ -2,6 +2,7 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/generators/graph500_generator.h"
 
 namespace kagen {
 class RMATFactory : public GeneratorFactory {
@@ -11,7 +12,7 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
-class RMAT : public Generator {
+class RMAT : public Graph500Generator {
 public:
     RMAT(const PGeneratorConfig& config, PEID rank, PEID size);
 

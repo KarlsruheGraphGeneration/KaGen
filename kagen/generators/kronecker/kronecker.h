@@ -10,9 +10,11 @@
 #pragma once
 
 #include "hash.hpp"
+
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
+#include "kagen/generators/graph500_generator.h"
 
 // forward declaration
 struct mrg_state;
@@ -23,7 +25,7 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
-class Kronecker : public Generator {
+class Kronecker : public Graph500Generator {
 public:
     Kronecker(const PGeneratorConfig& config, PEID rank, PEID size);
 

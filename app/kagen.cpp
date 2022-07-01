@@ -50,6 +50,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     auto add_option_self_loops = [&](CLI::App* cmd) {
         return cmd->add_flag("--self-loops", config.self_loops, "Allow self loops");
     };
+    auto add_option_directed = [&](CLI::App* cmd) {
+        return cmd->add_flag("--directed", config.directed, "Generate a directed graph");
+    };
     auto add_option_r = [&](CLI::App* cmd) {
         return cmd->add_option("-r,--radius", config.r, "Edge radius");
     };
@@ -246,7 +249,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // BA
         auto* cmd = app.add_subcommand("ba", "Barabassi Graph");
         cmd->callback([&] { config.generator = GeneratorType::BA; });
-        cmd->add_flag("--directed", config.directed, "Generate a directed Barabassi graph");
+        add_option_directed(cmd);
         add_option_self_loops(cmd);
 
         auto* params = cmd->add_option_group("Parameters");
@@ -260,6 +263,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // KRONECKER
         auto* cmd = app.add_subcommand("kronecker", "Kronecker Graph");
         cmd->callback([&] { config.generator = GeneratorType::KRONECKER; });
+        add_option_self_loops(cmd);
+        add_option_directed(cmd);
         add_option_n(cmd)->required();
         add_option_m(cmd)->required();
     }
@@ -282,6 +287,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // RMAT
         auto* cmd = app.add_subcommand("rmat", "R-MAT Graph");
         cmd->callback([&] { config.generator = GeneratorType::RMAT; });
+        add_option_self_loops(cmd);
+        add_option_directed(cmd);
         add_option_n(cmd);
         add_option_m(cmd);
         cmd->add_option("-a", config.rmat_a, "Probability for block a");

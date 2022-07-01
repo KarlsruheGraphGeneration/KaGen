@@ -35,7 +35,8 @@ std::unique_ptr<Generator> RMATFactory::Create(const PGeneratorConfig& config, c
 }
 
 RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : config_(config),
+    : Graph500Generator(config, MPI_COMM_WORLD), // @todo
+      config_(config),
       rank_(rank),
       size_(size) {}
 
@@ -54,91 +55,8 @@ void RMAT::GenerateImpl() {
     r.init(depth);
 
     // Generate local edges
-    std::vector<std::tuple<int, int>> local_edges;
-    local_edges.reserve(config_.m);
-    r.get_edges(
-        [&](const auto u, const auto v) {
-            if (u != v) {
-                local_edges.emplace_back(u, v);
-                local_edges.emplace_back(v, u);
-            }
-        },
-        config_.m, gen);
+    r.get_edges([&](const auto u, const auto v) { PushLocalEdge(u, v); }, config_.m, gen);
 
-    { // Remove local duplicates
-        std::sort(local_edges.begin(), local_edges.end());
-        auto it = std::unique(local_edges.begin(), local_edges.end());
-        local_edges.erase(it, local_edges.end());
-    }
-
-    // Remove vertex distribution (round-robin)
-    const int num_vertices_per_pe = n / size_;
-    const int remaining_vertices  = n % size_;
-
-    std::vector<int> distribution(size_ + 1);
-    for (PEID pe = 0; pe < size_; ++pe) {
-        distribution[pe] = num_vertices_per_pe + (pe < remaining_vertices);
-    }
-    std::partial_sum(distribution.begin(), distribution.end(), distribution.begin() + 1);
-    distribution.front() = 0;
-
-    /*
-    std::cout << "distribution: ";
-    for (const auto &v : distribution) { std::cout << v << " "; }
-    std::cout << std::endl;
-    std::cout << "n: " << n << std::endl;
-    */
-
-    // Find number of edges for each PE
-    auto compute_owner = [&](const int id) {
-        return id % size_;
-    };
-    auto compute_remap = [&](const int id) {
-        return distribution[compute_owner(id)] + id / size_;
-    };
-
-    // Compute send_counts and send_displs
-    std::vector<int> send_counts(size_);
-    for (const auto& [u, v]: local_edges) {
-        ++send_counts[compute_owner(u)];
-    }
-    std::vector<int> send_displs(size_);
-    std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
-
-    // Remap edges and build send buffer
-    std::vector<long long> sendbuf(local_edges.size());
-    std::vector<int>       sendbuf_pos(size_);
-    for (const auto& [u, v]: local_edges) {
-        const PEID u_owner = compute_owner(u);
-        const int  u_prime = compute_remap(u);
-        const int  v_prime = compute_remap(v);
-
-        // std::cout << "Remap " << u << " --> " << v << " to " << u_prime << " --> " << v_prime << " on PE " << u_owner
-        //<< std::endl;
-        const auto index = send_displs[u_owner] + sendbuf_pos[u_owner];
-        sendbuf[index]   = (static_cast<long long>(u_prime) << 32) | static_cast<long long>(v_prime);
-        ++sendbuf_pos[u_owner];
-    }
-
-    // Exchange send_counts + send_displs
-    std::vector<int> recv_counts(size_);
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, MPI_COMM_WORLD); // @todo comm
-    std::vector<int> recv_displs(size_);
-    std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
-
-    // Exchange edges
-    std::vector<long long> recvbuf(recv_counts.back() + recv_displs.back());
-    MPI_Alltoallv(
-        sendbuf.data(), send_counts.data(), send_displs.data(), MPI_LONG_LONG, recvbuf.data(), recv_counts.data(),
-        recv_displs.data(), MPI_LONG_LONG, MPI_COMM_WORLD);
-
-    for (const auto& edge: recvbuf) {
-        const int u = edge >> 32;
-        const int v = edge & 0xFFFFFFFF;
-        PushEdge(u, v);
-    }
-
-    FilterDuplicateEdges();
-    SetVertexRange(distribution[rank_], distribution[rank_ + 1]);
+    DistributeRoundRobin(n);
 }
 } // namespace kagen

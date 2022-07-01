@@ -233,6 +233,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::KRONECKER:
             out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Number of edges:                    " << config.m << "\n";
+            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
             break;
 
         case GeneratorType::RHG:
@@ -260,6 +261,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             out << "  Probabilities:                      " << std::setprecision(3) << std::fixed << config.rmat_a
                 << " / " << config.rmat_b << " / " << config.rmat_c << " / "
                 << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
+            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
 
             break;
     }
