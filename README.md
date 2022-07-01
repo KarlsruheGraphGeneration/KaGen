@@ -336,7 +336,7 @@ auto [edge_list, vertex_range, coordinates] = gen.GenerateRHG_Coordinates(gamma,
 ### R-MAT Graphs RMAT(n, m, a, b, c)
 Generate a random graph using the R-MAT graph model RMAT(n, m, a, b, c).
 
-Each PE generates a random R-MAT graph with n vertices and m edges.
+Each PE generates a random R-MAT graph with n vertices and m/\<nproc\> edges.
 Afterwards, the vertices are assigned to PEs round-robin style and edges are distributed accordingly.
 
 #### Application
@@ -359,6 +359,34 @@ mpirun -n <nproc> ./kagen rmat
 KaGen gen(MPI_COMM_WORLD);
 
 auto [edge_list, vertex_range] = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops = false);
+```
+
+---
+
+### Kronecker Graphs KRONECKER(n, m)
+Generate a random graph using the Kronecker graph model KRONECKER(n, m).
+
+Each PE generates a random Kronecker graph with n vertices and m/\<nproc\> edges.
+Afterwards, the vertices are assigned to PEs round-robin style and edges are distributed accordingly.
+
+#### Application 
+```
+mpirun -n <nproc> ./kagen kronecker 
+  -n <number of vertices> # should be a power of two 
+  [-N <number of vertices as a power of  two>]
+  -m <number of edges> 
+  [-M <number of edges as a power of two>]
+  [--directed]
+  [--self-loops]
+  [-S <seed>]
+```
+
+#### Library 
+
+```c++
+KaGen gen(MPI_COMM_WORLD);
+
+auto [edge_list, vertex_range] = gen.GenerateKronecker(n, m, directed = false, self_loops = false);
 ```
 
 ---
