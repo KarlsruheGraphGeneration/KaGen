@@ -124,6 +124,17 @@ add_subdirectory(external/KaGen)
 target_link_libraries(<your-target> PUBLIC KaGen::KaGen)
 ```
 
+## General Graph Format
+
+Unless noted otherwise, KaGen generates **simple**, **undirected** graphs, i.e.,
+graphs without self-loops, without multi-edges and where for every edge (u, v),
+there is also a reverse edge (v, u).
+
+When using KaGen in a distributed setting, each PE owns an equally sized range of consecutive vertices.
+An edge is owned by the PE that owns its tail vertex.
+Thus, an edge (u, v) is in the edge list of the PE that owns vertex u, while the reverse edge 
+(v, u) is in the edge list of the PE owning vertex v.
+
 ## Graph Models
 
 ### Erdos-Renyi Graphs G(n, m)
