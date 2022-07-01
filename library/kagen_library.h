@@ -135,6 +135,10 @@ public:
 
     KaGenResult GenerateBA(SInt n, SInt d);
 
+    KaGenResult GenerateBA_NM(SInt n, SInt m);
+
+    KaGenResult GenerateBA_MD(SInt m, SInt d);
+
     KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d);
 
     KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m);

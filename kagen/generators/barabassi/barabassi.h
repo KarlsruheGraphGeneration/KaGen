@@ -14,12 +14,16 @@
 namespace kagen {
 class BarabassiFactory : public GeneratorFactory {
 public:
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output) const override;
+
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
 class Barabassi : public Generator {
 public:
     Barabassi(const PGeneratorConfig& config, PEID rank, PEID size);
+
+    bool IsAlmostUndirected() const override;
 
 protected:
     void GenerateImpl() override;

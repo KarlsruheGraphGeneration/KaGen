@@ -1,6 +1,7 @@
 #include "kagen/context.h"
 #include <iomanip>
 #include <ios>
+#include "context.h"
 
 namespace kagen {
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
@@ -181,12 +182,18 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::GNM_UNDIRECTED:
             out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Number of edges:                    " << config.m << "\n";
+            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+            out << "  Graph type:                         "
+                << (config.generator == GeneratorType::GNM_DIRECTED ? "directed" : "undirected") << "\n";
             break;
 
         case GeneratorType::GNP_DIRECTED:
         case GeneratorType::GNP_UNDIRECTED:
             out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Edge probability:                   " << config.p << "\n";
+            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+            out << "  Graph type:                         "
+                << (config.generator == GeneratorType::GNP_DIRECTED ? "directed" : "undirected") << "\n";
             break;
 
         case GeneratorType::RGG_2D:
@@ -219,6 +226,8 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::BA:
             out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Minimum degree:                     " << config.min_degree << "\n";
+            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+            out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
             break;
 
         case GeneratorType::KRONECKER:

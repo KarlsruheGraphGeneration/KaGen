@@ -246,8 +246,15 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // BA
         auto* cmd = app.add_subcommand("ba", "Barabassi Graph");
         cmd->callback([&] { config.generator = GeneratorType::BA; });
-        add_option_n(cmd)->required();
-        add_option_min_deg(cmd)->required();
+        cmd->add_flag("--directed", config.directed, "Generate a directed Barabassi graph");
+        add_option_self_loops(cmd);
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_m(params);
+        add_option_min_deg(params);
+        params->require_option(2);
+        params->silent();
     }
 
     { // KRONECKER
@@ -275,14 +282,11 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     { // RMAT
         auto* cmd = app.add_subcommand("rmat", "R-MAT Graph");
         cmd->callback([&] { config.generator = GeneratorType::RMAT; });
-
-        auto* params = cmd->add_option_group("Parameters");
-        add_option_n(params);
-        add_option_m(params);
-        params->add_option("-a", config.rmat_a, "Probability for block a");
-        params->add_option("-b", config.rmat_b, "Probability for block b");
-        params->add_option("-c", config.rmat_c, "Probability for block c");
-        params->silent();
+        add_option_n(cmd);
+        add_option_m(cmd);
+        cmd->add_option("-a", config.rmat_a, "Probability for block a");
+        cmd->add_option("-b", config.rmat_b, "Probability for block b");
+        cmd->add_option("-c", config.rmat_c, "Probability for block c");
     }
 
     // IO options

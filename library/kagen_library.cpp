@@ -209,12 +209,28 @@ KaGenResult3D KaGen::GenerateRDG3D_Coordinates(SInt) {
 }
 #endif // KAGEN_CGAL_FOUND
 
-// @todo broken generator
+namespace {
+KaGenResult GenerateBA_Impl(PGeneratorConfig& config, const SInt n, const SInt m, const SInt d, MPI_Comm comm) {
+    config.generator  = GeneratorType::BA;
+    config.m          = m;
+    config.n          = n;
+    config.min_degree = d;
+    config.self_loops = false;
+    config.directed   = false;
+    return Generate(config, comm);
+}
+} // namespace
+
 KaGenResult KaGen::GenerateBA(const SInt n, const SInt d) {
-    config_->generator  = GeneratorType::BA;
-    config_->n          = n;
-    config_->min_degree = d;
-    return Generate(*config_, comm_);
+    return GenerateBA_Impl(*config_, n, 0, d, comm_);
+}
+
+KaGenResult KaGen::GenerateBA_NM(const SInt n, const SInt m) {
+    return GenerateBA_Impl(*config_, n, m, 0.0, comm_);
+}
+
+KaGenResult KaGen::GenerateBA_MD(const SInt m, const SInt d) {
+    return GenerateBA_Impl(*config_, 0, m, d, comm_);
 }
 
 namespace {

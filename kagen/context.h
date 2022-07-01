@@ -96,15 +96,16 @@ struct PGeneratorConfig {
     double        avg_degree = 0.0;   // Average degree
     double        thres      = 0.0;   // Clique threshold (RHG)
     bool          query_both = false; // Query strategy (RHG) -- should be set to false
-    double        min_degree = 4.0;   // Minimum degree (BA)
+    SInt          min_degree = 0.0;   // Minimum degree (BA)
     SInt          grid_x     = 0;     // Grid x dimension (Grid2D, Grid3D)
     SInt          grid_y     = 0;     // Grid y dimension (Grid2D, Grid3D)
     SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
     bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
     int           hp_floats  = 0;     // Use 80 bit floating point numbers for RHG generator, 0 for auto
-    double        rmat_a     = 0;
-    double        rmat_b     = 0;
-    double        rmat_c     = 0;
+    double        rmat_a     = 0.0;
+    double        rmat_b     = 0.0;
+    double        rmat_c     = 0.0;
+    bool          directed   = false;
 
     bool coordinates = false; // Store vertex coordinates
 
