@@ -37,10 +37,9 @@ std::unique_ptr<Generator> RMATFactory::Create(const PGeneratorConfig& config, c
 RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : Graph500Generator(config, MPI_COMM_WORLD), // @todo
       config_(config),
-      rank_(rank),
-      size_(size) {
-    const SInt edges_per_pe    = config_.m / config_.k;
-    const SInt remaining_edges = config_.m % config_.k;
+      rank_(rank) {
+    const SInt edges_per_pe    = config_.m / size;
+    const SInt remaining_edges = config_.m % size;
     num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
 }
 

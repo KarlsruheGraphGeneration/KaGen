@@ -21,7 +21,7 @@ protected:
 
 private:
     const PGeneratorConfig& config_;
-    PEID                    rank_, size_;
+    PEID                    rank_;
     SInt                    num_edges_;
 };
 } // namespace kagen
