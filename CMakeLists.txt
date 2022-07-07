@@ -265,7 +265,7 @@ add_subdirectory(library)
 
 ################################################################################
 
-add_library(KaGen::KaGen ALIAS kagen_library)
+add_library(KaGen::KaGen ALIAS kagen)
 
 ################################################################################
 

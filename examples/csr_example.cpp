@@ -1,7 +1,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "kagen_library.h"
+#include "kagen.h"
 
 #include <mpi.h>
 

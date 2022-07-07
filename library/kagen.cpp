@@ -1,4 +1,4 @@
-#include "kagen_library.h"
+#include "kagen.h"
 
 #include <cmath>
 
