@@ -175,23 +175,27 @@ private:
     std::unique_ptr<PGeneratorConfig> config_;
 };
 
-template <typename Graph = KaGenResult, typename IDX = SInt>
-void BuildVertexDistribution(Graph& graph, IDX** vtxdist, IDX* vtxdist_size, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
+template <typename IDX, typename Graph>
+std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    *vtxdist = new IDX[size + 1];
-    if (vtxdist_size != nullptr) {
-        *vtxdist_size = size + 1;
-    }
-    (*vtxdist)[rank + 1] = graph.vertex_range.second;
+    std::vector<IDX> distribution(size + 1);
+    distribution[rank + 1] = graph.vertex_range.second;
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, distribution.data() + 1, 1, idx_mpi_type, comm);
 
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, (*vtxdist) + 1, 1, idx_mpi_type, comm);
+    return distribution;
 }
 
-template <typename Graph = KaGenResult, typename IDX = SInt>
-void BuildCSR(Graph& graph, IDX** xadj, IDX* xadj_size, IDX** adjncy, IDX* adjncy_size) {
+template <typename IDX>
+struct KaGenResultCSR {
+    std::vector<IDX> xadj;
+    std::vector<IDX> adjncy;
+};
+
+template <typename IDX, typename Graph>
+KaGenResultCSR<IDX> BuildCSR(Graph graph) {
     // Edges must be sorted
     if (!std::is_sorted(graph.edges.begin(), graph.edges.end())) {
         std::sort(graph.edges.begin(), graph.edges.end());
@@ -200,28 +204,24 @@ void BuildCSR(Graph& graph, IDX** xadj, IDX* xadj_size, IDX** adjncy, IDX* adjnc
     const SInt num_local_nodes = graph.vertex_range.second - graph.vertex_range.first;
     const SInt num_local_edges = graph.edges.size();
 
-    // Alloocate CSR data structures
-    *xadj   = new IDX[num_local_nodes + 1];
-    *adjncy = new IDX[num_local_edges];
-    if (xadj_size != nullptr) {
-        *xadj_size = num_local_nodes + 1;
-    }
-    if (adjncy_size != nullptr) {
-        *adjncy_size = num_local_edges;
-    }
+    KaGenResultCSR<IDX> csr;
+    csr.xadj.resize(num_local_nodes + 1);
+    csr.adjncy.resize(num_local_edges);
 
     // Build CSR graph
     SInt cur_vertex = 0;
     SInt cur_edge   = 0;
-    (*xadj)[0]      = 0;
+
     for (const auto& [from, to]: graph.edges) {
         while (from - graph.vertex_range.first > cur_vertex) {
-            (*xadj)[++cur_vertex] = cur_edge;
+            csr.xadj[++cur_vertex] = cur_edge;
         }
-        (*adjncy)[cur_edge++] = to;
+        csr.adjncy[cur_edge++] = to;
     }
     while (cur_vertex < num_local_nodes) {
-        (*xadj)[++cur_vertex] = cur_edge;
+        csr.xadj[++cur_vertex] = cur_edge;
     }
+
+    return csr;
 }
 } // namespace kagen
