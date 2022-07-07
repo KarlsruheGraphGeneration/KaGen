@@ -39,7 +39,7 @@ If you use the R-MAT generator, we ask that you cite the [paper](https://www.cam
   publisher={Cambridge University Press}, 
   author={H{\"u}bschle-Schneider, Lorenz and Sanders, Peter}, 
   year={2020}, 
-  pages={543–550},
+  pages={543 -- 550},
 }
 ```
 
@@ -89,17 +89,17 @@ To compile the code either run `compile.sh` or use the following instructions:
 git submodule update --init --recursive
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
-make kagen kagen_library -j
+make -j
 ```
 
 ## Running KaGen 
 
-After building KaGen, the standalone application is located at `build/app/kagen`. 
-A list of all command line options is available using the `./kagen --help` option. 
+After building KaGen, the standalone application is located at `build/app/KaGen`. 
+A list of all command line options is available using the `./KaGen --help` option. 
 To view the options of a specific graph generator, use:
 
 ```shell 
-./kagen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker|rmat> --help
+./KaGen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker|rmat> --help
 ```
 
 By default, the generated graph is written to a single file `out.edgelist` (`-o` option) in DIMACS edge list format (`-f` option).
@@ -116,7 +116,7 @@ If you want each PE to write its edges to a seperate file, use the `--distribute
 
 ## Using the KaGen Library
 
-The KaGen library is located at `build/library/libkagen_library.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead).
+The KaGen library is located at `build/library/libkagen.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead).
 Alternatively, you can use KaGen by adding this repository as a Git submodule to your project and including it in your CMake configuration:
 
 ```cmake 
@@ -143,7 +143,7 @@ The graph can either be directed or undirected and can contain self-loops.
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen <gnm_directed|gnm_undirected> 
+mpirun -n <nproc> ./KaGen <gnm_directed|gnm_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -m <number of edges>
@@ -169,7 +169,7 @@ The graph can either be directed or undirected and can contain self-loops.
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen <gnp_directed|gnp_undirected> 
+mpirun -n <nproc> ./KaGen <gnp_directed|gnp_undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -p <edge probability>
@@ -199,7 +199,7 @@ parameter is approximated such that the expected number of edges matches the des
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen <rgg2d|rgg3d> 
+mpirun -n <nproc> ./KaGen <rgg2d|rgg3d> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -r <edge radius>
@@ -234,7 +234,7 @@ However, this can yield unexpected results when using less than 9 PEs (2D) / 27 
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen <rdg2d|rdg3d>
+mpirun -n <nproc> ./KaGen <rdg2d|rdg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   [-p,--periodic]
@@ -261,7 +261,7 @@ Generate an undirected random grid graph.
 
 #### Application 
 ```
-mpirun -n <nproc> ./kagen <grid2d|grid3d>
+mpirun -n <nproc> ./KaGen <grid2d|grid3d>
   -x <width of grid>
   [-X <width of grid as a power of two>]
   -y <height of grid>
@@ -293,7 +293,7 @@ The graph may contain self-loops and multi edges.
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen ba 
+mpirun -n <nproc> ./KaGen ba 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -d <minimum degree for each vertex>
@@ -323,7 +323,7 @@ If neither flag is set, KaGen switches to 80 bit precision automatically if the 
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen rhg
+mpirun -n <nproc> ./KaGen rhg
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -g <power-law exponent>
@@ -354,7 +354,7 @@ Afterwards, the vertices are assigned to PEs round-robin style and edges are dis
 
 #### Application
 ```
-mpirun -n <nproc> ./kagen rmat 
+mpirun -n <nproc> ./KaGen rmat 
   -n <number of vertices> # should be a power of two
   [-N <number of vertices as a power of two>]
   -m <number of edges>
@@ -384,7 +384,7 @@ Afterwards, the vertices are assigned to PEs round-robin style and edges are dis
 
 #### Application 
 ```
-mpirun -n <nproc> ./kagen kronecker 
+mpirun -n <nproc> ./KaGen kronecker 
   -n <number of vertices> # should be a power of two 
   [-N <number of vertices as a power of  two>]
   -m <number of edges> 
