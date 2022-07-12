@@ -34,13 +34,16 @@ PGeneratorConfig HyperbolicFactory::NormalizeParameters(PGeneratorConfig config,
 
     const HPFloat alpha = (config.plexp - 1) / 2;
     if (!PGGeometry<HPFloat>::TestTargetRadius(config.n, config.n + config.avg_degree / 2, alpha)) {
-        throw ConfigurationError("generator configuration is infeasible");
+        using namespace std::string_literals;
+        throw ConfigurationError(
+            "generator configuration with n="s + std::to_string(config.n) + ", avg_degree="
+            + std::to_string(config.avg_degree) + " and gamma=" + std::to_string(config.plexp) + " is infeasible");
     }
 
     // @todo Magic constant based on observation ... needs better analysis
-    if (std::log2(config.n) > 29) {
+    if (config.hp_floats == 0 && std::log2(config.n) > 29) { // == -1 -> never, == 0 -> auto
         if (output) {
-            std::cout << "Enabling high-resolution FP for RHG generator" << std::endl;
+            std::cout << "Enabling high-precision FP for RHG generator" << std::endl;
         }
         config.hp_floats = 1;
     }
