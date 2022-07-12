@@ -18,7 +18,7 @@ if (NOT CGAL_FOUND)
 endif ()
 
 add_library(kagen_obj OBJECT ${KAGEN_SOURCE_FILES})
-target_compile_definitions(kagen_obj PUBLIC cxx_std_17)
+target_compile_features(kagen_obj PUBLIC cxx_std_17)
 target_link_libraries(kagen_obj PUBLIC ${KAGEN_LINK_LIBRARIES})
 target_include_directories(kagen_obj PUBLIC ${KAGEN_INCLUDE_DIRS})
 

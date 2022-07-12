@@ -227,10 +227,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KAGEN_DEFINITIONS}")
 message(STATUS "KaGen CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ###############################################################################
-# find MPI
+# MPI
+###############################################################################
 find_package(MPI REQUIRED)
-
-# find CGAL
+set(KAGEN_LINK_LIBRARIES MPI::MPI_CXX "${KAGEN_LINK_LIBRARIES}")
+ 
+###############################################################################
+# CGAL
+###############################################################################
 if (KAGEN_USE_CGAL)
   set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
   find_package(CGAL QUIET)
@@ -242,12 +246,17 @@ if (KAGEN_USE_CGAL)
   endif()
 endif()
 
-# use sampling lib
+###############################################################################
+# Sampling library 
+###############################################################################
+# Do not use MKL by default
+set(SAMPLING_USE_MKL OFF CACHE BOOL "Use MKL for sampling.")
+
 set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 add_subdirectory(extlib/sampling)
-set(KAGEN_LINK_LIBRARIES sampling "${KAGEN_LINK_LIBRARIES}")
-set(KAGEN_LINK_LIBRARIES spooky "${KAGEN_LINK_LIBRARIES}")
-set(KAGEN_LINK_LIBRARIES MPI::MPI_CXX "${KAGEN_LINK_LIBRARIES}")
+set(KAGEN_LINK_LIBRARIES sampling spooky "${KAGEN_LINK_LIBRARIES}")
+
+# Do not build other targets from sampling library
 set_target_properties(run_methodD 
     run_methodSH 
     run_methodSR
@@ -262,11 +271,9 @@ set_target_properties(run_methodD
 add_subdirectory(kagen)
 add_subdirectory(app)
 add_subdirectory(library)
+add_subdirectory(examples)
 
 ################################################################################
 
 add_library(KaGen::KaGen ALIAS kagen)
 
-################################################################################
-
-add_subdirectory(examples)
