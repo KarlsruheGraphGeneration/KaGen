@@ -32,6 +32,7 @@ using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 
 //! Result with 2D coordinates
 struct KaGenResult2D {
+    inline KaGenResult2D() : edges(), vertex_range(0, 0), coordinates() {}
     inline KaGenResult2D(std::tuple<EdgeList, VertexRange, Coordinates> result)
         : edges(std::move(std::get<0>(result))),
           vertex_range(std::get<1>(result)),
@@ -44,6 +45,7 @@ struct KaGenResult2D {
 
 //! Result with 3D coordinates
 struct KaGenResult3D {
+    inline KaGenResult3D() : edges(), vertex_range(0, 0), coordinates() {}
     inline KaGenResult3D(std::tuple<EdgeList, VertexRange, Coordinates> result)
         : edges(std::move(std::get<0>(result))),
           vertex_range(std::get<1>(result)),
@@ -56,6 +58,7 @@ struct KaGenResult3D {
 
 //! Result without coordinates
 struct KaGenResult {
+    inline KaGenResult() : edges(), vertex_range(0, 0) {}
     inline KaGenResult(std::tuple<EdgeList, VertexRange, Coordinates> result)
         : edges(std::move(std::get<0>(result))),
           vertex_range(std::move(std::get<1>(result))) {}
