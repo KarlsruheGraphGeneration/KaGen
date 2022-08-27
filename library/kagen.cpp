@@ -48,7 +48,7 @@ void KaGen::SetNumberOfChunks(const SInt k) {
     config_->k = k;
 }
 
-KaGenResult KaGen::GenerateDirectedGMM(const SInt n, const SInt m, const bool self_loops) {
+KaGenResult KaGen::GenerateDirectedGNM(const SInt n, const SInt m, const bool self_loops) {
     config_->generator  = GeneratorType::GNM_DIRECTED;
     config_->n          = n;
     config_->m          = m;
