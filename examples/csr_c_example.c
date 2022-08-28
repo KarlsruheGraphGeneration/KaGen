@@ -49,6 +49,8 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
 
+    free(xadj);
+    free(adjncy);
     kagen_result_free(graph);
     kagen_free(gen);
     return MPI_Finalize();
