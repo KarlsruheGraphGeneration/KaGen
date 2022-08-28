@@ -1,358 +1,322 @@
-#include "ckagen.h"
 #include <algorithm>
+
 #include <mpi.h>
+
+#include "ckagen.h"
 #include "kagen.h"
 
-struct kagen_gen {
-    void* gen_ptr;
+struct kagen_gen_t {
+    kagen::KaGen* gen_ptr;
 };
 
-struct kagen_result {
-    void* result_ptr;
+struct kagen_result_t {
+    kagen::KaGenResult* result_ptr;
 };
 
-kagen_gen_t* kagen_create(MPI_Comm comm) {
-    kagen_gen_t*  gen_ptr        = (kagen_gen_t*)malloc(sizeof(kagen_gen_t));
-    kagen::KaGen* kagen_instance = new kagen::KaGen(comm);
-    gen_ptr->gen_ptr             = kagen_instance;
+kagen_gen* kagen_create(MPI_Comm comm) {
+    kagen_gen_t* gen_ptr = new kagen_gen_t;
+    gen_ptr->gen_ptr     = new kagen::KaGen(comm);
     return gen_ptr;
 }
 
-void kagen_free(kagen_gen_t* gen) {
+void kagen_free(kagen_gen* gen) {
     if (gen == NULL) {
         return;
     }
-    delete static_cast<kagen::KaGen*>(gen->gen_ptr);
-    free(gen);
+    delete gen->gen_ptr;
+    delete gen;
 }
 
-void kagen_result_vertex_range(kagen_result_t* result, unsigned long long* begin, unsigned long long* end) {
-    kagen::KaGenResult* result_instance = static_cast<kagen::KaGenResult*>(result->result_ptr);
-    *begin                              = result_instance->vertex_range.first;
-    *end                                = result_instance->vertex_range.second;
+void kagen_result_vertex_range(kagen_result* result, unsigned long long* begin, unsigned long long* end) {
+    *begin = result->result_ptr->vertex_range.first;
+    *end   = result->result_ptr->vertex_range.second;
 }
 
-kagen_edge_t* kagen_result_edge_list(kagen_result_t* result, size_t* nedges) {
-    kagen::KaGenResult* result_instance = static_cast<kagen::KaGenResult*>(result->result_ptr);
-    *nedges                             = result_instance->edges.size();
-    return (kagen_edge_t*)(result_instance->edges.data());
+kagen_edge* kagen_result_edge_list(kagen_result* result, size_t* nedges) {
+    *nedges = result->result_ptr->edges.size();
+    return reinterpret_cast<kagen_edge*>(result->result_ptr->edges.data());
 }
 
-void kagen_result_free(kagen_result_t* result) {
+void kagen_result_free(kagen_result* result) {
     if (result == NULL) {
         return;
     }
-    delete static_cast<kagen::KaGenResult*>(result->result_ptr);
-    free(result);
+    delete result->result_ptr;
+    delete result;
 }
 
-void kagen_set_seed(kagen_gen_t* gen, int seed) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->SetSeed(seed);
+void kagen_set_seed(kagen_gen* gen, int seed) {
+    gen->gen_ptr->SetSeed(seed);
 }
 
-void kagen_enable_undirected_graph_verification(kagen_gen_t* gen) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->EnableUndirectedGraphVerification();
+void kagen_enable_undirected_graph_verification(kagen_gen* gen) {
+    gen->gen_ptr->EnableUndirectedGraphVerification();
 }
 
-void kagen_enable_basic_statistics(kagen_gen_t* gen) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->EnableBasicStatistics();
+void kagen_enable_basic_statistics(kagen_gen* gen) {
+    gen->gen_ptr->EnableBasicStatistics();
 }
 
-void kagen_enable_advanced_statistics(kagen_gen_t* gen) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->EnableAdvancedStatistics();
+void kagen_enable_advanced_statistics(kagen_gen* gen) {
+    gen->gen_ptr->EnableAdvancedStatistics();
 }
 
-void kagen_enable_output(kagen_gen_t* gen, bool header) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->EnableOutput(header);
+void kagen_enable_output(kagen_gen* gen, bool header) {
+    gen->gen_ptr->EnableOutput(header);
 }
 
-void kagen_use_hpf_floats(kagen_gen_t* gen, bool state) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->UseHPFloats(state);
+void kagen_use_hpf_floats(kagen_gen* gen, bool state) {
+    gen->gen_ptr->UseHPFloats(state);
 }
-void kagen_set_numer_of_chunks(kagen_gen_t* gen, unsigned long long k) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    gen_instance->SetNumberOfChunks(k);
+void kagen_set_numer_of_chunks(kagen_gen* gen, unsigned long long k) {
+    gen->gen_ptr->SetNumberOfChunks(k);
 }
 
-kagen_result_t*
-kagen_generate_directed_gnm(kagen_gen_t* gen, unsigned long long n, unsigned long long m, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateDirectedGNM(n, m, self_loops);
+kagen_result* kagen_generate_directed_gnm(kagen_gen* gen, unsigned long long n, unsigned long long m, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateDirectedGNM(n, m, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t*
-kagen_generate_undirected_gnm(kagen_gen_t* gen, unsigned long long n, unsigned long long m, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateUndirectedGNM(n, m, self_loops);
+kagen_result*
+kagen_generate_undirected_gnm(kagen_gen* gen, unsigned long long n, unsigned long long m, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateUndirectedGNM(n, m, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_directed_gnp(kagen_gen_t* gen, unsigned long long n, double p, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateDirectedGNP(n, p, self_loops);
+kagen_result* kagen_generate_directed_gnp(kagen_gen* gen, unsigned long long n, double p, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateDirectedGNP(n, p, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_undirected_gnp(kagen_gen_t* gen, unsigned long long n, double p, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateUndirectedGNP(n, p, self_loops);
+kagen_result* kagen_generate_undirected_gnp(kagen_gen* gen, unsigned long long n, double p, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateUndirectedGNP(n, p, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rgg2d(kagen_gen_t* gen, unsigned long long n, double r) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRGG2D(n, r);
+kagen_result* kagen_generate_rgg2d(kagen_gen* gen, unsigned long long n, double r) {
+    auto result = gen->gen_ptr->GenerateRGG2D(n, r);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rgg2d_nm(kagen_gen_t* gen, unsigned long long n, unsigned long long m) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRGG2D_NM(n, m);
+kagen_result* kagen_generate_rgg2d_nm(kagen_gen* gen, unsigned long long n, unsigned long long m) {
+    auto result = gen->gen_ptr->GenerateRGG2D_NM(n, m);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rgg2d_mr(kagen_gen_t* gen, unsigned long long m, double r) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRGG2D_MR(m, r);
+kagen_result* kagen_generate_rgg2d_mr(kagen_gen* gen, unsigned long long m, double r) {
+    auto result = gen->gen_ptr->GenerateRGG2D_MR(m, r);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rgg3d(kagen_gen_t* gen, unsigned long long n, double r) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRGG3D(n, r);
+kagen_result* kagen_generate_rgg3d(kagen_gen* gen, unsigned long long n, double r) {
+    auto result = gen->gen_ptr->GenerateRGG3D(n, r);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rgg3d_nm(kagen_gen_t* gen, unsigned long long n, unsigned long long m) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRGG3D_NM(n, m);
+kagen_result* kagen_generate_rgg3d_nm(kagen_gen* gen, unsigned long long n, unsigned long long m) {
+    auto result = gen->gen_ptr->GenerateRGG3D_NM(n, m);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rgg3d_mr(kagen_gen_t* gen, unsigned long long m, double r) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRGG3D_MR(m, r);
+kagen_result* kagen_generate_rgg3d_mr(kagen_gen* gen, unsigned long long m, double r) {
+    auto result = gen->gen_ptr->GenerateRGG3D_MR(m, r);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rdg2d(kagen_gen_t* gen, unsigned long long n, bool periodic) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRDG2D(n, periodic);
+kagen_result* kagen_generate_rdg2d(kagen_gen* gen, unsigned long long n, bool periodic) {
+    auto result = gen->gen_ptr->GenerateRDG2D(n, periodic);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rdg2d_m(kagen_gen_t* gen, unsigned long long m, bool periodic) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRDG2D_M(m, periodic);
+kagen_result* kagen_generate_rdg2d_m(kagen_gen* gen, unsigned long long m, bool periodic) {
+    auto result = gen->gen_ptr->GenerateRDG2D_M(m, periodic);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rdg3d(kagen_gen_t* gen, unsigned long long n) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRDG3D(n);
+kagen_result* kagen_generate_rdg3d(kagen_gen* gen, unsigned long long n) {
+    auto result = gen->gen_ptr->GenerateRDG3D(n);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rdg3d_m(kagen_gen_t* gen, unsigned long long m) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRDG3D_M(m);
+kagen_result* kagen_generate_rdg3d_m(kagen_gen* gen, unsigned long long m) {
+    auto result = gen->gen_ptr->GenerateRDG3D_M(m);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t*
-kagen_generate_ba(kagen_gen_t* gen, unsigned long long n, unsigned long long d, bool directed, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateBA(n, d, directed, self_loops);
+kagen_result*
+kagen_generate_ba(kagen_gen* gen, unsigned long long n, unsigned long long d, bool directed, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateBA(n, d, directed, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
-kagen_result_t*
-kagen_generate_ba_nm(kagen_gen_t* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateBA_NM(n, m, directed, self_loops);
+kagen_result*
+kagen_generate_ba_nm(kagen_gen* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateBA_NM(n, m, directed, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
-    return result_wrapper;
-}
-
-kagen_result_t*
-kagen_generate_ba_md(kagen_gen_t* gen, unsigned long long m, unsigned long long d, bool directed, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateBA_MD(m, d, directed, self_loops);
-
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rhg(kagen_gen_t* gen, double gamma, unsigned long long n, double d) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRHG(gamma, n, d);
+kagen_result*
+kagen_generate_ba_md(kagen_gen* gen, unsigned long long m, unsigned long long d, bool directed, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateBA_MD(m, d, directed, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rhg_nm(kagen_gen_t* gen, double gamma, unsigned long long n, unsigned long long m) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRHG_NM(gamma, n, m);
+kagen_result* kagen_generate_rhg(kagen_gen* gen, double gamma, unsigned long long n, double d) {
+    auto result = gen->gen_ptr->GenerateRHG(gamma, n, d);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rhg_md(kagen_gen_t* gen, double gamma, unsigned long long m, double d) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRHG_MD(gamma, m, d);
+kagen_result* kagen_generate_rhg_nm(kagen_gen* gen, double gamma, unsigned long long n, unsigned long long m) {
+    auto result = gen->gen_ptr->GenerateRHG_NM(gamma, n, m);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t*
-kagen_generate_grid2d(kagen_gen_t* gen, unsigned long long grid_x, unsigned long long grid_y, double p, bool periodic) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateGrid2D(grid_x, grid_y, p, periodic);
+kagen_result* kagen_generate_rhg_md(kagen_gen* gen, double gamma, unsigned long long m, double d) {
+    auto result = gen->gen_ptr->GenerateRHG_MD(gamma, m, d);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_grid2d_n(kagen_gen_t* gen, unsigned long long n, double p, bool periodic) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateGrid2D_N(n, p, periodic);
+kagen_result*
+kagen_generate_grid2d(kagen_gen* gen, unsigned long long grid_x, unsigned long long grid_y, double p, bool periodic) {
+    auto result = gen->gen_ptr->GenerateGrid2D(grid_x, grid_y, p, periodic);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
-kagen_result_t* kagen_generate_grid3d(
-    kagen_gen_t* gen, unsigned long long grid_x, unsigned long long grid_y, unsigned long long grid_z, double p,
+
+kagen_result* kagen_generate_grid2d_n(kagen_gen* gen, unsigned long long n, double p, bool periodic) {
+    auto result = gen->gen_ptr->GenerateGrid2D_N(n, p, periodic);
+
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    return result_wrapper;
+}
+kagen_result* kagen_generate_grid3d(
+    kagen_gen* gen, unsigned long long grid_x, unsigned long long grid_y, unsigned long long grid_z, double p,
     bool periodic) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateGrid3D(grid_x, grid_y, grid_z, p, periodic);
+    auto result = gen->gen_ptr->GenerateGrid3D(grid_x, grid_y, grid_z, p, periodic);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
-kagen_result_t* kagen_generate_grid3d_n(kagen_gen_t* gen, unsigned long long n, double p, bool periodic) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateGrid3D_N(n, p, periodic);
+kagen_result* kagen_generate_grid3d_n(kagen_gen* gen, unsigned long long n, double p, bool periodic) {
+    auto result = gen->gen_ptr->GenerateGrid3D_N(n, p, periodic);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
-    return result_wrapper;
-}
-
-kagen_result_t*
-kagen_generate_kronecker(kagen_gen_t* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateKronecker(n, m, directed, self_loops);
-
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-kagen_result_t* kagen_generate_rmat(
-    kagen_gen_t* gen, unsigned long long n, unsigned long long m, double a, double b, double c, bool directed,
+kagen_result*
+kagen_generate_kronecker(kagen_gen* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops) {
+    auto result = gen->gen_ptr->GenerateKronecker(n, m, directed, self_loops);
+
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    return result_wrapper;
+}
+
+kagen_result* kagen_generate_rmat(
+    kagen_gen* gen, unsigned long long n, unsigned long long m, double a, double b, double c, bool directed,
     bool self_loops) {
-    kagen::KaGen* gen_instance = static_cast<kagen::KaGen*>(gen->gen_ptr);
-    auto          result       = gen_instance->GenerateRMAT(n, m, a, b, c, directed, self_loops);
+    auto result = gen->gen_ptr->GenerateRMAT(n, m, a, b, c, directed, self_loops);
 
-    kagen_result_t* result_wrapper = (kagen_result_t*)malloc(sizeof(kagen_result_t));
-    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
-void kagen_build_vertex_distribution(kagen_result_t* result, unsigned long long* dist, MPI_Comm comm) {
-  if (dist == NULL) {
-    return;
-  }
+void kagen_build_vertex_distribution(kagen_result* result, unsigned long long* dist, MPI_Comm comm) {
+    if (dist == NULL) {
+        return;
+    }
 
-  kagen::PEID rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
-  dist[0] = 0;
-  dist[rank + 1] = static_cast<kagen::KaGenResult*>(result->result_ptr)->vertex_range.second;
-  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, dist + 1, 1, MPI_UNSIGNED_LONG_LONG, comm);
+    kagen::PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+    dist[0]        = 0;
+    dist[rank + 1] = result->result_ptr->vertex_range.second;
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, dist + 1, 1, MPI_UNSIGNED_LONG_LONG, comm);
 }
 
-void kagen_build_csr(kagen_result_t* result, unsigned long long* xadj, unsigned long long* adjncy) {
+void kagen_build_csr(kagen_result* result, unsigned long long* xadj, unsigned long long* adjncy) {
     if (xadj == NULL || adjncy == NULL) {
         return;
     }
-    kagen::KaGenResult* result_instance = static_cast<kagen::KaGenResult*>(result->result_ptr);
-    if (!std::is_sorted(result_instance->edges.begin(), result_instance->edges.end())) {
-        std::sort(result_instance->edges.begin(), result_instance->edges.end());
+    if (!std::is_sorted(result->result_ptr->edges.begin(), result->result_ptr->edges.end())) {
+        std::sort(result->result_ptr->edges.begin(), result->result_ptr->edges.end());
     }
 
     const unsigned long long num_local_nodes =
-        result_instance->vertex_range.second - result_instance->vertex_range.first;
+        result->result_ptr->vertex_range.second - result->result_ptr->vertex_range.first;
 
     unsigned long long cur_vertex = 0;
     unsigned long long cur_edge   = 0;
 
     xadj[0] = 0;
-    for (const auto& [from, to]: result_instance->edges) {
-        while (from - result_instance->vertex_range.first > cur_vertex) {
+    for (const auto& [from, to]: result->result_ptr->edges) {
+        while (from - result->result_ptr->vertex_range.first > cur_vertex) {
             xadj[++cur_vertex] = cur_edge;
         }
         adjncy[cur_edge++] = to;
