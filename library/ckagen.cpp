@@ -65,7 +65,7 @@ void kagen_enable_output(kagen_gen* gen, bool header) {
     gen->gen_ptr->EnableOutput(header);
 }
 
-void kagen_use_hpf_floats(kagen_gen* gen, bool state) {
+void kagen_use_hp_floats(kagen_gen* gen, bool state) {
     gen->gen_ptr->UseHPFloats(state);
 }
 void kagen_set_numer_of_chunks(kagen_gen* gen, unsigned long long k) {

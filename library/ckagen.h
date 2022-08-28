@@ -31,7 +31,7 @@ void kagen_enable_undirected_graph_verification(kagen_gen* gen);
 void kagen_enable_basic_statistics(kagen_gen* gen);
 void kagen_enable_advanced_statistics(kagen_gen* gen);
 void kagen_enable_output(kagen_gen* gen, bool header);
-void kagen_use_hpf_floats(kagen_gen* gen, bool state);
+void kagen_use_hp_floats(kagen_gen* gen, bool state);
 void kagen_set_numer_of_chunks(kagen_gen* gen, unsigned long long k);
 
 kagen_result* kagen_generate_directed_gnm(kagen_gen* gen, unsigned long long n, unsigned long long m, bool self_loops);
