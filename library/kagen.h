@@ -130,7 +130,7 @@ public:
      */
     void SetNumberOfChunks(SInt k);
 
-    KaGenResult GenerateDirectedGMM(SInt n, SInt m, bool self_loops = false);
+    KaGenResult GenerateDirectedGNM(SInt n, SInt m, bool self_loops = false);
 
     KaGenResult GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);
 
