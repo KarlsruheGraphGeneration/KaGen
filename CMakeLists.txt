@@ -276,5 +276,5 @@ add_subdirectory(examples)
 ################################################################################
 
 add_library(KaGen::KaGen ALIAS kagen)
-add_library(KaGen::ckagen ALIAS ckagen)
+add_library(KaGen::cKaGen ALIAS ckagen)
 

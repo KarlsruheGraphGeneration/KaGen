@@ -44,6 +44,7 @@ If you use the R-MAT generator, we ask that you cite the [paper](https://www.cam
 ```
 
 ## Introduction 
+
 Network generators serve as a tool to alleviate the need for synthethic instances with controllable parameters by algorithm developers and researchers. 
 However, many generators fail to provide instances on a massive scale due to their sequential nature or resource constraints.
 
@@ -83,6 +84,7 @@ port install gcc11 openmpi sparsehash cgal5
 ```
 
 ## Building KaGen 
+
 To compile the code either run `compile.sh` or use the following instructions:
 
 ```shell
@@ -116,13 +118,19 @@ If you want each PE to write its edges to a seperate file, use the `--distribute
 
 ## Using the KaGen Library
 
-The KaGen library is located at `build/library/libkagen.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead).
-Alternatively, you can use KaGen by adding this repository as a Git submodule to your project and including it in your CMake configuration:
+The KaGen C++ library is located at `build/library/libkagen.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead).
+Additionally, a C library is located at `build/library/libckagen.a`. 
+
+If you are using CMake, you can use KaGen by adding this repository as a Git submodule to your project and including it in your CMake configuration:
 
 ```cmake 
 add_subdirectory(external/KaGen)
-target_link_libraries(<your-target> PUBLIC KaGen::KaGen)
+target_link_libraries(<your-target> PUBLIC KaGen::KaGen)  # C++ interface
+target_link_libraries(<your-target> PUBLIC KaGen::cKaGen) # C interface
 ```
+
+Examples on how to use the C and C++ interfaces are available in the `examples/` directory.
+The examples given below only show the C++ interface.
 
 ## General Graph Format
 
