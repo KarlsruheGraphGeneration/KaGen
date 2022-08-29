@@ -15,13 +15,13 @@ typedef struct kagen_result_t kagen_result_t;
 struct kagen_edge_t {
     unsigned long long target, source;
 };
-typedef struct kagen_edge_t kagen_edge;
+typedef struct kagen_edge_t kagen_edge_t;
 
 kagen_t* kagen_create(MPI_Comm comm);
 void       kagen_free(kagen_t* gen);
 
 void        kagen_result_vertex_range(kagen_result_t* result, unsigned long long* begin, unsigned long long* end);
-kagen_edge* kagen_result_edge_list(kagen_result_t* result, size_t* nedges);
+kagen_edge_t* kagen_result_edge_list(kagen_result_t* result, size_t* nedges);
 void        kagen_result_free(kagen_result_t* result);
 
 void kagen_set_seed(kagen_t* gen, int seed);

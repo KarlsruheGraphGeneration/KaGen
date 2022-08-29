@@ -32,9 +32,9 @@ void kagen_result_vertex_range(kagen_result_t* result, unsigned long long* begin
     *end   = result->result_ptr->vertex_range.second;
 }
 
-kagen_edge* kagen_result_edge_list(kagen_result_t* result, size_t* nedges) {
+kagen_edge_t* kagen_result_edge_list(kagen_result_t* result, size_t* nedges) {
     *nedges = result->result_ptr->edges.size();
-    return reinterpret_cast<kagen_edge*>(result->result_ptr->edges.data());
+    return reinterpret_cast<kagen_edge_t*>(result->result_ptr->edges.data());
 }
 
 void kagen_result_free(kagen_result_t* result) {
