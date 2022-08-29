@@ -17,6 +17,7 @@
  * These may need to be tweaked to get acceptable performance on some platforms
  * (especially ones without conditional moves). */
 
+namespace kronecker {
 static inline uint_fast32_t mod_add(uint_fast32_t a, uint_fast32_t b) {
     uint_fast32_t x;
     assert(a <= 0x7FFFFFFE);
@@ -137,5 +138,6 @@ static inline uint_fast32_t mod_mac_y(uint_fast32_t sum, uint_fast32_t a) {
     assert(result == mod_mac(sum, a, 104480));
     return result;
 }
+} // namespace kronecker
 
 #endif /* MOD_ARITH_32BIT_H */

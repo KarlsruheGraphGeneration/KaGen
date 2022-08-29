@@ -34,12 +34,9 @@
     #define OMP(x_)
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // void* xrealloc(void* p, size_t nbytes); /* In utils.c */
 // uint_fast64_t random_up_to(mrg_state* st, uint_fast64_t n);
+namespace kronecker {
 
 void make_mrg_seed(uint64_t userseed1, uint64_t userseed2, uint_fast32_t* seed) {
     seed[0] = (uint32_t)(userseed1 & UINT32_C(0x3FFFFFFF)) + 1;
@@ -49,8 +46,6 @@ void make_mrg_seed(uint64_t userseed1, uint64_t userseed2, uint_fast32_t* seed) 
     seed[4] = (uint32_t)((userseed2 >> 60) << 4) + (uint32_t)(userseed1 >> 60) + 1;
 }
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace kronecker
 
 #endif /* UTILS_H */
