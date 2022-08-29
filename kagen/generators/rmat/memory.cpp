@@ -18,7 +18,11 @@ void* alloc_hugepage(size_t size) {
     size_t           bytes     = align_size(size, alignment);
     sLOG << "Allocating" << bytes << "bytes instead of" << size;
     void* ptr = aligned_alloc(alignment, bytes);
+#if __APPLE__
+    madvise(ptr, bytes, MADV_NORMAL);
+#else
     madvise(ptr, bytes, MADV_HUGEPAGE);
+#endif
     return ptr;
 }
 
