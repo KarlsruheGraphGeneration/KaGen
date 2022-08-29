@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Generate 2D RGG graph with 16 nodes and edge radius 0.125
-    kagen_gen*         gen   = kagen_create(MPI_COMM_WORLD);
+    kagen_t*           gen   = kagen_create(MPI_COMM_WORLD);
     kagen_result*      graph = kagen_generate_rgg2d(gen, 16, 0.125);
     unsigned long long from, to;
     kagen_result_vertex_range(graph, &from, &to);
