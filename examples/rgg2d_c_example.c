@@ -6,7 +6,7 @@
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     kagen_t*    gen    = kagen_create(MPI_COMM_WORLD);
-    kagen_result* result = kagen_generate_rgg2d_nm(gen, 16, 32);
+    kagen_result_t* result = kagen_generate_rgg2d_nm(gen, 16, 32);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
