@@ -12,4 +12,5 @@ add_executable(KaGen KaGen.cpp)
 target_link_libraries(KaGen PRIVATE kagen_obj)
 target_compile_features(KaGen INTERFACE cxx_std_17)
 
-################################################################################
+install(TARGETS KaGen DESTINATION bin)
+
