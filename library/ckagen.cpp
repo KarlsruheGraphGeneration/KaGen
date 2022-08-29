@@ -15,7 +15,7 @@ struct kagen_result_t {
 
 kagen_t* kagen_create(MPI_Comm comm) {
     kagen_t* gen_ptr = new kagen_t;
-    gen_ptr->gen_ptr     = new kagen::KaGen(comm);
+    gen_ptr->gen_ptr = new kagen::KaGen(comm);
     return gen_ptr;
 }
 
@@ -76,7 +76,7 @@ kagen_result_t* kagen_generate_directed_gnm(kagen_t* gen, unsigned long long n, 
     auto result = gen->gen_ptr->GenerateDirectedGNM(n, m, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -85,7 +85,7 @@ kagen_generate_undirected_gnm(kagen_t* gen, unsigned long long n, unsigned long 
     auto result = gen->gen_ptr->GenerateUndirectedGNM(n, m, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -93,7 +93,7 @@ kagen_result_t* kagen_generate_directed_gnp(kagen_t* gen, unsigned long long n, 
     auto result = gen->gen_ptr->GenerateDirectedGNP(n, p, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -101,7 +101,7 @@ kagen_result_t* kagen_generate_undirected_gnp(kagen_t* gen, unsigned long long n
     auto result = gen->gen_ptr->GenerateUndirectedGNP(n, p, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -109,7 +109,7 @@ kagen_result_t* kagen_generate_rgg2d(kagen_t* gen, unsigned long long n, double 
     auto result = gen->gen_ptr->GenerateRGG2D(n, r);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -117,7 +117,7 @@ kagen_result_t* kagen_generate_rgg2d_nm(kagen_t* gen, unsigned long long n, unsi
     auto result = gen->gen_ptr->GenerateRGG2D_NM(n, m);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -125,7 +125,7 @@ kagen_result_t* kagen_generate_rgg2d_mr(kagen_t* gen, unsigned long long m, doub
     auto result = gen->gen_ptr->GenerateRGG2D_MR(m, r);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -133,7 +133,7 @@ kagen_result_t* kagen_generate_rgg3d(kagen_t* gen, unsigned long long n, double 
     auto result = gen->gen_ptr->GenerateRGG3D(n, r);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -141,7 +141,7 @@ kagen_result_t* kagen_generate_rgg3d_nm(kagen_t* gen, unsigned long long n, unsi
     auto result = gen->gen_ptr->GenerateRGG3D_NM(n, m);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -149,7 +149,7 @@ kagen_result_t* kagen_generate_rgg3d_mr(kagen_t* gen, unsigned long long m, doub
     auto result = gen->gen_ptr->GenerateRGG3D_MR(m, r);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -157,7 +157,7 @@ kagen_result_t* kagen_generate_rdg2d(kagen_t* gen, unsigned long long n, bool pe
     auto result = gen->gen_ptr->GenerateRDG2D(n, periodic);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -165,7 +165,7 @@ kagen_result_t* kagen_generate_rdg2d_m(kagen_t* gen, unsigned long long m, bool 
     auto result = gen->gen_ptr->GenerateRDG2D_M(m, periodic);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -173,7 +173,7 @@ kagen_result_t* kagen_generate_rdg3d(kagen_t* gen, unsigned long long n) {
     auto result = gen->gen_ptr->GenerateRDG3D(n);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -181,7 +181,7 @@ kagen_result_t* kagen_generate_rdg3d_m(kagen_t* gen, unsigned long long m) {
     auto result = gen->gen_ptr->GenerateRDG3D_M(m);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -190,7 +190,7 @@ kagen_generate_ba(kagen_t* gen, unsigned long long n, unsigned long long d, bool
     auto result = gen->gen_ptr->GenerateBA(n, d, directed, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 kagen_result_t*
@@ -198,7 +198,7 @@ kagen_generate_ba_nm(kagen_t* gen, unsigned long long n, unsigned long long m, b
     auto result = gen->gen_ptr->GenerateBA_NM(n, m, directed, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -207,7 +207,7 @@ kagen_generate_ba_md(kagen_t* gen, unsigned long long m, unsigned long long d, b
     auto result = gen->gen_ptr->GenerateBA_MD(m, d, directed, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -215,7 +215,7 @@ kagen_result_t* kagen_generate_rhg(kagen_t* gen, double gamma, unsigned long lon
     auto result = gen->gen_ptr->GenerateRHG(gamma, n, d);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -223,7 +223,7 @@ kagen_result_t* kagen_generate_rhg_nm(kagen_t* gen, double gamma, unsigned long 
     auto result = gen->gen_ptr->GenerateRHG_NM(gamma, n, m);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -231,7 +231,7 @@ kagen_result_t* kagen_generate_rhg_md(kagen_t* gen, double gamma, unsigned long 
     auto result = gen->gen_ptr->GenerateRHG_MD(gamma, m, d);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -240,7 +240,7 @@ kagen_generate_grid2d(kagen_t* gen, unsigned long long grid_x, unsigned long lon
     auto result = gen->gen_ptr->GenerateGrid2D(grid_x, grid_y, p, periodic);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -248,7 +248,7 @@ kagen_result_t* kagen_generate_grid2d_n(kagen_t* gen, unsigned long long n, doub
     auto result = gen->gen_ptr->GenerateGrid2D_N(n, p, periodic);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 kagen_result_t* kagen_generate_grid3d(
@@ -257,14 +257,14 @@ kagen_result_t* kagen_generate_grid3d(
     auto result = gen->gen_ptr->GenerateGrid3D(grid_x, grid_y, grid_z, p, periodic);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 kagen_result_t* kagen_generate_grid3d_n(kagen_t* gen, unsigned long long n, double p, bool periodic) {
     auto result = gen->gen_ptr->GenerateGrid3D_N(n, p, periodic);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -273,7 +273,7 @@ kagen_generate_kronecker(kagen_t* gen, unsigned long long n, unsigned long long 
     auto result = gen->gen_ptr->GenerateKronecker(n, m, directed, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 
@@ -283,7 +283,7 @@ kagen_result_t* kagen_generate_rmat(
     auto result = gen->gen_ptr->GenerateRMAT(n, m, a, b, c, directed, self_loops);
 
     kagen_result_t* result_wrapper = new kagen_result_t;
-    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
     return result_wrapper;
 }
 

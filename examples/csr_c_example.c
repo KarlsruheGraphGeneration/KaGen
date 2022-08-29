@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
 
     // Generate 2D RGG graph with 16 nodes and edge radius 0.125
     kagen_t*           gen   = kagen_create(MPI_COMM_WORLD);
-    kagen_result_t*      graph = kagen_generate_rgg2d(gen, 16, 0.125);
+    kagen_result_t*    graph = kagen_generate_rgg2d(gen, 16, 0.125);
     unsigned long long from, to;
     kagen_result_vertex_range(graph, &from, &to);
     printf("Vertices on PE %d: [%lld, %lld)\n", rank, from, to);
