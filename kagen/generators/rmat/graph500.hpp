@@ -20,10 +20,10 @@
     #define restrict __restrict__
 
 // graph500 reference code from https://github.com/graph500/graph500
-namespace {
+namespace rmat::graph500_reference {
     #include "kagen/generators/rmat/graph500/graph_generator.c"
     #include "kagen/generators/rmat/graph500/splittable_mrg.c"
-} // namespace
+} // namespace rmat::graph500_reference
 
 namespace rmat {
 namespace graph500 {
@@ -37,6 +37,7 @@ struct scramble_state {
 
 /* adapted from generator/graph_generator.c generate_kronecker_range */
 inline scramble_state init_scramble_helper(const uint_fast32_t seed[5], int lgN) {
+    using namespace graph500_reference;
     mrg_state state;
     mrg_seed(&state, seed);
 
