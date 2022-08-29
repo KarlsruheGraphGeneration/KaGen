@@ -20,9 +20,9 @@
 #endif
 #include <inttypes.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* #ifdef __cplusplus */
+/* extern "C" { */
+/* #endif */
 
 #ifdef GENERATOR_USE_PACKED_EDGE_TYPE
 
@@ -82,8 +82,8 @@ void generate_kronecker_range(
 #endif
 );
 
-#ifdef __cplusplus
-}
-#endif
+/* #ifdef __cplusplus */
+/* } */
+/* #endif */
 
 #endif /* GRAPH_GENERATOR_H */
