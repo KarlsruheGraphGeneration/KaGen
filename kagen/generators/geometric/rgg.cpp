@@ -26,7 +26,7 @@ inline double ComputeDerivedEdgeProbability2D(const LPFloat r) {
 // Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a
 // naive implementation of Newton's method
 double ApproxRadius2D(const SInt n, const SInt m) {
-    const SInt max_m = n * (n - 1);
+    const HPFloat max_m = 1.0l * n * (n - 1);
     return FindRoot(
         [max_m, m](const double r) { return max_m * ComputeEdgeProability2D(r) - m; },
         [max_m](const double r) { return max_m * ComputeDerivedEdgeProbability2D(r); }, 0.5, NEWTON_EPS,
@@ -65,7 +65,7 @@ inline double ComputeDerivedEdgeProbability3D(const LPFloat r) {
 // Approximate r such that n(n - 1) * ComputeEdgeProability(r) - m = 0 using a naive implementation of
 // Newton's method
 double ApproxRadius3D(const SInt n, const SInt m) {
-    const SInt max_m = n * (n - 1);
+    const HPFloat max_m = 1.0l * n * (n - 1);
     return FindRoot(
         [max_m, m](const double r) { return max_m * ComputeEdgeProability3D(r) - m; },
         [max_m](const double r) { return max_m * ComputeDerivedEdgeProbability3D(r); }, 0.5, NEWTON_EPS,
