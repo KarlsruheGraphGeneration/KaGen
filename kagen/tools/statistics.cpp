@@ -45,20 +45,20 @@ std::vector<SInt> GatherNumberOfEdges(const EdgeList& edges, MPI_Comm comm) {
 }
 
 SInt ReduceSum(const SInt value, MPI_Comm comm) {
-    SInt sum;
+    SInt sum = 0;
     MPI_Reduce(&value, &sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     return sum;
 }
 
 SInt ReduceMin(const SInt value, MPI_Comm comm) {
-    SInt min;
+    SInt min = 0;
     MPI_Reduce(&value, &min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, comm);
     return min;
 }
 
 LPFloat ReduceMean(const SInt value, MPI_Comm comm) {
-    SInt sum;
-    MPI_Reduce(&value, &sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
+    SInt sum = 0;
+    MPI_Reduce(&value, &sum, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
 
     PEID size;
     MPI_Comm_size(comm, &size);
@@ -67,7 +67,7 @@ LPFloat ReduceMean(const SInt value, MPI_Comm comm) {
 }
 
 SInt ReduceMax(const SInt value, MPI_Comm comm) {
-    SInt max;
+    SInt max = 0;
     MPI_Reduce(&value, &max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, comm);
     return max;
 }
@@ -117,12 +117,12 @@ DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global
     }
     update(cur_degree);
 
-    SInt global_min, global_sum, global_max;
+    SInt global_min = 0, global_sum = 0, global_max = 0;
     MPI_Reduce(&min, &global_min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, comm);
     MPI_Reduce(&sum, &global_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     MPI_Reduce(&max, &global_max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, comm);
 
-    PEID size;
+    PEID size = 0;
     MPI_Comm_size(comm, &size);
 
     return {global_min, 1.0 * global_sum / global_num_nodes, global_max};
@@ -170,8 +170,8 @@ double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_rang
     });
     const SInt num_local_edges     = edges.size();
 
-    SInt num_global_cut_edges;
-    SInt num_global_edges;
+    SInt num_global_cut_edges = 0;
+    SInt num_global_edges     = 0;
 
     MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
@@ -188,8 +188,8 @@ SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_r
         }
     }
 
-    const SInt num_local_ghost_nodes = ghost_nodes.size();
-    SInt       num_global_ghost_nodes;
+    const SInt num_local_ghost_nodes  = ghost_nodes.size();
+    SInt       num_global_ghost_nodes = 0;
     MPI_Reduce(&num_local_ghost_nodes, &num_global_ghost_nodes, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     return num_global_ghost_nodes;
 }
