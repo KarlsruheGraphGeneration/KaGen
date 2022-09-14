@@ -25,6 +25,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type")
 endif()
 
+option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
 option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
@@ -55,10 +56,12 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 
   # enable -march=native on Debug and Release builds
-  include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag("-march=native" KAGEN_HAS_MARCH_NATIVE)
-  if(KAGEN_HAS_MARCH_NATIVE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+  if (KAGEN_USE_MARCH_NATIVE)
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag("-march=native" KAGEN_HAS_MARCH_NATIVE)
+    if(KAGEN_HAS_MARCH_NATIVE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    endif()
   endif()
 
   # remove -rdynamic from linker flags (smaller binaries which cannot be loaded
