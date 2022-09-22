@@ -17,6 +17,8 @@ class Grid3DFactory : public GeneratorFactory {
 public:
     int Requirements() const override;
 
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output) const override;
+
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 

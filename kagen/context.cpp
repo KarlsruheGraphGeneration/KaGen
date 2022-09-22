@@ -221,6 +221,11 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::GRID_2D:
             out << "  Grid y:                             " << config.grid_y << "\n";
             out << "  Grid x:                             " << config.grid_x << "\n";
+            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
+                << "\n";
+            out << "  Edge probability:                   " << (config.p == 0.0 ? "auto" : std::to_string(config.p))
+                << "\n";
+            out << "  Periodic boundary:                  " << (config.periodic ? "yes" : "no") << "\n";
             break;
 
         case GeneratorType::BA:

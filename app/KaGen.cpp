@@ -206,7 +206,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->alias("rdg_2d")->alias("rdg-2d");
         cmd->callback([&] { config.generator = GeneratorType::RDG_2D; });
         cmd->add_flag(
-            "-p,--periodic", config.periodic,
+            "--periodic", config.periodic,
             "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
 
         auto* params = cmd->add_option_group("Parameters");
@@ -233,17 +233,37 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         auto* cmd = app.add_subcommand("grid2d", "2D Grid Graph");
         cmd->alias("grid_2d")->alias("grid-2d");
         cmd->callback([&] { config.generator = GeneratorType::GRID_2D; });
+        cmd->add_flag(
+            "--periodic", config.periodic,
+            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
+
         add_option_x(cmd)->required();
         add_option_y(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_p(params);
+        add_option_m(params);
+        params->require_option(1);
+        params->silent();
     }
 
     { // GRID 3D
         auto* cmd = app.add_subcommand("grid3d", "3D Grid Graph");
         cmd->alias("grid_3d")->alias("grid-3d");
         cmd->callback([&] { config.generator = GeneratorType::GRID_3D; });
+        cmd->add_flag(
+            "--periodic", config.periodic,
+            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
+
         add_option_x(cmd)->required();
         add_option_y(cmd)->required();
         add_option_z(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_p(params);
+        add_option_m(params);
+        params->require_option(1);
+        params->silent();
     }
 
     { // BA

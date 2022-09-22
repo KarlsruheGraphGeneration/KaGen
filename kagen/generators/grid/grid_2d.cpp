@@ -1,11 +1,35 @@
 #include <vector>
 
-#include "hash.hpp"
+#include <hash.hpp>
+
+#include "kagen/generators/generator.h"
 #include "kagen/generators/grid/grid_2d.h"
 
 namespace kagen {
 int Grid2DFactory::Requirements() const {
     return GeneratorRequirement::SQUARE_CHUNKS;
+}
+
+PGeneratorConfig Grid2DFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+    if (config.p == 0) {
+        if (config.grid_x == 0 || config.grid_y == 0 || config.m == 0) {
+            throw ConfigurationError("at least two parameters out of {(x, y), m, p} must be nonzero");
+        }
+
+        const SInt num_deg2_vertices = config.periodic ? 0 : 4;
+        const SInt num_deg3_vertices = config.periodic ? 0 : 2 * config.grid_x + 2 * config.grid_y - 4;
+        const SInt num_deg4_vertices = config.grid_x * config.grid_y - num_deg2_vertices - num_deg3_vertices;
+
+        config.p = 2.0 * config.m / (4 * num_deg4_vertices + 3 * num_deg3_vertices + 2 * num_deg2_vertices);
+        if (output) {
+            std::cout << "Setting edge probability to " << config.p << std::endl;
+            if (config.p > 1) {
+                std::cerr << "Warning: configuration infeasible, too many edges\n";
+            }
+        }
+    }
+
+    return config;
 }
 
 std::unique_ptr<Generator>

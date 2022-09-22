@@ -245,7 +245,7 @@ However, this can yield unexpected results when using less than 9 PEs (2D) / 27 
 mpirun -n <nproc> ./KaGen <rdg2d|rdg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
-  [-p,--periodic]
+  [--periodic]
   [-S <seed>]
 ```
 
@@ -276,6 +276,10 @@ mpirun -n <nproc> ./KaGen <grid2d|grid3d>
   [-Y <height of grid as a power of two>]
   -z <depth of grid (grid3d only)>
   [-Z <depth of grid as a power of two (grid3d only)>]
+  -p <edge probability>
+  -m <number of edges>                     # only if -p is omitted
+  [-M <number of edges as a power of two>] # only if -p is omitted
+  [--periodic]
   [-k <number of cunks>]
   [-S <seed>]
 ```
@@ -286,10 +290,12 @@ KaGen gen(MPI_COMM_WORLD);
 
 auto [edge_list, vertex_range] = gen.GenerateGrid2D(x, y, p, periodic);
 auto [edge_list, vertex_range] = gen.GenerateGrid2D_N(n, p, periodic); // x, y = sqrt(n)
+auto [edge_list, vertex_range] = gen.GenerateGrid2D_NM(n, m, periodic); // x, y = sqrt(n)
 auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid2D_Coordinates(x, y, p, periodic);
 
 auto [edge_list, vertex_range] = gen.GenerateGrid3D(x, y, z, p, periodic);
 auto [edge_list, vertex_range] = gen.GenerateGrid3D_N(n, p, periodic); // x, y, z = cbrt(n) 
+auto [edge_list, vertex_range] = gen.GenerateGrid3D_NM(n, m, periodic); // x, y, z = cbrt(n) 
 auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid3D_Coordinates(x, y, z, p, periodic);
 ```
 

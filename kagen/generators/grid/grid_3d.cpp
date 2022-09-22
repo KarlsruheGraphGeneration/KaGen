@@ -13,6 +13,32 @@ Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEI
     return std::make_unique<Grid3D>(config, rank, size);
 }
 
+PGeneratorConfig Grid3DFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+    if (config.p == 0) {
+        if (config.grid_x == 0 || config.grid_y == 0 || config.grid_z == 0 || config.m == 0) {
+            throw ConfigurationError("at least two parameters out of {(x, y, z), m, p} must be nonzero");
+        }
+
+        const SInt num_deg4_vertices = config.periodic ? 0 : 4 * config.grid_x + 4 * config.grid_y + 4 * config.grid_z;
+        const SInt num_deg5_vertices = config.periodic ? 0
+                                                       : 2 * (config.grid_x - 1) * (config.grid_y - 1)
+                                                             + 2 * (config.grid_y - 1) * (config.grid_z - 1)
+                                                             + 2 * (config.grid_x - 1) * (config.grid_z - 1);
+        const SInt num_deg6_vertices =
+            config.grid_x * config.grid_y * config.grid_z - num_deg4_vertices - num_deg5_vertices;
+
+        config.p = 2.0 * config.m / (6 * num_deg6_vertices + 5 * num_deg5_vertices + 4 * num_deg4_vertices);
+        if (output) {
+            std::cout << "Setting edge probability to " << config.p << std::endl;
+            if (config.p > 1) {
+                std::cerr << "Warning: configuration infeasible, too many edges\n";
+            }
+        }
+    }
+
+    return config;
+}
+
 Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rng_(config),

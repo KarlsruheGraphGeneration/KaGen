@@ -12,7 +12,7 @@ KaGen::KaGen(MPI_Comm comm) : comm_(comm), config_(std::make_unique<PGeneratorCo
     SetDefaults();
 }
 
-KaGen::KaGen(KaGen&&) noexcept = default;
+KaGen::KaGen(KaGen&&) noexcept            = default;
 KaGen& KaGen::operator=(KaGen&&) noexcept = default;
 
 KaGen::~KaGen() = default;
@@ -275,12 +275,13 @@ KaGenResult2D KaGen::GenerateRHG_Coordinates_MD(const LPFloat gamma, const SInt 
 
 namespace {
 KaGenResult2D GenerateGrid2D_Impl(
-    PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic,
+    PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const LPFloat p, const SInt m, const bool periodic,
     const bool coordinates, MPI_Comm comm) {
     config.generator   = GeneratorType::GRID_2D;
     config.grid_x      = grid_x;
     config.grid_y      = grid_y;
     config.p           = p;
+    config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
     return Generate(config, comm);
@@ -288,7 +289,7 @@ KaGenResult2D GenerateGrid2D_Impl(
 } // namespace
 
 KaGenResult KaGen::GenerateGrid2D(const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic) {
-    return GenerateGrid2D_Impl(*config_, grid_x, grid_y, p, periodic, false, comm_);
+    return GenerateGrid2D_Impl(*config_, grid_x, grid_y, p, 0, periodic, false, comm_);
 }
 
 KaGenResult KaGen::GenerateGrid2D_N(const SInt n, const LPFloat p, const bool periodic) {
@@ -296,20 +297,26 @@ KaGenResult KaGen::GenerateGrid2D_N(const SInt n, const LPFloat p, const bool pe
     return GenerateGrid2D(sqrt_n, sqrt_n, p, periodic);
 }
 
+KaGenResult KaGen::GenerateGrid2D_NM(const SInt n, const SInt m, const bool periodic) {
+    const SInt sqrt_n = std::sqrt(n);
+    return GenerateGrid2D_Impl(*config_, sqrt_n, sqrt_n, 0.0, m, periodic, false, comm_);
+}
+
 KaGenResult2D
 KaGen::GenerateGrid2D_Coordinates(const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic) {
-    return GenerateGrid2D_Impl(*config_, grid_x, grid_y, p, periodic, true, comm_);
+    return GenerateGrid2D_Impl(*config_, grid_x, grid_y, p, 0, periodic, true, comm_);
 }
 
 namespace {
 KaGenResult3D GenerateGrid3D_Impl(
-    PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p,
+    PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const SInt m,
     const bool periodic, const bool coordinates, MPI_Comm comm) {
     config.generator   = GeneratorType::GRID_3D;
     config.grid_x      = grid_x;
     config.grid_y      = grid_y;
     config.grid_z      = grid_z;
     config.p           = p;
+    config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
     return Generate(config, comm);
@@ -318,7 +325,7 @@ KaGenResult3D GenerateGrid3D_Impl(
 
 KaGenResult
 KaGen::GenerateGrid3D(const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic) {
-    return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, periodic, false, comm_);
+    return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, 0, periodic, false, comm_);
 }
 
 KaGenResult KaGen::GenerateGrid3D_N(const SInt n, const LPFloat p, const bool periodic) {
@@ -326,9 +333,14 @@ KaGenResult KaGen::GenerateGrid3D_N(const SInt n, const LPFloat p, const bool pe
     return GenerateGrid3D(cbrt_n, cbrt_n, cbrt_n, p, periodic);
 }
 
+KaGenResult KaGen::GenerateGrid3D_NM(const SInt n, const SInt m, const bool periodic) {
+    const SInt cbrt_n = std::cbrt(n);
+    return GenerateGrid3D_Impl(*config_, cbrt_n, cbrt_n, cbrt_n, 0.0, m, periodic, false, comm_);
+}
+
 KaGenResult3D KaGen::GenerateGrid3D_Coordinates(
     const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic) {
-    return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, periodic, true, comm_);
+    return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, 0, periodic, true, comm_);
 }
 
 KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, const bool self_loops) {

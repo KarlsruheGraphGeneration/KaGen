@@ -188,11 +188,15 @@ public:
 
     KaGenResult GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false);
 
+    KaGenResult GenerateGrid2D_NM(SInt n, SInt m, bool periodic = false);
+
     KaGenResult2D GenerateGrid2D_Coordinates(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
 
     KaGenResult GenerateGrid3D(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
 
     KaGenResult GenerateGrid3D_N(SInt n, LPFloat p, bool periodic = false);
+
+    KaGenResult GenerateGrid3D_NM(SInt n, SInt m, bool periodic = false);
 
     KaGenResult3D GenerateGrid3D_Coordinates(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
 

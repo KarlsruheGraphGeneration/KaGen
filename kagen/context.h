@@ -89,7 +89,7 @@ struct PGeneratorConfig {
     SInt          n          = 0;     // Number of nodes
     SInt          m          = 0;     // Number of edges
     SInt          k          = 0;     // Number of chunks
-    double        p          = 0.5;   // Edge probability
+    double        p          = 0.0;   // Edge probability
     double        r          = 0.0;   // Edge radius
     bool          self_loops = false; // Allow self loops
     double        plexp      = 2.6;   // Power law exponent
