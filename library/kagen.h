@@ -130,6 +130,55 @@ public:
      */
     void SetNumberOfChunks(SInt k);
 
+    /*!
+     * Generates a graph with options given by a string of options in key=value format:
+     * `key1=value1;key2=value2;key3;...`.
+     *
+     * Option keys are:
+     * - type=<gnm_undirected|
+     *         gnm_directed|
+     *         gnp_undirected|
+     *         gnp_directed|
+     *         rgg2d|
+     *         rgg3d|
+     *         grid2d|
+     *         grid3d|
+     *         rdg2d|
+     *         rdg3d|
+     *         rhg|
+     *         ba|
+     *         kronecker|
+     *         rmat>
+     * - n=<SInt>             -- number of nodes
+     * - N=<SInt>             -- number of nodes as a power of 2
+     * - m=<SInt>             -- number of edges
+     * - M=<SInt>             -- number of edges as a power of 2
+     * - k=<SInt>             -- number of chunks
+     * - prob=<HPFloat>       -- edge probability (varius generators)
+     * - radius=<HPFloat>     -- edge radius (RGG2D/3D)
+     * - gamma=<HPFloat>      -- power law exponent (RHG)
+     * - avg_degree=<HPFloat> -- average degree (RHG)
+     * - min_degree=<SInt>    -- minimum degree (BA)
+     * - grid_x=<SInt>        -- grid width (GRID2D/3D)
+     * - grid_y=<SInt>        -- grid height (GRID2D/3D)
+     * - grid_z=<SInt>        -- grid depth (GRID3D)
+     * - rmat_a=<HPFloat>     -- RMat probability for block A (RMAT)
+     * - rmat_b=<HPFloat>     -- RMat probability for block B (RMAT)
+     * - rmat_c=<HPFloat>     -- RMat probability for block C (RMAT)
+     * - periodic[=0|1]       -- periodic boundary condition (various generators)
+     *
+     * Depending on the selected generator type, some options are mandatory, some are optional and some are ignored.
+     * The following example generates a RGG2D graph with 100 nodes and 200 edges: `type=rgg2d;n=100;m=200`.
+     *
+     * @type options Options string with key=value pairs.
+     * @return The generated graph.
+     */
+    KaGenResult GenerateFromOptionString(const std::string& options);
+
+    KaGenResult2D GenerateFromOptionString2D(const std::string& options);
+
+    KaGenResult3D GenerateFromOptionString3D(const std::string& options);
+
     KaGenResult GenerateDirectedGNM(SInt n, SInt m, bool self_loops = false);
 
     KaGenResult GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);

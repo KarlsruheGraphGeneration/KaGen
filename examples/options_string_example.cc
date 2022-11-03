@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
     kagen::KaGen generator(MPI_COMM_WORLD);
 
     // Generate a RGG2D graph with 16 nodes and 32 edges
-    const auto [edges, range] = generator.GenerateRGG2D_NM(16, 32);
+    const auto [edges, range] = generator.GenerateFromOptionString("type=rgg2d;n=16;m=32");
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
