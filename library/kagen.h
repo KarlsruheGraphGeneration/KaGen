@@ -130,6 +130,53 @@ public:
      */
     void SetNumberOfChunks(SInt k);
 
+    /*!
+     * Generates a graph with options given by a string of options in key=value format:
+     * `key1=value1;key2=value2;key3;...`.
+     *
+     * Option keys are:
+     * - type=<gnm_undirected|
+     *         gnm_directed|
+     *         gnp_undirected|
+     *         gnp_directed|
+     *         rgg2d|
+     *         rgg3d|
+     *         grid2d|
+     *         grid3d|
+     *         rdg2d|
+     *         rdg3d|
+     *         rhg|
+     *         ba|
+     *         kronecker|
+     *         rmat>
+     * - n=<SInt>
+     * - m=<SInt>
+     * - k=<SInt>
+     * - prob=<HPFloat>
+     * - radius=<HPFloat>
+     * - gamma=<HPFloat>
+     * - avg_degree=<HPFloat>
+     * - min_degree=<SInt>
+     * - grid_x=<SInt>
+     * - grid_y=<SInt>
+     * - grid_z=<SInt>
+     * - rmat_a=<HPFloat>
+     * - rmat_b=<HPFloat>
+     * - rmat_c=<HPFloat>
+     * - periodic
+     *
+     * Depending on the selected generator type, some options are mandatory, some are optional and some are ignored.
+     * The following example generates a RGG2D graph with 100 nodes and 200 edges: `type=rgg2d;n=100;m=200`.
+     *
+     * @type options Options string with key=value pairs.
+     * @return The generated graph.
+     */
+    KaGenResult GenerateFromOptionString(const std::string& options);
+
+    KaGenResult2D GenerateFromOptionString2D(const std::string& options);
+
+    KaGenResult3D GenerateFromOptionString3D(const std::string& options);
+
     KaGenResult GenerateDirectedGNM(SInt n, SInt m, bool self_loops = false);
 
     KaGenResult GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);
