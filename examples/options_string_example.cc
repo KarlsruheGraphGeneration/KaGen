@@ -9,6 +9,8 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 
     kagen::KaGen generator(MPI_COMM_WORLD);
+
+    // Generate a RGG2D graph with 16 nodes and 32 edges
     const auto [edges, range] = generator.GenerateFromOptionString("type=rgg2d;n=16;m=32");
 
     int rank;
