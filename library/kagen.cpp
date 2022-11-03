@@ -99,8 +99,8 @@ auto GenericGenerateFromOptionString(const std::string& options_str, PGeneratorC
     };
 
     config.generator   = type_it->second;
-    config.n           = get_sint_or_default("n", 2ull << get_sint_or_default("N"));
-    config.m           = get_sint_or_default("m", 2ull << get_sint_or_default("M"));
+    config.n           = get_sint_or_default("n", 1ull << get_sint_or_default("N"));
+    config.m           = get_sint_or_default("m", 1ull << get_sint_or_default("M"));
     config.k           = get_sint_or_default("k");
     config.p           = get_hpfloat_or_default("prob");
     config.r           = get_hpfloat_or_default("radius");
