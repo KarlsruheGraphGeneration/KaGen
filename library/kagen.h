@@ -149,21 +149,23 @@ public:
      *         ba|
      *         kronecker|
      *         rmat>
-     * - n=<SInt>
-     * - m=<SInt>
-     * - k=<SInt>
-     * - prob=<HPFloat>
-     * - radius=<HPFloat>
-     * - gamma=<HPFloat>
-     * - avg_degree=<HPFloat>
-     * - min_degree=<SInt>
-     * - grid_x=<SInt>
-     * - grid_y=<SInt>
-     * - grid_z=<SInt>
-     * - rmat_a=<HPFloat>
-     * - rmat_b=<HPFloat>
-     * - rmat_c=<HPFloat>
-     * - periodic
+     * - n=<SInt>             -- number of nodes
+     * - N=<SInt>             -- number of nodes as a power of 2
+     * - m=<SInt>             -- number of edges
+     * - M=<SInt>             -- number of edges as a power of 2
+     * - k=<SInt>             -- number of chunks
+     * - prob=<HPFloat>       -- edge probability (varius generators)
+     * - radius=<HPFloat>     -- edge radius (RGG2D/3D)
+     * - gamma=<HPFloat>      -- power law exponent (RHG)
+     * - avg_degree=<HPFloat> -- average degree (RHG)
+     * - min_degree=<SInt>    -- minimum degree (BA)
+     * - grid_x=<SInt>        -- grid width (GRID2D/3D)
+     * - grid_y=<SInt>        -- grid height (GRID2D/3D)
+     * - grid_z=<SInt>        -- grid depth (GRID3D)
+     * - rmat_a=<HPFloat>     -- RMat probability for block A (RMAT)
+     * - rmat_b=<HPFloat>     -- RMat probability for block B (RMAT)
+     * - rmat_c=<HPFloat>     -- RMat probability for block C (RMAT)
+     * - periodic[=0|1]       -- periodic boundary condition (various generators)
      *
      * Depending on the selected generator type, some options are mandatory, some are optional and some are ignored.
      * The following example generates a RGG2D graph with 100 nodes and 200 edges: `type=rgg2d;n=100;m=200`.
