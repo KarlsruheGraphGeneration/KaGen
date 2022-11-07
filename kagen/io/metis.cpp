@@ -1,6 +1,7 @@
 #include "kagen/io/metis.h"
 
 #include "kagen/io/buffered_writer.h"
+#include "kagen/io/graph_writer.h"
 
 namespace kagen {
 MetisWriter::MetisWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
@@ -8,6 +9,10 @@ MetisWriter::MetisWriter(EdgeList& edges, const VertexRange vertex_range, Coordi
 
 std::string MetisWriter::DefaultExtension() const {
     return "graph";
+}
+
+SequentialGraphWriter::Requirement MetisWriter::Requirements() const {
+    return SequentialGraphWriter::Requirement::SORTED_EDGES;
 }
 
 void MetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
