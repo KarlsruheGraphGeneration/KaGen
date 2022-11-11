@@ -31,6 +31,9 @@ option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators.
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
 
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
 ################################################################################
 
 # variables to collect compile-time definitions, include dirs, and libraries
@@ -234,7 +237,13 @@ message(STATUS "KaGen CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 ###############################################################################
 find_package(MPI REQUIRED)
 set(KAGEN_LINK_LIBRARIES MPI::MPI_CXX "${KAGEN_LINK_LIBRARIES}")
- 
+
+###############################################################################
+# Google Sparsehash
+###############################################################################
+find_package(Sparsehash REQUIRED)
+list(APPEND KAGEN_LINK_LIBRARIES Sparsehash::Sparsehash)
+
 ###############################################################################
 # CGAL
 ###############################################################################
