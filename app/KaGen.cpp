@@ -142,7 +142,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             "options",
             "Generate graph as specified by an options string; see library documentation for further details");
         cmd->add_option_function<std::string>(
-            "options", [&config](const std::string& options) { config = CreateConfigFromString(options, config); });
+               "options", [&config](const std::string& options) { config = CreateConfigFromString(options, config); })
+            ->required();
     }
 
     { // GNM_DIRECTED
