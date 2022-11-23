@@ -52,71 +52,8 @@ void KaGen::SetNumberOfChunks(const SInt k) {
 }
 
 namespace {
-using Options = std::unordered_map<std::string, std::string>;
-
-// Parse a string such as 'key1=value1;key2=value2;key3;key4'
-Options ParseOptionString(const std::string& options) {
-    std::istringstream toker(options);
-    std::string        pair;
-    Options            result;
-
-    while (std::getline(toker, pair, ';')) {
-        const auto eq_pos = pair.find('=');
-        if (eq_pos == std::string::npos) { // No equal sign -> Option is a flag
-            result[pair] = "1";
-        } else {
-            const std::string key   = pair.substr(0, eq_pos);
-            const std::string value = pair.substr(eq_pos + 1);
-            result[key]             = value;
-        }
-    }
-
-    return result;
-}
-
-auto GenericGenerateFromOptionString(const std::string& options_str, PGeneratorConfig& config, MPI_Comm comm) {
-    auto options = ParseOptionString(options_str);
-
-    const std::string type_str = options["type"];
-    const auto        type_map = GetGeneratorTypeMap();
-    const auto        type_it  = type_map.find(type_str);
-    if (type_it == type_map.end()) {
-        throw std::runtime_error("invalid generator type");
-    }
-
-    auto get_sint_or_default = [&](const std::string& option, const SInt default_value = 0) {
-        const auto it = options.find(option);
-        return (it == options.end() ? default_value : std::stoll(it->second));
-    };
-    auto get_hpfloat_or_default = [&](const std::string& option, const HPFloat default_value = 0.0) {
-        const auto it = options.find(option);
-        return (it == options.end() ? default_value : std::stod(it->second));
-    };
-    auto get_bool_or_default = [&](const std::string& option, const bool default_value = false) {
-        const auto it = options.find(option);
-        return (
-            it == options.end() ? default_value : (it->second == "1" || it->second == "true" || it->second == "yes"));
-    };
-
-    config.generator   = type_it->second;
-    config.n           = get_sint_or_default("n", 1ull << get_sint_or_default("N"));
-    config.m           = get_sint_or_default("m", 1ull << get_sint_or_default("M"));
-    config.k           = get_sint_or_default("k");
-    config.p           = get_hpfloat_or_default("prob");
-    config.r           = get_hpfloat_or_default("radius");
-    config.plexp       = get_hpfloat_or_default("gamma");
-    config.periodic    = get_bool_or_default("periodic");
-    config.avg_degree  = get_hpfloat_or_default("avg_degree");
-    config.min_degree  = get_sint_or_default("min_degree");
-    config.grid_x      = get_sint_or_default("grid_x");
-    config.grid_y      = get_sint_or_default("grid_y");
-    config.grid_z      = get_sint_or_default("grid_z");
-    config.rmat_a      = get_sint_or_default("rmat_a");
-    config.rmat_b      = get_sint_or_default("rmat_b");
-    config.rmat_c      = get_sint_or_default("rmat_c");
-    config.coordinates = get_bool_or_default("coordinates");
-
-    return Generate(config, comm);
+auto GenericGenerateFromOptionString(const std::string& options_str, PGeneratorConfig base_config, MPI_Comm comm) {
+    return Generate(CreateConfigFromString(options_str, base_config), comm);
 }
 } // namespace
 
