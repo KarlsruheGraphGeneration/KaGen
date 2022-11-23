@@ -125,4 +125,6 @@ struct PGeneratorConfig {
 };
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);
+
+PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGeneratorConfig config = {});
 } // namespace kagen

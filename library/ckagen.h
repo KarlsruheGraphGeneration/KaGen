@@ -32,6 +32,8 @@ void kagen_enable_output(kagen_t* gen, bool header);
 void kagen_use_hp_floats(kagen_t* gen, bool state);
 void kagen_set_numer_of_chunks(kagen_t* gen, unsigned long long k);
 
+kagen_result_t* kagen_generate_from_option_string(kagen_t* gen, const char* options);
+
 kagen_result_t* kagen_generate_directed_gnm(kagen_t* gen, unsigned long long n, unsigned long long m, bool self_loops);
 kagen_result_t*
 kagen_generate_undirected_gnm(kagen_t* gen, unsigned long long n, unsigned long long m, bool self_loops);

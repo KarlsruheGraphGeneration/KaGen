@@ -76,11 +76,9 @@ public:
     KaGen(MPI_Comm comm);
 
     KaGen(const KaGen&) = delete;
-
     KaGen(KaGen&&) noexcept;
 
     KaGen& operator=(const KaGen&) = delete;
-
     KaGen& operator=(KaGen&&) noexcept;
 
     ~KaGen();
@@ -131,24 +129,26 @@ public:
     void SetNumberOfChunks(SInt k);
 
     /*!
-     * Generates a graph with options given by a string of options in key=value format:
-     * `key1=value1;key2=value2;key3;...`.
+     * Generates a graph with options given by a string of options in `key=value` or `flag` format:
+     * `key1=value1;flag1;...`.
      *
-     * Option keys are:
-     * - type=<gnm_undirected|
-     *         gnm_directed|
-     *         gnp_undirected|
-     *         gnp_directed|
-     *         rgg2d|
-     *         rgg3d|
-     *         grid2d|
-     *         grid3d|
-     *         rdg2d|
-     *         rdg3d|
-     *         rhg|
-     *         ba|
-     *         kronecker|
-     *         rmat>
+     * Use one of the following flags to select a graph model:
+     * - gnm_undirected
+     * - gnm_directed
+     * - gnp_undirected
+     * - gnp_directed
+     * - rgg2d
+     * - rgg3d
+     * - grid2d
+     * - grid3d
+     * - rdg2d
+     * - rdg3d
+     * - rhg
+     * - ba
+     * - kronecker
+     * - rmat
+     *
+     * Use the following keys to specify generator properties:
      * - n=<SInt>             -- number of nodes
      * - N=<SInt>             -- number of nodes as a power of 2
      * - m=<SInt>             -- number of edges
@@ -168,7 +168,7 @@ public:
      * - periodic[=0|1]       -- periodic boundary condition (various generators)
      *
      * Depending on the selected generator type, some options are mandatory, some are optional and some are ignored.
-     * The following example generates a RGG2D graph with 100 nodes and 200 edges: `type=rgg2d;n=100;m=200`.
+     * The following example generates a RGG2D graph with 100 nodes and 200 edges: `rgg2d;n=100;m=200`.
      *
      * @type options Options string with key=value pairs.
      * @return The generated graph.
@@ -343,3 +343,4 @@ KaGenResultCSR<IDX> BuildCSR(Graph graph) {
     return csr;
 }
 } // namespace kagen
+

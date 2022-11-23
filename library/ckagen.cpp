@@ -72,6 +72,14 @@ void kagen_set_numer_of_chunks(kagen_t* gen, unsigned long long k) {
     gen->gen_ptr->SetNumberOfChunks(k);
 }
 
+kagen_result_t* kagen_generate_from_option_string(kagen_t* gen, const char* options) {
+    auto result = gen->gen_ptr->GenerateFromOptionString(options);
+
+    kagen_result_t* result_wrapper = new kagen_result_t;
+    result_wrapper->result_ptr     = new kagen::KaGenResult(std::move(result));
+    return result_wrapper;
+}
+
 kagen_result_t* kagen_generate_directed_gnm(kagen_t* gen, unsigned long long n, unsigned long long m, bool self_loops) {
     auto result = gen->gen_ptr->GenerateDirectedGNM(n, m, self_loops);
 
