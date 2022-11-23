@@ -137,6 +137,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     app.add_option("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
     app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
+    { // Options string
+        auto* cmd = app.add_subcommand(
+            "options",
+            "Generate graph as specified by an options string; see library documentation for further details");
+        cmd->add_option_function<std::string>(
+            "options", [&config](const std::string& options) { config = CreateConfigFromString(options, config); });
+    }
+
     { // GNM_DIRECTED
         auto* cmd =
             app.add_subcommand("gnm-directed", "Directed Erdos-Renyi Graph")->alias("gnm_directed")->callback([&] {
