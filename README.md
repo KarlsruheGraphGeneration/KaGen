@@ -89,9 +89,8 @@ To compile the code either run `compile.sh` or use the following instructions:
 
 ```shell
 git submodule update --init --recursive
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
 ```
 
 ## Running KaGen 
