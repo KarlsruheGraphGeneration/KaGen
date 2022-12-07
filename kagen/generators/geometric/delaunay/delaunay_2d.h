@@ -16,8 +16,6 @@ class Delaunay2D : public Geometric2D {
 public:
     Delaunay2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    bool IsAlmostUndirected() const override;
-
 protected:
     static constexpr SInt COPY_FLAG = SInt(1) << (sizeof(SInt) * CHAR_BIT - 1);
 

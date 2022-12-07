@@ -4,6 +4,8 @@
 #include <exception>
 #include <memory>
 
+#include <mpi.h>
+
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 
@@ -12,9 +14,9 @@ class Generator {
 public:
     virtual ~Generator();
 
-    virtual bool IsAlmostUndirected() const;
-
     void Generate();
+
+    virtual void Finalize(MPI_Comm comm);
 
     const EdgeList& GetEdges() const;
 
@@ -49,7 +51,6 @@ protected:
 
     void FilterDuplicateEdges();
 
-private:
     EdgeList    edges_;
     VertexRange vertex_range_;
     Coordinates coordinates_;

@@ -13,6 +13,8 @@
 #include <tuple>
 #include <vector>
 
+#include <mpi.h>
+
 #include "hash.hpp"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
@@ -44,7 +46,7 @@ public:
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    bool IsAlmostUndirected() const override;
+    void Finalize(MPI_Comm comm) final;
 
 protected:
     void GenerateImpl() override;

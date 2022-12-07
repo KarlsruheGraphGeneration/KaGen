@@ -39,7 +39,7 @@ std::unique_ptr<Generator> RMATFactory::Create(const PGeneratorConfig& config, c
 }
 
 RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : Graph500Generator(config, MPI_COMM_WORLD), // @todo
+    : Graph500Generator(config),
       config_(config),
       rank_(rank) {
     const SInt edges_per_pe    = config_.m / size;
@@ -53,7 +53,6 @@ void RMAT::GenerateImpl() {
 
     const SInt seed  = rank_ + 1;
     const SInt log_n = std::log2(config_.n);
-    const SInt n     = 1ull << log_n;
     const SInt depth = std::min<SInt>(9, log_n);
 
     RNG  gen(seed);
@@ -63,7 +62,5 @@ void RMAT::GenerateImpl() {
 
     // Generate local edges
     r.get_edges([&](const auto u, const auto v) { PushLocalEdge(u, v); }, num_edges_, gen);
-
-    DistributeRoundRobin(n);
 }
 } // namespace kagen

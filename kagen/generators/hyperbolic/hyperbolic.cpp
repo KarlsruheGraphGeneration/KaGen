@@ -2,6 +2,7 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/tools/postprocessor.h"
 
 #include <csignal>
 #include <iostream>
@@ -116,8 +117,8 @@ Hyperbolic<Double>::Hyperbolic(const PGeneratorConfig& config, const PEID rank, 
 }
 
 template <typename Double>
-bool Hyperbolic<Double>::IsAlmostUndirected() const {
-    return true;
+void Hyperbolic<Double>::Finalize(MPI_Comm comm) {
+    AddReverseEdges(edges_, vertex_range_, comm);
 }
 
 template <typename Double>

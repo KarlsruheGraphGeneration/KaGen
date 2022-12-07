@@ -11,6 +11,8 @@
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 
+#include <mpi.h>
+
 namespace kagen {
 class BarabassiFactory : public GeneratorFactory {
 public:
@@ -23,7 +25,7 @@ class Barabassi : public Generator {
 public:
     Barabassi(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    bool IsAlmostUndirected() const override;
+    void Finalize(MPI_Comm comm) final;
 
 protected:
     void GenerateImpl() override;

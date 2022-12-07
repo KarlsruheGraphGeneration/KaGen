@@ -41,7 +41,7 @@ KroneckerFactory::Create(const PGeneratorConfig& config, const PEID rank, const 
 }
 
 Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : Graph500Generator(config, MPI_COMM_WORLD), // @todo
+    : Graph500Generator(config),
       config_(config),
       size_(size),
       rank_(rank) {
@@ -79,8 +79,6 @@ void Kronecker::GenerateImpl() {
         mrg_skip(&new_state, 0, (uint64_t)i, 0);
         GenerateEdge(config_.n, 0, &new_state);
     }
-
-    DistributeRoundRobin(config_.n);
 }
 
 int Kronecker::Bernoulli(mrg_state* st, int level, int nlevels) {

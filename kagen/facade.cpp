@@ -132,28 +132,25 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     auto vertex_range = generator->GetVertexRange();
     auto coordinates  = generator->GetCoordinates();
 
-    // Postprocessing: cut edges
-    const SInt num_edges_before_postprocessing = edges.size();
-    if (!config.skip_postprocessing && generator->IsAlmostUndirected()) {
-        AddReverseEdges(edges, vertex_range, comm);
+    const SInt num_edges_before_finalize = edges.size();
+    if (!config.skip_postprocessing) {
+        if (output_info) {
+            std::cout << "Finalizing ..." << std::endl;
+        }
+        generator->Finalize(comm);
     }
-    const SInt num_edges_after_postprocessing = edges.size();
+    const SInt num_edges_after_finalize = edges.size();
 
     const auto end_graphgen = MPI_Wtime();
 
-    // Postprocessing
-    if (!config.skip_postprocessing && generator->IsAlmostUndirected()) {
-        if (output_info) {
-            std::cout << "Postprocessing:" << std::endl;
-        }
-
+    if (!config.skip_postprocessing && !config.quiet) {
         SInt num_global_edges_before, num_global_edges_after;
-        MPI_Reduce(&num_edges_before_postprocessing, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
-        MPI_Reduce(&num_edges_after_postprocessing, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+        MPI_Reduce(&num_edges_before_finalize, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+        MPI_Reduce(&num_edges_after_finalize, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
 
         if (output_info) {
-            std::cout << "  Number of global edges changed from " << num_global_edges_before << " to "
-                      << num_global_edges_after << " edges: by "
+            std::cout << "  Finalizing changed number of global edges changed from " << num_global_edges_before
+                      << " to " << num_global_edges_after << " edges: by "
                       << std::abs(
                              static_cast<SSInt>(num_global_edges_after) - static_cast<SSInt>(num_global_edges_before))
                       << std::endl;

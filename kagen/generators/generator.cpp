@@ -2,15 +2,13 @@
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 
+#include <mpi.h>
+
 #include <algorithm>
 #include <cmath>
 
 namespace kagen {
 Generator::~Generator() = default;
-
-bool Generator::IsAlmostUndirected() const {
-    return false;
-}
 
 void Generator::Generate() {
     edges_.clear();
@@ -18,6 +16,8 @@ void Generator::Generate() {
     coordinates_.second.clear();
     GenerateImpl();
 }
+
+void Generator::Finalize(MPI_Comm) {}
 
 const EdgeList& Generator::GetEdges() const {
     return edges_;
