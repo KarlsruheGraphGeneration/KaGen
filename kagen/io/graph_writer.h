@@ -19,6 +19,9 @@ public:
     virtual void Write(const PGeneratorConfig& config) = 0;
 
 protected:
+    bool HasVertexWeights() const;
+    bool HasEdgeWeights() const;
+
     EdgeList&      edges_;
     VertexRange&   vertex_range_;
     Coordinates&   coordinates_;

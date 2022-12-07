@@ -18,6 +18,14 @@ GraphWriter::GraphWriter(Graph& graph, MPI_Comm comm)
 
 GraphWriter::~GraphWriter() = default;
 
+bool GraphWriter::HasVertexWeights() const {
+    return !vertex_weights_.empty();
+}
+
+bool GraphWriter::HasEdgeWeights() const {
+    return !edge_weights_.empty();
+}
+
 SequentialGraphWriter::SequentialGraphWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}
 
 void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
