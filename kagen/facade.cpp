@@ -128,18 +128,15 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
     auto generator = factory->Create(config, rank, size);
     generator->Generate();
-    auto edges        = generator->TakeEdges();
-    auto vertex_range = generator->GetVertexRange();
-    auto coordinates  = generator->GetCoordinates();
 
-    const SInt num_edges_before_finalize = edges.size();
+    const SInt num_edges_before_finalize = generator->GetEdges().size();
     if (!config.skip_postprocessing) {
         if (output_info) {
             std::cout << "Finalizing ..." << std::endl;
         }
         generator->Finalize(comm);
     }
-    const SInt num_edges_after_finalize = edges.size();
+    const SInt num_edges_after_finalize = generator->GetEdges().size();
 
     const auto end_graphgen = MPI_Wtime();
 
@@ -156,6 +153,10 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
                       << std::endl;
         }
     }
+
+    auto edges        = generator->TakeEdges();
+    auto vertex_range = generator->GetVertexRange();
+    auto coordinates  = generator->GetCoordinates();
 
     // Validation
     if (config.validate_simple_graph) {
