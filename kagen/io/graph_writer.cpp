@@ -8,17 +8,17 @@
 #include "kagen/tools/statistics.h"
 
 namespace kagen {
-GraphWriter::GraphWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : edges_(edges),
-      vertex_range_(vertex_range),
-      coordinates_(coordinates),
+GraphWriter::GraphWriter(Graph& graph, MPI_Comm comm)
+    : edges_(graph.edges),
+      vertex_range_(graph.vertex_range),
+      coordinates_(graph.coordinates),
+      vertex_weights_(graph.vertex_weights),
+      edge_weights_(graph.edge_weights),
       comm_(comm) {}
 
 GraphWriter::~GraphWriter() = default;
 
-SequentialGraphWriter::SequentialGraphWriter(
-    EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : GraphWriter(edges, vertex_range, coordinates, comm) {}
+SequentialGraphWriter::SequentialGraphWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}
 
 void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
     PEID rank, size;
@@ -126,8 +126,7 @@ void SequentialGraphWriter::CreateFile(const std::string& filename) {
     std::ofstream ofs(filename);
 }
 
-NoopWriter::NoopWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : GraphWriter(edges, vertex_range, coordinates, comm) {}
+NoopWriter::NoopWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}
 
 std::string NoopWriter::DefaultExtension() const {
     return "";

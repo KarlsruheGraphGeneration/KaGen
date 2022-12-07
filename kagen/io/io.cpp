@@ -18,43 +18,39 @@
 
 namespace kagen {
 namespace {
-std::unique_ptr<GraphWriter> CreateGraphWriter(
-    const OutputFormat format, EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates,
-    MPI_Comm comm) {
+std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph& graph, MPI_Comm comm) {
     switch (format) {
         case OutputFormat::NONE:
-            return std::make_unique<NoopWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<NoopWriter>(graph, comm);
 
         case OutputFormat::EDGE_LIST:
-            return std::make_unique<EdgeListWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<EdgeListWriter>(graph, comm);
 
         case OutputFormat::BINARY_EDGE_LIST:
-            return std::make_unique<BinaryEdgeListWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<BinaryEdgeListWriter>(graph, comm);
 
         case OutputFormat::METIS:
-            return std::make_unique<MetisWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<MetisWriter>(graph, comm);
 
         case OutputFormat::HMETIS:
-            return std::make_unique<HMetisWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<HMetisWriter>(graph, comm);
 
         case OutputFormat::DOT:
-            return std::make_unique<DotWriter>(edges, vertex_range, coordinates, false, comm);
+            return std::make_unique<DotWriter>(graph, false, comm);
 
         case OutputFormat::DOT_DIRECTED:
-            return std::make_unique<DotWriter>(edges, vertex_range, coordinates, true, comm);
+            return std::make_unique<DotWriter>(graph, true, comm);
 
         case OutputFormat::COORDINATES:
-            return std::make_unique<CoordinatesWriter>(edges, vertex_range, coordinates, comm);
+            return std::make_unique<CoordinatesWriter>(graph, comm);
     }
 
     __builtin_unreachable();
 }
 } // namespace
 
-void WriteGraph(
-    const PGeneratorConfig& config, EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates,
-    MPI_Comm comm) {
-    auto writer = CreateGraphWriter(config.output_format, edges, vertex_range, coordinates, comm);
+void WriteGraph(const PGeneratorConfig& config, Graph& graph, MPI_Comm comm) {
+    auto writer = CreateGraphWriter(config.output_format, graph, comm);
     writer->Write(config);
 }
 } // namespace kagen

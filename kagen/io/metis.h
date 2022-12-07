@@ -7,7 +7,7 @@
 namespace kagen {
 class MetisWriter : public SequentialGraphWriter {
 public:
-    MetisWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    MetisWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 

@@ -20,26 +20,12 @@ public:
 
     const EdgeList& GetEdges() const;
 
-    EdgeList&& TakeEdges();
-
-    VertexRange GetVertexRange() const;
-
-    void SetVertexRange(VertexRange vetrex_range);
-
-    const Coordinates& GetCoordinates() const;
-
-    Coordinates&& TakeCoordinates();
-
-    const VertexWeights& GetVertexWeights() const;
-
-    VertexWeights&& TakeVertexWeights();
-
-    const EdgeWeights& GetEdgeWeights() const;
-
-    EdgeWeights&& TakeEdgeWeights();
+    Graph TakeResult();
 
 protected:
     virtual void GenerateImpl() = 0;
+
+    void SetVertexRange(VertexRange vetrex_range);
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y) {
         coordinates_.first.emplace_back(x, y);
@@ -67,10 +53,9 @@ protected:
 
     void FilterDuplicateEdges();
 
-    EdgeList    edges_;
-    VertexRange vertex_range_;
-    Coordinates coordinates_;
-
+    EdgeList      edges_;
+    VertexRange   vertex_range_;
+    Coordinates   coordinates_;
     VertexWeights vertex_weights_;
     EdgeWeights   edge_weights_;
 };

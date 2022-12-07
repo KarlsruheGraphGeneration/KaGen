@@ -7,7 +7,7 @@
 namespace kagen {
 class HMetisWriter : public SequentialGraphWriter {
 public:
-    HMetisWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    HMetisWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 

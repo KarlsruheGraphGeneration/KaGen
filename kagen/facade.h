@@ -11,5 +11,5 @@
 namespace kagen {
 std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(GeneratorType type);
 
-std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& config, MPI_Comm comm);
+Graph Generate(const PGeneratorConfig& config, MPI_Comm comm);
 } // namespace kagen

@@ -7,7 +7,7 @@
 namespace kagen {
 class CoordinatesWriter : public SequentialGraphWriter {
 public:
-    CoordinatesWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    CoordinatesWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 

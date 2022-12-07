@@ -10,7 +10,8 @@
 namespace kagen {
 class GraphWriter {
 public:
-    GraphWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    GraphWriter(Graph& graph, MPI_Comm comm);
+
     virtual ~GraphWriter();
 
     virtual std::string DefaultExtension() const = 0;
@@ -18,10 +19,12 @@ public:
     virtual void Write(const PGeneratorConfig& config) = 0;
 
 protected:
-    EdgeList&    edges_;
-    VertexRange  vertex_range_;
-    Coordinates& coordinates_;
-    MPI_Comm     comm_;
+    EdgeList&      edges_;
+    VertexRange&   vertex_range_;
+    Coordinates&   coordinates_;
+    VertexWeights& vertex_weights_;
+    EdgeWeights&   edge_weights_;
+    MPI_Comm       comm_;
 };
 
 class SequentialGraphWriter : public GraphWriter {
@@ -35,7 +38,7 @@ protected:
     };
 
 public:
-    SequentialGraphWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    SequentialGraphWriter(Graph& graph, MPI_Comm comm);
 
     virtual void Write(const PGeneratorConfig& config) override;
 
@@ -54,7 +57,7 @@ private:
 
 class NoopWriter : public GraphWriter {
 public:
-    NoopWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    NoopWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 

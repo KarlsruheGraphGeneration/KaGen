@@ -4,8 +4,7 @@
 #include "kagen/io/graph_writer.h"
 
 namespace kagen {
-MetisWriter::MetisWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
+MetisWriter::MetisWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
 
 std::string MetisWriter::DefaultExtension() const {
     return "graph";

@@ -3,10 +3,8 @@
 #include "kagen/io/buffered_writer.h"
 
 namespace kagen {
-DotWriter::DotWriter(
-    EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, const bool directed_output,
-    MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm),
+DotWriter::DotWriter(Graph& graph, const bool directed_output, MPI_Comm comm)
+    : SequentialGraphWriter(graph, comm),
       directed_output_(directed_output) {}
 
 std::string DotWriter::DefaultExtension() const {

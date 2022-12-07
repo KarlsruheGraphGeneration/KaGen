@@ -23,40 +23,14 @@ const EdgeList& Generator::GetEdges() const {
     return edges_;
 }
 
-EdgeList&& Generator::TakeEdges() {
-    return std::move(edges_);
-}
-
-VertexRange Generator::GetVertexRange() const {
-    return vertex_range_;
+Graph Generator::TakeResult() {
+    return {
+        std::move(edges_), vertex_range_, std::move(coordinates_), std::move(vertex_weights_),
+        std::move(edge_weights_)};
 }
 
 void Generator::SetVertexRange(const VertexRange vertex_range) {
     vertex_range_ = vertex_range;
-}
-
-const Coordinates& Generator::GetCoordinates() const {
-    return coordinates_;
-}
-
-Coordinates&& Generator::TakeCoordinates() {
-    return std::move(coordinates_);
-}
-
-const VertexWeights& Generator::GetVertexWeights() const {
-    return vertex_weights_;
-}
-
-VertexWeights&& Generator::TakeVertexWeights() {
-    return std::move(vertex_weights_);
-}
-
-const EdgeWeights& Generator::GetEdgeWeights() const {
-    return edge_weights_;
-}
-
-EdgeWeights&& Generator::TakeEdgeWeights() {
-    return std::move(edge_weights_);
 }
 
 void Generator::FilterDuplicateEdges() {

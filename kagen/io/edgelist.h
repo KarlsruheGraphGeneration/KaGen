@@ -8,7 +8,7 @@
 namespace kagen {
 class EdgeListWriter : public SequentialGraphWriter {
 public:
-    EdgeListWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    EdgeListWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 
@@ -20,7 +20,7 @@ protected:
 
 class BinaryEdgeListWriter : public SequentialGraphWriter {
 public:
-    BinaryEdgeListWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    BinaryEdgeListWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 
