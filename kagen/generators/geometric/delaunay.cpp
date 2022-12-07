@@ -17,13 +17,12 @@ PGeneratorConfig NormalizeParametersCommon(PGeneratorConfig config, const double
     return config;
 }
 } // namespace
+PGeneratorConfig
+Delaunay2DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    EnsureSquareChunkSize(config, size);
+    EnsurePowerOfTwoCommunicatorSize(config, size);
+    EnsureOneChunkPerPE(config, size);
 
-int Delaunay2DFactory::Requirements() const {
-    return GeneratorRequirement::SQUARE_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE
-           | GeneratorRequirement::ONE_CHUNK_PER_PE;
-}
-
-PGeneratorConfig Delaunay2DFactory::NormalizeParameters(PGeneratorConfig config, const bool output) const {
     return NormalizeParametersCommon(config, 3, output);
 }
 
@@ -32,11 +31,11 @@ Delaunay2DFactory::Create(const PGeneratorConfig& config, const PEID rank, const
     return std::make_unique<Delaunay2D>(config, rank, size);
 }
 
-int Delaunay3DFactory::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS | GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
-}
+PGeneratorConfig
+Delaunay3DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    EnsureCubicChunkSize(config, size);
+    EnsurePowerOfTwoCommunicatorSize(config, size);
 
-PGeneratorConfig Delaunay3DFactory::NormalizeParameters(PGeneratorConfig config, const bool output) const {
     return NormalizeParametersCommon(config, 15.53 / 2.0, output);
 }
 

@@ -82,58 +82,6 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 }
 
 namespace {
-bool IsPowerOfTwo(const SInt value) {
-    return (value & (value - 1)) == 0;
-}
-
-bool IsSquare(const SInt value) {
-    const SInt root = std::round(std::sqrt(value));
-    return root * root == value;
-}
-
-bool IsCubic(const SInt value) {
-    const SInt root = std::round(std::cbrt(value));
-    return root * root * root == value;
-}
-
-SInt FindMultipleSquare(const SInt value) {
-    if (IsSquare(value)) {
-        return value;
-    }
-    if (IsPowerOfTwo(value)) {
-        return 2 * value; // every 2nd power of two is square
-    }
-
-    // find smallest square number that is a multiple of value
-    const SInt root = std::sqrt(value);
-    for (SInt cur = root; cur < value; ++cur) {
-        const SInt squared = cur * cur;
-        if (squared % value == 0) {
-            return squared;
-        }
-    }
-    return value * value;
-}
-
-SInt FindMultipleCube(const SInt value) {
-    if (IsCubic(value)) {
-        return value;
-    }
-    if (IsPowerOfTwo(value)) {
-        return IsCubic(value * 2) ? value * 2 : value * 4;
-    }
-
-    // find smallest cubic number that is a multiple of value
-    const SInt root = std::cbrt(value);
-    for (SInt cur = root; cur < value; ++cur) {
-        const SInt cubed = cur * cur * cur;
-        if (cubed % value == 0) {
-            return cubed;
-        }
-    }
-    return value * value * value;
-}
-
 void PrintHeader(const PGeneratorConfig& config) {
     std::cout << "###############################################################################\n";
     std::cout << "#                         _  __      ____                                     #\n";
@@ -163,59 +111,10 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
     auto             factory = CreateGeneratorFactory(config_template.generator);
     PGeneratorConfig config;
     try {
-        config = factory->NormalizeParameters(config_template, output_info);
+        config = factory->NormalizeParameters(config_template, size, output_info);
     } catch (ConfigurationError& ex) {
         if (output_error) {
             std::cerr << "Error: " << ex.what() << "\n";
-        }
-        std::exit(1);
-    }
-
-    // Get generator requirements
-    const int  requirements                      = factory->Requirements();
-    const bool require_power_of_two_communicator = requirements & GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
-    const bool require_square_chunks             = requirements & GeneratorRequirement::SQUARE_CHUNKS;
-    const bool require_cubic_chunks              = requirements & GeneratorRequirement::CUBIC_CHUNKS;
-    const bool require_one_chunk_per_pe          = requirements & GeneratorRequirement::ONE_CHUNK_PER_PE;
-
-    // Validate number of PEs
-    if (require_power_of_two_communicator && !IsPowerOfTwo(size)) {
-        if (output_error) {
-            std::cerr << "Error: generator requires the number of PEs to be a power of two\n";
-        }
-        std::exit(1);
-    }
-
-    // Setup chunk count
-    if (config.k == 0) { // automatic selection
-        if (require_square_chunks) {
-            config.k = FindMultipleSquare(size);
-        } else if (require_cubic_chunks) {
-            config.k = FindMultipleCube(size);
-        } else {
-            config.k = size;
-        }
-
-        if (output_info) {
-            std::cout << "Setting number of chunks to " << config.k << std::endl;
-        }
-    } else { // only validation
-        if (require_square_chunks && !IsSquare(config.k)) {
-            if (output_error) {
-                std::cerr << "Error: generator requires a square number of chunks\n";
-            }
-            std::exit(1);
-        }
-        if (require_cubic_chunks && !IsCubic(config.k)) {
-            if (output_error) {
-                std::cerr << "Error: generator requires a cubic number of chunks\n";
-            }
-            std::exit(1);
-        }
-    }
-    if (require_one_chunk_per_pe && config.k != static_cast<SInt>(size)) {
-        if (output_error) {
-            std::cerr << "Error: generator requires exactly one chunk per PE\n";
         }
         std::exit(1);
     }

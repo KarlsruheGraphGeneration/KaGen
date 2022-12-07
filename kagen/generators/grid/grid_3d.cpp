@@ -4,16 +4,14 @@
 #include "kagen/generators/grid/grid_3d.h"
 
 namespace kagen {
-int Grid3DFactory::Requirements() const {
-    return GeneratorRequirement::CUBIC_CHUNKS;
-}
-
 std::unique_ptr<Generator>
 Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
     return std::make_unique<Grid3D>(config, rank, size);
 }
 
-PGeneratorConfig Grid3DFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+PGeneratorConfig Grid3DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    EnsureCubicChunkSize(config, size);
+
     if (config.p == 0) {
         if (config.grid_x == 0 || config.grid_y == 0 || config.grid_z == 0 || config.m == 0) {
             throw ConfigurationError("at least two parameters out of {(x, y, z), m, p} must be nonzero");

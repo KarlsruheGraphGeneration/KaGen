@@ -8,14 +8,6 @@
 #include "kagen/definitions.h"
 
 namespace kagen {
-enum GeneratorRequirement {
-    NONE                           = 0,
-    POWER_OF_TWO_COMMUNICATOR_SIZE = 1 << 0,
-    SQUARE_CHUNKS                  = 1 << 1,
-    CUBIC_CHUNKS                   = 1 << 2,
-    ONE_CHUNK_PER_PE               = 1 << 3,
-};
-
 class Generator {
 public:
     virtual ~Generator();
@@ -79,10 +71,14 @@ class GeneratorFactory {
 public:
     virtual ~GeneratorFactory();
 
-    virtual int Requirements() const;
-
-    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output) const;
+    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const;
 
     virtual std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const = 0;
+
+protected:
+    void EnsurePowerOfTwoCommunicatorSize(PGeneratorConfig& config, PEID size) const;
+    void EnsureSquareChunkSize(PGeneratorConfig& config, PEID size) const;
+    void EnsureCubicChunkSize(PGeneratorConfig& config, PEID size) const;
+    void EnsureOneChunkPerPE(PGeneratorConfig& config, PEID size) const;
 };
 } // namespace kagen

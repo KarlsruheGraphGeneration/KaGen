@@ -9,7 +9,12 @@
 #include "kagen/generators/generator.h"
 
 namespace kagen {
-PGeneratorConfig BarabassiFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+PGeneratorConfig
+BarabassiFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    if (config.k == 0) {
+        config.k = static_cast<SInt>(size);
+    }
+
     if (config.min_degree == 0) {
         if (config.n == 0 || config.m == 0) {
             throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");

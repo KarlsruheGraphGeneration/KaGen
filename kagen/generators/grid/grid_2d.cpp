@@ -6,11 +6,9 @@
 #include "kagen/generators/grid/grid_2d.h"
 
 namespace kagen {
-int Grid2DFactory::Requirements() const {
-    return GeneratorRequirement::SQUARE_CHUNKS;
-}
+PGeneratorConfig Grid2DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    EnsureSquareChunkSize(config, size);
 
-PGeneratorConfig Grid2DFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
     if (config.p == 0) {
         if (config.grid_x == 0 || config.grid_y == 0 || config.m == 0) {
             throw ConfigurationError("at least two parameters out of {(x, y), m, p} must be nonzero");

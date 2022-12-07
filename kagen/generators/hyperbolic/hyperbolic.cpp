@@ -7,11 +7,13 @@
 #include <iostream>
 
 namespace kagen {
-int HyperbolicFactory::Requirements() const {
-    return GeneratorRequirement::POWER_OF_TWO_COMMUNICATOR_SIZE;
-}
+PGeneratorConfig
+HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    if (config.k == 0) {
+        config.k = static_cast<SInt>(size);
+    }
+    EnsurePowerOfTwoCommunicatorSize(config, size);
 
-PGeneratorConfig HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, const bool output) const {
     if (config.avg_degree == 0) {
         if (config.m == 0 || config.n == 0) {
             throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");

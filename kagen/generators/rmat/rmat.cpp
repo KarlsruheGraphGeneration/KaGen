@@ -9,7 +9,7 @@
 #include <mpi.h>
 
 namespace kagen {
-PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
     if (config.rmat_a < 0 || config.rmat_b < 0 || config.rmat_b < 0) {
         throw ConfigurationError("probabilities may not be negative");
     }
@@ -25,6 +25,10 @@ PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, bool 
     if (output && config.n != 1ull << log_n) {
         std::cout << "Warning: generator requires the number of vertices to be a power of two" << std::endl;
         std::cout << "  Changing the number of vertices to " << (1ull << log_n) << std::endl;
+    }
+
+    if (config.k == 0) {
+        config.k = static_cast<SInt>(size);
     }
 
     return config;
