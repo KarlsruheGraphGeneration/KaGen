@@ -43,6 +43,22 @@ Coordinates&& Generator::TakeCoordinates() {
     return std::move(coordinates_);
 }
 
+const VertexWeights& Generator::GetVertexWeights() const {
+    return vertex_weights_;
+}
+
+VertexWeights&& Generator::TakeVertexWeights() {
+    return std::move(vertex_weights_);
+}
+
+const EdgeWeights& Generator::GetEdgeWeights() const {
+    return edge_weights_;
+}
+
+EdgeWeights&& Generator::TakeEdgeWeights() {
+    return std::move(edge_weights_);
+}
+
 void Generator::FilterDuplicateEdges() {
     std::sort(edges_.begin(), edges_.end());
     auto it = std::unique(edges_.begin(), edges_.end());

@@ -30,6 +30,14 @@ public:
 
     Coordinates&& TakeCoordinates();
 
+    const VertexWeights& GetVertexWeights() const;
+
+    VertexWeights&& TakeVertexWeights();
+
+    const EdgeWeights& GetEdgeWeights() const;
+
+    EdgeWeights&& TakeEdgeWeights();
+
 protected:
     virtual void GenerateImpl() = 0;
 
@@ -41,8 +49,16 @@ protected:
         coordinates_.second.emplace_back(x, y, z);
     }
 
+    inline void PushVertexWeight(const SSInt weight) {
+        vertex_weights_.push_back(weight);
+    }
+
     inline void PushEdge(const SInt from, const SInt to) {
         edges_.emplace_back(from, to);
+    }
+
+    inline void PushEdgeWeight(const SSInt weight) {
+        edge_weights_.push_back(weight);
     }
 
     inline void SetVertexRange(const SInt first_vertex, const SInt first_invalid_vertex) {
@@ -54,6 +70,9 @@ protected:
     EdgeList    edges_;
     VertexRange vertex_range_;
     Coordinates coordinates_;
+
+    VertexWeights vertex_weights_;
+    EdgeWeights   edge_weights_;
 };
 
 class ConfigurationError : public std::exception {
