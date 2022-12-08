@@ -28,6 +28,9 @@ protected:
     VertexWeights& vertex_weights_;
     EdgeWeights&   edge_weights_;
     MPI_Comm       comm_;
+
+    bool has_vertex_weights_;
+    bool has_edge_weights_;
 };
 
 class SequentialGraphWriter : public GraphWriter {

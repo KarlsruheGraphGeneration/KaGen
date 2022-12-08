@@ -14,16 +14,21 @@ GraphWriter::GraphWriter(Graph& graph, MPI_Comm comm)
       coordinates_(graph.coordinates),
       vertex_weights_(graph.vertex_weights),
       edge_weights_(graph.edge_weights),
-      comm_(comm) {}
+      comm_(comm) {
+    has_vertex_weights_ = vertex_weights_.size() == vertex_range_.second - vertex_range_.first;
+    has_edge_weights_   = edge_weights_.size() == edges_.size();
+    MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights_, 1, MPI_CXX_BOOL, MPI_LAND, comm_);
+    MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights_, 1, MPI_CXX_BOOL, MPI_LAND, comm_);
+}
 
 GraphWriter::~GraphWriter() = default;
 
 bool GraphWriter::HasVertexWeights() const {
-    return !vertex_weights_.empty();
+    return has_vertex_weights_;
 }
 
 bool GraphWriter::HasEdgeWeights() const {
-    return !edge_weights_.empty();
+    return has_edge_weights_;
 }
 
 SequentialGraphWriter::SequentialGraphWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}

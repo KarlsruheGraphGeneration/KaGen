@@ -86,7 +86,7 @@ void BinaryParHipWriter::Write(const PGeneratorConfig& config) {
     auto output_loop = [&](auto&& action) {
         for (PEID pe = 0; pe < size; ++pe) {
             if (pe == rank) {
-                std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::ate);
+                std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
                 action(out);
             }
             MPI_Barrier(comm_);
