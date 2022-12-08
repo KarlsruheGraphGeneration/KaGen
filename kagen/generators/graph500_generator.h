@@ -7,7 +7,9 @@
 namespace kagen {
 class Graph500Generator : public Generator {
 public:
-    Graph500Generator(const PGeneratorConfig& config_, MPI_Comm comm);
+    Graph500Generator(const PGeneratorConfig& config);
+
+    void Finalize(MPI_Comm comm) final;
 
 protected:
     inline void PushLocalEdge(const int from, const int to) {
@@ -19,11 +21,8 @@ protected:
         }
     }
 
-    void DistributeRoundRobin(SInt n);
-
 private:
     const PGeneratorConfig&           config_;
-    MPI_Comm                          comm_;
     std::vector<std::tuple<int, int>> local_edges_;
 };
 } // namespace kagen

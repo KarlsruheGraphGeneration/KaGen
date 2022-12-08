@@ -9,7 +9,7 @@
 #include <mpi.h>
 
 namespace kagen {
-PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
     if (config.rmat_a < 0 || config.rmat_b < 0 || config.rmat_b < 0) {
         throw ConfigurationError("probabilities may not be negative");
     }
@@ -27,6 +27,10 @@ PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, bool 
         std::cout << "  Changing the number of vertices to " << (1ull << log_n) << std::endl;
     }
 
+    if (config.k == 0) {
+        config.k = static_cast<SInt>(size);
+    }
+
     return config;
 }
 
@@ -35,7 +39,7 @@ std::unique_ptr<Generator> RMATFactory::Create(const PGeneratorConfig& config, c
 }
 
 RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : Graph500Generator(config, MPI_COMM_WORLD), // @todo
+    : Graph500Generator(config),
       config_(config),
       rank_(rank) {
     const SInt edges_per_pe    = config_.m / size;
@@ -49,7 +53,6 @@ void RMAT::GenerateImpl() {
 
     const SInt seed  = rank_ + 1;
     const SInt log_n = std::log2(config_.n);
-    const SInt n     = 1ull << log_n;
     const SInt depth = std::min<SInt>(9, log_n);
 
     RNG  gen(seed);
@@ -59,7 +62,5 @@ void RMAT::GenerateImpl() {
 
     // Generate local edges
     r.get_edges([&](const auto u, const auto v) { PushLocalEdge(u, v); }, num_edges_, gen);
-
-    DistributeRoundRobin(n);
 }
 } // namespace kagen

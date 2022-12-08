@@ -7,9 +7,15 @@
 
 #include "kagen/generators/barabassi/barabassi.h"
 #include "kagen/generators/generator.h"
+#include "kagen/tools/postprocessor.h"
 
 namespace kagen {
-PGeneratorConfig BarabassiFactory::NormalizeParameters(PGeneratorConfig config, bool output) const {
+PGeneratorConfig
+BarabassiFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+    if (config.k == 0) {
+        config.k = static_cast<SInt>(size);
+    }
+
     if (config.min_degree == 0) {
         if (config.n == 0 || config.m == 0) {
             throw ConfigurationError("at least two parameters out of {n, m, d} must be nonzero");
@@ -46,10 +52,10 @@ Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID
     to_   = std::min((SInt)((rank + 1) * std::ceil(config_.n / (LPFloat)size) - 1), config_.n - 1);
 }
 
-bool Barabassi::IsAlmostUndirected() const {
-    // If we do not want a directed graph, we want an undirected graph
-    // Since the generator does not always generate reverse edges across PEs, we are 'almost' undirected
-    return !config_.directed;
+void Barabassi::Finalize(MPI_Comm comm) {
+    if (!config_.directed) {
+        AddReverseEdges(edges_, vertex_range_, comm);
+    }
 }
 
 void Barabassi::GenerateImpl() {

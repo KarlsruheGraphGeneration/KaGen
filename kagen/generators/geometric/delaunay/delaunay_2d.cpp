@@ -41,10 +41,6 @@ Delaunay2D::Delaunay2D(const PGeneratorConfig& config, const PEID rank, const PE
     InitDatastructures();
 }
 
-bool Delaunay2D::IsAlmostUndirected() const {
-    return true;
-}
-
 void Delaunay2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     SInt chunk_id = Encode(chunk_column, chunk_row);
 

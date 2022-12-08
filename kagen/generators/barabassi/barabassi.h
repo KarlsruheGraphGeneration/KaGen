@@ -11,10 +11,12 @@
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 
+#include <mpi.h>
+
 namespace kagen {
 class BarabassiFactory : public GeneratorFactory {
 public:
-    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, bool output) const override;
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const override;
 
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
@@ -23,7 +25,7 @@ class Barabassi : public Generator {
 public:
     Barabassi(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    bool IsAlmostUndirected() const override;
+    void Finalize(MPI_Comm comm) final;
 
 protected:
     void GenerateImpl() override;
