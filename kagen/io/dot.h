@@ -7,11 +7,13 @@
 namespace kagen {
 class DotWriter : public SequentialGraphWriter {
 public:
-    DotWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, bool directed_output, MPI_Comm comm);
+    DotWriter(Graph& graph, bool directed_output, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 
 protected:
+    int Requirements() const;
+
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
 
     void AppendTo(const std::string& filename) final;

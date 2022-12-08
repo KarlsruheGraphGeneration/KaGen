@@ -5,11 +5,14 @@
 #include "kagen/io/graph_writer.h"
 
 namespace kagen {
-EdgeListWriter::EdgeListWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
+EdgeListWriter::EdgeListWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
 
 std::string EdgeListWriter::DefaultExtension() const {
     return "edgelist";
+}
+
+int EdgeListWriter::Requirements() const {
+    return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
 }
 
 void EdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
@@ -24,12 +27,14 @@ void EdgeListWriter::AppendTo(const std::string& filename) {
     }
 }
 
-BinaryEdgeListWriter::BinaryEdgeListWriter(
-    EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
+BinaryEdgeListWriter::BinaryEdgeListWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
 
 std::string BinaryEdgeListWriter::DefaultExtension() const {
     return "binaryedgelist";
+}
+
+int BinaryEdgeListWriter::Requirements() const {
+    return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
 }
 
 void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {

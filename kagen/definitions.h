@@ -44,6 +44,22 @@ using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
 using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
 using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 
+using VertexWeights = std::vector<SSInt>;
+using EdgeWeights   = std::vector<SSInt>;
+
 constexpr std::size_t NEWTON_MAX_ITERS = 10000;
 constexpr double      NEWTON_EPS       = 0.001;
+
+struct Graph {
+    EdgeList      edges;
+    VertexRange   vertex_range;
+    Coordinates   coordinates;
+    VertexWeights vertex_weights;
+    EdgeWeights   edge_weights;
+
+    std::tuple<EdgeList, VertexRange, Coordinates, VertexWeights, EdgeWeights> tuple() && {
+        return std::make_tuple(
+            std::move(edges), vertex_range, std::move(coordinates), std::move(vertex_weights), std::move(edge_weights));
+    }
+};
 } // namespace kagen

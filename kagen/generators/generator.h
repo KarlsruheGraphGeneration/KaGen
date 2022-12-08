@@ -20,18 +20,12 @@ public:
 
     const EdgeList& GetEdges() const;
 
-    EdgeList&& TakeEdges();
-
-    VertexRange GetVertexRange() const;
-
-    void SetVertexRange(VertexRange vetrex_range);
-
-    const Coordinates& GetCoordinates() const;
-
-    Coordinates&& TakeCoordinates();
+    Graph TakeResult();
 
 protected:
     virtual void GenerateImpl() = 0;
+
+    void SetVertexRange(VertexRange vetrex_range);
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y) {
         coordinates_.first.emplace_back(x, y);
@@ -41,8 +35,16 @@ protected:
         coordinates_.second.emplace_back(x, y, z);
     }
 
+    inline void PushVertexWeight(const SSInt weight) {
+        vertex_weights_.push_back(weight);
+    }
+
     inline void PushEdge(const SInt from, const SInt to) {
         edges_.emplace_back(from, to);
+    }
+
+    inline void PushEdgeWeight(const SSInt weight) {
+        edge_weights_.push_back(weight);
     }
 
     inline void SetVertexRange(const SInt first_vertex, const SInt first_invalid_vertex) {
@@ -51,9 +53,11 @@ protected:
 
     void FilterDuplicateEdges();
 
-    EdgeList    edges_;
-    VertexRange vertex_range_;
-    Coordinates coordinates_;
+    EdgeList      edges_;
+    VertexRange   vertex_range_;
+    Coordinates   coordinates_;
+    VertexWeights vertex_weights_;
+    EdgeWeights   edge_weights_;
 };
 
 class ConfigurationError : public std::exception {

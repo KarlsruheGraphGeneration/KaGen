@@ -58,15 +58,15 @@ auto GenericGenerateFromOptionString(const std::string& options_str, PGeneratorC
 } // namespace
 
 KaGenResult KaGen::GenerateFromOptionString(const std::string& options) {
-    return GenericGenerateFromOptionString(options, *config_, comm_);
+    return GenericGenerateFromOptionString(options, *config_, comm_).tuple();
 }
 
 KaGenResult2D KaGen::GenerateFromOptionString2D(const std::string& options) {
-    return GenericGenerateFromOptionString(options + ";coordinates", *config_, comm_);
+    return GenericGenerateFromOptionString(options + ";coordinates", *config_, comm_).tuple();
 }
 
 KaGenResult3D KaGen::GenerateFromOptionString3D(const std::string& options) {
-    return GenericGenerateFromOptionString(options + ";coordinates", *config_, comm_);
+    return GenericGenerateFromOptionString(options + ";coordinates", *config_, comm_).tuple();
 }
 
 KaGenResult KaGen::GenerateDirectedGNM(const SInt n, const SInt m, const bool self_loops) {
@@ -74,7 +74,7 @@ KaGenResult KaGen::GenerateDirectedGNM(const SInt n, const SInt m, const bool se
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return Generate(*config_, comm_);
+    return Generate(*config_, comm_).tuple();
 }
 
 KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool self_loops) {
@@ -82,7 +82,7 @@ KaGenResult KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool 
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return Generate(*config_, comm_);
+    return Generate(*config_, comm_).tuple();
 }
 
 KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -90,7 +90,7 @@ KaGenResult KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return Generate(*config_, comm_);
+    return Generate(*config_, comm_).tuple();
 }
 
 KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -98,7 +98,7 @@ KaGenResult KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bo
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return Generate(*config_, comm_);
+    return Generate(*config_, comm_).tuple();
 }
 
 namespace {
@@ -109,7 +109,7 @@ KaGenResult2D GenerateRGG2D_Impl(
     config.m           = m;
     config.r           = r;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -137,7 +137,7 @@ KaGenResult3D GenerateRGG3D_Impl(
     config.n           = n;
     config.r           = r;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -166,7 +166,7 @@ KaGenResult2D GenerateRDG2D_Impl(
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -189,7 +189,7 @@ GenerateRDG3D_Impl(PGeneratorConfig& config, const SInt n, const SInt m, const b
     config.n           = n;
     config.m           = m;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -240,7 +240,7 @@ KaGenResult GenerateBA_Impl(
     config.min_degree = d;
     config.self_loops = self_loops;
     config.directed   = directed;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -266,7 +266,7 @@ KaGenResult2D GenerateRHG_Impl(
     config.avg_degree  = d;
     config.plexp       = gamma;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -305,7 +305,7 @@ KaGenResult2D GenerateGrid2D_Impl(
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -340,7 +340,7 @@ KaGenResult3D GenerateGrid3D_Impl(
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
-    return Generate(config, comm);
+    return Generate(config, comm).tuple();
 }
 } // namespace
 
@@ -370,7 +370,7 @@ KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const bool dire
     config_->m          = m;
     config_->directed   = directed;
     config_->self_loops = self_loops;
-    return Generate(*config_, comm_);
+    return Generate(*config_, comm_).tuple();
 }
 
 KaGenResult KaGen::GenerateRMAT(
@@ -384,7 +384,7 @@ KaGenResult KaGen::GenerateRMAT(
     config_->rmat_c     = c;
     config_->directed   = directed;
     config_->self_loops = self_loops;
-    return Generate(*config_, comm_);
+    return Generate(*config_, comm_).tuple();
 }
 
 void KaGen::SetDefaults() {

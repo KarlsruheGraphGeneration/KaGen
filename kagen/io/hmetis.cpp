@@ -3,8 +3,7 @@
 #include "kagen/io/buffered_writer.h"
 
 namespace kagen {
-HMetisWriter::HMetisWriter(EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
+HMetisWriter::HMetisWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
 
 std::string HMetisWriter::DefaultExtension() const {
     return "hgr";

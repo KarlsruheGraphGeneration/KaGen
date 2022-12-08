@@ -112,6 +112,7 @@ Other output formats are available:
 - `-f hmetis`: hMetis hypergraph format 
 - `-f dot`: GraphViz dot file (add `-C` to include vertex coordinates for 2D graph generators)
 - `-f coordinates`: Text file containing vertex coordinates 
+- `-f binary-parhip`: Binary graph format used by ParHiP
 
 If you want each PE to write its edges to a seperate file, use the `--distributed-output` flag.
 

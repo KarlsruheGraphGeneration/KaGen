@@ -10,7 +10,8 @@
 namespace kagen {
 class GraphWriter {
 public:
-    GraphWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    GraphWriter(Graph& graph, MPI_Comm comm);
+
     virtual ~GraphWriter();
 
     virtual std::string DefaultExtension() const = 0;
@@ -18,24 +19,34 @@ public:
     virtual void Write(const PGeneratorConfig& config) = 0;
 
 protected:
-    EdgeList&    edges_;
-    VertexRange  vertex_range_;
-    Coordinates& coordinates_;
-    MPI_Comm     comm_;
+    bool HasVertexWeights() const;
+    bool HasEdgeWeights() const;
+
+    EdgeList&      edges_;
+    VertexRange&   vertex_range_;
+    Coordinates&   coordinates_;
+    VertexWeights& vertex_weights_;
+    EdgeWeights&   edge_weights_;
+    MPI_Comm       comm_;
+
+    bool has_vertex_weights_;
+    bool has_edge_weights_;
 };
 
 class SequentialGraphWriter : public GraphWriter {
 protected:
     enum Requirement {
-        NONE           = 0,
-        SORTED_EDGES   = 1 << 1,
-        COORDINATES    = 1 << 2,
-        COORDINATES_2D = 1 << 4,
-        COORDINATES_3D = 1 << 8,
+        NONE              = 0,
+        SORTED_EDGES      = 1 << 1,
+        COORDINATES       = 1 << 2,
+        COORDINATES_2D    = 1 << 3,
+        COORDINATES_3D    = 1 << 4,
+        NO_VERTEX_WEIGHTS = 1 << 5,
+        NO_EDGE_WEIGHTS   = 1 << 6,
     };
 
 public:
-    SequentialGraphWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    SequentialGraphWriter(Graph& graph, MPI_Comm comm);
 
     virtual void Write(const PGeneratorConfig& config) override;
 
@@ -46,7 +57,7 @@ protected:
 
     virtual void AppendFooterTo(const std::string& filename);
 
-    virtual Requirement Requirements() const;
+    virtual int Requirements() const;
 
 private:
     static void CreateFile(const std::string& filename);
@@ -54,7 +65,7 @@ private:
 
 class NoopWriter : public GraphWriter {
 public:
-    NoopWriter(EdgeList& edges, VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm);
+    NoopWriter(Graph& graph, MPI_Comm comm);
 
     std::string DefaultExtension() const final;
 

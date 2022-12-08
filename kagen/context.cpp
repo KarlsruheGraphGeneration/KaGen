@@ -15,6 +15,7 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
         {"dot", OutputFormat::DOT},
         {"dot-directed", OutputFormat::DOT_DIRECTED},
         {"coordinates", OutputFormat::COORDINATES},
+        {"binary-parhip", OutputFormat::BINARY_PARHIP},
     };
 }
 
@@ -43,6 +44,9 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
 
         case OutputFormat::COORDINATES:
             return out << "coordinates";
+
+        case OutputFormat::BINARY_PARHIP:
+            return out << "binary-parhip";
     }
 
     return out << "<invalid>";

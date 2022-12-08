@@ -96,7 +96,7 @@ void PrintHeader(const PGeneratorConfig& config) {
 }
 } // namespace
 
-std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
+Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -154,9 +154,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
         }
     }
 
-    auto edges        = generator->TakeEdges();
-    auto vertex_range = generator->GetVertexRange();
-    auto coordinates  = generator->GetCoordinates();
+    auto graph = generator->TakeResult();
 
     // Validation
     if (config.validate_simple_graph) {
@@ -164,7 +162,7 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
             std::cout << "Validating simple graph ... " << std::flush;
         }
 
-        bool success = ValidateSimpleGraph(edges, vertex_range, comm);
+        bool success = ValidateSimpleGraph(graph.edges, graph.vertex_range, comm);
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
             if (output_error) {
@@ -186,13 +184,13 @@ std::tuple<EdgeList, VertexRange, Coordinates> Generate(const PGeneratorConfig& 
 
         if (config.statistics_level >= StatisticsLevel::BASIC) {
             // Basic graph statistics
-            PrintBasicStatistics(edges, vertex_range, rank == ROOT, comm);
+            PrintBasicStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
         }
         if (config.statistics_level >= StatisticsLevel::ADVANCED) {
-            PrintAdvancedStatistics(edges, vertex_range, rank == ROOT, comm);
+            PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
         }
     }
 
-    return {std::move(edges), vertex_range, std::move(coordinates)};
+    return graph;
 }
 } // namespace kagen

@@ -4,9 +4,7 @@
 #include "kagen/io/graph_writer.h"
 
 namespace kagen {
-CoordinatesWriter::CoordinatesWriter(
-    EdgeList& edges, const VertexRange vertex_range, Coordinates& coordinates, MPI_Comm comm)
-    : SequentialGraphWriter(edges, vertex_range, coordinates, comm) {}
+CoordinatesWriter::CoordinatesWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
 
 std::string CoordinatesWriter::DefaultExtension() const {
     return "xyz";
@@ -25,7 +23,7 @@ void CoordinatesWriter::AppendTo(const std::string& filename) {
     }
 }
 
-SequentialGraphWriter::Requirement CoordinatesWriter::Requirements() const {
+int CoordinatesWriter::Requirements() const {
     return SequentialGraphWriter::Requirement::COORDINATES;
 }
 } // namespace kagen
