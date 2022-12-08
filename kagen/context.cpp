@@ -93,6 +93,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"kronecker", GeneratorType::KRONECKER},
         {"rhg", GeneratorType::RHG},
         {"rmat", GeneratorType::RMAT},
+        {"image-mesh", GeneratorType::IMAGE_MESH},
     };
 }
 
@@ -141,6 +142,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
 
         case GeneratorType::RMAT:
             return out << "rmat";
+
+        case GeneratorType::IMAGE_MESH:
+            return out << "image-mesh";
     }
 
     return out << "<invalid>";
@@ -171,6 +175,19 @@ std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level) {
     }
 
     return out << "<invalid>";
+}
+
+std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap() {
+    return {
+        {"l2", ImageMeshWeightModel::L2},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
+    switch (weight_model) {
+        case ImageMeshWeightModel::L2:
+            return out << "l2";
+    }
 }
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
@@ -272,7 +289,11 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << " / " << config.rmat_b << " / " << config.rmat_c << " / "
                 << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
             out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+            break;
 
+        case GeneratorType::IMAGE_MESH:
+            out << "  Input image:                        " << config.image_filename << "\n";
+            out << "  Weight model:                       " << config.image_weight_model << "\n";
             break;
     }
 

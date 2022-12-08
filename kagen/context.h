@@ -58,6 +58,7 @@ enum class GeneratorType {
     KRONECKER,
     RHG,
     RMAT,
+    IMAGE_MESH,
 };
 
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
@@ -75,6 +76,14 @@ bool operator<=(StatisticsLevel a, StatisticsLevel b);
 std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
 
 std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
+
+enum class ImageMeshWeightModel : std::uint8_t {
+    L2 = 0,
+};
+
+std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
+
+std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
 // Configuration for the generator.
 struct PGeneratorConfig {
@@ -109,6 +118,10 @@ struct PGeneratorConfig {
     bool          directed   = false;
 
     bool coordinates = false; // Store vertex coordinates
+
+    // Image mesh generator settings
+    std::string          image_filename     = "";
+    ImageMeshWeightModel image_weight_model = ImageMeshWeightModel::L2;
 
     // Hashing / sampling settings
     int   seed        = 1;      // Seed for PRNG

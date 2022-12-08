@@ -325,6 +325,12 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_option("-c", config.rmat_c, "Probability for block c");
     }
 
+    { // ImageMesh
+        auto* cmd = app.add_subcommand("imagemesh", "Image Mesh Graph");
+        cmd->callback([&] { config.generator = GeneratorType::IMAGE_MESH; });
+        cmd->add_option("--image-filename", config.image_filename, "Input image filename")->check(CLI::ExistingFile);
+    }
+
     // IO options
     app.add_option("-o,--output", config.output_file, "Output filename");
     app.add_option("-f,--output-format", config.output_format, "Output format")

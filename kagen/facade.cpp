@@ -20,6 +20,7 @@
 #include "kagen/generators/grid/grid_2d.h"
 #include "kagen/generators/grid/grid_3d.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
+#include "kagen/generators/image/image_mesh.h"
 #include "kagen/generators/kronecker/kronecker.h"
 #include "kagen/generators/rmat/rmat.h"
 
@@ -76,6 +77,9 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::RMAT:
             return std::make_unique<RMATFactory>();
+
+        case GeneratorType::IMAGE_MESH:
+            return std::make_unique<ImageMeshFactory>();
     }
 
     __builtin_unreachable();
