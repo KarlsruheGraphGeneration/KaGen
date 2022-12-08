@@ -16,6 +16,6 @@ protected:
 
     void AppendTo(const std::string& filename) final;
 
-    Requirement Requirements() const final;
+    int Requirements() const final;
 };
 } // namespace kagen

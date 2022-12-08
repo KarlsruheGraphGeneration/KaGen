@@ -11,6 +11,10 @@ std::string EdgeListWriter::DefaultExtension() const {
     return "edgelist";
 }
 
+int EdgeListWriter::Requirements() const {
+    return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
+}
+
 void EdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteString("p ").WriteInt(n).WriteChar(' ').WriteInt(m).WriteChar('\n').Flush();
@@ -27,6 +31,10 @@ BinaryEdgeListWriter::BinaryEdgeListWriter(Graph& graph, MPI_Comm comm) : Sequen
 
 std::string BinaryEdgeListWriter::DefaultExtension() const {
     return "binaryedgelist";
+}
+
+int BinaryEdgeListWriter::Requirements() const {
+    return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
 }
 
 void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {

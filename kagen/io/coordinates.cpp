@@ -23,7 +23,7 @@ void CoordinatesWriter::AppendTo(const std::string& filename) {
     }
 }
 
-SequentialGraphWriter::Requirement CoordinatesWriter::Requirements() const {
+int CoordinatesWriter::Requirements() const {
     return SequentialGraphWriter::Requirement::COORDINATES;
 }
 } // namespace kagen

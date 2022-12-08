@@ -33,11 +33,13 @@ protected:
 class SequentialGraphWriter : public GraphWriter {
 protected:
     enum Requirement {
-        NONE           = 0,
-        SORTED_EDGES   = 1 << 1,
-        COORDINATES    = 1 << 2,
-        COORDINATES_2D = 1 << 4,
-        COORDINATES_3D = 1 << 8,
+        NONE              = 0,
+        SORTED_EDGES      = 1 << 1,
+        COORDINATES       = 1 << 2,
+        COORDINATES_2D    = 1 << 3,
+        COORDINATES_3D    = 1 << 4,
+        NO_VERTEX_WEIGHTS = 1 << 5,
+        NO_EDGE_WEIGHTS   = 1 << 6,
     };
 
 public:
@@ -52,7 +54,7 @@ protected:
 
     virtual void AppendFooterTo(const std::string& filename);
 
-    virtual Requirement Requirements() const;
+    virtual int Requirements() const;
 
 private:
     static void CreateFile(const std::string& filename);

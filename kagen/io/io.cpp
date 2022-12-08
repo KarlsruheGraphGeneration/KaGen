@@ -7,6 +7,7 @@
 
 #include "kagen/context.h"
 #include "kagen/definitions.h"
+#include "kagen/io/binary_parhip.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/io/coordinates.h"
 #include "kagen/io/dot.h"
@@ -43,6 +44,9 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph&
 
         case OutputFormat::COORDINATES:
             return std::make_unique<CoordinatesWriter>(graph, comm);
+            
+        case OutputFormat::BINARY_PARHIP:
+            return std::make_unique<BinaryParHipWriter>(graph, comm);
     }
 
     __builtin_unreachable();

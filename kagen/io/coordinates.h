@@ -12,7 +12,7 @@ public:
     std::string DefaultExtension() const final;
 
 protected:
-    SequentialGraphWriter::Requirement Requirements() const final;
+    int Requirements() const final;
 
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
 

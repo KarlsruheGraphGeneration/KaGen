@@ -11,6 +11,10 @@ std::string DotWriter::DefaultExtension() const {
     return "dot";
 }
 
+int DotWriter::Requirements() const {
+    return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
+}
+
 void DotWriter::AppendHeaderTo(const std::string& filename, SInt, SInt) {
     BufferedTextOutput<> out(tag::append, filename);
     const char*          type = directed_output_ ? "digraph" : "graph";

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <exception>
+
 #include <mpi.h>
 
 #include "kagen/context.h"

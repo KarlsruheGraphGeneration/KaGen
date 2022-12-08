@@ -24,6 +24,7 @@ enum class OutputFormat {
     DOT,
     DOT_DIRECTED,
     COORDINATES,
+    BINARY_PARHIP,
 };
 
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();

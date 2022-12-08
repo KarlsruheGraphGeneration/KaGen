@@ -10,7 +10,7 @@ std::string MetisWriter::DefaultExtension() const {
     return "graph";
 }
 
-SequentialGraphWriter::Requirement MetisWriter::Requirements() const {
+int MetisWriter::Requirements() const {
     return SequentialGraphWriter::Requirement::SORTED_EDGES;
 }
 
