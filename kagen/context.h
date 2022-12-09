@@ -85,6 +85,17 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
+struct ImageMeshConfig {
+    std::string          filename     = "";
+    ImageMeshWeightModel weight_model = ImageMeshWeightModel::L2;
+    SInt                 max_grid_x   = 0;
+    SInt                 max_grid_y   = 0;
+    SInt                 grid_x  = 0;
+    SInt                 grid_y  = 0;
+    SInt                 cols_per_pe  = 0;
+    SInt                 rows_per_pe  = 0;
+};
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     // General settings
@@ -120,8 +131,7 @@ struct PGeneratorConfig {
     bool coordinates = false; // Store vertex coordinates
 
     // Image mesh generator settings
-    std::string          image_filename     = "";
-    ImageMeshWeightModel image_weight_model = ImageMeshWeightModel::L2;
+    ImageMeshConfig image_mesh;
 
     // Hashing / sampling settings
     int   seed        = 1;      // Seed for PRNG

@@ -262,17 +262,19 @@ endif()
 # CGAL
 ###############################################################################
 if (KAGEN_USE_IMAGE_MAGICK)
-    find_package(ImageMagick QUIET COMPONENTS Magick++)
-    if (ImageMagick_Magick++_FOUND)
+    find_package(ImageMagick QUIET COMPONENTS MagickCore)
+    if (ImageMagick_FOUND AND ImageMagick_MagickCore_FOUND)
         add_definitions(-DKAGEN_IMAGE_MAGICK_FOUND)
+        add_definitions(-DMAGICKCORE_QUANTUM_DEPTH=16)
+        add_definitions(-DMAGICKCORE_HDRI_ENABLE=0)
         list(APPEND KAGEN_LINK_LIBRARIES ${ImageMagick_LIBRARIES})
-        list(APPEND KAGEN_LINK_LIBRARIES ${ImageMagick_Magick++_LIBRARIES})
+        list(APPEND KAGEN_LINK_LIBRARIES ${ImageMagick_MagickCore_LIBRARIES})
         list(APPEND KAGEN_INCLUDE_DIRS ${ImageMagick_INCLUDE_DIRS})
-        list(APPEND KAGEN_INCLUDE_DIRS ${ImageMagick_Magick++_INCLUDE_DIRS})
-        message(STATUS "Found the Magick++ library: include <${ImageMagick_Magick++_INCLUDE_DIRS}> and <${ImageMagick_INCLUDE_DIRS}>, "
-            "link against <${ImageMagick_Magick++_LIBRARIES}> and <${ImageMagick_LIBRARIES}>")
+        list(APPEND KAGEN_INCLUDE_DIRS ${ImageMagick_MagickCore_INCLUDE_DIRS})
+        message(STATUS "Found the ImageMagick library: include <${ImageMagick_MagickCore_INCLUDE_DIRS}> and <${ImageMagick_INCLUDE_DIRS}>, "
+            "link against <${ImageMagick_MagickCore_LIBRARIES}> and <${ImageMagick_LIBRARIES}>")
     else ()
-        message(STATUS "Could not find the Magick++ library: Image Mesh Graphs will only support few image formats")
+        message(STATUS "Could not find the MagickCore library: Image Mesh Graphs will only support few image formats")
     endif ()
 endif ()
 

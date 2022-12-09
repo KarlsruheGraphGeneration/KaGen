@@ -292,13 +292,21 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             break;
 
         case GeneratorType::IMAGE_MESH:
-            out << "  Input image:                        " << config.image_filename << "\n";
-            out << "  Weight model:                       " << config.image_weight_model << "\n";
+            out << "  Input image:                        " << config.image_mesh.filename << "\n";
+            out << "  Weight model:                       " << config.image_mesh.weight_model << "\n";
+            out << "  Grid size:                          " << config.image_mesh.max_grid_x << "x"
+                << config.image_mesh.max_grid_y << "\n";
+            if (config.image_mesh.grid_x != 0 || config.image_mesh.grid_y != 0) {
+                out << "    Used:                             " << config.image_mesh.grid_x << "x"
+                    << config.image_mesh.grid_y << "\n";
+            }
+            out << "  Region per PE:                      " << config.image_mesh.cols_per_pe << "x"
+                << config.image_mesh.rows_per_pe << "\n";
             break;
     }
 
     // RMAT does not use chunks
-    if (config.generator != GeneratorType::RMAT) {
+    if (config.generator != GeneratorType::RMAT && config.generator != GeneratorType::IMAGE_MESH) {
         if (config.k == 0) {
             out << "  Number of chunks:                   auto\n";
         } else {
