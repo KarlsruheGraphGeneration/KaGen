@@ -14,3 +14,4 @@ target_compile_features(KaGen INTERFACE cxx_std_17)
 
 install(TARGETS KaGen DESTINATION bin)
 
+add_subdirectory(tools)

@@ -30,7 +30,6 @@ option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
-option(KAGEN_USE_IMAGE_MAGICK "If available, link against Magick++ to enable the full image mesh generator." ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -257,26 +256,6 @@ if (KAGEN_USE_CGAL)
     message(STATUS "Could not find the CGAL library: Random Delaunay Graphs will not be available")
   endif()
 endif()
-
-###############################################################################
-# CGAL
-###############################################################################
-if (KAGEN_USE_IMAGE_MAGICK)
-    find_package(ImageMagick QUIET COMPONENTS MagickCore)
-    if (ImageMagick_FOUND AND ImageMagick_MagickCore_FOUND)
-        add_definitions(-DKAGEN_IMAGE_MAGICK_FOUND)
-        add_definitions(-DMAGICKCORE_QUANTUM_DEPTH=16)
-        add_definitions(-DMAGICKCORE_HDRI_ENABLE=0)
-        list(APPEND KAGEN_LINK_LIBRARIES ${ImageMagick_LIBRARIES})
-        list(APPEND KAGEN_LINK_LIBRARIES ${ImageMagick_MagickCore_LIBRARIES})
-        list(APPEND KAGEN_INCLUDE_DIRS ${ImageMagick_INCLUDE_DIRS})
-        list(APPEND KAGEN_INCLUDE_DIRS ${ImageMagick_MagickCore_INCLUDE_DIRS})
-        message(STATUS "Found the ImageMagick library: include <${ImageMagick_MagickCore_INCLUDE_DIRS}> and <${ImageMagick_INCLUDE_DIRS}>, "
-            "link against <${ImageMagick_MagickCore_LIBRARIES}> and <${ImageMagick_LIBRARIES}>")
-    else ()
-        message(STATUS "Could not find the MagickCore library: Image Mesh Graphs will only support few image formats")
-    endif ()
-endif ()
 
 ###############################################################################
 # Sampling library 
