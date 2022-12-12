@@ -10,6 +10,10 @@
 #include "kagen/generators/generator.h"
 
 namespace kagen {
+namespace {
+constexpr bool kDebug = true;
+}
+
 PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const {
     ImageMeshConfig& iconfig = config.image_mesh;
 
@@ -143,14 +147,15 @@ ImageMesh::ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID
 
 void ImageMesh::GenerateImpl() {
     const auto [num_rows, num_cols] = ReadDimensions(config_.image_mesh.filename);
-    std::cout << "Dimensions: " << num_cols << "x" << num_rows << std::endl;
 
     const SInt rows_per_cell     = num_rows / config_.image_mesh.max_grid_y;
     const SInt rows_per_cell_rem = num_rows % config_.image_mesh.max_grid_y;
     const SInt cols_per_cell     = num_cols / config_.image_mesh.max_grid_x;
     const SInt cols_per_cell_rem = num_cols % config_.image_mesh.max_grid_x;
-    const SInt my_start_grid_row = rank_ / (config_.image_mesh.max_grid_x / config_.image_mesh.cols_per_pe);
-    const SInt my_start_grid_col = rank_ % (config_.image_mesh.max_grid_x / config_.image_mesh.cols_per_pe);
+    const SInt my_start_grid_row =
+        rank_ / (config_.image_mesh.max_grid_x / config_.image_mesh.cols_per_pe) * config_.image_mesh.rows_per_pe;
+    const SInt my_start_grid_col =
+        rank_ % (config_.image_mesh.max_grid_x / config_.image_mesh.cols_per_pe) * config_.image_mesh.cols_per_pe;
 
     // Compute the first and last row / col that is read by this PE
     const SInt my_start_row = my_start_grid_row * rows_per_cell + std::min<SInt>(my_start_grid_row, rows_per_cell_rem);
@@ -168,8 +173,10 @@ void ImageMesh::GenerateImpl() {
     const SInt my_num_virtual_rows  = my_virtual_end_row - my_virtual_start_row;
     const SInt my_num_virtual_cols  = my_virtual_end_col - my_virtual_start_col;
 
-    std::cout << "PE " << rank_ << "/" << size_ << ": (" << my_virtual_start_row << "," << my_virtual_start_col
-              << ") x (" << my_virtual_end_row << "," << my_virtual_end_col << ")" << std::endl;
+    if constexpr (kDebug) {
+        std::cout << "PE " << rank_ << "/" << size_ << ": " << my_virtual_start_col << "x" << my_virtual_start_row
+                  << " <-> " << my_virtual_end_col << "x" << my_virtual_end_row << std::endl;
+    }
 
     const std::vector<RGB> pixels = ReadRect(
         config_.image_mesh.filename, my_virtual_start_row, my_virtual_start_col, my_num_virtual_rows,
