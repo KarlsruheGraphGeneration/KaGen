@@ -299,8 +299,10 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
 
         case GeneratorType::IMAGE_MESH:
             out << "  Input image:                        " << config.image_mesh.filename << "\n";
-            out << "  Weight model:                       " << config.image_mesh.weight_model << "\n";
-            out << "  Weight multiplier:                  " << config.image_mesh.weight_multiplier << "\n";
+            out << "  Weight model:                       " << config.image_mesh.weight_model << " (x "
+                << config.image_mesh.weight_multiplier << ")\n";
+            out << "  Weight threshold:                   " << config.image_mesh.weight_min_threshold
+                << " <= <weight> <= " << config.image_mesh.weight_max_threshold << "\n";
             out << "  Grid size:                          "
                 << (config.image_mesh.max_grid_x == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_x)) << " x "
                 << (config.image_mesh.max_grid_y == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_y)) << "\n";

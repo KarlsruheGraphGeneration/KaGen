@@ -144,7 +144,7 @@ std::uint8_t Delta(const std::uint8_t lhs, const std::uint8_t rhs) {
 }
 
 struct L2WeightModel {
-    double operator()(const RGB& lhs, const RGB& rhs) {
+    double operator()(const RGB& lhs, const RGB& rhs) const {
         const std::uint8_t dr = Delta(lhs.r, rhs.r);
         const std::uint8_t dg = Delta(lhs.g, rhs.g);
         const std::uint8_t db = Delta(lhs.b, rhs.b);
@@ -153,7 +153,7 @@ struct L2WeightModel {
 };
 
 struct InvL2WeightModel {
-    double operator()(const RGB& lhs, const RGB& rhs) {
+    double operator()(const RGB& lhs, const RGB& rhs) const {
         return max_value_ - l2_(lhs, rhs);
     }
 
@@ -167,7 +167,7 @@ double MaxMinRatio(const std::uint8_t lhs, const std::uint8_t rhs) {
 }
 
 struct InvRatioWeightModel {
-    double operator()(const RGB& lhs, const RGB& rhs) {
+    double operator()(const RGB& lhs, const RGB& rhs) const {
         return 1.0 / MaxMinRatio(lhs.r, rhs.r) * 1.0 / MaxMinRatio(lhs.g, rhs.g) * 1.0 / MaxMinRatio(lhs.b, rhs.b);
     }
 };
@@ -179,7 +179,8 @@ ImageMesh::ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID
       size_(size) {}
 
 void ImageMesh::GenerateImpl() {
-    const auto [num_rows, num_cols] = ReadDimensions(config_.image_mesh.filename);
+    SInt num_rows, num_cols;
+    std::tie(num_rows, num_cols) = ReadDimensions(config_.image_mesh.filename);
 
     const SInt rows_per_cell     = num_rows / config_.image_mesh.max_grid_y;
     const SInt rows_per_cell_rem = num_rows % config_.image_mesh.max_grid_y;
@@ -229,7 +230,56 @@ void ImageMesh::GenerateImpl() {
         config_.image_mesh.filename, my_virtual_start_row, my_virtual_start_col, my_num_virtual_rows,
         my_num_virtual_cols);
 
-    // Generate pixels with the right weight model
+    auto generate_edge = [&](const auto& weight_model, const SInt row1, const SInt col1, const SInt row2,
+                             const SInt col2) {
+        const RGB&   rgb1 = pixels[(row1 - my_virtual_start_row) * my_num_virtual_rows + (col1 - my_virtual_start_col)];
+        const RGB&   rgb2 = pixels[(row2 - my_virtual_start_row) * my_num_virtual_rows + (col2 - my_virtual_start_col)];
+        const double weight = weight_model(rgb1, rgb2);
+
+        if (weight >= config_.image_mesh.weight_min_threshold && weight <= config_.image_mesh.weight_max_threshold) {
+            PushEdgeWeight(static_cast<SSInt>(weight_model(rgb1, rgb2)));
+
+            const SInt vertex1 = row1 * num_cols + col1;
+            const SInt vertex2 = row2 * num_cols + col2;
+            PushEdge(vertex1, vertex2);
+        }
+    };
+
+    auto generate_edges = [&](auto weight_model) {
+        if (my_start_row == 0) {
+            // Top-left corner
+        }
+
+        for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
+            for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                }
+            }
+        }
+    };
+
+    switch (config_.image_mesh.weight_model) {
+        case ImageMeshWeightModel::L2:
+            generate_edges(L2WeightModel{});
+            break;
+
+        case ImageMeshWeightModel::INV_L2:
+            generate_edges(InvL2WeightModel{});
+            break;
+
+        case ImageMeshWeightModel::INV_RATIO:
+            generate_edges(InvRatioWeightModel{});
+            break;
+    }
 }
 } // namespace kagen
 

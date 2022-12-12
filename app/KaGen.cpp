@@ -334,6 +334,10 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_option("--weight-model", config.image_mesh.weight_model, "")
             ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()));
         cmd->add_option("--weight-multiplier", config.image_mesh.weight_multiplier, "Multiplier for edge weights");
+        cmd->add_option("--weight-min-threshold", config.image_mesh.weight_min_threshold, "Only keep edges with weight more than this.");
+        cmd->add_option("--weight-max-threshold", config.image_mesh.weight_max_threshold, "Only keep edges with weight less than this.");
+        cmd->add_option("--neighborhood", config.image_mesh.neighborhood, "Neighborhood size (4 oder 8)")
+            ->check(CLI::IsMember({4, 8}));
         cmd->add_option("--max-grid-x", config.image_mesh.max_grid_x, "Number of grid columns");
         cmd->add_option("--max-grid-y", config.image_mesh.max_grid_y, "Number of grid rows");
         cmd->add_option("--grid-x", config.image_mesh.grid_x, "Number of grid columns that are assigned to PEs");

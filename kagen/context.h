@@ -8,6 +8,7 @@
 #pragma once
 
 #include <iostream>
+#include <limits>
 #include <ostream>
 #include <string>
 #include <unordered_map>
@@ -88,15 +89,18 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
 struct ImageMeshConfig {
-    std::string          filename          = "";
-    ImageMeshWeightModel weight_model      = ImageMeshWeightModel::L2;
-    SInt                 max_grid_x        = 0;
-    SInt                 max_grid_y        = 0;
-    SInt                 grid_x            = 0;
-    SInt                 grid_y            = 0;
-    SInt                 cols_per_pe       = 0;
-    SInt                 rows_per_pe       = 0;
-    double               weight_multiplier = 1.0;
+    std::string          filename             = "";
+    ImageMeshWeightModel weight_model         = ImageMeshWeightModel::L2;
+    double               weight_multiplier    = 1.0;
+    double               weight_min_threshold = 1.0;
+    double               weight_max_threshold = std::numeric_limits<double>::max();
+    SInt                 neighborhood         = 4;
+    SInt                 max_grid_x           = 0;
+    SInt                 max_grid_y           = 0;
+    SInt                 grid_x               = 0;
+    SInt                 grid_y               = 0;
+    SInt                 cols_per_pe          = 0;
+    SInt                 rows_per_pe          = 0;
 };
 
 // Configuration for the generator.
