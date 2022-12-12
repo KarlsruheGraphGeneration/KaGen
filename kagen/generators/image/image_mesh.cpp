@@ -11,7 +11,7 @@
 
 namespace kagen {
 namespace {
-constexpr bool kDebug = true;
+constexpr bool kDebug = false;
 }
 
 PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const {
@@ -110,31 +110,56 @@ std::pair<SInt, SInt> ReadDimensions(const std::string& filename) {
     return {rows, cols};
 }
 
-std::vector<RGB>
-ReadRect(const std::string& filename, const SInt row, const SInt col, const SInt num_rows, const SInt num_cols) {
+std::vector<RGB> ReadRect(
+    const std::string& filename, const SSInt first_row, const SSInt first_col, const SSInt first_invalid_row,
+    const SSInt first_invalid_col) {
+    const SSInt num_rows = first_invalid_row - first_row;
+    const SSInt num_cols = first_invalid_col - first_col;
+
     std::vector<RGB> pixels;
     pixels.reserve(num_rows * num_cols);
 
     std::uint64_t num_rows_in_file;
     std::uint64_t num_cols_in_file;
-
     std::ifstream in(filename, std::ios_base::binary);
     in.seekg(kKargbIdentifierLength * sizeof(char));
     in.read(reinterpret_cast<char*>(&num_rows_in_file), sizeof(std::uint64_t));
     in.read(reinterpret_cast<char*>(&num_cols_in_file), sizeof(std::uint64_t));
 
-    for (SInt cur_row = row; cur_row < row + num_rows; ++cur_row) {
-        const SInt row_start_pos = cur_row * num_cols_in_file;
-        const SInt col_start_pos = row_start_pos + col;
+    auto push_row = [&](const SInt row, const SInt from_col, const SInt to_col) {
+        const SInt row_start_pos = row * num_cols_in_file;
+        const SInt col_start_pos = row_start_pos + from_col;
         in.seekg(kKargbHeaderLength + col_start_pos * 3 * sizeof(std::uint8_t));
-
-        for (SInt cur_col = col; cur_col < col + num_cols; ++cur_col) {
+        for (SInt cur_col = from_col; cur_col < to_col; ++cur_col) {
             std::uint8_t r, g, b;
             in.read(reinterpret_cast<char*>(&r), sizeof(std::uint8_t));
             in.read(reinterpret_cast<char*>(&g), sizeof(std::uint8_t));
             in.read(reinterpret_cast<char*>(&b), sizeof(std::uint8_t));
             pixels.emplace_back(r, g, b);
         }
+    };
+
+    auto push_blank_row = [&](const SInt num_cols) {
+        for (SInt cur_col = 0; cur_col < num_cols; ++cur_col) {
+            pixels.emplace_back(0, 0, 0);
+        }
+    };
+
+    SSInt cur_row = first_row;
+    for (; cur_row < 0; ++cur_row) {
+        push_blank_row(num_cols);
+    }
+    for (; cur_row < std::min<SSInt>(num_rows, first_invalid_row); ++cur_row) {
+        for (SSInt cur_col = first_col; cur_col < 0; ++cur_col) {
+            pixels.emplace_back(0, 0, 0);
+        }
+        push_row(cur_row, first_col, std::min<SSInt>(num_cols, first_invalid_col));
+        for (SSInt cur_col = num_cols; cur_col < first_invalid_col; ++cur_col) {
+            pixels.emplace_back(0, 0, 0);
+        }
+    }
+    for (; cur_row < num_rows; ++cur_row) {
+        push_blank_row(num_cols);
     }
 
     return pixels;
@@ -172,203 +197,497 @@ struct InvRatioWeightModel {
         return 1.0 / MaxMinRatio(lhs.r, rhs.r) * 1.0 / MaxMinRatio(lhs.g, rhs.g) * 1.0 / MaxMinRatio(lhs.b, rhs.b);
     }
 };
+
+enum GridDirection { RIGHT = 0, DOWN_RIGHT = 1, DOWN = 2, DOWN_LEFT = 3, LEFT = 4, UP_LEFT = 5, UP = 6, UP_RIGHT = 7 };
+
+struct PEInfo {
+    PEInfo() = default;
+
+    PEInfo(
+        const PEID rank, const SInt num_pixel_rows, const SInt num_pixel_cols, const SInt rows_per_pe,
+        const SInt cols_per_pe, const SInt grid_x, const SInt grid_y, const SInt max_grid_x, const SInt max_grid_y)
+        : rank(rank),
+          max_pixel_rows(num_pixel_rows),
+          max_pixel_cols(num_pixel_cols),
+          rows_per_pe(rows_per_pe),
+          cols_per_pe(cols_per_pe),
+          grid_rows(grid_y),
+          grid_cols(grid_x),
+          max_grid_rows(max_grid_y),
+          max_grid_cols(max_grid_x) {
+        const SInt rows_per_cell     = num_pixel_rows / max_grid_y;
+        const SInt rows_per_cell_rem = num_pixel_rows % max_grid_y;
+        const SInt cols_per_cell     = num_pixel_cols / max_grid_x;
+        const SInt cols_per_cell_rem = num_pixel_cols % max_grid_x;
+        const SInt pes_per_row       = grid_x / cols_per_pe;
+
+        grid_start_row = (rank / pes_per_row) * rows_per_pe;
+        grid_end_row   = grid_start_row + rows_per_pe;
+        grid_start_col = (rank % pes_per_row) * cols_per_pe;
+        grid_end_row   = grid_start_col + 1;
+
+        total_pixel_rows = grid_y * rows_per_cell + std::min<SInt>(grid_y, rows_per_cell_rem);
+        total_pixel_cols = grid_x * cols_per_cell + std::min<SInt>(grid_x, cols_per_cell_rem);
+
+        pixel_start_row = grid_start_row * rows_per_cell + std::min<SInt>(grid_start_row, rows_per_cell_rem);
+        pixel_end_row   = (grid_start_row + rows_per_pe) * rows_per_cell
+                        + std::min<SInt>(grid_start_row + rows_per_pe, rows_per_cell_rem);
+        pixel_start_col = grid_start_col * cols_per_cell + std::min<SInt>(grid_start_col, cols_per_cell_rem);
+        pixel_end_col   = (grid_start_col * cols_per_pe) * cols_per_cell
+                        + std::min<SInt>(grid_start_col + cols_per_pe, cols_per_cell_rem);
+    }
+
+    SInt NumPixelRows() const {
+        return pixel_end_row - pixel_start_row;
+    }
+
+    SInt NumPixelCols() const {
+        return pixel_end_col - pixel_start_col;
+    }
+
+    SInt VirtualPixelStartRow() const {
+        return std::max<SInt>(1, pixel_start_row) - 1;
+    }
+
+    SInt VirtualPixelStartCol() const {
+        return std::max<SInt>(1, pixel_start_col) - 1;
+    }
+
+    SInt VirtualPixelEndRow() const {
+        return std::min<SInt>(total_pixel_rows, pixel_end_row + 1);
+    }
+
+    SInt VirtualPixelEndCol() const {
+        return std::min<SInt>(total_pixel_cols, pixel_end_col + 1);
+    }
+
+    SInt NumVirtualPixelRows() const {
+        return VirtualPixelEndRow() - VirtualPixelStartRow();
+    }
+
+    SInt NumVirtualPixelCols() const {
+        return VirtualPixelEndCol() - VirtualPixelStartCol();
+    }
+
+    SInt GlobalPixelToLocalVertex(const SInt row, const SInt col) const {
+        const SInt local_row = row - pixel_start_row;
+        const SInt local_col = col - pixel_start_col;
+        return LocalPixelToLocalVertex(local_row, local_col);
+    }
+
+    SInt LocalPixelToLocalVertex(const SInt row, const SInt col) const {
+        return row * NumPixelCols() + col;
+    }
+
+    SInt LocalPixelToGlobalVertex(const SInt row, const SInt col) const {
+        return FirstGlobalPixel() + LocalPixelToLocalVertex(row, col);
+    }
+
+    SInt GlobalPixelToGlobalVertex(const SInt row, const SInt col) const {
+        return FirstGlobalPixel() + GlobalPixelToLocalVertex(row, col);
+    }
+
+    SInt NumLocalPixels() const {
+        return NumPixelRows() * NumPixelCols();
+    }
+
+    SInt FirstGlobalPixel() const {
+        return pixel_start_row * total_pixel_cols + NumPixelRows() * pixel_start_col;
+    }
+
+    SInt FirstInvalidGlobalPixel() const {
+        return FirstGlobalPixel() + NumLocalPixels();
+    }
+
+    bool IsRightmost() const {
+        return grid_end_col == grid_cols;
+    }
+
+    bool IsBottommost() const {
+        return grid_end_row == grid_rows;
+    }
+
+    bool IsLeftmost() const {
+        return grid_start_col == 0;
+    }
+
+    bool IsTopmost() const {
+        return grid_start_row == 0;
+    }
+
+    PEID GetNeighboringRank(const GridDirection direction) const {
+        const PEID up   = rank - grid_cols / cols_per_pe;
+        const PEID down = rank + grid_cols / cols_per_pe;
+
+        switch (direction) {
+            case GridDirection::RIGHT:
+                return rank + 1;
+            case GridDirection::DOWN_RIGHT:
+                return down + 1;
+            case GridDirection::DOWN:
+                return down;
+            case GridDirection::DOWN_LEFT:
+                return down - 1;
+            case GridDirection::LEFT:
+                return rank - 1;
+            case GridDirection::UP_LEFT:
+                return up - 1;
+            case GridDirection::UP:
+                return up;
+            case GridDirection::UP_RIGHT:
+                return up + 1;
+        }
+    }
+
+    PEID rank;
+
+    SInt max_pixel_rows;
+    SInt max_pixel_cols;
+    SInt rows_per_pe;
+    SInt cols_per_pe;
+    SInt grid_rows;
+    SInt grid_cols;
+    SInt max_grid_rows;
+    SInt max_grid_cols;
+
+    SInt grid_start_row;
+    SInt grid_end_row;
+    SInt grid_start_col;
+    SInt grid_end_col;
+
+    SInt total_pixel_rows;
+    SInt total_pixel_cols;
+
+    SInt pixel_start_row;
+    SInt pixel_end_row;
+    SInt pixel_start_col;
+    SInt pixel_end_col;
+};
 } // namespace
 
 ImageMesh::ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
       size_(size) {}
-
 void ImageMesh::GenerateImpl() {
-    SInt num_rows, num_cols;
-    std::tie(num_rows, num_cols) = ReadDimensions(config_.image_mesh.filename);
+    SInt max_pixel_rows, max_pixel_cols;
+    std::tie(max_pixel_rows, max_pixel_cols) = ReadDimensions(config_.image_mesh.filename);
 
-    const SInt rows_per_cell     = num_rows / config_.image_mesh.max_grid_y;
-    const SInt rows_per_cell_rem = num_rows % config_.image_mesh.max_grid_y;
-    const SInt cols_per_cell     = num_cols / config_.image_mesh.max_grid_x;
-    const SInt cols_per_cell_rem = num_cols % config_.image_mesh.max_grid_x;
-    const SInt my_start_grid_row =
-        rank_ / (config_.image_mesh.max_grid_x / config_.image_mesh.cols_per_pe) * config_.image_mesh.rows_per_pe;
-    const SInt my_start_grid_col =
-        rank_ % (config_.image_mesh.max_grid_x / config_.image_mesh.cols_per_pe) * config_.image_mesh.cols_per_pe;
+    auto make_peinfo = [&](const PEID rank) {
+        if (rank < 0 || rank >= size_) {
+            return PEInfo();
+        }
+        return PEInfo(
+            rank, max_pixel_rows, max_pixel_cols, config_.image_mesh.rows_per_pe, config_.image_mesh.cols_per_pe,
+            config_.image_mesh.grid_x, config_.image_mesh.grid_y, config_.image_mesh.max_grid_x,
+            config_.image_mesh.max_grid_y);
+    };
 
-    // Compute the first and last row / col that is read by this PE
-    const SInt my_start_row = my_start_grid_row * rows_per_cell + std::min<SInt>(my_start_grid_row, rows_per_cell_rem);
-    const SInt my_start_col = my_start_grid_col * cols_per_cell + std::min<SInt>(my_start_grid_col, cols_per_cell_rem);
-    const SInt my_end_row   = (my_start_grid_row + config_.image_mesh.rows_per_pe) * rows_per_cell
-                            + std::min<SInt>(my_start_grid_row + config_.image_mesh.rows_per_pe, rows_per_cell_rem);
-    const SInt my_end_col = (my_start_grid_col + config_.image_mesh.cols_per_pe) * cols_per_cell
-                            + std::min<SInt>(my_start_grid_col + config_.image_mesh.cols_per_pe, cols_per_cell_rem);
+    PEInfo my = make_peinfo(rank_);
 
-    // Compute our vertex range
-    const SInt my_first_pixel         = my_start_row * num_cols + my_start_col;
-    const SInt my_first_invalid_pixel = my_end_row * num_cols + my_end_col;
-    SetVertexRange(my_first_pixel, my_first_invalid_pixel);
+    // Number neighbors as follows:
+    // 5 6 7
+    // 4 * 0
+    // 3 2 1
+    std::array<PEInfo, 8> neighbors;
+    neighbors[GridDirection::RIGHT]      = make_peinfo(my.GetNeighboringRank(GridDirection::RIGHT));
+    neighbors[GridDirection::DOWN_RIGHT] = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN_RIGHT));
+    neighbors[GridDirection::DOWN]       = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN));
+    neighbors[GridDirection::DOWN_LEFT]  = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN_LEFT));
+    neighbors[GridDirection::LEFT]       = make_peinfo(my.GetNeighboringRank(GridDirection::LEFT));
+    neighbors[GridDirection::UP_LEFT]    = make_peinfo(my.GetNeighboringRank(GridDirection::UP_LEFT));
+    neighbors[GridDirection::UP]         = make_peinfo(my.GetNeighboringRank(GridDirection::UP));
+    neighbors[GridDirection::UP_RIGHT]   = make_peinfo(my.GetNeighboringRank(GridDirection::UP_RIGHT));
 
-    // If we want coordinates, use pixel positions as coordinates
+    // If requested, generate coordinates
     if (config_.coordinates) {
-        for (SInt cur_row = my_start_row; cur_row < my_end_row; ++cur_row) {
-            for (SInt cur_col = my_start_col; cur_col < my_end_col; ++cur_col) {
-                PushCoordinate(1.0 * cur_col / num_cols, 1.0 * cur_row / num_rows);
+        for (SInt cur_row = my.pixel_start_row; cur_row < my.pixel_end_row; cur_row++) {
+            for (SInt cur_col = my.pixel_start_col; cur_col < my.pixel_end_col; ++cur_col) {
+                PushCoordinate(1.0 * cur_col / max_pixel_cols, 1.0 * cur_row / max_pixel_rows);
             }
         }
-    }
-
-    // If we are not at the border, overlap our rect by one row/col with pixels from neighboring PEs
-    const SInt my_virtual_start_row = std::max<SInt>(1, my_start_row) - 1;
-    const SInt my_virtual_end_row   = std::min<SInt>(num_rows - 1, my_end_row) + 1;
-    const SInt my_virtual_start_col = std::max<SInt>(1, my_start_col) - 1;
-    const SInt my_virtual_end_col   = std::min<SInt>(num_cols - 1, my_end_col) + 1;
-    const SInt my_num_virtual_rows  = my_virtual_end_row - my_virtual_start_row;
-    const SInt my_num_virtual_cols  = my_virtual_end_col - my_virtual_start_col;
-
-    if constexpr (kDebug) {
-        std::cout << "PE " << rank_ << "/" << size_ << ": " << my_virtual_start_col << "x" << my_virtual_start_row
-                  << " <-> " << my_virtual_end_col << "x" << my_virtual_end_row << std::endl;
     }
 
     const std::vector<RGB> pixels = ReadRect(
-        config_.image_mesh.filename, my_virtual_start_row, my_virtual_start_col, my_num_virtual_rows,
-        my_num_virtual_cols);
+        config_.image_mesh.filename, static_cast<SSInt>(my.pixel_start_row) - 1,
+        static_cast<SSInt>(my.pixel_start_col) - 1, my.NumPixelRows() + 2, my.NumPixelCols() + 2);
+    const bool diagonal_edges = config_.image_mesh.neighborhood == 8;
 
-    auto generate_edge = [&](const auto& weight_model, const SInt row1, const SInt col1, const SInt row2,
-                             const SInt col2) {
-        const RGB&   rgb1 = pixels[(row1 - my_virtual_start_row) * my_num_virtual_rows + (col1 - my_virtual_start_col)];
-        const RGB&   rgb2 = pixels[(row2 - my_virtual_start_row) * my_num_virtual_rows + (col2 - my_virtual_start_col)];
-        const double weight = weight_model(rgb1, rgb2);
+    auto generate_graph = [&](auto weight_model) {
+        auto internal_edge = [&](const SInt from_local_row, const SInt from_local_col, const SInt to_local_row,
+                                 const SInt to_local_col) {
+            const SInt   from_rgb_pos = (from_local_row + 1) * (my.NumPixelRows() + 2) + (from_local_col + 1);
+            const SInt   to_rgb_pos   = (to_local_row + 1) * (my.NumPixelRows() + 2) + (to_local_col + 1);
+            const RGB&   from_rgb     = pixels[from_rgb_pos];
+            const RGB&   to_rgb       = pixels[to_rgb_pos];
+            const double weight       = weight_model(from_rgb, to_rgb);
 
-        const SInt vertex1 = row1 * num_cols + col1;
-        const SInt vertex2 = row2 * num_cols + col2;
-        std::cout << vertex1 << "[" << static_cast<int>(rgb1.r) << "," << static_cast<int>(rgb1.g) << ","
-                  << static_cast<int>(rgb1.b) << "] --> " << vertex2 << "[" << static_cast<int>(rgb2.r) << ","
-                  << static_cast<int>(rgb2.g) << "," << static_cast<int>(rgb2.b) << "] = " << weight << std::endl;
+            if (weight >= config_.image_mesh.weight_min_threshold
+                && weight <= config_.image_mesh.weight_max_threshold) {
+                PushEdgeWeight(static_cast<SSInt>(weight));
 
-        if (weight >= config_.image_mesh.weight_min_threshold && weight <= config_.image_mesh.weight_max_threshold) {
-            PushEdgeWeight(static_cast<SSInt>(weight_model(rgb1, rgb2)));
+                const SInt from = my.LocalPixelToGlobalVertex(from_local_row, from_local_col);
+                const SInt to   = my.LocalPixelToGlobalVertex(to_local_row, to_local_col);
+                PushEdge(from, to);
+            }
+        };
+        auto external_edge = [&](const SInt from_local_row, const SInt from_local_col, const GridDirection direction) {
+            const SInt from_rgb_pos = (from_local_row + 1) * (my.NumPixelRows() + 2) + (from_local_col + 1);
+            const SInt from         = my.LocalPixelToGlobalVertex(from_local_row, from_local_col);
 
-            PushEdge(vertex1, vertex2);
+            SInt to_rgb_pos = 0;
+            SInt to         = 0;
+
+            switch (direction) {
+                case GridDirection::RIGHT:
+                    if (my.IsRightmost()) {
+                        return;
+                    }
+                    to_rgb_pos = (from_local_row + 1) * (my.NumPixelRows() + 2) + (from_local_col + 2);
+                    to         = neighbors[GridDirection::RIGHT].LocalPixelToGlobalVertex(from_local_row, 0);
+                    break;
+
+                case GridDirection::DOWN_RIGHT:
+                    if (my.IsRightmost() || my.IsBottommost()) {
+                        return;
+                    }
+                    to_rgb_pos = (from_local_row + 2) * (my.NumPixelRows() + 2) + (from_local_col + 2);
+                    to         = neighbors[GridDirection::DOWN_RIGHT].LocalPixelToGlobalVertex(0, 0);
+                    break;
+
+                case GridDirection::DOWN:
+                    if (my.IsBottommost()) {
+                        return;
+                    }
+                    to_rgb_pos = (from_local_row + 2) * (my.NumPixelRows() + 2) + (from_local_col + 1);
+                    to         = neighbors[GridDirection::DOWN].LocalPixelToGlobalVertex(0, from_local_col);
+                    break;
+
+                case GridDirection::DOWN_LEFT:
+                    if (my.IsLeftmost() || my.IsBottommost()) {
+                        return;
+                    }
+                    to_rgb_pos = (from_local_row + 2) * (my.NumPixelRows() + 2) + from_local_col;
+                    to         = neighbors[GridDirection::DOWN_LEFT].LocalPixelToGlobalVertex(0, from_local_col - 1);
+                    break;
+            }
+
+            const RGB&   from_rgb = pixels[from_rgb_pos];
+            const RGB&   to_rgb   = pixels[to_rgb_pos];
+            const double weight   = weight_model(from_rgb, to_rgb);
+
+            if (weight >= config_.image_mesh.weight_min_threshold
+                && weight <= config_.image_mesh.weight_max_threshold) {
+                PushEdgeWeight(static_cast<SSInt>(weight));
+                PushEdge(from, to);
+            }
+        };
+
+        { // Top row
+            const SInt row = 0;
+            { // Top left corner
+                const SInt col = 0;
+                internal_edge(row, col, row, col + 1);
+                internal_edge(row, col, row + 1, col);
+                external_edge(row, col, GridDirection::LEFT);
+                external_edge(row, col, GridDirection::UP);
+                if (diagonal_edges) {
+                    internal_edge(row, col, row + 1, col + 1);
+                    external_edge(row, col, GridDirection::DOWN_LEFT);
+                    external_edge(row, col, GridDirection::UP_LEFT);
+                    external_edge(row, col, GridDirection::UP_RIGHT);
+                }
+            }
+            for (SInt col = 1; col + 1 < my.NumPixelCols(); ++col) { // Top row interior
+                internal_edge(row, col, row, col + 1);
+                internal_edge(row, col, row + 1, col);
+                internal_edge(row, col, row, col - 1);
+                external_edge(row, col, GridDirection::UP);
+                if (diagonal_edges) {
+                    internal_edge(row, col, row + 1, col + 1);
+                    internal_edge(row, col, row + 1, col - 1);
+                    external_edge(row, col, GridDirection::UP_LEFT);
+                    external_edge(row, col, GridDirection::UP_RIGHT);
+                }
+            }
+            { // Top right corner
+                const SInt col = my.NumPixelCols() - 1;
+                external_edge(row, col, GridDirection::RIGHT);
+                internal_edge(row, col, row + 1, col);
+                internal_edge(row, col, row, col - 1);
+                external_edge(row, col, GridDirection::UP);
+                if (diagonal_edges) {
+                    external_edge(row, col, GridDirection::DOWN_RIGHT);
+                    internal_edge(row, col, row - 1, col - 1);
+                    external_edge(row, col, GridDirection::UP_LEFT);
+                    external_edge(row, col, GridDirection::UP_RIGHT);
+                }
+            }
         }
-    };
-
-    auto generate_edges = [&](auto weight_model) {
-        // Special treatment for first row
-        if (my_start_row == 0 && my_end_row != 0) { // && -> catch special case where PE 0 gets no vertices
-            const SInt cur_row = my_start_row;
-            if (my_start_col == 0 && my_end_col != 0) {
-                const SInt cur_col = my_start_col;
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
-                }
+        // Middle part
+        for (SInt row = 1; row + 1 < my.NumPixelRows(); ++row) {
+            // Leftmost column
+            // Middle
+            for (SInt col = 1; col + 1 < my.NumPixelCols(); ++col) {
             }
-            for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
-                }
-            }
-            if (my_end_col == num_cols && my_end_col > 0) {
-                const SInt cur_col = my_end_col - 1;
-                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
-                }
-            }
-        }
-
-        // Special treatment for first column
-        if (my_start_col == 0 && my_end_col > 0) {
-            const SInt cur_col = my_start_col;
-            for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
-                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
-                }
-            }
-        }
-
-        // Special treatment for last column
-        if (my_end_col == num_cols && my_start_col < num_cols) {
-            const SInt cur_col = my_end_col - 1;
-            for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
-                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
-                if (config_.image_mesh.neighborhood) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
-                }
-            }
-        }
-
-        // Special treatment for last row
-        if (my_end_row == num_rows && my_start_row < num_rows) {
-            const SInt cur_row = my_end_row - 1;
-            if (my_start_col == 0 && my_end_col != 0) {
-                const SInt cur_col = my_start_col;
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
-                }
-            }
-            for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
-                }
-            }
-            if (my_end_col == num_cols && my_end_col > 0) {
-                const SInt cur_col = my_end_col - 1;
-                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
-                }
-            }
-        }
-
-        for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
-            for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
-                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
-                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
-
-                if (config_.image_mesh.neighborhood == 8) {
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
-                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
-                }
-            }
+            // Rightmost column
         }
     };
 
     switch (config_.image_mesh.weight_model) {
         case ImageMeshWeightModel::L2:
-            generate_edges(L2WeightModel{});
+            generate_graph(L2WeightModel{});
             break;
 
         case ImageMeshWeightModel::INV_L2:
-            generate_edges(InvL2WeightModel{});
+            generate_graph(InvL2WeightModel{});
             break;
 
         case ImageMeshWeightModel::INV_RATIO:
-            generate_edges(InvRatioWeightModel{});
+            generate_graph(InvRatioWeightModel{});
             break;
     }
+    /*
+        auto generate_edge = [&](const auto& weight_model, const SInt row1, const SInt col1, const SInt row2,
+                                 const SInt col2) {
+            const RGB&   rgb1 = pixels[(row1 - my_virtual_start_row) * my_num_virtual_rows + (col1 -
+       my_virtual_start_col)]; const RGB&   rgb2 = pixels[(row2 - my_virtual_start_row) * my_num_virtual_rows + (col2 -
+       my_virtual_start_col)]; const double weight = weight_model(rgb1, rgb2);
+
+            const SInt vertex1 = row1 * num_cols + col1;
+            const SInt vertex2 = row2 * num_cols + col2;
+
+            if constexpr (kDebug) {
+                std::cout << vertex1 << "[" << static_cast<int>(rgb1.r) << "," << static_cast<int>(rgb1.g) << ","
+                          << static_cast<int>(rgb1.b) << "] --> " << vertex2 << "[" << static_cast<int>(rgb2.r) << ","
+                          << static_cast<int>(rgb2.g) << "," << static_cast<int>(rgb2.b) << "] = " << weight <<
+       std::endl;
+            }
+
+            if (weight >= config_.image_mesh.weight_min_threshold && weight <= config_.image_mesh.weight_max_threshold)
+       { PushEdgeWeight(static_cast<SSInt>(weight_model(rgb1, rgb2))); PushEdge(vertex1, vertex2);
+            }
+        };
+
+        auto generate_edges = [&](auto weight_model) {
+            // Special treatment for first row
+            if (my_start_row == 0 && my_end_row != 0) { // && -> catch special case where PE 0 gets no vertices
+                const SInt cur_row = my_start_row;
+                if (my_start_col == 0 && my_end_col != 0) {
+                    const SInt cur_col = my_start_col;
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                    }
+                }
+                for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                    }
+                }
+                if (my_end_col == num_cols && my_end_col > 0) {
+                    const SInt cur_col = my_end_col - 1;
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                    }
+                }
+            }
+
+            // Special treatment for first column
+            if (my_start_col == 0 && my_end_col > 0) {
+                const SInt cur_col = my_start_col;
+                for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                    }
+                }
+            }
+
+            // Special treatment for last column
+            if (my_end_col == num_cols && my_start_col < num_cols) {
+                const SInt cur_col = my_end_col - 1;
+                for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                    }
+                }
+            }
+
+            // Special treatment for last row
+            if (my_end_row == num_rows && my_start_row < num_rows) {
+                const SInt cur_row = my_end_row - 1;
+                if (my_start_col == 0 && my_end_col != 0) {
+                    const SInt cur_col = my_start_col;
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                    }
+                }
+                for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                    }
+                }
+                if (my_end_col == num_cols && my_end_col > 0) {
+                    const SInt cur_col = my_end_col - 1;
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                    }
+                }
+            }
+
+            for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
+                for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+
+                    if (config_.image_mesh.neighborhood == 8) {
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                        generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                    }
+                }
+            }
+        };
+
+        switch (config_.image_mesh.weight_model) {
+            case ImageMeshWeightModel::L2:
+                generate_edges(L2WeightModel{});
+                break;
+
+            case ImageMeshWeightModel::INV_L2:
+                generate_edges(InvL2WeightModel{});
+                break;
+
+            case ImageMeshWeightModel::INV_RATIO:
+                generate_edges(InvRatioWeightModel{});
+                break;
+        }*/
 }
 } // namespace kagen
 
