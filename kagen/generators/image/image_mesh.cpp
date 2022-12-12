@@ -138,6 +138,39 @@ ReadRect(const std::string& filename, const SInt row, const SInt col, const SInt
 
     return pixels;
 }
+
+std::uint8_t Delta(const std::uint8_t lhs, const std::uint8_t rhs) {
+    return std::max(lhs, rhs) - std::min(lhs, rhs);
+}
+
+struct L2WeightModel {
+    double operator()(const RGB& lhs, const RGB& rhs) {
+        const std::uint8_t dr = Delta(lhs.r, rhs.r);
+        const std::uint8_t dg = Delta(lhs.g, rhs.g);
+        const std::uint8_t db = Delta(lhs.b, rhs.b);
+        return std::sqrt(dr * dr + dg * dg + db * db);
+    }
+};
+
+struct InvL2WeightModel {
+    double operator()(const RGB& lhs, const RGB& rhs) {
+        return max_value_ - l2_(lhs, rhs);
+    }
+
+private:
+    L2WeightModel l2_{};
+    double        max_value_ = 255 * std::sqrt(3) + 1;
+};
+
+double MaxMinRatio(const std::uint8_t lhs, const std::uint8_t rhs) {
+    return 1.0 * std::max(lhs, rhs) / std::min(lhs, rhs);
+}
+
+struct InvRatioWeightModel {
+    double operator()(const RGB& lhs, const RGB& rhs) {
+        return 1.0 / MaxMinRatio(lhs.r, rhs.r) * 1.0 / MaxMinRatio(lhs.g, rhs.g) * 1.0 / MaxMinRatio(lhs.b, rhs.b);
+    }
+};
 } // namespace
 
 ImageMesh::ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID size)
@@ -165,6 +198,20 @@ void ImageMesh::GenerateImpl() {
     const SInt my_end_col = (my_start_grid_col + config_.image_mesh.cols_per_pe) * cols_per_cell
                             + std::min<SInt>(my_start_grid_col + config_.image_mesh.cols_per_pe, cols_per_cell_rem);
 
+    // Compute our vertex range
+    const SInt my_first_pixel         = my_start_row * num_cols + my_start_col;
+    const SInt my_first_invalid_pixel = my_end_row * num_cols + my_end_col;
+    SetVertexRange(my_first_pixel, my_first_invalid_pixel);
+
+    // If we want coordinates, use pixel positions as coordinates
+    if (config_.coordinates) {
+        for (SInt cur_row = my_start_row; cur_row < my_end_row; ++cur_row) {
+            for (SInt cur_col = my_start_col; cur_col < my_end_col; ++cur_col) {
+                PushCoordinate(1.0 * cur_col / num_cols, 1.0 * cur_row / num_rows);
+            }
+        }
+    }
+
     // If we are not at the border, overlap our rect by one row/col with pixels from neighboring PEs
     const SInt my_virtual_start_row = std::max<SInt>(1, my_start_row) - 1;
     const SInt my_virtual_end_row   = std::min<SInt>(num_rows - 1, my_end_row) + 1;
@@ -181,6 +228,8 @@ void ImageMesh::GenerateImpl() {
     const std::vector<RGB> pixels = ReadRect(
         config_.image_mesh.filename, my_virtual_start_row, my_virtual_start_col, my_num_virtual_rows,
         my_num_virtual_cols);
+
+    // Generate pixels with the right weight model
 }
 } // namespace kagen
 

@@ -180,6 +180,8 @@ std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level) {
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap() {
     return {
         {"l2", ImageMeshWeightModel::L2},
+        {"inv-l2", ImageMeshWeightModel::INV_L2},
+        {"inv-ratio", ImageMeshWeightModel::INV_RATIO},
     };
 }
 
@@ -187,6 +189,10 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
     switch (weight_model) {
         case ImageMeshWeightModel::L2:
             return out << "l2";
+        case ImageMeshWeightModel::INV_L2:
+            return out << "inv-l2";
+        case ImageMeshWeightModel::INV_RATIO:
+            return out << "inv-ratio";
     }
 }
 
@@ -294,6 +300,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::IMAGE_MESH:
             out << "  Input image:                        " << config.image_mesh.filename << "\n";
             out << "  Weight model:                       " << config.image_mesh.weight_model << "\n";
+            out << "  Weight multiplier:                  " << config.image_mesh.weight_multiplier << "\n";
             out << "  Grid size:                          "
                 << (config.image_mesh.max_grid_x == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_x)) << " x "
                 << (config.image_mesh.max_grid_y == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_y)) << "\n";

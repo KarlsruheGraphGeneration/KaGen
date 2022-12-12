@@ -78,7 +78,9 @@ std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
 std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
 
 enum class ImageMeshWeightModel : std::uint8_t {
-    L2 = 0,
+    L2        = 0,
+    INV_L2    = 1,
+    INV_RATIO = 2,
 };
 
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
@@ -86,14 +88,15 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
 struct ImageMeshConfig {
-    std::string          filename     = "";
-    ImageMeshWeightModel weight_model = ImageMeshWeightModel::L2;
-    SInt                 max_grid_x   = 0;
-    SInt                 max_grid_y   = 0;
-    SInt                 grid_x  = 0;
-    SInt                 grid_y  = 0;
-    SInt                 cols_per_pe  = 0;
-    SInt                 rows_per_pe  = 0;
+    std::string          filename          = "";
+    ImageMeshWeightModel weight_model      = ImageMeshWeightModel::L2;
+    SInt                 max_grid_x        = 0;
+    SInt                 max_grid_y        = 0;
+    SInt                 grid_x            = 0;
+    SInt                 grid_y            = 0;
+    SInt                 cols_per_pe       = 0;
+    SInt                 rows_per_pe       = 0;
+    double               weight_multiplier = 1.0;
 };
 
 // Configuration for the generator.

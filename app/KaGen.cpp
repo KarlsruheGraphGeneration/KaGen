@@ -333,6 +333,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             ->check(CLI::ExistingFile);
         cmd->add_option("--weight-model", config.image_mesh.weight_model, "")
             ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()));
+        cmd->add_option("--weight-multiplier", config.image_mesh.weight_multiplier, "Multiplier for edge weights");
         cmd->add_option("--max-grid-x", config.image_mesh.max_grid_x, "Number of grid columns");
         cmd->add_option("--max-grid-y", config.image_mesh.max_grid_y, "Number of grid rows");
         cmd->add_option("--grid-x", config.image_mesh.grid_x, "Number of grid columns that are assigned to PEs");
