@@ -246,8 +246,92 @@ void ImageMesh::GenerateImpl() {
     };
 
     auto generate_edges = [&](auto weight_model) {
-        if (my_start_row == 0) {
-            // Top-left corner
+        // Special treatment for first row
+        if (my_start_row == 0 && my_end_row != 0) { // && -> catch special case where PE 0 gets no vertices
+            const SInt cur_row = my_start_row;
+            if (my_start_col == 0 && my_end_col != 0) {
+                const SInt cur_col = my_start_col;
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                }
+            }
+            for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                }
+            }
+            if (my_end_col == num_cols && my_end_col > 0) {
+                const SInt cur_col = my_end_col - 1;
+                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                }
+            }
+        }
+
+        // Special treatment for first column
+        if (my_start_col == 0 && my_end_col > 0) {
+            const SInt cur_col = my_start_col;
+            for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                }
+            }
+        }
+
+        // Special treatment for last column
+        if (my_end_col == num_cols && my_start_col < num_cols) {
+            const SInt cur_col = my_end_col - 1;
+            for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
+                generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col);
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                if (config_.image_mesh.neighborhood) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row + 1, cur_col - 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                }
+            }
+        }
+
+        // Special treatment for last row
+        if (my_end_row == num_rows && my_start_row < num_rows) {
+            const SInt cur_row = my_end_row - 1;
+            if (my_start_col == 0 && my_end_col != 0) {
+                const SInt cur_col = my_start_col;
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                }
+            }
+            for (SInt cur_col = my_virtual_start_col + 1; cur_col + 1 < my_virtual_end_col; ++cur_col) {
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col + 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col + 1);
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                }
+            }
+            if (my_end_col == num_cols && my_end_col > 0) {
+                const SInt cur_col = my_end_col - 1;
+                generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col);
+                generate_edge(weight_model, cur_row, cur_col, cur_row, cur_col - 1);
+                if (config_.image_mesh.neighborhood == 8) {
+                    generate_edge(weight_model, cur_row, cur_col, cur_row - 1, cur_col - 1);
+                }
+            }
         }
 
         for (SInt cur_row = my_virtual_start_row + 1; cur_row + 1 < my_virtual_end_row; ++cur_row) {
