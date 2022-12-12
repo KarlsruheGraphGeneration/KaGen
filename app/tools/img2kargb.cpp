@@ -30,7 +30,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Reading " << input_filename << " ... " << std::flush;
 
     Magick::Image img(input_filename);
-    img.colorSpaceType(Magick::sRGBColorspace);
+    img.colorSpaceType(Magick::sRGBColorspace); // ?
+    img.type(Magick::TrueColorType);            // ?
 
     const std::uint64_t num_rows = img.rows();
     const std::uint64_t num_cols = img.columns();
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Writing RGB channels to " << output_filename << " ... " << std::flush;
 
     std::ofstream out(output_filename, std::ios_base::binary | std::ios_base::trunc);
+    out.write("KARGB", 5 * sizeof(char));
     out.write(reinterpret_cast<const char*>(&num_rows), sizeof(std::uint64_t));
     out.write(reinterpret_cast<const char*>(&num_cols), sizeof(std::uint64_t));
 

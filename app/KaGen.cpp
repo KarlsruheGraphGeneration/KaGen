@@ -333,11 +333,10 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             ->check(CLI::ExistingFile);
         cmd->add_option("--weight-model", config.image_mesh.weight_model, "")
             ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()));
-        cmd->add_option("--grid-x", config.image_mesh.max_grid_x, "Number of grid columns")->required();
-        cmd->add_option("--grid-y", config.image_mesh.max_grid_y, "Number of grid rows")->required();
-        cmd->add_option(
-            "--used-grid-x", config.image_mesh.grid_x, "Number of grid columns that are assigned to PEs");
-        cmd->add_option("--used-grid-y", config.image_mesh.grid_y, "Number of grid rows that are assigned to PEs");
+        cmd->add_option("--max-grid-x", config.image_mesh.max_grid_x, "Number of grid columns");
+        cmd->add_option("--max-grid-y", config.image_mesh.max_grid_y, "Number of grid rows");
+        cmd->add_option("--grid-x", config.image_mesh.grid_x, "Number of grid columns that are assigned to PEs");
+        cmd->add_option("--grid-y", config.image_mesh.grid_y, "Number of grid rows that are assigned to PEs");
         cmd->add_option("--cells-per-pe", config.image_mesh.cols_per_pe, "Number of columns assigned to the same PE");
         cmd->add_option("--rows-per-pe", config.image_mesh.rows_per_pe, "Number of rows assigned to the same PE");
     }
