@@ -88,18 +88,19 @@ struct RGB {
     std::uint8_t b;
 };
 
-constexpr std::size_t kKargbHeaderLength = 5;
+constexpr std::size_t kKargbIdentifierLength = 5;
+constexpr std::size_t kKargbHeaderLength     = kKargbIdentifierLength + 2 * sizeof(std::uint64_t);
 
 std::pair<SInt, SInt> ReadDimensions(const std::string& filename) {
-    std::uint64_t                            rows;
-    std::uint64_t                            cols;
-    std::array<char, kKargbHeaderLength + 1> identifier;
+    std::uint64_t                                rows;
+    std::uint64_t                                cols;
+    std::array<char, kKargbIdentifierLength + 1> identifier;
 
     std::ifstream in(filename, std::ios_base::binary);
-    in.read(identifier.data(), kKargbHeaderLength * sizeof(char));
+    in.read(identifier.data(), kKargbIdentifierLength * sizeof(char));
     in.read(reinterpret_cast<char*>(&rows), sizeof(std::uint64_t));
     in.read(reinterpret_cast<char*>(&cols), sizeof(std::uint64_t));
-    identifier[kKargbHeaderLength] = 0;
+    identifier[kKargbIdentifierLength] = 0;
 
     if (std::strcmp(identifier.data(), "KARGB")) {
         std::cerr << "Error: invalid input file; use tools/img2kargb to convert input image\n";
@@ -118,14 +119,14 @@ ReadRect(const std::string& filename, const SInt row, const SInt col, const SInt
     std::uint64_t num_cols_in_file;
 
     std::ifstream in(filename, std::ios_base::binary);
-    in.seekg(kKargbHeaderLength * sizeof(char));
+    in.seekg(kKargbIdentifierLength * sizeof(char));
     in.read(reinterpret_cast<char*>(&num_rows_in_file), sizeof(std::uint64_t));
     in.read(reinterpret_cast<char*>(&num_cols_in_file), sizeof(std::uint64_t));
 
     for (SInt cur_row = row; cur_row < row + num_rows; ++cur_row) {
         const SInt row_start_pos = cur_row * num_cols_in_file;
         const SInt col_start_pos = row_start_pos + col;
-        in.seekg(col_start_pos * 3 * sizeof(std::uint8_t));
+        in.seekg(kKargbHeaderLength + col_start_pos * 3 * sizeof(std::uint8_t));
 
         for (SInt cur_col = col; cur_col < col + num_cols; ++cur_col) {
             std::uint8_t r, g, b;
@@ -236,11 +237,15 @@ void ImageMesh::GenerateImpl() {
         const RGB&   rgb2 = pixels[(row2 - my_virtual_start_row) * my_num_virtual_rows + (col2 - my_virtual_start_col)];
         const double weight = weight_model(rgb1, rgb2);
 
+        const SInt vertex1 = row1 * num_cols + col1;
+        const SInt vertex2 = row2 * num_cols + col2;
+        std::cout << vertex1 << "[" << static_cast<int>(rgb1.r) << "," << static_cast<int>(rgb1.g) << ","
+                  << static_cast<int>(rgb1.b) << "] --> " << vertex2 << "[" << static_cast<int>(rgb2.r) << ","
+                  << static_cast<int>(rgb2.g) << "," << static_cast<int>(rgb2.b) << "] = " << weight << std::endl;
+
         if (weight >= config_.image_mesh.weight_min_threshold && weight <= config_.image_mesh.weight_max_threshold) {
             PushEdgeWeight(static_cast<SSInt>(weight_model(rgb1, rgb2)));
 
-            const SInt vertex1 = row1 * num_cols + col1;
-            const SInt vertex2 = row2 * num_cols + col2;
             PushEdge(vertex1, vertex2);
         }
     };
