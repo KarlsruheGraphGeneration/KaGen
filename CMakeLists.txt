@@ -16,7 +16,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 ################################################################################
 
 option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
-option(KAGEN_USE_LTO "Compile with -flto (link-time optimization)." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
@@ -101,37 +100,8 @@ if (OFF)
     list(APPEND CMAKE_CXX_FLAGS "-fsanitize=undefined")
 endif ()
 
-# LTO
-if (KAGEN_USE_LTO)
-    include(CheckCXXCompilerFlag)
-    check_cxx_compiler_flag(-flto CXX_HAS_LTO_FLAG)
-
-    if (CMAKE_BUILD_TYPE MATCHES Release AND CXX_HAS_LTO_FLAG)
-        find_program(CMAKE_GCC_AR
-            NAMES ${_CMAKE_TOOLCHAIN_PREFIX}gcc-ar${_CMAKE_TOOLCHAIN_SUFFIX}
-            HINTS ${_CMAKE_TOOLCHAIN_LOCATION}
-            )
-        find_program(CMAKE_GCC_NM
-            NAMES ${_CMAKE_TOOLCHAIN_PREFIX}gcc-nm
-            HINTS ${_CMAKE_TOOLCHAIN_LOCATION}
-            )
-
-        find_program(CMAKE_GCC_RANLIB
-            NAMES ${_CMAKE_TOOLCHAIN_PREFIX}gcc-ranlib
-            HINTS ${_CMAKE_TOOLCHAIN_LOCATION}
-            )
-
-        if (CMAKE_GCC_AR AND CMAKE_GCC_NM AND CMAKE_GCC_RANLIB)
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
-            set(CMAKE_AR "${CMAKE_GCC_AR}")
-            set(CMAKE_NM "${CMAKE_GCC_NM}")
-            set(CMAKE_RANLIB "${CMAKE_GCC_RANLIB}")
-        else ()
-            message(WARNING "GCC indicates LTO support, but binutils wrappers could not be found. Disabling LTO.")
-        endif ()
-    endif ()
-endif ()
-
+# Use -ffast-math
+# @todo does this actually change anything?
 if (KAGEN_USE_FAST_MATH) 
     list(APPEND CMAKE_CXX_FLAGS "-ffast-math")
 endif ()
