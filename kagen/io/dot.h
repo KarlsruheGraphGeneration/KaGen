@@ -12,7 +12,7 @@ public:
     std::string DefaultExtension() const final;
 
 protected:
-    int Requirements() const;
+    int Requirements() const final;
 
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
 

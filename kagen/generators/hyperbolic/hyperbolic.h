@@ -14,8 +14,8 @@
 #include <vector>
 
 #include <mpi.h>
+#include <sampling/hash.hpp>
 
-#include "hash.hpp"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"

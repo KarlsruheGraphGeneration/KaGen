@@ -15,11 +15,8 @@ namespace kagen {
 
 class Mersenne {
 public:
-    Mersenne() {
-        Mersenne(0);
-    };
-
-    Mersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0){};
+    Mersenne() : Mersenne(0) {}
+    Mersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0) {}
 
     void RandomInit(SInt seed) {
         gen_.seed(seed);

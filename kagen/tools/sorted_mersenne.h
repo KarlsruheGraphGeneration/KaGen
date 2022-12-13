@@ -15,11 +15,8 @@ namespace kagen {
 
 class SortedMersenne {
 public:
-    SortedMersenne() {
-        SortedMersenne(0);
-    };
-
-    SortedMersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0), num_samples_(100), ln_cur_max_(0.0){};
+    SortedMersenne() : SortedMersenne(0) {}
+    SortedMersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0), num_samples_(100), ln_cur_max_(0.0) {}
 
     void RandomInit(SInt seed, SInt samples) {
         gen_.seed(seed);

@@ -13,7 +13,8 @@
 #include <tuple>
 #include <vector>
 
-#include "hash.hpp"
+#include <sampling/hash.hpp>
+
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
@@ -81,7 +82,7 @@ protected:
 
     virtual SInt computeNumberOfCells() const {
         return 1;
-    };
+    }
 
     void InitDatastructures() {
         // Chunk distribution

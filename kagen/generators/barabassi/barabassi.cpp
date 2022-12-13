@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "hash.hpp"
+#include <sampling/hash.hpp>
 
 #include "kagen/generators/barabassi/barabassi.h"
 #include "kagen/generators/generator.h"

@@ -1,6 +1,7 @@
 #include <vector>
 
-#include "hash.hpp"
+#include <sampling/hash.hpp>
+
 #include "kagen/generators/grid/grid_3d.h"
 
 namespace kagen {

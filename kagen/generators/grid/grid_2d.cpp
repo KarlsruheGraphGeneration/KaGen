@@ -1,6 +1,6 @@
 #include <vector>
 
-#include <hash.hpp>
+#include <sampling/hash.hpp>
 
 #include "kagen/generators/generator.h"
 #include "kagen/generators/grid/grid_2d.h"

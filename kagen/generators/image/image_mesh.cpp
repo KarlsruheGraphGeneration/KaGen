@@ -344,6 +344,8 @@ struct PEInfo {
             case GridDirection::UP_RIGHT:
                 return up + 1;
         }
+
+        return -1;
     }
 
     PEID rank;
@@ -423,8 +425,6 @@ void ImageMesh::GenerateImpl() {
         // Do not generated edges to outside the image
         if ((left && my.IsLeftmost()) || (up && my.IsTopmost()) || (down && my.IsBottommost())
             || (right && my.IsRightmost())) {
-            // std::cout << from_row << "," << from_col << " --> " << to_row << "," << to_col << " is cut edge"
-            //           << std::endl;
             return;
         }
 

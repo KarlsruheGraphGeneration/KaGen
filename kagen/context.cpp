@@ -194,6 +194,8 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
         case ImageMeshWeightModel::INV_RATIO:
             return out << "inv-ratio";
     }
+
+    return out << "<invalid>";
 }
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {

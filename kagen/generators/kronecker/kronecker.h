@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "hash.hpp"
+#include <sampling/hash.hpp>
 
 #include "kagen/context.h"
 #include "kagen/definitions.h"

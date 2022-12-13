@@ -14,17 +14,17 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 inline std::ostream&   operator<<(std::ostream& out, const __int128& i) {
-    return out << std::int64_t(i >> 64) << "-" << std::int64_t(i);
+      return out << std::int64_t(i >> 64) << "-" << std::int64_t(i);
 }
 #pragma GCC diagnostic pop
 
-#include "methodR.hpp"
+#include <sampling/methodR.hpp>
 
 namespace kagen {
 template <typename int_t = std::int64_t>
 class RNGWrapper {
 public:
-    RNGWrapper(const PGeneratorConfig& config) : config_(config), rng_(0), hyp_(0){};
+    RNGWrapper(const PGeneratorConfig& config) : config_(config), rng_(0), hyp_(0) {}
 
     int_t GenerateHypergeometric(SInt seed, int_t n, int_t m, int_t N) {
         SInt variate = 0;
