@@ -119,7 +119,7 @@ public:
           overlap_(overlap) {}
 
     const RGB& GetPixel(const SSInt row, const SSInt col) const {
-        return pixels_[(row + overlap_) * num_cols_ + (col + overlap_)];
+        return pixels_[(row + overlap_) * (num_cols_ + 2 * overlap_) + (col + overlap_)];
     }
 
 private:
