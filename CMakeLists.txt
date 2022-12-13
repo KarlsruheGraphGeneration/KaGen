@@ -42,6 +42,7 @@ list(APPEND KAGEN_WARNING_FLAGS
     "-Wcast-align"
     "-Wnull-dereference"
     "-Wpedantic"
+    "-Wno-unused-local-typedefs"
     )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
