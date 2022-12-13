@@ -388,10 +388,7 @@ void ImageMesh::GenerateImpl() {
     };
 
     PEInfo my = make_peinfo(rank_);
-    std::cout << "Grid: " << my.grid_start_row << "," << my.grid_start_col << " -- " << my.grid_end_row << ","
-              << my.grid_end_col << std::endl;
-    std::cout << "Pixel: " << my.pixel_start_row << "," << my.pixel_start_col << " -- " << my.pixel_end_row << ","
-              << my.pixel_end_col << std::endl;
+    SetVertexRange(my.FirstGlobalPixel(), my.FirstGlobalPixel() + my.NumLocalPixels());
 
     std::array<PEInfo, GridDirection::MAX> neighbors;
     if (!my.IsRightmost()) {
@@ -434,10 +431,16 @@ void ImageMesh::GenerateImpl() {
 
     auto edge = [&](auto weight_model, const SSInt from_row, const SSInt from_col, const SSInt to_row,
                     const SSInt to_col) {
+        const std::uint8_t right = to_col >= my.NumPixelCols();
+        const std::uint8_t down  = to_row >= my.NumPixelRows();
+        const std::uint8_t left  = to_col < 0;
+        const std::uint8_t up    = to_row < 0;
+
         // Do not generated edges to outside the image
-        if ((from_row < 0 && my.IsLeftmost()) || (from_col < 0 && my.IsTopmost())
-            || (from_row >= my.NumPixelRows() && my.IsBottommost())
-            || (from_col >= my.NumPixelCols() && my.IsRightmost())) {
+        if ((left && my.IsLeftmost()) || (up && my.IsTopmost()) || (down && my.IsBottommost())
+            || (right && my.IsRightmost())) {
+            // std::cout << from_row << "," << from_col << " --> " << to_row << "," << to_col << " is cut edge"
+            //           << std::endl;
             return;
         }
 
@@ -452,10 +455,6 @@ void ImageMesh::GenerateImpl() {
 
         const SInt from = my.LocalPixelToGlobalVertex(from_row, from_col);
         const SInt to   = [&] {
-            const std::uint8_t right     = to_col >= my.NumPixelCols();
-            const std::uint8_t down      = to_row >= my.NumPixelRows();
-            const std::uint8_t left      = to_col < 0;
-            const std::uint8_t up        = to_row < 0;
             const std::uint8_t direction = (up << 3) | (left << 2) | (down << 1) | right;
 
             if (direction) {
@@ -468,6 +467,8 @@ void ImageMesh::GenerateImpl() {
                 return my.LocalPixelToGlobalVertex(to_row, to_col);
             }
         }();
+
+        // std::cout << from << " --> " << to << std::endl;
 
         PushEdge(from, to);
         PushEdgeWeight(weight);
