@@ -8,7 +8,7 @@
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.25)
 project(kagen LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -31,7 +31,7 @@ endif ()
 # Default to Release building for single-config generators
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Defaulting CMAKE_BUILD_TYPE to Release")
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type")
 endif ()
 
 # Warning flags
