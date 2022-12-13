@@ -11,7 +11,7 @@
 
 namespace kagen {
 namespace {
-constexpr bool kDebug = false;
+constexpr bool kDebug = true;
 }
 
 PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const {
@@ -253,7 +253,7 @@ struct PEInfo {
         grid_start_row = (rank / pes_per_row) * rows_per_pe;
         grid_end_row   = grid_start_row + rows_per_pe;
         grid_start_col = (rank % pes_per_row) * cols_per_pe;
-        grid_end_col   = grid_start_col + 1;
+        grid_end_col   = grid_start_col + cols_per_pe;
 
         total_pixel_rows = grid_y * rows_per_cell + std::min<SInt>(grid_y, rows_per_cell_rem);
         total_pixel_cols = grid_x * cols_per_cell + std::min<SInt>(grid_x, cols_per_cell_rem);
@@ -268,9 +268,9 @@ struct PEInfo {
         if constexpr (kDebug) {
             std::cout << "rank=" << rank << ", pixel_start_row=" << pixel_start_row
                       << ", pixel_end_row=" << pixel_end_row << ", pixel_start_col=" << pixel_start_col
-                      << ", pixel_end_col=" << pixel_end_col << "grid_start_row=" << grid_start_row
+                      << ", pixel_end_col=" << pixel_end_col << ", grid_start_row=" << grid_start_row
                       << ", grid_end_row=" << grid_end_row << ", grid_start_col=" << grid_start_col
-                      << ", grid_end_col=" << grid_end_col << "rows_per_cell=" << rows_per_cell
+                      << ", grid_end_col=" << grid_end_col << ", rows_per_cell=" << rows_per_cell
                       << ", rows_per_cell_rem=" << rows_per_cell_rem << ", cols_per_cell=" << cols_per_cell
                       << ", cols_per_cell_rem=" << cols_per_cell_rem << ", pes_per_row=" << pes_per_row << std::endl;
         }
@@ -344,6 +344,9 @@ struct PEInfo {
             case GridDirection::UP_RIGHT:
                 return up + 1;
         }
+
+        std::cout << "????????????????????" << std::endl;
+        std::exit(1);
     }
 
     PEID rank;
@@ -390,31 +393,15 @@ void ImageMesh::GenerateImpl() {
     PEInfo my = make_peinfo(rank_);
     SetVertexRange(my.FirstGlobalPixel(), my.FirstGlobalPixel() + my.NumLocalPixels());
 
-    std::array<PEInfo, GridDirection::MAX> neighbors;
-    if (!my.IsRightmost()) {
-        neighbors[GridDirection::RIGHT] = make_peinfo(my.GetNeighboringRank(GridDirection::RIGHT));
-    }
-    if (!my.IsBottommost()) {
-        if (!my.IsRightmost()) {
-            neighbors[GridDirection::DOWN_RIGHT] = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN_RIGHT));
-        }
-        neighbors[GridDirection::DOWN] = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN));
-        if (!my.IsLeftmost()) {
-            neighbors[GridDirection::DOWN_LEFT] = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN_LEFT));
-        }
-    }
-    if (!my.IsTopmost()) {
-        if (!my.IsLeftmost()) {
-            neighbors[GridDirection::UP_LEFT] = make_peinfo(my.GetNeighboringRank(GridDirection::UP_LEFT));
-        }
-        neighbors[GridDirection::UP] = make_peinfo(my.GetNeighboringRank(GridDirection::UP));
-        if (!my.IsRightmost()) {
-            neighbors[GridDirection::UP_RIGHT] = make_peinfo(my.GetNeighboringRank(GridDirection::UP_RIGHT));
-        }
-    }
-    if (!my.IsLeftmost()) {
-        neighbors[GridDirection::LEFT] = make_peinfo(my.GetNeighboringRank(GridDirection::LEFT));
-    }
+    std::array<PEInfo, GridDirection::MAX + 1> neighbors;
+    neighbors[GridDirection::RIGHT]      = make_peinfo(my.GetNeighboringRank(GridDirection::RIGHT));
+    neighbors[GridDirection::DOWN_RIGHT] = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN_RIGHT));
+    neighbors[GridDirection::DOWN]       = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN));
+    neighbors[GridDirection::DOWN_LEFT]  = make_peinfo(my.GetNeighboringRank(GridDirection::DOWN_LEFT));
+    neighbors[GridDirection::UP_LEFT]    = make_peinfo(my.GetNeighboringRank(GridDirection::UP_LEFT));
+    neighbors[GridDirection::UP]         = make_peinfo(my.GetNeighboringRank(GridDirection::UP));
+    neighbors[GridDirection::UP_RIGHT]   = make_peinfo(my.GetNeighboringRank(GridDirection::UP_RIGHT));
+    neighbors[GridDirection::LEFT]       = make_peinfo(my.GetNeighboringRank(GridDirection::LEFT));
 
     // If requested, generate coordinates
     if (config_.coordinates) {
@@ -458,6 +445,7 @@ void ImageMesh::GenerateImpl() {
             const std::uint8_t direction = (up << 3) | (left << 2) | (down << 1) | right;
 
             if (direction) {
+                std::exit(1);
                 // External edge
                 const SSInt global_to_row = static_cast<SSInt>(my.pixel_start_row) + to_row;
                 const SSInt global_to_col = static_cast<SSInt>(my.pixel_start_col) + to_col;
@@ -467,8 +455,6 @@ void ImageMesh::GenerateImpl() {
                 return my.LocalPixelToGlobalVertex(to_row, to_col);
             }
         }();
-
-        // std::cout << from << " --> " << to << std::endl;
 
         PushEdge(from, to);
         PushEdgeWeight(weight);
