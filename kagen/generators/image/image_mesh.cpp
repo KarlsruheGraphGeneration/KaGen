@@ -11,7 +11,7 @@
 
 namespace kagen {
 namespace {
-constexpr bool kDebug = true;
+constexpr bool kDebug = false;
 }
 
 PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const {
@@ -344,9 +344,6 @@ struct PEInfo {
             case GridDirection::UP_RIGHT:
                 return up + 1;
         }
-
-        std::cout << "????????????????????" << std::endl;
-        std::exit(1);
     }
 
     PEID rank;
@@ -445,7 +442,6 @@ void ImageMesh::GenerateImpl() {
             const std::uint8_t direction = (up << 3) | (left << 2) | (down << 1) | right;
 
             if (direction) {
-                std::exit(1);
                 // External edge
                 const SSInt global_to_row = static_cast<SSInt>(my.pixel_start_row) + to_row;
                 const SSInt global_to_col = static_cast<SSInt>(my.pixel_start_col) + to_col;
