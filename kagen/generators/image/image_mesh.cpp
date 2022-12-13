@@ -60,7 +60,7 @@ PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, 
 
     // Rectangles must tile the whole grid
     if (size * iconfig.cols_per_pe * iconfig.rows_per_pe != iconfig.grid_x * iconfig.grid_y) {
-        throw ConfigurationError("PE rectangles do not cover the whole grid");
+        throw ConfigurationError("grid too small or too large for the given number of PEs and grid cells per PE");
     }
 
     // Number of PEs per cell/row must fit
@@ -210,13 +210,13 @@ private:
     double        max_value_ = 255 * std::sqrt(3) + 1;
 };
 
-double MaxMinRatio(const std::uint8_t lhs, const std::uint8_t rhs) {
-    return 1.0 * std::max(lhs, rhs) / std::min(lhs, rhs);
+double MinMaxRatio(const std::uint8_t lhs, const std::uint8_t rhs) {
+    return lhs == rhs ? 1.0 : 1.0 * std::min(lhs, rhs) / std::max(lhs, rhs);
 }
 
 struct InvRatioWeightModel {
     double operator()(const RGB& lhs, const RGB& rhs) const {
-        return 1.0 / MaxMinRatio(lhs.r, rhs.r) * 1.0 / MaxMinRatio(lhs.g, rhs.g) * 1.0 / MaxMinRatio(lhs.b, rhs.b);
+        return 1.0 / (MinMaxRatio(lhs.r, rhs.r) * MinMaxRatio(lhs.g, rhs.g) * MinMaxRatio(lhs.b, rhs.b));
     }
 };
 
@@ -430,7 +430,7 @@ void ImageMesh::GenerateImpl() {
 
         const RGB&   lhs    = img.GetPixel(from_row, from_col);
         const RGB&   rhs    = img.GetPixel(to_row, to_col);
-        const double weight = weight_model(lhs, rhs);
+        const double weight = weight_model(lhs, rhs) * config_.image_mesh.weight_multiplier;
 
         // Do not generate edges if their weight is below / above the threshold
         if (weight < config_.image_mesh.weight_min_threshold || weight > config_.image_mesh.weight_max_threshold) {

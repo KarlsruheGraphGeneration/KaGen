@@ -326,16 +326,24 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     }
 
     { // ImageMesh
-        auto* cmd = app.add_subcommand("imagemesh", "Image Mesh Graph");
+        auto* cmd = app.add_subcommand("imagemesh", "Mesh graphs based on images");
         cmd->callback([&] { config.generator = GeneratorType::IMAGE_MESH; });
         cmd->add_option("--image", config.image_mesh.filename, "Input image filename")
             ->required()
             ->check(CLI::ExistingFile);
         cmd->add_option("--weight-model", config.image_mesh.weight_model, "")
-            ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()));
+            ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()).description(""))
+            ->description(R"(The following weight models are available:
+  - l2:        use the L2 distance between the color vectors of adjacent pixels as weights
+  - inv-l2:    same as l2, but use \sqrt{3} * 255 + 1 - <l2> as weights
+  - inv-ratio: use 1 / (Rmax / Rmin * Gmax / Gmin * Bmax / Bmin) as weights");
         cmd->add_option("--weight-multiplier", config.image_mesh.weight_multiplier, "Multiplier for edge weights");
-        cmd->add_option("--weight-min-threshold", config.image_mesh.weight_min_threshold, "Only keep edges with weight more than this.");
-        cmd->add_option("--weight-max-threshold", config.image_mesh.weight_max_threshold, "Only keep edges with weight less than this.");
+        cmd->add_option(
+            "--min-weight-threshold", config.image_mesh.weight_min_threshold,
+            "Only keep edges with weight more than this.");
+        cmd->add_option(
+            "--max-weight-threshold", config.image_mesh.weight_max_threshold,
+            "Only keep edges with weight less than this.");
         cmd->add_option("--neighborhood", config.image_mesh.neighborhood, "Neighborhood size (4 oder 8)")
             ->check(CLI::IsMember({4, 8}));
         cmd->add_option("--max-grid-x", config.image_mesh.max_grid_x, "Number of grid columns");
