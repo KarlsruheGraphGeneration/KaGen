@@ -1,3 +1,6 @@
+# Copy test data to build directory
+file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 function (add_kagen_test target)
     add_executable(${target} ${ARGN})
     target_link_libraries(${target} PRIVATE GTest::gtest_main kagen_obj)
