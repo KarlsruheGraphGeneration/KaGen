@@ -165,8 +165,8 @@ mpirun -n <nproc> ./KaGen <gnm_directed|gnm_undirected>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNM(n, m, self_loops = false);
-auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNM(n, m, self_loops = false);
+KaGenResult graph_directed = gen.GenerateDirectedGNM(n, m, self_loops = false);
+KaGenResult graph_undirected = gen.GenerateUndirectedGNM(n, m, self_loops = false);
 ```
 
 ---
@@ -190,8 +190,8 @@ mpirun -n <nproc> ./KaGen <gnp_directed|gnp_undirected>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list_directed, vertex_range_directed] = gen.GenerateDirectedGNP(n, p, self_loops = false);
-auto [edge_list_undirected, vertex_range_undirected] = gen.GenerateUndirectedGNP(n, p, self_loops = false);
+KaGenResult graph_directed = gen.GenerateDirectedGNP(n, p, self_loops = false);
+KaGenResult graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = false);
 ```
 
 ---
@@ -221,15 +221,13 @@ mpirun -n <nproc> ./KaGen <rgg2d|rgg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateRGG2D(n, r);
-auto [edge_list, vertex_range] = gen.GenerateRGG2D_NM(n, m); // deduce r s.t. E[# edges] = m
-auto [edge_list, vertex_range] = gen.GenerateRGG2D_MR(m, r); // deduce n s.t. E[# edges] = m
-auto [edge_list, vertex_range, coordinates] = gen.GenerateRGG2D_Coordinates(n, r);
+KaGenResult graph = gen.GenerateRGG2D(n, r, coordinates = false);
+KaGenResult graph = gen.GenerateRGG2D_NM(n, m, coordinates = false); // deduce r s.t. E[# edges] = m
+KaGenResult graph = gen.GenerateRGG2D_MR(m, r, coordinates = false); // deduce n s.t. E[# edges] = m
 
-auto [edge_list, vertex_range] = gen.GenerateRGG3D(n, r);
-auto [edge_list, vertex_range] = gen.GenerateRGG3D_NM(n, m); // deduce r s.t. E[# edges] = m
-auto [edge_list, vertex_range] = gen.GenerateRGG3D_MR(m, r); // deduce n s.t. E[# edges] = m
-auto [edge_list, vertex_range, coordinates] = gen.GenerateRGG3D_Coordinates(n, r);
+KaGenResult graph = gen.GenerateRGG3D(n, r, coordinates = false);
+KaGenResult graph = gen.GenerateRGG3D_NM(n, m, coordinates = false); // deduce r s.t. E[# edges] = m
+KaGenResult graph = gen.GenerateRGG3D_MR(m, r, coordinates = false); // deduce n s.t. E[# edges] = m
 ```
 
 --- 
@@ -253,13 +251,11 @@ mpirun -n <nproc> ./KaGen <rdg2d|rdg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateRDG2D(n, periodic);
-auto [edge_list, vertex_range] = gen.GenerateRDG2D_M(m, periodic);
-auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG2D_Coordinates(n, periodic);
+KaGenResult graph = gen.GenerateRDG2D(n, periodic, coordinates = false);
+KaGenResult graph = gen.GenerateRDG2D_M(m, periodic, coordinates = false);
 
-auto [edge_list, vertex_range] = gen.GenerateRDG3D(n);
-auto [edge_list, vertex_range] = gen.GenerateRDG3D_M(m);
-auto [edge_list, vertex_range, coordinates] = gen.GenerateRDG3D_Coordinates(n);
+KaGenResult graph = gen.GenerateRDG3D(n, coordinates = false);
+KaGenResult graph = gen.GenerateRDG3D_M(m, coordinates = false);
 ```
 
 ---
@@ -288,15 +284,13 @@ mpirun -n <nproc> ./KaGen <grid2d|grid3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateGrid2D(x, y, p, periodic);
-auto [edge_list, vertex_range] = gen.GenerateGrid2D_N(n, p, periodic); // x, y = sqrt(n)
-auto [edge_list, vertex_range] = gen.GenerateGrid2D_NM(n, m, periodic); // x, y = sqrt(n)
-auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid2D_Coordinates(x, y, p, periodic);
+KaGenResult graph = gen.GenerateGrid2D(x, y, p, periodic, coordinates = false);
+KaGenResult graph = gen.GenerateGrid2D_N(n, p, periodic, coordinates = false); // x, y = sqrt(n)
+KaGenResult graph = gen.GenerateGrid2D_NM(n, m, periodic, coordinates = false); // x, y = sqrt(n)
 
-auto [edge_list, vertex_range] = gen.GenerateGrid3D(x, y, z, p, periodic);
-auto [edge_list, vertex_range] = gen.GenerateGrid3D_N(n, p, periodic); // x, y, z = cbrt(n) 
-auto [edge_list, vertex_range] = gen.GenerateGrid3D_NM(n, m, periodic); // x, y, z = cbrt(n) 
-auto [edge_list, vertex_range, coordinates] = gen.GenerateGrid3D_Coordinates(x, y, z, p, periodic);
+KaGenResult graph = gen.GenerateGrid3D(x, y, z, p, periodic, coordinates = false);
+KaGenResult graph = gen.GenerateGrid3D_N(n, p, periodic, coordinates = false); // x, y, z = cbrt(n) 
+KaGenResult graph = gen.GenerateGrid3D_NM(n, m, periodic, coordinates = false); // x, y, z = cbrt(n) 
 ```
 
 ---
@@ -321,9 +315,9 @@ mpirun -n <nproc> ./KaGen ba
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateBA(n, d, directed = false, self_loops = false);
-auto [edge_list, vertex_range] = gen.GenerateBA_NM(n, m, directed = false, self_loops = false);
-auto [edge_list, vertex_range] = gen.GenerateBA_MD(m, d, directed = false, self_loops = false);
+KaGenResult graph = gen.GenerateBA(n, d, directed = false, self_loops = false);
+KaGenResult graph = gen.GenerateBA_NM(n, m, directed = false, self_loops = false);
+KaGenResult graph = gen.GenerateBA_MD(m, d, directed = false, self_loops = false);
 ```
 
 --- 
@@ -352,10 +346,9 @@ mpirun -n <nproc> ./KaGen rhg
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateRHG(gamma, n, d);
-auto [edge_list, vertex_range] = gen.GenerateRHG_NM(gamma, n, m); // deduce d s.t. E[# edges] = m
-auto [edge_list, vertex_range] = gen.GenerateRHG_MD(gamma, m, d); // deduce n s.t. E[# edges] = m
-auto [edge_list, vertex_range, coordinates] = gen.GenerateRHG_Coordinates(gamma, n, d);
+KaGenResult graph = gen.GenerateRHG(gamma, n, d, coordinates = false);
+KaGenResult graph = gen.GenerateRHG_NM(gamma, n, m, coordinates = false); // deduce d s.t. E[# edges] = m
+KaGenResult graph = gen.GenerateRHG_MD(gamma, m, d, coordinates = false); // deduce n s.t. E[# edges] = m
 ```
 
 ---
@@ -385,7 +378,7 @@ mpirun -n <nproc> ./KaGen rmat
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops = false);
+KaGenResult graph = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops = false);
 ```
 
 ---
@@ -413,7 +406,7 @@ mpirun -n <nproc> ./KaGen kronecker
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-auto [edge_list, vertex_range] = gen.GenerateKronecker(n, m, directed = false, self_loops = false);
+KaGenResult graph = gen.GenerateKronecker(n, m, directed = false, self_loops = false);
 ```
 
 ---

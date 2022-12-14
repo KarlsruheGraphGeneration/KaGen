@@ -144,6 +144,7 @@ public:
      * - rmat_b=<HPFloat>     -- RMat probability for block B (RMAT)
      * - rmat_c=<HPFloat>     -- RMat probability for block C (RMAT)
      * - periodic[=0|1]       -- periodic boundary condition (various generators)
+     * - coordinates          -- generate coordinates (only for geometric graph generators)
      *
      * Depending on the selected generator type, some options are mandatory, some are optional and some are ignored.
      * The following example generates a RGG2D graph with 100 nodes and 200 edges: `rgg2d;n=100;m=200`.
