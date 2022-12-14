@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
+#include "kagen/context.h"
+#include "kagen/generators/image/image_mesh.h"
 #include "kagen/generators/image/kargb.h"
 
 using namespace kagen;
@@ -118,5 +122,30 @@ TEST(KARGBTest, reads_checkerboard_with_virtual_overlap) {
                 EXPECT_EQ(pixel.b, 0);
             }
         }
+    }
+}
+
+TEST(KARGBTest, generates_graph_on_one_PE_full_image) {
+    PGeneratorConfig config;
+    config.image_mesh.filename = "data/rgcheckerboard.kargb";
+    config.image_mesh.grid_x   = 1;
+    config.image_mesh.grid_y   = 1;
+
+    ImageMeshFactory factory;
+    config         = factory.NormalizeParameters(config, 1, false);
+    auto generator = factory.Create(config, 0, 1);
+    generator->Generate();
+    const auto result = generator->TakeResult();
+
+    // Vertices: 16x16 image -> 256
+    EXPECT_EQ(result.vertex_range.second - result.vertex_range.first, 16 * 16);
+
+    // Edges: 16 rows a 7 R <-> G edges + 16 columns a 7 R <-> G edges
+    EXPECT_EQ(result.edges.size(), 2 * 16 * 7 * 2);
+    EXPECT_EQ(result.edge_weights.size(), 2 * 16 * 7 * 2);
+
+    // Edge weights should all be sqrt(2) * 255
+    for (const SSInt weight: result.edge_weights) {
+        EXPECT_EQ(weight, static_cast<SSInt>(std::sqrt(2) * 255));
     }
 }
