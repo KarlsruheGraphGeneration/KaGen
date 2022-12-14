@@ -74,8 +74,7 @@ endif ()
 list(APPEND CMAKE_CXX_FLAGS_RELEASE "-g")
 
 # Enable PIC
-# If enabled, CMake sometimes cannot find MPI anymore
-# list(APPEND CMAKE_CXX_FLAGS "-fPIC")
+add_definitions(-fPIC)
 
 # Enable -march=native on Debug and Release builds
 if (KAGEN_USE_MARCH_NATIVE)
@@ -102,13 +101,12 @@ if (OFF)
 endif ()
 
 # Use -ffast-math
-# @todo does this actually change anything?
 if (KAGEN_USE_FAST_MATH) 
     list(APPEND CMAKE_CXX_FLAGS "-ffast-math")
 endif ()
 
 ###############################################################################
-# libMorton
+# libmorton
 ###############################################################################
 add_library(morton INTERFACE)
 target_include_directories(morton SYSTEM INTERFACE extlib/libmorton/include)
