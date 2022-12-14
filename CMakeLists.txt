@@ -74,7 +74,8 @@ endif ()
 list(APPEND CMAKE_CXX_FLAGS_RELEASE "-g")
 
 # Enable PIC
-list(APPEND CMAKE_CXX_FLAGS "-fPIC")
+# If enabled, CMake sometimes cannot find MPI anymore
+# list(APPEND CMAKE_CXX_FLAGS "-fPIC")
 
 # Enable -march=native on Debug and Release builds
 if (KAGEN_USE_MARCH_NATIVE)
