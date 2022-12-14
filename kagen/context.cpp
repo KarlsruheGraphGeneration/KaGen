@@ -418,6 +418,10 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         const auto it = options.find(option);
         return (it == options.end() ? default_value : is_true_value(it->second));
     };
+    auto get_string_or_default = [&](const std::string& option, const std::string& default_value = "") {
+        const auto it = options.find(option);
+        return (it == options.end() ? default_value : it->second);
+    };
 
     config.generator   = type;
     config.n           = get_sint_or_default("n", 1ull << get_sint_or_default("N"));
@@ -436,6 +440,27 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.rmat_b      = get_sint_or_default("rmat_b");
     config.rmat_c      = get_sint_or_default("rmat_c");
     config.coordinates = get_bool_or_default("coordinates");
+
+    config.image_mesh.filename             = get_string_or_default("image");
+    config.image_mesh.weight_min_threshold = get_hpfloat_or_default("min_weight_threshold", 1.0);
+    config.image_mesh.weight_max_threshold =
+        get_hpfloat_or_default("max_weight_threshold", std::numeric_limits<double>::max());
+    config.image_mesh.neighborhood = get_sint_or_default("neighborhood", 4);
+    config.image_mesh.max_grid_x   = get_sint_or_default("max_grid_x");
+    config.image_mesh.max_grid_y   = get_sint_or_default("max_grid_y");
+    config.image_mesh.grid_x       = get_sint_or_default("grid_x");
+    config.image_mesh.grid_y       = get_sint_or_default("grid_y");
+    config.image_mesh.cols_per_pe  = get_sint_or_default("cols_per_pe");
+    config.image_mesh.rows_per_pe  = get_sint_or_default("rows_per_pe");
+
+    const auto        weight_models     = GetImageMeshWeightModelMap();
+    const std::string weight_model_name = get_string_or_default("weight_model", "l2");
+    const auto        weight_model_it   = weight_models.find(weight_model_name);
+    if (weight_model_it == weight_models.end()) {
+        throw std::runtime_error("invalid weight model name");
+    }
+    config.image_mesh.weight_model = weight_model_it->second;
+
     return config;
 }
 } // namespace kagen

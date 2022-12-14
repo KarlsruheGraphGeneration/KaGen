@@ -31,46 +31,22 @@ using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 using VertexWeights = std::vector<SSInt>;
 using EdgeWeights   = std::vector<SSInt>;
 
-//! Result with 2D coordinates
-struct KaGenResult2D {
-    inline KaGenResult2D() : edges(), vertex_range(0, 0), coordinates() {}
-    inline KaGenResult2D(std::tuple<EdgeList, VertexRange, Coordinates, VertexWeights, EdgeWeights> result)
-        : edges(std::move(std::get<0>(result))),
-          vertex_range(std::get<1>(result)),
-          coordinates(std::move(std::get<2>(result).first)) {}
-
-    EdgeList      edges;
-    VertexRange   vertex_range;
-    Coordinates2D coordinates;
-};
-
-//! Result with 3D coordinates
-struct KaGenResult3D {
-    inline KaGenResult3D() : edges(), vertex_range(0, 0), coordinates() {}
-    inline KaGenResult3D(std::tuple<EdgeList, VertexRange, Coordinates, VertexWeights, EdgeWeights> result)
-        : edges(std::move(std::get<0>(result))),
-          vertex_range(std::get<1>(result)),
-          coordinates(std::move(std::get<2>(result).second)) {}
-
-    EdgeList      edges;
-    VertexRange   vertex_range;
-    Coordinates3D coordinates;
-};
-
-//! Result without coordinates
 struct KaGenResult {
     inline KaGenResult() : edges(), vertex_range(0, 0) {}
     inline KaGenResult(std::tuple<EdgeList, VertexRange, Coordinates, VertexWeights, EdgeWeights> result)
         : edges(std::move(std::get<0>(result))),
-          vertex_range(std::move(std::get<1>(result))) {}
-    inline KaGenResult(EdgeList edges, VertexRange vertex_range)
-        : edges(std::move(edges)),
-          vertex_range(vertex_range) {}
-    inline KaGenResult(KaGenResult2D&& result) : edges(std::move(result.edges)), vertex_range(result.vertex_range) {}
-    inline KaGenResult(KaGenResult3D&& result) : edges(std::move(result.edges)), vertex_range(result.vertex_range) {}
+          vertex_range(std::move(std::get<1>(result))),
+          coordinates_2d(std::move(std::get<2>(result).first)),
+          coordinates_3d(std::move(std::get<2>(result).second)),
+          vertex_weights(std::move(std::get<3>(result))),
+          edge_weights(std::move(std::get<4>(result))) {}
 
-    EdgeList    edges;
-    VertexRange vertex_range;
+    EdgeList      edges;
+    VertexRange   vertex_range;
+    Coordinates2D coordinates_2d;
+    Coordinates3D coordinates_3d;
+    VertexWeights vertex_weights;
+    EdgeWeights   edge_weights;
 };
 
 class KaGen {
@@ -177,10 +153,6 @@ public:
      */
     KaGenResult GenerateFromOptionString(const std::string& options);
 
-    KaGenResult2D GenerateFromOptionString2D(const std::string& options);
-
-    KaGenResult3D GenerateFromOptionString3D(const std::string& options);
-
     KaGenResult GenerateDirectedGNM(SInt n, SInt m, bool self_loops = false);
 
     KaGenResult GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);
@@ -189,33 +161,25 @@ public:
 
     KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, bool self_loops = false);
 
-    KaGenResult GenerateRGG2D(SInt n, LPFloat r);
+    KaGenResult GenerateRGG2D(SInt n, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRGG2D_NM(SInt n, SInt m);
+    KaGenResult GenerateRGG2D_NM(SInt n, SInt m, bool coordinates = false);
 
-    KaGenResult GenerateRGG2D_MR(SInt m, LPFloat r);
+    KaGenResult GenerateRGG2D_MR(SInt m, LPFloat r, bool coordinates = false);
 
-    KaGenResult2D GenerateRGG2D_Coordinates(SInt n, LPFloat r);
+    KaGenResult GenerateRGG3D(SInt n, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRGG3D(SInt n, LPFloat r);
+    KaGenResult GenerateRGG3D_NM(SInt n, SInt m, bool coordinates = false);
 
-    KaGenResult GenerateRGG3D_NM(SInt n, SInt m);
+    KaGenResult GenerateRGG3D_MR(SInt m, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRGG3D_MR(SInt m, LPFloat r);
+    KaGenResult GenerateRDG2D(SInt n, bool periodic, bool coordinates = false);
 
-    KaGenResult3D GenerateRGG3D_Coordinates(SInt n, LPFloat r);
+    KaGenResult GenerateRDG2D_M(SInt m, bool periodic, bool coordinates = false);
 
-    KaGenResult GenerateRDG2D(SInt n, bool periodic);
+    KaGenResult GenerateRDG3D(SInt n, bool coordinates = false);
 
-    KaGenResult GenerateRDG2D_M(SInt m, bool periodic);
-
-    KaGenResult2D GenerateRDG2D_Coordinates(SInt n, bool periodic);
-
-    KaGenResult GenerateRDG3D(SInt n);
-
-    KaGenResult GenerateRDG3D_M(SInt m);
-
-    KaGenResult3D GenerateRDG3D_Coordinates(SInt n);
+    KaGenResult GenerateRDG3D_M(SInt m, bool coordinates = false);
 
     KaGenResult GenerateBA(SInt n, SInt d, bool directed = false, bool self_loops = false);
 
@@ -223,33 +187,24 @@ public:
 
     KaGenResult GenerateBA_MD(SInt m, SInt d, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d);
+    KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d, bool coordinates = false);
 
-    KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m);
+    KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m, bool coordinates = false);
 
-    KaGenResult GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d);
+    KaGenResult GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d, bool coordinates = false);
 
-    KaGenResult2D GenerateRHG_Coordinates(LPFloat gamma, SInt n, LPFloat d);
+    KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult2D GenerateRHG_Coordinates_NM(LPFloat gamma, SInt n, SInt m);
+    KaGenResult GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult2D GenerateRHG_Coordinates_MD(LPFloat gamma, SInt m, LPFloat d);
+    KaGenResult GenerateGrid2D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
+    KaGenResult
+    GenerateGrid3D(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false);
+    KaGenResult GenerateGrid3D_N(SInt n, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid2D_NM(SInt n, SInt m, bool periodic = false);
-
-    KaGenResult2D GenerateGrid2D_Coordinates(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false);
-
-    KaGenResult GenerateGrid3D(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
-
-    KaGenResult GenerateGrid3D_N(SInt n, LPFloat p, bool periodic = false);
-
-    KaGenResult GenerateGrid3D_NM(SInt n, SInt m, bool periodic = false);
-
-    KaGenResult3D GenerateGrid3D_Coordinates(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false);
+    KaGenResult GenerateGrid3D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
 
     KaGenResult GenerateKronecker(SInt n, SInt m, bool directed = false, bool self_loops = false);
 

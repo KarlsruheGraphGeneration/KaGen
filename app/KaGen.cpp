@@ -336,7 +336,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             ->description(R"(The following weight models are available:
   - l2:        use the L2 distance between the color vectors of adjacent pixels as weights
   - inv-l2:    same as l2, but use \sqrt{3} * 255 + 1 - <l2> as weights
-  - inv-ratio: use 1 / (Rmax / Rmin * Gmax / Gmin * Bmax / Bmin) as weights");
+  - inv-ratio: use 1 / (Rmax / Rmin * Gmax / Gmin * Bmax / Bmin) as weights)");
         cmd->add_option("--weight-multiplier", config.image_mesh.weight_multiplier, "Multiplier for edge weights");
         cmd->add_option(
             "--min-weight-threshold", config.image_mesh.weight_min_threshold,
@@ -350,7 +350,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_option("--max-grid-y", config.image_mesh.max_grid_y, "Number of grid rows");
         cmd->add_option("--grid-x", config.image_mesh.grid_x, "Number of grid columns that are assigned to PEs");
         cmd->add_option("--grid-y", config.image_mesh.grid_y, "Number of grid rows that are assigned to PEs");
-        cmd->add_option("--cells-per-pe", config.image_mesh.cols_per_pe, "Number of columns assigned to the same PE");
+        cmd->add_option("--cols-per-pe", config.image_mesh.cols_per_pe, "Number of columns assigned to the same PE");
         cmd->add_option("--rows-per-pe", config.image_mesh.rows_per_pe, "Number of rows assigned to the same PE");
     }
 
