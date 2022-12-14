@@ -55,7 +55,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     list(APPEND KAGEN_WARNING_FLAGS
         "-Wcast-align"
         "-Wnoexcept"
-        "-Wsuggest-attribute=const"
         "-Wsuggest-attribute=noreturn"
         "-Wsuggest-override"
         "-fdiagnostics-color=always"
@@ -69,9 +68,6 @@ endif ()
 if (KAGEN_WARNINGS_ARE_ERRORS)
     list(APPEND KAGEN_WARNING_FLAGS "-Werror")
 endif ()
-
-# Enable debug symbols in Release mode 
-list(APPEND CMAKE_CXX_FLAGS_RELEASE "-g")
 
 # Enable -march=native on Debug and Release builds
 if (KAGEN_USE_MARCH_NATIVE)
