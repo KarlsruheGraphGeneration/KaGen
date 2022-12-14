@@ -73,9 +73,6 @@ endif ()
 # Enable debug symbols in Release mode 
 list(APPEND CMAKE_CXX_FLAGS_RELEASE "-g")
 
-# Enable PIC
-add_definitions(-fPIC)
-
 # Enable -march=native on Debug and Release builds
 if (KAGEN_USE_MARCH_NATIVE)
     include(CheckCXXCompilerFlag)
