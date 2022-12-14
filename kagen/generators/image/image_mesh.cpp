@@ -8,6 +8,8 @@
 
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
+#include "kagen/generators/image/kargb.h"
+#include "kagen/generators/image/weight_models.h"
 
 namespace kagen {
 namespace {
@@ -80,146 +82,6 @@ std::unique_ptr<Generator> ImageMeshFactory::Create(const PGeneratorConfig& conf
 }
 
 namespace {
-struct RGB {
-    RGB() = default;
-    RGB(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b) : r(r), g(g), b(b) {}
-    std::uint8_t r;
-    std::uint8_t g;
-    std::uint8_t b;
-};
-
-using Pixels                                 = std::vector<RGB>;
-constexpr std::size_t kKargbIdentifierLength = 5;
-constexpr std::size_t kKargbHeaderLength     = kKargbIdentifierLength + 2 * sizeof(std::uint64_t);
-
-std::pair<SInt, SInt> ReadDimensions(const std::string& filename) {
-    std::uint64_t                                rows;
-    std::uint64_t                                cols;
-    std::array<char, kKargbIdentifierLength + 1> identifier;
-
-    std::ifstream in(filename, std::ios_base::binary);
-    in.read(identifier.data(), kKargbIdentifierLength * sizeof(char));
-    in.read(reinterpret_cast<char*>(&rows), sizeof(std::uint64_t));
-    in.read(reinterpret_cast<char*>(&cols), sizeof(std::uint64_t));
-    identifier[kKargbIdentifierLength] = 0;
-
-    if (std::strcmp(identifier.data(), "KARGB")) {
-        std::cerr << "Error: invalid input file; use tools/img2kargb to convert input image\n";
-        std::exit(1);
-    }
-
-    return {rows, cols};
-}
-
-class ImageRect {
-public:
-    ImageRect(Pixels pixels, const SInt num_cols, const SInt overlap)
-        : pixels_(std::move(pixels)),
-          num_cols_(num_cols),
-          overlap_(overlap) {}
-
-    const RGB& GetPixel(const SSInt row, const SSInt col) const {
-        return pixels_[(row + overlap_) * (num_cols_ + 2 * overlap_) + (col + overlap_)];
-    }
-
-private:
-    Pixels pixels_;
-    SInt   num_cols_;
-    SInt   overlap_;
-};
-
-ImageRect ReadRect(
-    const std::string& filename, const SInt from_row, const SInt from_col, const SInt to_row, const SInt to_col,
-    const SInt overlap) {
-    const SSInt actual_from_row = static_cast<SSInt>(from_row) - static_cast<SSInt>(overlap);
-    const SSInt actual_from_col = static_cast<SSInt>(from_col) - static_cast<SSInt>(overlap);
-    const SSInt actual_to_row   = static_cast<SSInt>(to_row + overlap);
-    const SSInt actual_to_col   = static_cast<SSInt>(to_col + overlap);
-    const SSInt actual_num_rows = actual_to_row - actual_from_row;
-    const SSInt actual_num_cols = actual_to_col - actual_from_col;
-
-    std::vector<RGB> pixels;
-    pixels.reserve(actual_num_rows * actual_num_cols);
-
-    std::uint64_t num_rows_in_file;
-    std::uint64_t num_cols_in_file;
-    std::ifstream in(filename, std::ios_base::binary);
-    in.seekg(kKargbIdentifierLength * sizeof(char));
-    in.read(reinterpret_cast<char*>(&num_rows_in_file), sizeof(std::uint64_t));
-    in.read(reinterpret_cast<char*>(&num_cols_in_file), sizeof(std::uint64_t));
-
-    auto push_row = [&in, &pixels, num_cols_in_file](const SInt row, const SInt from_col, const SInt to_col) {
-        const SInt row_start_pos = row * num_cols_in_file;
-        const SInt col_start_pos = row_start_pos + from_col;
-        in.seekg(kKargbHeaderLength + col_start_pos * 3 * sizeof(std::uint8_t));
-        for (SInt cur_col = from_col; cur_col < to_col; ++cur_col) {
-            std::uint8_t r, g, b;
-            in.read(reinterpret_cast<char*>(&r), sizeof(std::uint8_t));
-            in.read(reinterpret_cast<char*>(&g), sizeof(std::uint8_t));
-            in.read(reinterpret_cast<char*>(&b), sizeof(std::uint8_t));
-            pixels.emplace_back(r, g, b);
-        }
-    };
-
-    auto push_blank_row = [&pixels](const SInt num_cols) {
-        for (SInt cur_col = 0; cur_col < num_cols; ++cur_col) {
-            pixels.emplace_back(0, 0, 0);
-        }
-    };
-
-    SSInt cur_row = actual_from_row;
-    for (; cur_row < 0; ++cur_row) {
-        push_blank_row(actual_num_cols);
-    }
-    for (; cur_row < std::min<SSInt>(num_rows_in_file, actual_to_row); ++cur_row) {
-        for (SSInt cur_col = actual_from_col; cur_col < 0; ++cur_col) {
-            pixels.emplace_back(0, 0, 0);
-        }
-        push_row(cur_row, std::max<SSInt>(0, actual_from_col), std::min<SSInt>(num_cols_in_file, actual_to_col));
-        for (SSInt cur_col = num_cols_in_file; cur_col < actual_to_col; ++cur_col) {
-            pixels.emplace_back(0, 0, 0);
-        }
-    }
-    for (; cur_row < actual_to_row; ++cur_row) {
-        push_blank_row(actual_num_cols);
-    }
-
-    return {std::move(pixels), static_cast<SInt>(to_col - from_col), overlap};
-}
-
-std::uint8_t Delta(const std::uint8_t lhs, const std::uint8_t rhs) {
-    return std::max(lhs, rhs) - std::min(lhs, rhs);
-}
-
-struct L2WeightModel {
-    double operator()(const RGB& lhs, const RGB& rhs) const {
-        const std::uint8_t dr = Delta(lhs.r, rhs.r);
-        const std::uint8_t dg = Delta(lhs.g, rhs.g);
-        const std::uint8_t db = Delta(lhs.b, rhs.b);
-        return std::sqrt(dr * dr + dg * dg + db * db);
-    }
-};
-
-struct InvL2WeightModel {
-    double operator()(const RGB& lhs, const RGB& rhs) const {
-        return max_value_ - l2_(lhs, rhs);
-    }
-
-private:
-    L2WeightModel l2_{};
-    double        max_value_ = 255 * std::sqrt(3) + 1;
-};
-
-double MinMaxRatio(const std::uint8_t lhs, const std::uint8_t rhs) {
-    return lhs == rhs ? 1.0 : 1.0 * std::min(lhs, rhs) / std::max(lhs, rhs);
-}
-
-struct InvRatioWeightModel {
-    double operator()(const RGB& lhs, const RGB& rhs) const {
-        return 1.0 / (MinMaxRatio(lhs.r, rhs.r) * MinMaxRatio(lhs.g, rhs.g) * MinMaxRatio(lhs.b, rhs.b));
-    }
-};
-
 enum GridDirection {
     //             ULDR
     RIGHT      = 0b0001,
