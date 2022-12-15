@@ -86,7 +86,9 @@ bool ValidateVertexRanges(const EdgeList& edge_list, const VertexRange vertex_ra
     return true;
 }
 
-bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
+bool ValidateSimpleGraph(
+    const EdgeList& edge_list, const VertexRange vertex_range, const VertexWeights& vertex_weights,
+    const EdgeWeights& edge_weights, MPI_Comm comm) {
     // Validate vertex ranges first
     if (!ValidateVertexRanges(edge_list, vertex_range, comm)) {
         return false; // failed, following checks could crash if vertex ranges are broken
@@ -94,13 +96,32 @@ bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MP
 
     const auto ranges = AllgatherVertexRange(vertex_range, comm);
 
-    // Sort edges to allow binary search to find reverse edges
-    if (!std::is_sorted(edge_list.begin(), edge_list.end())) {
-        std::sort(edge_list.begin(), edge_list.end());
+    if (!vertex_weights.empty() && vertex_weights.size() != vertex_range.second - vertex_range.first) {
+        std::cerr << "There are " << vertex_weights.size() << " vertex weights for "
+                  << vertex_range.second - vertex_range.first << " vertices\n";
+        return false;
+    }
+    if (!edge_weights.empty() && edge_list.size() != edge_weights.size()) {
+        std::cerr << "There are " << edge_weights.size() << " edge weights for " << edge_list.size() << " edges\n";
+        return false;
     }
 
+    // Sort edges to allow binary search to find reverse edges
+    using Edge = std::tuple<SInt, SInt, SSInt>; // from, to, weight
+    std::vector<Edge> sorted_edges(edge_list.size());
+    std::transform(edge_list.begin(), edge_list.end(), sorted_edges.begin(), [&](const auto& edge) {
+        return std::make_tuple(std::get<0>(edge), std::get<1>(edge), 1);
+    });
+    if (!edge_weights.empty()) {
+        for (std::size_t e = 0; e < edge_weights.size(); ++e) {
+            std::get<2>(sorted_edges[e]) = edge_weights[e];
+        }
+    }
+
+    std::sort(sorted_edges.begin(), sorted_edges.end());
+
     // Check that there are no self-loops
-    for (const auto& [from, to]: edge_list) {
+    for (const auto& [from, to, weight]: sorted_edges) {
         if (from == to) {
             std::cerr << "Graph contains self-loops\n";
             return false;
@@ -109,9 +130,10 @@ bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MP
 
     // Check that there are no duplicate edges
     {
-        for (std::size_t i = 1; i < edge_list.size(); ++i) {
-            if (edge_list[i - 1] == edge_list[i]) {
-                const auto& [from, to] = edge_list[i];
+        for (std::size_t i = 1; i < sorted_edges.size(); ++i) {
+            if (std::get<0>(sorted_edges[i - 1]) == std::get<0>(sorted_edges[i])
+                && std::get<1>(sorted_edges[i - 1]) == std::get<1>(sorted_edges[i])) {
+                const auto& [from, to, weight] = sorted_edges[i];
                 std::cerr << "Graph contains a duplicated edge: " << from << " --> " << to << "\n";
                 return false;
             }
@@ -124,18 +146,19 @@ bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MP
     const auto [from, to] = ranges[rank];
 
     std::vector<SInt> node_offset(to - from + 1);
-    for (const auto& [u, v]: edge_list) {
+    for (const auto& [u, v, weight]: sorted_edges) {
         ++node_offset[u - from + 1];
     }
     std::partial_sum(node_offset.begin(), node_offset.end(), node_offset.begin());
 
     // Check that there are reverse edges for local edges
-    for (const auto& [u, v]: edge_list) {
+    for (const auto& [u, v, weight]: sorted_edges) {
         if (from <= v && v < to) {
             if (!std::binary_search(
-                    edge_list.begin() + node_offset[v - from], edge_list.begin() + node_offset[v - from + 1],
-                    std::make_tuple(v, u))) {
-                std::cerr << "Missing reverse edge " << v << " --> " << u << " (internal)\n";
+                    sorted_edges.begin() + node_offset[v - from], sorted_edges.begin() + node_offset[v - from + 1],
+                    std::make_tuple(v, u, weight))) {
+                std::cerr << "Missing reverse edge " << v << " --> " << u << " with weight " << weight
+                          << " (internal); the reverse edge might exist with a different edge weight\n";
                 return false;
             }
         }
@@ -146,11 +169,12 @@ bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MP
     MPI_Comm_size(comm, &size);
 
     std::vector<std::vector<SInt>> message_buffers(size);
-    for (const auto& [u, v]: edge_list) {
+    for (const auto& [u, v, weight]: sorted_edges) {
         if (v < from || v >= to) {
             const SInt pe = static_cast<SInt>(FindPEInRange(v, ranges));
             message_buffers[pe].emplace_back(u);
             message_buffers[pe].emplace_back(v);
+            message_buffers[pe].emplace_back(static_cast<SInt>(weight));
         }
     }
 
@@ -183,15 +207,17 @@ bool ValidateSimpleGraph(EdgeList& edge_list, const VertexRange vertex_range, MP
         send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
         recv_displs.data(), MPI_UINT64_T, comm);
 
-    for (std::size_t i = 0; i < recv_buf.size(); i += 2) {
-        const SInt u = recv_buf[i];
-        const SInt v = recv_buf[i + 1];
+    for (std::size_t i = 0; i < recv_buf.size(); i += 3) {
+        const SInt  u      = recv_buf[i];
+        const SInt  v      = recv_buf[i + 1];
+        const SSInt weight = static_cast<SSInt>(recv_buf[i + 2]);
 
         // Check that v --> u exists
         if (!std::binary_search(
-                edge_list.begin() + node_offset[v - from], edge_list.begin() + node_offset[v - from + 1],
-                std::make_tuple(v, u))) {
-            std::cerr << "Missing reverse edge " << v << " --> " << u << " (external)\n";
+                sorted_edges.begin() + node_offset[v - from], sorted_edges.begin() + node_offset[v - from + 1],
+                std::make_tuple(v, u, weight))) {
+            std::cerr << "Missing reverse edge " << v << " --> " << u << " with weight " << weight
+                      << " (external); the reverse edge might exist with a different edge weight\n";
             return false;
         }
     }

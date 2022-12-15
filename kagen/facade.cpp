@@ -166,7 +166,8 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
             std::cout << "Validating simple graph ... " << std::flush;
         }
 
-        bool success = ValidateSimpleGraph(graph.edges, graph.vertex_range, comm);
+        bool success =
+            ValidateSimpleGraph(graph.edges, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm);
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
             if (output_error) {
