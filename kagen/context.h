@@ -93,6 +93,7 @@ struct ImageMeshConfig {
     std::string          filename             = "";
     ImageMeshWeightModel weight_model         = ImageMeshWeightModel::L2;
     double               weight_multiplier    = 1.0;
+    double               weight_offset        = 0.0;
     double               weight_min_threshold = 1.0;
     double               weight_max_threshold = std::numeric_limits<double>::max();
     SInt                 neighborhood         = 4;

@@ -445,6 +445,8 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.coordinates = get_bool_or_default("coordinates");
 
     config.image_mesh.filename             = get_string_or_default("image");
+    config.image_mesh.weight_multiplier    = get_hpfloat_or_default("weight_multiplier", 1.0);
+    config.image_mesh.weight_offset        = get_hpfloat_or_default("weight_offset", 0.0);
     config.image_mesh.weight_min_threshold = get_hpfloat_or_default("min_weight_threshold", 1.0);
     config.image_mesh.weight_max_threshold =
         get_hpfloat_or_default("max_weight_threshold", std::numeric_limits<double>::max());

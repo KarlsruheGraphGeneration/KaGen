@@ -292,9 +292,10 @@ void ImageMesh::GenerateImpl() {
             return;
         }
 
-        const RGB&   lhs    = img.GetPixel(from_row, from_col);
-        const RGB&   rhs    = img.GetPixel(to_row, to_col);
-        const double weight = weight_model(lhs, rhs) * config_.image_mesh.weight_multiplier;
+        const RGB&   lhs = img.GetPixel(from_row, from_col);
+        const RGB&   rhs = img.GetPixel(to_row, to_col);
+        const double weight =
+            weight_model(lhs, rhs) * config_.image_mesh.weight_multiplier + config_.image_mesh.weight_offset;
 
         // Do not generate edges if their weight is below / above the threshold
         if (weight < config_.image_mesh.weight_min_threshold || weight > config_.image_mesh.weight_max_threshold) {

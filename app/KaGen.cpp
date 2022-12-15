@@ -338,6 +338,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
   - inv-l2:    same as l2, but use \sqrt{3} * 255 + 1 - <l2> as weights
   - inv-ratio: use 1 / (Rmax / Rmin * Gmax / Gmin * Bmax / Bmin) as weights)");
         cmd->add_option("--weight-multiplier", config.image_mesh.weight_multiplier, "Multiplier for edge weights");
+        cmd->add_option("--weight-offset", config.image_mesh.weight_offset, "Static offset for edge weights");
         cmd->add_option(
             "--min-weight-threshold", config.image_mesh.weight_min_threshold,
             "Only keep edges with weight more than this.");
