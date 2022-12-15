@@ -181,6 +181,7 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
     return {
         {"l2", ImageMeshWeightModel::L2},
         {"inv-l2", ImageMeshWeightModel::INV_L2},
+        {"ratio", ImageMeshWeightModel::RATIO},
         {"inv-ratio", ImageMeshWeightModel::INV_RATIO},
     };
 }
@@ -191,6 +192,8 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
             return out << "l2";
         case ImageMeshWeightModel::INV_L2:
             return out << "inv-l2";
+        case ImageMeshWeightModel::RATIO:
+            return out << "ratio";
         case ImageMeshWeightModel::INV_RATIO:
             return out << "inv-ratio";
     }

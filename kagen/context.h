@@ -81,7 +81,8 @@ std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
 enum class ImageMeshWeightModel : std::uint8_t {
     L2        = 0,
     INV_L2    = 1,
-    INV_RATIO = 2,
+    RATIO     = 2,
+    INV_RATIO = 3,
 };
 
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();

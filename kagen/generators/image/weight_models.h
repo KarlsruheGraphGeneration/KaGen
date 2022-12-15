@@ -38,4 +38,10 @@ struct InvRatioWeightModel {
         return 1.0 / (MinMaxRatio(lhs.r, rhs.r) * MinMaxRatio(lhs.g, rhs.g) * MinMaxRatio(lhs.b, rhs.b));
     }
 };
+
+struct RatioWeightModel {
+    double operator()(const RGB& lhs, const RGB& rhs) const {
+        return MinMaxRatio(lhs.r, rhs.r) * MinMaxRatio(lhs.g, rhs.g) * MinMaxRatio(lhs.b, rhs.b);
+    }
+};
 } // namespace kagen

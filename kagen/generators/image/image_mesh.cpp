@@ -347,6 +347,10 @@ void ImageMesh::GenerateImpl() {
             generate_graph(InvL2WeightModel{});
             break;
 
+        case ImageMeshWeightModel::RATIO:
+            generate_graph(RatioWeightModel{});
+            break;
+
         case ImageMeshWeightModel::INV_RATIO:
             generate_graph(InvRatioWeightModel{});
             break;

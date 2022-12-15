@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     tga[16] = 24; // 3 * 8 bits per pixel
     tga[17] = 32; // Top-to-bottom, left-to-right
 
-    std::cout << "Writing output to " << output_image_filename << " ... " << std::endl;
+    std::cout << "Writing output to " << output_image_filename << " ... " << std::flush;
     std::ofstream out(output_image_filename, std::ios_base::binary | std::ios_base::trunc);
     out.write(reinterpret_cast<const char*>(tga.data()), sizeof(std::uint8_t) * tga.size());
 
@@ -94,7 +94,13 @@ int main(int argc, char* argv[]) {
                 is_boundary_vertex |= my_block != partition[row * num_cols + col - 1];
             }
             if (row + 1 < num_rows) {
-                is_boundary_vertex |= my_block != partition[(row - 1) * num_cols + col];
+                is_boundary_vertex |= my_block != partition[(row + 1) * num_cols + col];
+            }
+
+            if (is_boundary_vertex) {
+                data[3 * col] = 0;
+                data[3 * col + 1] = 0;
+                data[3 * col + 2] = 255;
             }
         }
 
