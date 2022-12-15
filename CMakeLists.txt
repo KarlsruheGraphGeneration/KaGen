@@ -39,7 +39,6 @@ list(APPEND KAGEN_WARNING_FLAGS
     "-Wall"
     "-Wextra"
     "-Wcast-align"
-    "-Wnull-dereference"
     "-Wpedantic"
     "-Wno-unused-local-typedefs"
     )
