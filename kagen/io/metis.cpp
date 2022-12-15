@@ -47,7 +47,7 @@ void MetisWriter::AppendTo(const std::string& filename) {
             const SInt to = std::get<1>(edges_[cur_edge]) + 1;
             out.WriteInt(to).WriteChar(' ');
             if (has_edge_weights) {
-                out.WriteInt(edge_weights_[from]).WriteChar(' ');
+                out.WriteInt(edge_weights_[cur_edge]).WriteChar(' ');
             }
             out.Flush();
             ++cur_edge;
