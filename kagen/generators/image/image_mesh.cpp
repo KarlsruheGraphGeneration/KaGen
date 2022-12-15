@@ -53,10 +53,12 @@ PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, 
 
     if (output) {
         std::cout << "Grid summary:\n";
-        std::cout << "  Divide the image by a " << iconfig.max_grid_x << "x" << iconfig.max_grid_y << " grid\n";
+        std::cout << "  Divide the image by a " << iconfig.max_grid_x << "x" << iconfig.max_grid_y << " grid";
         if (iconfig.grid_x != iconfig.max_grid_x || iconfig.grid_y != iconfig.max_grid_y) {
-            std::cout << "  -> but only use the top-left " << iconfig.grid_x << "x" << iconfig.grid_y << " subgrid\n";
+            std::cout << ", but only use the top-left " << iconfig.grid_x << "x" << iconfig.grid_y << " subgrid";
         }
+        std::cout << "\n";
+
         std::cout << "  Assign a " << iconfig.cols_per_pe << "x" << iconfig.rows_per_pe << " subgrid to each PE\n";
     }
 

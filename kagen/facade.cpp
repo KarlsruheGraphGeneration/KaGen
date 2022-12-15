@@ -125,7 +125,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
 
     // Generate graph
     if (output_info) {
-        std::cout << "Generating graph ..." << std::endl;
+        std::cout << "Generating graph ... " << std::flush;
     }
 
     const auto start_graphgen = MPI_Wtime();
@@ -133,11 +133,12 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     auto generator = factory->Create(config, rank, size);
     generator->Generate();
 
+    if (output_info) {
+        std::cout << "OK" << std::endl;
+    }
+
     const SInt num_edges_before_finalize = generator->GetEdges().size();
     if (!config.skip_postprocessing) {
-        if (output_info) {
-            std::cout << "Finalizing ..." << std::endl;
-        }
         generator->Finalize(comm);
     }
     const SInt num_edges_after_finalize = generator->GetEdges().size();
@@ -149,9 +150,9 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
         MPI_Reduce(&num_edges_before_finalize, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
         MPI_Reduce(&num_edges_after_finalize, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
 
-        if (output_info) {
-            std::cout << "  Finalizing changed number of global edges changed from " << num_global_edges_before
-                      << " to " << num_global_edges_after << " edges: by "
+        if (num_global_edges_before != num_global_edges_after && output_info) {
+            std::cout << "The number of edges changed from " << num_global_edges_before << " to "
+                      << num_global_edges_after << " during postprocessing: by "
                       << std::abs(
                              static_cast<SSInt>(num_global_edges_after) - static_cast<SSInt>(num_global_edges_before))
                       << std::endl;
@@ -163,7 +164,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     // Validation
     if (config.validate_simple_graph) {
         if (output_info) {
-            std::cout << "Validating simple graph ... " << std::flush;
+            std::cout << "Validating graph ... " << std::flush;
         }
 
         bool success =
@@ -175,7 +176,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
             }
             std::exit(1);
         } else if (output_info) {
-            std::cout << "ok" << std::endl;
+            std::cout << "OK" << std::endl;
         }
     }
 
@@ -185,6 +186,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
         if (output_info) {
             std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
                       << " seconds" << std::endl;
+            std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
 
         if (config.statistics_level >= StatisticsLevel::BASIC) {
@@ -193,6 +195,10 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
         }
         if (config.statistics_level >= StatisticsLevel::ADVANCED) {
             PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
+        }
+
+        if (output_info) {
+            std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
     }
 
