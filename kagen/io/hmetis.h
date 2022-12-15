@@ -15,5 +15,7 @@ protected:
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
 
     void AppendTo(const std::string& filename) final;
+
+    void AppendFooterTo(const std::string &filename) final;
 };
 } // namespace kagen

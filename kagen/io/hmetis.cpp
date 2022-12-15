@@ -11,14 +11,42 @@ std::string HMetisWriter::DefaultExtension() const {
 
 void HMetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
-    out.WriteInt(m).WriteChar(' ').WriteInt(n).WriteChar('\n').Flush();
+    out.WriteInt(m).WriteChar(' ').WriteInt(n);
+    if (HasVertexWeights() || HasEdgeWeights()) {
+        out.WriteChar(' ');
+        if (HasVertexWeights()) {
+            out.WriteChar('1');
+        }
+        if (HasEdgeWeights()) {
+            out.WriteChar('1');
+        } else {
+            out.WriteChar('0');
+        }
+    }
+    out.WriteChar('\n').Flush();
 }
 
 void HMetisWriter::AppendTo(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
 
-    for (const auto& [from, to]: edges_) {
+    for (SInt e = 0; e < edges_.size(); ++e) {
+        const auto& [from, to] = edges_[e];
+
+        if (HasEdgeWeights()) {
+            out.WriteInt(static_cast<SInt>(edge_weights_[e])).WriteChar(' ');
+        }
         out.WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
+    }
+}
+
+void HMetisWriter::AppendFooterTo(const std::string& filename) {
+    if (!HasVertexWeights()) {
+        return;
+    }
+
+    BufferedTextOutput<> out(tag::append, filename);
+    for (const SSInt& weight: vertex_weights_) {
+        out.WriteInt(weight).WriteChar('\n').Flush();
     }
 }
 } // namespace kagen
