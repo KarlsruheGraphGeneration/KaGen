@@ -19,6 +19,7 @@ option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
+option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
 
 ################################################################################
 
@@ -154,8 +155,10 @@ add_library(KaGen::cKaGen ALIAS ckagen)
 
 ################################################################################
 
-add_subdirectory(extlib/googletest EXCLUDE_FROM_ALL SYSTEM)
+if (KAGEN_BUILD_TESTS)
+    add_subdirectory(extlib/googletest EXCLUDE_FROM_ALL SYSTEM)
+    include(GoogleTest)
+    enable_testing()
+    add_subdirectory(tests)
+endif ()
 
-include(GoogleTest)
-enable_testing()
-add_subdirectory(tests)
