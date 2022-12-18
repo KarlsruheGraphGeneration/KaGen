@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Get CSR format
-    const auto [xadj, adjncy] = kagen::BuildCSR<int>(std::move(graph));
+    const auto [xadj, adjncy, vwgt, ewgt] = kagen::BuildCSR<int>(std::move(graph));
     {
         std::stringstream out;
         out << "[PE" << rank << "] Xadj: ";

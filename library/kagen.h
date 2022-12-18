@@ -8,7 +8,9 @@
 #pragma once
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -249,6 +251,8 @@ template <typename IDX>
 struct KaGenResultCSR {
     std::vector<IDX> xadj;
     std::vector<IDX> adjncy;
+    std::vector<IDX> vwgt;
+    std::vector<IDX> ewgt;
 };
 
 /*!
@@ -272,19 +276,37 @@ struct KaGenResultCSR {
  */
 template <typename IDX, typename Graph>
 KaGenResultCSR<IDX> BuildCSR(Graph graph) {
-    // Edges must be sorted
-    if (!std::is_sorted(graph.edges.begin(), graph.edges.end())) {
-        std::sort(graph.edges.begin(), graph.edges.end());
-    }
-
     const SInt num_local_nodes = graph.vertex_range.second - graph.vertex_range.first;
     const SInt num_local_edges = graph.edges.size();
+
+    // Edges must be sorted by from node
+    auto cmp_from = [](const auto& lhs, const auto& rhs) {
+        return std::get<0>(lhs) < std::get<0>(rhs);
+    };
+
+    if (!std::is_sorted(graph.edges.begin(), graph.edges.end(), cmp_from)) {
+        // If we have edge weights, sort them the same way as the edges
+        // This not very efficient; ideally, we should probably implement some kind of zip iterator to sort edges
+        // and edge weights without extra allocation / expensive permutation step (@todo)
+        if (!graph.edge_weights.empty()) {
+            std::vector<EdgeWeights::value_type> indices(num_local_edges);
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&](const auto& lhs, const auto& rhs) {
+                return cmp_from(graph.edges[lhs], graph.edges[rhs]);
+            });
+            for (std::size_t e = 0; e < num_local_edges; ++e) {
+                indices[e] = graph.edge_weights[indices[e]];
+            }
+            std::swap(graph.edge_weights, indices);
+        }
+
+        std::sort(graph.edges.begin(), graph.edges.end(), cmp_from);
+    }
 
     KaGenResultCSR<IDX> csr;
     csr.xadj.resize(num_local_nodes + 1);
     csr.adjncy.resize(num_local_edges);
 
-    // Build CSR graph
     SInt cur_vertex = 0;
     SInt cur_edge   = 0;
 
@@ -296,6 +318,25 @@ KaGenResultCSR<IDX> BuildCSR(Graph graph) {
     }
     while (cur_vertex < num_local_nodes) {
         csr.xadj[++cur_vertex] = cur_edge;
+    }
+
+    // Copy vertex weights (if present)
+    if (!graph.vertex_weights.empty()) {
+        if constexpr (std::is_swappable_with_v<std::vector<IDX>, VertexWeights>) {
+            std::swap(csr.vwgt, graph.vertex_weights);
+        } else {
+            csr.vwgt.resize(graph.vertex_weights.size());
+            std::copy(graph.vertex_weights.begin(), graph.vertex_weights.end(), csr.vwgt.begin());
+        }
+    }
+    // Copy edge weights (if present)
+    if (!graph.edge_weights.empty()) {
+        if constexpr (std::is_swappable_with_v<std::vector<IDX>, EdgeWeights>) {
+            std::swap(csr.ewgt, graph.edge_weights);
+        } else {
+            csr.ewgt.resize(graph.edge_weights.size());
+            std::copy(graph.edge_weights.begin(), graph.edge_weights.end(), csr.ewgt.begin());
+        }
     }
 
     return csr;
