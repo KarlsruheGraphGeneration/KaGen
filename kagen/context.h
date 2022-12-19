@@ -83,6 +83,7 @@ enum class ImageMeshWeightModel : std::uint8_t {
     INV_L2    = 1,
     RATIO     = 2,
     INV_RATIO = 3,
+    SIMILARITY       = 4,
 };
 
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();

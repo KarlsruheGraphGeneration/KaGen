@@ -377,6 +377,10 @@ void ImageMesh::GenerateImpl() {
         case ImageMeshWeightModel::INV_RATIO:
             generate_graph(InvRatioWeightModel{});
             break;
+
+        case ImageMeshWeightModel::SIMILARITY:
+            generate_graph(SimilarityWeightModel{});
+            break;
     }
 }
 } // namespace kagen

@@ -45,4 +45,14 @@ struct RatioWeightModel {
                * MinMaxRatio(lhs.b + 1, rhs.b + 1);
     }
 };
+
+struct SimilarityWeightModel {
+    double operator()(const RGB& lhs, const RGB& rhs) const {
+        constexpr static double sigma = 0.1;
+        return std::exp(-l2_(lhs, rhs) / (2.0 * sigma * sigma));
+    }
+
+private:
+    L2WeightModel l2_{};
+};
 } // namespace kagen

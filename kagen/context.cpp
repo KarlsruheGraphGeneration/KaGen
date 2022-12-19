@@ -179,10 +179,9 @@ std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level) {
 
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap() {
     return {
-        {"l2", ImageMeshWeightModel::L2},
-        {"inv-l2", ImageMeshWeightModel::INV_L2},
-        {"ratio", ImageMeshWeightModel::RATIO},
-        {"inv-ratio", ImageMeshWeightModel::INV_RATIO},
+        {"l2", ImageMeshWeightModel::L2},          {"inv-l2", ImageMeshWeightModel::INV_L2},
+        {"ratio", ImageMeshWeightModel::RATIO},    {"inv-ratio", ImageMeshWeightModel::INV_RATIO},
+        {"sim", ImageMeshWeightModel::SIMILARITY}, {"similarity", ImageMeshWeightModel::SIMILARITY},
     };
 }
 
@@ -196,6 +195,8 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
             return out << "ratio";
         case ImageMeshWeightModel::INV_RATIO:
             return out << "inv-ratio";
+        case ImageMeshWeightModel::SIMILARITY:
+            return out << "similarity";
     }
 
     return out << "<invalid>";
