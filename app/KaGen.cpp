@@ -345,8 +345,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_option(
             "--max-weight-threshold", config.image_mesh.weight_max_threshold,
             "Only keep edges with weight less than this.");
-        cmd->add_option("--neighborhood", config.image_mesh.neighborhood, "Neighborhood size (4 oder 8)")
-            ->check(CLI::IsMember({4, 8}));
+        cmd->add_option("--neighborhood", config.image_mesh.neighborhood, "Neighborhood size (4, 8 or 24)")
+            ->check(CLI::IsMember({4, 8, 24}));
         cmd->add_option("--max-grid-x", config.image_mesh.max_grid_x, "Number of grid columns");
         cmd->add_option("--max-grid-y", config.image_mesh.max_grid_y, "Number of grid rows");
         cmd->add_option("--grid-x", config.image_mesh.grid_x, "Number of grid columns that are assigned to PEs");

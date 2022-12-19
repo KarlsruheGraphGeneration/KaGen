@@ -275,9 +275,12 @@ void ImageMesh::GenerateImpl() {
         }
     }
 
-    const ImageRect img = ReadRect(
-        config_.image_mesh.filename, my.pixel_start_row, my.pixel_start_col, my.pixel_end_row, my.pixel_end_col, 1);
-    const bool diagonal_edges = config_.image_mesh.neighborhood == 8;
+    const SSInt     border = (config_.image_mesh.neighborhood > 8) ? 2 : 1;
+    const ImageRect img    = ReadRect(
+        config_.image_mesh.filename, my.pixel_start_row, my.pixel_start_col, my.pixel_end_row, my.pixel_end_col,
+        border);
+    const bool diagonal_edges     = config_.image_mesh.neighborhood == 8;
+    const bool second_layer_edges = config_.image_mesh.neighborhood == 24;
 
     auto edge = [&](auto weight_model, const SSInt from_row, const SSInt from_col, const SSInt to_row,
                     const SSInt to_col) {
@@ -334,6 +337,25 @@ void ImageMesh::GenerateImpl() {
                     edge(weight_model, row, col, row + 1, col - 1);
                     edge(weight_model, row, col, row - 1, col - 1);
                     edge(weight_model, row, col, row - 1, col + 1);
+                }
+
+                if (second_layer_edges) {
+                    edge(weight_model, row, col, row, col + 2);
+                    edge(weight_model, row, col, row + 1, col + 2);
+                    edge(weight_model, row, col, row + 2, col + 2);
+                    edge(weight_model, row, col, row + 2, col + 1);
+                    edge(weight_model, row, col, row + 2, col);
+                    edge(weight_model, row, col, row + 2, col - 1);
+                    edge(weight_model, row, col, row + 2, col - 2);
+                    edge(weight_model, row, col, row + 1, col - 2);
+                    edge(weight_model, row, col, row, col - 2);
+                    edge(weight_model, row, col, row - 1, col - 2);
+                    edge(weight_model, row, col, row - 2, col - 2);
+                    edge(weight_model, row, col, row - 2, col - 1);
+                    edge(weight_model, row, col, row - 2, col);
+                    edge(weight_model, row, col, row - 2, col + 1);
+                    edge(weight_model, row, col, row - 2, col + 2);
+                    edge(weight_model, row, col, row - 1, col + 2);
                 }
             }
         }
