@@ -196,10 +196,6 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
         if (config.statistics_level >= StatisticsLevel::ADVANCED) {
             PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
         }
-
-        if (output_info) {
-            std::cout << "-------------------------------------------------------------------------------" << std::endl;
-        }
     }
 
     return graph;
