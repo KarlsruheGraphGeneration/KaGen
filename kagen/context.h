@@ -16,7 +16,7 @@
 #include "kagen/definitions.h"
 
 namespace kagen {
-enum class OutputFormat {
+enum class GraphFormat {
     NONE,
     EDGE_LIST,
     BINARY_EDGE_LIST,
@@ -28,9 +28,9 @@ enum class OutputFormat {
     BINARY_PARHIP,
 };
 
-std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();
+std::unordered_map<std::string, GraphFormat> GetGraphFormatMap();
 
-std::ostream& operator<<(std::ostream& out, OutputFormat output_format);
+std::ostream& operator<<(std::ostream& out, GraphFormat graph_format);
 
 enum class OutputHeader {
     ALWAYS,
@@ -60,6 +60,7 @@ enum class GeneratorType {
     RHG,
     RMAT,
     IMAGE_MESH,
+    STATIC_GRAPH,
 };
 
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
@@ -79,11 +80,11 @@ std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
 std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
 
 enum class ImageMeshWeightModel : std::uint8_t {
-    L2        = 0,
-    INV_L2    = 1,
-    RATIO     = 2,
-    INV_RATIO = 3,
-    SIMILARITY       = 4,
+    L2         = 0,
+    INV_L2     = 1,
+    RATIO      = 2,
+    INV_RATIO  = 3,
+    SIMILARITY = 4,
 };
 
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
@@ -104,6 +105,21 @@ struct ImageMeshConfig {
     SInt                 grid_y               = 0;
     SInt                 cols_per_pe          = 0;
     SInt                 rows_per_pe          = 0;
+};
+
+enum class StaticGraphDistribution {
+    BALANCE_NODES,
+    BALANCE_EDGES,
+};
+
+std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap();
+
+std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution);
+
+struct StaticGraphConfig {
+    std::string             filename     = "";
+    GraphFormat             format       = GraphFormat::NONE;
+    StaticGraphDistribution distribution = StaticGraphDistribution::BALANCE_NODES;
 };
 
 // Configuration for the generator.
@@ -143,6 +159,9 @@ struct PGeneratorConfig {
     // Image mesh generator settings
     ImageMeshConfig image_mesh;
 
+    // Settings for the static graph pseudo-generator
+    StaticGraphConfig static_graph;
+
     // Hashing / sampling settings
     int   seed        = 1;      // Seed for PRNG
     bool  hash_sample = false;  // Use hash tryagain sampling
@@ -152,10 +171,10 @@ struct PGeneratorConfig {
     ULONG hyp_base    = 1 << 8;
 
     // IO settings
-    OutputFormat output_format      = OutputFormat::EDGE_LIST; // Output format
-    OutputHeader output_header      = OutputHeader::ROOT;      // PEs that print file headers
-    std::string  output_file        = "out";                   // Output filename
-    bool         output_single_file = true;                    // Collect all graphs in a single output file
+    GraphFormat  output_format      = GraphFormat::EDGE_LIST; // Output format
+    OutputHeader output_header      = OutputHeader::ROOT;     // PEs that print file headers
+    std::string  output_file        = "out";                  // Output filename
+    bool         output_single_file = true;                   // Collect all graphs in a single output file
 };
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);

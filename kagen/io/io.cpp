@@ -19,33 +19,33 @@
 
 namespace kagen {
 namespace {
-std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph& graph, MPI_Comm comm) {
+std::unique_ptr<GraphWriter> CreateGraphWriter(const GraphFormat format, Graph& graph, MPI_Comm comm) {
     switch (format) {
-        case OutputFormat::NONE:
+        case GraphFormat::NONE:
             return std::make_unique<NoopWriter>(graph, comm);
 
-        case OutputFormat::EDGE_LIST:
+        case GraphFormat::EDGE_LIST:
             return std::make_unique<EdgeListWriter>(graph, comm);
 
-        case OutputFormat::BINARY_EDGE_LIST:
+        case GraphFormat::BINARY_EDGE_LIST:
             return std::make_unique<BinaryEdgeListWriter>(graph, comm);
 
-        case OutputFormat::METIS:
+        case GraphFormat::METIS:
             return std::make_unique<MetisWriter>(graph, comm);
 
-        case OutputFormat::HMETIS:
+        case GraphFormat::HMETIS:
             return std::make_unique<HMetisWriter>(graph, comm);
 
-        case OutputFormat::DOT:
+        case GraphFormat::DOT:
             return std::make_unique<DotWriter>(graph, false, comm);
 
-        case OutputFormat::DOT_DIRECTED:
+        case GraphFormat::DOT_DIRECTED:
             return std::make_unique<DotWriter>(graph, true, comm);
 
-        case OutputFormat::COORDINATES:
+        case GraphFormat::COORDINATES:
             return std::make_unique<CoordinatesWriter>(graph, comm);
             
-        case OutputFormat::BINARY_PARHIP:
+        case GraphFormat::BINARY_PARHIP:
             return std::make_unique<BinaryParHipWriter>(graph, comm);
     }
 

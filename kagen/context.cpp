@@ -5,47 +5,47 @@
 #include <mpi.h>
 
 namespace kagen {
-std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
+std::unordered_map<std::string, GraphFormat> GetGraphFormatMap() {
     return {
-        {"none", OutputFormat::NONE},
-        {"edge-list", OutputFormat::EDGE_LIST},
-        {"binary-edge-list", OutputFormat::BINARY_EDGE_LIST},
-        {"metis", OutputFormat::METIS},
-        {"hmetis", OutputFormat::HMETIS},
-        {"dot", OutputFormat::DOT},
-        {"dot-directed", OutputFormat::DOT_DIRECTED},
-        {"coordinates", OutputFormat::COORDINATES},
-        {"binary-parhip", OutputFormat::BINARY_PARHIP},
+        {"none", GraphFormat::NONE},
+        {"edge-list", GraphFormat::EDGE_LIST},
+        {"binary-edge-list", GraphFormat::BINARY_EDGE_LIST},
+        {"metis", GraphFormat::METIS},
+        {"hmetis", GraphFormat::HMETIS},
+        {"dot", GraphFormat::DOT},
+        {"dot-directed", GraphFormat::DOT_DIRECTED},
+        {"coordinates", GraphFormat::COORDINATES},
+        {"binary-parhip", GraphFormat::BINARY_PARHIP},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
+std::ostream& operator<<(std::ostream& out, GraphFormat output_format) {
     switch (output_format) {
-        case OutputFormat::NONE:
+        case GraphFormat::NONE:
             return out << "none";
 
-        case OutputFormat::EDGE_LIST:
+        case GraphFormat::EDGE_LIST:
             return out << "edge-list";
 
-        case OutputFormat::BINARY_EDGE_LIST:
+        case GraphFormat::BINARY_EDGE_LIST:
             return out << "binary-edge-list";
 
-        case OutputFormat::METIS:
+        case GraphFormat::METIS:
             return out << "metis";
 
-        case OutputFormat::HMETIS:
+        case GraphFormat::HMETIS:
             return out << "hmetis";
 
-        case OutputFormat::DOT:
+        case GraphFormat::DOT:
             return out << "dot";
 
-        case OutputFormat::DOT_DIRECTED:
+        case GraphFormat::DOT_DIRECTED:
             return out << "dot-directed";
 
-        case OutputFormat::COORDINATES:
+        case GraphFormat::COORDINATES:
             return out << "coordinates";
 
-        case OutputFormat::BINARY_PARHIP:
+        case GraphFormat::BINARY_PARHIP:
             return out << "binary-parhip";
     }
 
@@ -202,6 +202,24 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
     return out << "<invalid>";
 }
 
+std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap() {
+    return {
+        {"balance-nodes", StaticGraphDistribution::BALANCE_NODES},
+        {"balance-edges", StaticGraphDistribution::BALANCE_EDGES},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution) {
+    switch (distribution) {
+        case StaticGraphDistribution::BALANCE_NODES:
+            return out << "balance-nodes";
+        case StaticGraphDistribution::BALANCE_EDGES:
+            return out << "balance-edges";
+    }
+
+    return out << "<invalid>";
+}
+
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Validate generated graph:           " << (config.validate_simple_graph ? "yes" : "no") << "\n";
@@ -323,10 +341,17 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << (config.image_mesh.rows_per_pe == 0 ? "auto" : std::to_string(config.image_mesh.rows_per_pe))
                 << "\n";
             break;
+
+        case GeneratorType::STATIC_GRAPH:
+            out << "  Input file:                         " << config.static_graph.filename << "\n";
+            out << "  File format:                        " << config.static_graph.format << "\n";
+            out << "  Distribution:                       " << config.static_graph.distribution << "\n";
+            break;
     }
 
     // RMAT does not use chunks
-    if (config.generator != GeneratorType::RMAT && config.generator != GeneratorType::IMAGE_MESH) {
+    if (config.generator != GeneratorType::RMAT && config.generator != GeneratorType::IMAGE_MESH
+        && config.generator != GeneratorType::STATIC_GRAPH) {
         if (config.k == 0) {
             out << "  Number of chunks:                   auto\n";
         } else {

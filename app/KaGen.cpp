@@ -331,7 +331,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_option("--image", config.image_mesh.filename, "Input image filename")
             ->required()
             ->check(CLI::ExistingFile);
-        cmd->add_option("--weight-model", config.image_mesh.weight_model, "")
+        cmd->add_option("--weight-model", config.image_mesh.weight_model)
             ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()).description(""))
             ->description(R"(The following weight models are available:
   - l2:        use the L2 distance between the color vectors of adjacent pixels as weights
@@ -355,17 +355,35 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         cmd->add_option("--rows-per-pe", config.image_mesh.rows_per_pe, "Number of rows assigned to the same PE");
     }
 
+    { // Static graph
+        auto* cmd = app.add_subcommand("static", "Loads a static graph from disk");
+        cmd->callback([&] { config.generator = GeneratorType::STATIC_GRAPH; });
+        cmd->add_option("--filename", config.static_graph.filename, "Input image filename")
+            ->required()
+            ->check(CLI::ExistingFile);
+        cmd->add_option("--distribution", config.static_graph.distribution)
+            ->transform(CLI::CheckedTransformer(GetStaticGraphDistributionMap()).description(""))
+            ->description(R"(The following options for how to distribute the static graph across PEs are available:
+  - balance-nodes: assign roughly the same number of nodes to each PE
+  - balance-edges: assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>)");
+        cmd->add_option("--input-format", config.static_graph.format)
+            ->transform(CLI::CheckedTransformer(GetGraphFormatMap()).description(""))
+            ->description(R"(The following file formats are supported:
+  - metis:         Text format used by METIS
+  - binary-parhip: Binary format used by ParHIP)");
+    }
+
     // IO options
     app.add_option("-o,--output", config.output_file, "Output filename");
     app.add_option("-f,--output-format", config.output_format, "Output format")
-        ->transform(CLI::CheckedTransformer(GetOutputFormatMap()));
+        ->transform(CLI::CheckedTransformer(GetGraphFormatMap()));
     app.add_option("--output-header", config.output_header, "Output file header")
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()));
     app.add_flag(
         "--distributed-output", [&config](auto) { config.output_single_file = false; }, "Output one file for each PE");
 
     // coordinates output format implies --coordinates
-    if (config.output_format == OutputFormat::COORDINATES) {
+    if (config.output_format == GraphFormat::COORDINATES) {
         config.coordinates = true;
     }
 }
