@@ -65,6 +65,7 @@ public:
 
     /*!
      * Sets the seed for the random number generator (Default: 0).
+     * Must be the same on all PEs.
      * @param seed Seed for random number generation.
      */
     void SetSeed(int seed);

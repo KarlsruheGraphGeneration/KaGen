@@ -118,7 +118,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     app.add_flag(
         "--skip-postprocessing", config.skip_postprocessing,
         "Skip postprocessing (repair inconsistency due to floating point inaccuracies etc.)");
-    app.add_flag("-s,--seed", config.seed, "Seed for PRNG");
+    app.add_flag("-s,--seed", config.seed, "Seed for PRNG (must be the same on all PEs)");
     auto* stats_group = app.add_option_group("Statistics output");
     stats_group->add_option("--stats", config.statistics_level)
         ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()).description(""))
