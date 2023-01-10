@@ -23,6 +23,7 @@
 #include "kagen/generators/image/image_mesh.h"
 #include "kagen/generators/kronecker/kronecker.h"
 #include "kagen/generators/rmat/rmat.h"
+#include "kagen/generators/static/static_graph.h"
 
 #ifdef KAGEN_CGAL_FOUND
     #include "kagen/generators/geometric/delaunay.h"
@@ -80,6 +81,9 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::IMAGE_MESH:
             return std::make_unique<ImageMeshFactory>();
+
+        case GeneratorType::STATIC_GRAPH:
+            return std::make_unique<StaticGraphFactory>();
     }
 
     __builtin_unreachable();
@@ -138,8 +142,14 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     }
 
     const SInt num_edges_before_finalize = generator->GetEdges().size();
+    if (output_info) {
+        std::cout << "Finalizing graph generation ... " << std::flush;
+    }
     if (!config.skip_postprocessing) {
         generator->Finalize(comm);
+    }
+    if (output_info) {
+        std::cout << "OK" << std::endl;
     }
     const SInt num_edges_after_finalize = generator->GetEdges().size();
 
@@ -152,10 +162,10 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
 
         if (num_global_edges_before != num_global_edges_after && output_info) {
             std::cout << "The number of edges changed from " << num_global_edges_before << " to "
-                      << num_global_edges_after << " during postprocessing: by "
+                      << num_global_edges_after << " during finalization (= by "
                       << std::abs(
                              static_cast<SSInt>(num_global_edges_after) - static_cast<SSInt>(num_global_edges_before))
-                      << std::endl;
+                      << ")" << std::endl;
         }
     }
 
@@ -164,7 +174,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     // Validation
     if (config.validate_simple_graph) {
         if (output_info) {
-            std::cout << "Validating graph ... " << std::flush;
+            std::cout << "Validating generated graph ... " << std::flush;
         }
 
         bool success =
@@ -182,7 +192,6 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
 
     // Statistics
     if (!config.quiet) {
-        // Running time
         if (output_info) {
             std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
                       << " seconds" << std::endl;
@@ -190,7 +199,6 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
         }
 
         if (config.statistics_level >= StatisticsLevel::BASIC) {
-            // Basic graph statistics
             PrintBasicStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
         }
         if (config.statistics_level >= StatisticsLevel::ADVANCED) {

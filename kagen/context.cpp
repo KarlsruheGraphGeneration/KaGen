@@ -5,47 +5,47 @@
 #include <mpi.h>
 
 namespace kagen {
-std::unordered_map<std::string, GraphFormat> GetGraphFormatMap() {
+std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
     return {
-        {"none", GraphFormat::NONE},
-        {"edge-list", GraphFormat::EDGE_LIST},
-        {"binary-edge-list", GraphFormat::BINARY_EDGE_LIST},
-        {"metis", GraphFormat::METIS},
-        {"hmetis", GraphFormat::HMETIS},
-        {"dot", GraphFormat::DOT},
-        {"dot-directed", GraphFormat::DOT_DIRECTED},
-        {"coordinates", GraphFormat::COORDINATES},
-        {"binary-parhip", GraphFormat::BINARY_PARHIP},
+        {"none", OutputFormat::NONE},
+        {"edge-list", OutputFormat::EDGE_LIST},
+        {"binary-edge-list", OutputFormat::BINARY_EDGE_LIST},
+        {"metis", OutputFormat::METIS},
+        {"hmetis", OutputFormat::HMETIS},
+        {"dot", OutputFormat::DOT},
+        {"dot-directed", OutputFormat::DOT_DIRECTED},
+        {"coordinates", OutputFormat::COORDINATES},
+        {"binary-parhip", OutputFormat::BINARY_PARHIP},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, GraphFormat output_format) {
+std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
     switch (output_format) {
-        case GraphFormat::NONE:
+        case OutputFormat::NONE:
             return out << "none";
 
-        case GraphFormat::EDGE_LIST:
+        case OutputFormat::EDGE_LIST:
             return out << "edge-list";
 
-        case GraphFormat::BINARY_EDGE_LIST:
+        case OutputFormat::BINARY_EDGE_LIST:
             return out << "binary-edge-list";
 
-        case GraphFormat::METIS:
+        case OutputFormat::METIS:
             return out << "metis";
 
-        case GraphFormat::HMETIS:
+        case OutputFormat::HMETIS:
             return out << "hmetis";
 
-        case GraphFormat::DOT:
+        case OutputFormat::DOT:
             return out << "dot";
 
-        case GraphFormat::DOT_DIRECTED:
+        case OutputFormat::DOT_DIRECTED:
             return out << "dot-directed";
 
-        case GraphFormat::COORDINATES:
+        case OutputFormat::COORDINATES:
             return out << "coordinates";
 
-        case GraphFormat::BINARY_PARHIP:
+        case OutputFormat::BINARY_PARHIP:
             return out << "binary-parhip";
     }
 
@@ -215,6 +215,24 @@ std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution
             return out << "balance-nodes";
         case StaticGraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap() {
+    return {
+        {"metis", StaticGraphFormat::METIS},
+        {"binary-parhip", StaticGraphFormat::BINARY_PARHIP},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, const StaticGraphFormat format) {
+    switch (format) {
+        case StaticGraphFormat::METIS:
+            return out << "metis";
+        case StaticGraphFormat::BINARY_PARHIP:
+            return out << "binary-parhip";
     }
 
     return out << "<invalid>";

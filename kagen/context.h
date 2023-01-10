@@ -16,7 +16,7 @@
 #include "kagen/definitions.h"
 
 namespace kagen {
-enum class GraphFormat {
+enum class OutputFormat {
     NONE,
     EDGE_LIST,
     BINARY_EDGE_LIST,
@@ -28,9 +28,9 @@ enum class GraphFormat {
     BINARY_PARHIP,
 };
 
-std::unordered_map<std::string, GraphFormat> GetGraphFormatMap();
+std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();
 
-std::ostream& operator<<(std::ostream& out, GraphFormat graph_format);
+std::ostream& operator<<(std::ostream& out, OutputFormat format);
 
 enum class OutputHeader {
     ALWAYS,
@@ -116,9 +116,18 @@ std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistribut
 
 std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution);
 
+enum class StaticGraphFormat {
+    METIS,
+    BINARY_PARHIP,
+};
+
+std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap();
+
+std::ostream& operator<<(std::ostream& out, StaticGraphFormat format);
+
 struct StaticGraphConfig {
     std::string             filename     = "";
-    GraphFormat             format       = GraphFormat::NONE;
+    StaticGraphFormat       format       = StaticGraphFormat::METIS;
     StaticGraphDistribution distribution = StaticGraphDistribution::BALANCE_NODES;
 };
 
@@ -171,10 +180,10 @@ struct PGeneratorConfig {
     ULONG hyp_base    = 1 << 8;
 
     // IO settings
-    GraphFormat  output_format      = GraphFormat::EDGE_LIST; // Output format
-    OutputHeader output_header      = OutputHeader::ROOT;     // PEs that print file headers
-    std::string  output_file        = "out";                  // Output filename
-    bool         output_single_file = true;                   // Collect all graphs in a single output file
+    OutputFormat output_format      = OutputFormat::EDGE_LIST; // Output format
+    OutputHeader output_header      = OutputHeader::ROOT;      // PEs that print file headers
+    std::string  output_file        = "out";                   // Output filename
+    bool         output_single_file = true;                    // Collect all graphs in a single output file
 };
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);

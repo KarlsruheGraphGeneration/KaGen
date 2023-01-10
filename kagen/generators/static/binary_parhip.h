@@ -2,6 +2,6 @@
 
 #include <fstream>
 
-#include "kagen/generators/static/io.h"
+#include "kagen/generators/static/graph_reader.h"
 
 namespace kagen::staticgraph::parhip {}

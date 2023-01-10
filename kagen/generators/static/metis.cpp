@@ -104,13 +104,14 @@ GraphSize MetisReader::ReadSize() {
     return {n, m};
 }
 
-Graph MetisReader::Read(const SInt from, const SInt to) {
+Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
     SInt current_node = 0;
+    SInt current_edge = 0;
 
     toker_.Reset();
     const auto [global_n, global_m, has_node_weights, has_edge_weights] = ParseHeader(toker_);
 
-    if (cached_first_node_ == from) {
+    if (cached_first_node_pos_ > 0 && cached_first_node_ == from) {
         current_node = cached_first_node_;
         toker_.Seek(cached_first_node_pos_);
     }
@@ -123,9 +124,10 @@ Graph MetisReader::Read(const SInt from, const SInt to) {
             if (has_node_weights && current_node >= from) {
                 graph.vertex_weights.push_back(weight);
             }
-            return current_node <= to;
+            return current_node <= to && current_edge < num_edges;
         },
-        [&](SInt weight, SInt to) {
+        [&](const SInt weight, const SInt to) {
+            ++current_edge;
             if (current_node >= from) {
                 graph.edge_weights.push_back(weight);
             }

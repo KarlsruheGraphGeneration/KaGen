@@ -367,7 +367,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
   - balance-nodes: assign roughly the same number of nodes to each PE
   - balance-edges: assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>)");
         cmd->add_option("--input-format", config.static_graph.format)
-            ->transform(CLI::CheckedTransformer(GetGraphFormatMap()).description(""))
+            ->transform(CLI::CheckedTransformer(GetStaticGraphFormatMap()).description(""))
             ->description(R"(The following file formats are supported:
   - metis:         Text format used by METIS
   - binary-parhip: Binary format used by ParHIP)");
@@ -376,14 +376,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     // IO options
     app.add_option("-o,--output", config.output_file, "Output filename");
     app.add_option("-f,--output-format", config.output_format, "Output format")
-        ->transform(CLI::CheckedTransformer(GetGraphFormatMap()));
+        ->transform(CLI::CheckedTransformer(GetOutputFormatMap()));
     app.add_option("--output-header", config.output_header, "Output file header")
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()));
     app.add_flag(
         "--distributed-output", [&config](auto) { config.output_single_file = false; }, "Output one file for each PE");
 
     // coordinates output format implies --coordinates
-    if (config.output_format == GraphFormat::COORDINATES) {
+    if (config.output_format == OutputFormat::COORDINATES) {
         config.coordinates = true;
     }
 }
