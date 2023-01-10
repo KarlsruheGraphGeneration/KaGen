@@ -94,6 +94,10 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"rhg", GeneratorType::RHG},
         {"rmat", GeneratorType::RMAT},
         {"imagemesh", GeneratorType::IMAGE_MESH},
+        {"image-mesh", GeneratorType::IMAGE_MESH},
+        {"static", GeneratorType::STATIC_GRAPH},
+        {"staticgraph", GeneratorType::STATIC_GRAPH},
+        {"static-graph", GeneratorType::STATIC_GRAPH},
     };
 }
 
@@ -145,6 +149,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
 
         case GeneratorType::IMAGE_MESH:
             return out << "image-mesh";
+
+        case GeneratorType::STATIC_GRAPH:
+            return out << "static-graph";
     }
 
     return out << "<invalid>";

@@ -64,10 +64,10 @@ void StaticGraph::GenerateImpl() {
     }
 
     auto graph      = reader->Read(from, to, num_edges);
+    vertex_range_   = graph.vertex_range;
     edges_          = std::move(graph.edges);
     edge_weights_   = std::move(graph.edge_weights);
     vertex_weights_ = std::move(graph.vertex_weights);
     coordinates_    = std::move(graph.coordinates);
-    SetVertexRange(from, to);
 }
 } // namespace kagen

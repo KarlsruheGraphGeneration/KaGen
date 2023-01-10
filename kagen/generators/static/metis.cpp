@@ -134,6 +134,8 @@ Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
             graph.edges.emplace_back(current_node, to);
         },
         global_n, has_node_weights, has_edge_weights);
+
+    graph.vertex_range = {from, from + current_node};
     return graph;
 }
 
