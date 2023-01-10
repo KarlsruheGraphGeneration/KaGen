@@ -132,6 +132,9 @@ target_link_libraries(<your-target> PUBLIC KaGen::cKaGen) # C interface
 Examples on how to use the C and C++ interfaces are available in the `examples/` directory.
 The examples given below only show the C++ interface.
 
+**Note**: Instead of calling the library functions listed below, you can also use `KaGen::GenerateFromOptionString()` 
+to pass the generator options as a string (documentation is available in `library/kagen.h`).
+
 ## General Graph Format
 
 Unless noted otherwise, KaGen generates **simple**, **undirected** graphs, i.e.,
