@@ -20,12 +20,11 @@ std::unique_ptr<GraphReader> CreateReader(const PGeneratorConfig& config) {
     switch (config.static_graph.format) {
         case StaticGraphFormat::METIS:
             return std::make_unique<MetisReader>(config.static_graph.filename);
-
         case StaticGraphFormat::BINARY_PARHIP:
-            break;
+            return std::make_unique<BinaryParhipReader>(config.static_graph.filename);
     }
 
-    throw std::invalid_argument("bad format");
+    __builtin_unreachable();
 }
 
 std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {

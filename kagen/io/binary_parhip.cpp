@@ -11,7 +11,7 @@
 
 namespace kagen {
 using ParHipID     = unsigned long long;
-using ParHipWeight = signed long long;
+using ParHipWeight = SSInt;
 
 BinaryParHipWriter::BinaryParHipWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}
 
