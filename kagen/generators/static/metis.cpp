@@ -120,18 +120,23 @@ Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
     ParseBody(
         toker_,
         [&, has_node_weights = has_node_weights](const SInt weight) {
-            ++current_node;
             if (has_node_weights && current_node >= from) {
                 graph.vertex_weights.push_back(weight);
             }
-            return current_node <= to && current_edge < num_edges;
+
+            if (current_node >= to || current_edge >= num_edges) {
+                return false;
+            }
+
+            ++current_node;
+            return true;
         },
         [&](const SInt weight, const SInt to) {
             ++current_edge;
             if (current_node >= from) {
                 graph.edge_weights.push_back(weight);
             }
-            graph.edges.emplace_back(current_node, to);
+            graph.edges.emplace_back(current_node - 1, to);
         },
         global_n, has_node_weights, has_edge_weights);
 
