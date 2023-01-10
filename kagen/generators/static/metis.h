@@ -17,7 +17,8 @@ public:
 private:
     MappedFileToker toker_;
 
-    SInt cached_first_node_     = std::numeric_limits<SInt>::max();
-    SInt cached_first_node_pos_ = std::numeric_limits<SInt>::max();
+    SInt cached_first_node_     = 0;
+    SInt cached_first_edge_     = 0;
+    SInt cached_first_node_pos_ = 0;
 };
 } // namespace kagen::staticgraph

@@ -45,24 +45,24 @@ void StaticGraph::GenerateImpl() {
     auto reader       = CreateReader(config_);
     const auto [n, m] = reader->ReadSize();
 
-    SInt from      = 0;
-    SInt to        = std::numeric_limits<SInt>::max();
-    SInt num_edges = std::numeric_limits<SInt>::max();
+    SInt from    = 0;
+    SInt to_node = std::numeric_limits<SInt>::max();
+    SInt to_edge = std::numeric_limits<SInt>::max();
 
     switch (config_.static_graph.distribution) {
         case StaticGraphDistribution::BALANCE_NODES:
-            std::tie(from, to) = ComputeRange(n, size_, rank_);
+            std::tie(from, to_node) = ComputeRange(n, size_, rank_);
             break;
 
         case StaticGraphDistribution::BALANCE_EDGES: {
             const auto edge_range = ComputeRange(m, size_, rank_);
             from                  = reader->FindNodeByEdge(edge_range.first);
-            num_edges             = edge_range.second - edge_range.first;
+            to_edge               = edge_range.second;
             break;
         }
     }
 
-    auto graph      = reader->Read(from, to, num_edges);
+    auto graph      = reader->Read(from, to_node, to_edge);
     vertex_range_   = graph.vertex_range;
     edges_          = std::move(graph.edges);
     edge_weights_   = std::move(graph.edge_weights);

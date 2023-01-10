@@ -18,7 +18,7 @@ inline Format ParseHeader(MappedFileToker& toker) {
     }
 
     const std::uint64_t number_of_nodes = toker.ScanUnsigned();
-    const std::uint64_t number_of_edges = toker.ScanUnsigned();
+    const std::uint64_t number_of_edges = toker.ScanUnsigned() * 2;
     const std::uint64_t format          = (toker.Current() != '\n') ? toker.ScanUnsigned() : 0;
     if (!toker.ConsumeChar('\n')) {
         throw IOError("unexpected char");
@@ -104,7 +104,7 @@ GraphSize MetisReader::ReadSize() {
     return {n, m};
 }
 
-Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
+Graph MetisReader::Read(const SInt from, const SInt to_node, const SInt to_edge) {
     SInt current_node = 0;
     SInt current_edge = 0;
 
@@ -113,6 +113,7 @@ Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
 
     if (cached_first_node_pos_ > 0 && cached_first_node_ == from) {
         current_node = cached_first_node_;
+        current_edge = cached_first_edge_;
         toker_.Seek(cached_first_node_pos_);
     }
 
@@ -124,7 +125,7 @@ Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
                 graph.vertex_weights.push_back(weight);
             }
 
-            if (current_node >= to || current_edge >= num_edges) {
+            if (current_node >= to_node || current_edge >= to_edge) {
                 return false;
             }
 
@@ -132,8 +133,8 @@ Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
             return true;
         },
         [&](const SInt weight, const SInt to) {
+            ++current_edge;
             if (current_node - 1 >= from) {
-                ++current_edge;
                 graph.edge_weights.push_back(weight);
                 graph.edges.emplace_back(current_node - 1, to);
             }
@@ -152,12 +153,16 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
     Parse(
         toker_, [](auto) {},
         [&](SInt) {
-            ++current_node;
-            return current_edge >= edge;
+            if (current_edge < edge) {
+                ++current_node;
+                return true;
+            }
+            return false;
         },
         [&](SInt, SInt) { ++current_edge; });
 
     cached_first_node_     = current_node;
+    cached_first_edge_     = current_edge;
     cached_first_node_pos_ = toker_.Position();
 
     return current_node;

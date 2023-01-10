@@ -27,7 +27,7 @@ public:
 
     virtual GraphSize ReadSize() = 0;
 
-    virtual Graph Read(SInt from, SInt to, SInt num_edges) = 0;
+    virtual Graph Read(SInt from_from, SInt to_node, SInt to_edge) = 0;
 
     virtual SInt FindNodeByEdge(SInt edge) = 0;
 };
