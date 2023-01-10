@@ -93,6 +93,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"kronecker", GeneratorType::KRONECKER},
         {"rhg", GeneratorType::RHG},
         {"rmat", GeneratorType::RMAT},
+        {"image", GeneratorType::IMAGE_MESH},
         {"imagemesh", GeneratorType::IMAGE_MESH},
         {"image-mesh", GeneratorType::IMAGE_MESH},
         {"static", GeneratorType::STATIC_GRAPH},

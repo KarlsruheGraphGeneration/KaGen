@@ -111,15 +111,22 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     // General parameters
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
-    app.add_flag("-V,--validate-simple", config.validate_simple_graph, "Validate that the generated graph is simple");
+    app.add_flag("-V,--validate", config.validate_simple_graph)
+        ->description(
+            R"(Validate that the generated graph is undirected and does not have duplicated edges or inconsistent edge weights.
+This is mostly useful for experimental graph generators or when using KaGen to load graphs from disk.)");
     app.add_flag(
-        "--skip-postprocessing", config.skip_postprocessing, "Skip postprocessing (repair graph, fix vertex ranges)");
+        "--skip-postprocessing", config.skip_postprocessing,
+        "Skip postprocessing (repair inconsistency due to floating point inaccuracies etc.)");
     app.add_flag("-s,--seed", config.seed, "Seed for PRNG");
     auto* stats_group = app.add_option_group("Statistics output");
-    stats_group
-        ->add_option(
-            "--stats", config.statistics_level, "Controls how much statistics on the generated graph gets calculated")
-        ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()));
+    stats_group->add_option("--stats", config.statistics_level)
+        ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()).description(""))
+        ->description(
+            R"(Controls the level of statistics that are computed for the generated graph. Possible levels are:
+  - none:     do not output any statistics
+  - basic:    only output very basic statistics
+  - advanced: also output information about the degree distribution)");
     stats_group->add_flag(
         "-S",
         [&config](const auto count) {
@@ -314,7 +321,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     }
 
     { // RMAT
-        auto* cmd = app.add_subcommand("rmat", "R-MAT Graph");
+        auto* cmd = app.add_subcommand("rmat", "R-MAT Graph")->alias("r-mat");
         cmd->callback([&] { config.generator = GeneratorType::RMAT; });
         add_option_self_loops(cmd);
         add_option_directed(cmd);
@@ -326,7 +333,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     }
 
     { // ImageMesh
-        auto* cmd = app.add_subcommand("imagemesh", "Mesh graphs based on images");
+        auto* cmd = app.add_subcommand("image", "Mesh graphs based on images")->alias("imagemesh")->alias("image-mesh");
         cmd->callback([&] { config.generator = GeneratorType::IMAGE_MESH; });
         cmd->add_option("--image", config.image_mesh.filename, "Input image filename")
             ->required()
@@ -356,7 +363,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     }
 
     { // Static graph
-        auto* cmd = app.add_subcommand("static", "Loads a static graph from disk");
+        auto* cmd =
+            app.add_subcommand("static", "Loads a static graph from disk")->alias("staticgraph")->alias("static-graph");
         cmd->callback([&] { config.generator = GeneratorType::STATIC_GRAPH; });
         cmd->add_option("--filename", config.static_graph.filename, "Input image filename")
             ->required()
@@ -375,10 +383,24 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     // IO options
     app.add_option("-o,--output", config.output_file, "Output filename");
-    app.add_option("-f,--output-format", config.output_format, "Output format")
-        ->transform(CLI::CheckedTransformer(GetOutputFormatMap()));
-    app.add_option("--output-header", config.output_header, "Output file header")
-        ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()));
+    app.add_option("-f,--output-format", config.output_format)
+        ->transform(CLI::CheckedTransformer(GetOutputFormatMap()).description(""))
+        ->description(R"(File format for the generated graph, available formats are:
+  - none:             do not write the graph to disk
+  - edge-list:        text file containing the generated edges
+  - binary-edge-list: binary file containing the generated edges
+  - metis:            format used by METIS
+  - hmetis:           format used by hMETIS
+  - binary-parhip:    binary format used by ParHIP
+  - dot:              GraphViz format
+  - coordinates:      text file containing x y z coordinates)");
+    app.add_option("--output-header", config.output_header)
+        ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()).description(""))
+        ->description(
+            R"(When using distributed output: controls which PEs add a file header to their output file, possible values are:
+  - never:  no PE outputs a file header
+  - root:   only the root PE outputs a file header
+  - always: every PE outputs a file header)");
     app.add_flag(
         "--distributed-output", [&config](auto) { config.output_single_file = false; }, "Output one file for each PE");
 
