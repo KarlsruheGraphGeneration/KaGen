@@ -132,15 +132,15 @@ Graph MetisReader::Read(const SInt from, const SInt to, const SInt num_edges) {
             return true;
         },
         [&](const SInt weight, const SInt to) {
-            ++current_edge;
-            if (current_node >= from) {
+            if (current_node - 1 >= from) {
+                ++current_edge;
                 graph.edge_weights.push_back(weight);
+                graph.edges.emplace_back(current_node - 1, to);
             }
-            graph.edges.emplace_back(current_node - 1, to);
         },
         global_n, has_node_weights, has_edge_weights);
 
-    graph.vertex_range = {from, from + current_node};
+    graph.vertex_range = {from, current_node};
     return graph;
 }
 
