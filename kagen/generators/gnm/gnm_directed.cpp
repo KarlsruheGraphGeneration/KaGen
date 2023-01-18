@@ -13,7 +13,7 @@ GNMDirected::GNMDirected(const PGeneratorConfig& config, const PEID rank, const 
       rng_(config),
       edges_per_node_(config_.self_loops ? config_.n : config_.n - 1) {}
 
-void GNMDirected::GenerateImpl() {
+void GNMDirected::GenerateEdgeList() {
     // Chunk distribution
     SInt leftover_chunks = config_.k % size_;
     SInt num_chunks      = (config_.k / size_) + ((SInt)rank_ < leftover_chunks);

@@ -15,9 +15,13 @@ public:
     StaticGraph(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateEdgeList() final;
+
+    void GenerateCSR() final;
 
 private:
+    void GenerateImpl(GraphRepresentation representation);
+
     const PGeneratorConfig& config_;
 
     PEID rank_;

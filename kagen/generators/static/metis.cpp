@@ -104,7 +104,8 @@ GraphSize MetisReader::ReadSize() {
     return {n, m};
 }
 
-Graph MetisReader::Read(const SInt from, const SInt to_node, const SInt to_edge) {
+Graph MetisReader::Read(
+    const SInt from, const SInt to_node, const SInt to_edge, const GraphRepresentation representation) {
     SInt current_node = 0;
     SInt current_edge = 0;
 
@@ -118,30 +119,62 @@ Graph MetisReader::Read(const SInt from, const SInt to_node, const SInt to_edge)
     }
 
     Graph graph;
-    ParseBody(
-        toker_,
-        [&, has_node_weights = has_node_weights](const SInt weight) {
-            if (has_node_weights && current_node >= from) {
-                graph.vertex_weights.push_back(weight);
-            }
+    if (representation == GraphRepresentation::EDGE_LIST) {
+        ParseBody(
+            toker_,
+            [&, has_node_weights = has_node_weights](const SInt weight) {
+                if (has_node_weights && current_node >= from) {
+                    graph.vertex_weights.push_back(weight);
+                }
 
-            if (current_node >= to_node || current_edge >= to_edge) {
-                return false;
-            }
+                if (current_node >= to_node || current_edge >= to_edge) {
+                    return false;
+                }
 
-            ++current_node;
-            return true;
-        },
-        [&](const SInt weight, const SInt to) {
-            ++current_edge;
-            if (current_node - 1 >= from) {
-                graph.edge_weights.push_back(weight);
-                graph.edges.emplace_back(current_node - 1, to);
-            }
-        },
-        global_n, has_node_weights, has_edge_weights);
+                ++current_node;
+                return true;
+            },
+            [&](const SInt weight, const SInt to) {
+                ++current_edge;
+                if (current_node - 1 >= from) {
+                    graph.edge_weights.push_back(weight);
+                    graph.edges.emplace_back(current_node - 1, to);
+                }
+            },
+            global_n, has_node_weights, has_edge_weights);
+    } else if (representation == GraphRepresentation::CSR) {
+        ParseBody(
+            toker_,
+            [&, has_node_weights = has_node_weights](const SInt weight) {
+                if (current_node >= from) {
+                    graph.xadj.push_back(graph.adjncy.size());
+                    if (has_node_weights) {
+                        graph.vertex_weights.push_back(weight);
+                    }
+                }
 
-    graph.vertex_range = {from, current_node};
+                if (current_node >= to_node || current_edge >= to_edge) {
+                    return false;
+                }
+
+                ++current_node;
+                return true;
+            },
+            [&](const SInt weight, const SInt to) {
+                ++current_edge;
+                if (current_node - 1 >= from) {
+                    graph.edge_weights.push_back(weight);
+                    graph.adjncy.push_back(to);
+                }
+            },
+            global_n, has_node_weights, has_edge_weights);
+        graph.xadj.push_back(graph.adjncy.size());
+    } else {
+        __builtin_unreachable();
+    }
+
+    graph.vertex_range   = {from, current_node};
+    graph.representation = representation;
     return graph;
 }
 

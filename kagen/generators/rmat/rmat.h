@@ -17,7 +17,7 @@ public:
     RMAT(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() override;
+    void GenerateEdgeList() final;
 
 private:
     const PGeneratorConfig& config_;

@@ -13,7 +13,9 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Generate 2D RGG graph with 16 nodes and edge radius 0.125
-    auto graph = kagen::KaGen(MPI_COMM_WORLD).GenerateRGG2D(16, 0.125);
+    kagen::KaGen gen(MPI_COMM_WORLD);
+    gen.UseCSRRepresentation();
+    auto graph = gen.GenerateRGG2D(16, 0.125);
     std::cout << "Vertices on PE " << rank << ": [" << graph.vertex_range.first << ", " << graph.vertex_range.second
               << ")" << std::endl;
 
@@ -29,11 +31,10 @@ int main(int argc, char* argv[]) {
     }
 
     // Get CSR format
-    const auto [xadj, adjncy, vwgt, ewgt] = kagen::BuildCSR<int>(std::move(graph));
     {
         std::stringstream out;
         out << "[PE" << rank << "] Xadj: ";
-        for (const auto& v: xadj) {
+        for (const auto& v: graph.xadj) {
             out << v << " ";
         }
         std::cout << out.str() << std::endl;
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
     {
         std::stringstream out;
         out << "[PE" << rank << "] Adjncy: ";
-        for (const auto& v: adjncy) {
+        for (const auto& v: graph.adjncy) {
             out << v << " ";
         }
         std::cout << out.str() << std::endl;

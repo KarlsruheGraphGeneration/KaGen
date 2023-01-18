@@ -44,7 +44,7 @@ Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       rank_(rank),
       size_(size) {}
 
-void Grid3D::GenerateImpl() {
+void Grid3D::GenerateEdgeList() {
     // Init dimensions
     // TODO: Only tested for cube PEs and one chunk per PE
     total_x_          = config_.grid_x;

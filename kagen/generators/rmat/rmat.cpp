@@ -47,7 +47,7 @@ RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
     num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
 }
 
-void RMAT::GenerateImpl() {
+void RMAT::GenerateEdgeList() {
     using RNG  = rmat::generators::select_t;
     using RMAT = rmat::rmat<false>;
 

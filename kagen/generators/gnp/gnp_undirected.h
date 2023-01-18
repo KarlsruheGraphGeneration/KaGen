@@ -20,12 +20,12 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
-class GNPUndirected : public Generator {
+class GNPUndirected : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     GNPUndirected(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateEdgeList() final;
 
 private:
     // Config

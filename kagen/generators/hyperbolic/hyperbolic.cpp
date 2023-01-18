@@ -117,12 +117,12 @@ Hyperbolic<Double>::Hyperbolic(const PGeneratorConfig& config, const PEID rank, 
 }
 
 template <typename Double>
-void Hyperbolic<Double>::Finalize(MPI_Comm comm) {
+void Hyperbolic<Double>::FinalizeEdgeList(MPI_Comm comm) {
     AddReverseEdges(edges_, vertex_range_, comm);
 }
 
 template <typename Double>
-void Hyperbolic<Double>::GenerateImpl() {
+void Hyperbolic<Double>::GenerateEdgeList() {
     // Compute local chunks
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         ComputeChunk(i);

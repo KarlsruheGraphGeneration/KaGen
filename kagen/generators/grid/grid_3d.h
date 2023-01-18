@@ -20,12 +20,12 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
-class Grid3D : public Generator {
+class Grid3D : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     Grid3D(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateEdgeList() final;
 
 private:
     // Config

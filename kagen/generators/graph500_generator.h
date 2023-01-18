@@ -5,13 +5,13 @@
 #include <mpi.h>
 
 namespace kagen {
-class Graph500Generator : public Generator {
+class Graph500Generator : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     Graph500Generator(const PGeneratorConfig& config);
 
-    void Finalize(MPI_Comm comm) final;
-
 protected:
+    void FinalizeEdgeList(MPI_Comm comm) final;
+
     inline void PushLocalEdge(const int from, const int to) {
         if (config_.self_loops || from != to) {
             local_edges_.emplace_back(from, to);

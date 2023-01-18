@@ -21,14 +21,14 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
-class Barabassi : public Generator {
+class Barabassi : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     Barabassi(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    void Finalize(MPI_Comm comm) final;
-
 protected:
-    void GenerateImpl() override;
+    void GenerateEdgeList() final;
+
+    void FinalizeEdgeList(MPI_Comm comm) final;
 
 private:
     // Config

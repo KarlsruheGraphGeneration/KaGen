@@ -41,7 +41,7 @@ Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       size_(size),
       rng_(config) {}
 
-void Grid2D::GenerateImpl() {
+void Grid2D::GenerateEdgeList() {
     // Init dimensions
     // @todo Only tested for cube PEs and one chunk per PE
     total_rows_       = config_.grid_y;

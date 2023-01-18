@@ -52,7 +52,8 @@ GraphSize BinaryParhipReader::ReadSize() {
     return {n_, m_};
 }
 
-Graph BinaryParhipReader::Read(const SInt from, SInt to_node, const SInt to_edge) {
+Graph BinaryParhipReader::Read(
+    const SInt from, SInt to_node, const SInt to_edge, const GraphRepresentation representation) {
     if (to_node > n_) {
         to_node = FindNodeByEdge(to_edge);
     }
@@ -73,17 +74,23 @@ Graph BinaryParhipReader::Read(const SInt from, SInt to_node, const SInt to_edge
     auto adjncy = ReadVector<ParHipID>(in_, num_local_edges);
 
     Graph ans;
-    ans.vertex_range = {from, from + num_local_nodes};
+    ans.vertex_range   = {from, from + num_local_nodes};
+    ans.representation = representation;
 
     // Build edge list array from xadj and adjncy
-    ans.edges.reserve(num_local_edges);
-    for (SInt u = 0; u < num_local_nodes; ++u) {
-        const SInt first_edge         = xadj[u];
-        const SInt first_invalid_edge = xadj[u + 1];
-        for (SInt e = first_edge; e < first_invalid_edge; ++e) {
-            const SInt v = adjncy[e];
-            ans.edges.emplace_back(from + u, v);
+    if (representation == GraphRepresentation::EDGE_LIST) {
+        ans.edges.reserve(num_local_edges);
+        for (SInt u = 0; u < num_local_nodes; ++u) {
+            const SInt first_edge         = xadj[u];
+            const SInt first_invalid_edge = xadj[u + 1];
+            for (SInt e = first_edge; e < first_invalid_edge; ++e) {
+                const SInt v = adjncy[e];
+                ans.edges.emplace_back(from + u, v);
+            }
         }
+    } else {
+        ans.xadj   = std::move(xadj);
+        ans.adjncy = std::move(adjncy);
     }
 
     // Load weights if the graph is weighted

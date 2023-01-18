@@ -12,12 +12,12 @@ public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
-class ImageMesh : public Generator {
+class ImageMesh : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateEdgeList() final;
 
 private:
     const PGeneratorConfig& config_;

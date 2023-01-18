@@ -239,7 +239,7 @@ ImageMesh::ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID
       rank_(rank),
       size_(size) {}
 
-void ImageMesh::GenerateImpl() {
+void ImageMesh::GenerateEdgeList() {
     SInt max_pixel_rows, max_pixel_cols;
     std::tie(max_pixel_rows, max_pixel_cols) = ReadDimensions(config_.image_mesh.filename);
 

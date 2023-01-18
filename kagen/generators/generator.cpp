@@ -1,6 +1,7 @@
 #include "kagen/generators/generator.h"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
+#include "kagen/tools/converter.h"
 
 #include <mpi.h>
 
@@ -10,23 +11,82 @@
 namespace kagen {
 Generator::~Generator() = default;
 
-void Generator::Generate() {
-    edges_.clear();
-    coordinates_.first.clear();
-    coordinates_.second.clear();
-    GenerateImpl();
+void Generator::Generate(const GraphRepresentation representation) {
+    Reset();
+
+    representation_ = representation;
+
+    switch (representation_) {
+        case GraphRepresentation::EDGE_LIST:
+            GenerateEdgeList();
+            break;
+
+        case GraphRepresentation::CSR:
+            GenerateCSR();
+            break;
+    }
 }
 
-void Generator::Finalize(MPI_Comm) {}
+void Generator::Finalize(MPI_Comm comm) {
+    switch (representation_) {
+        case GraphRepresentation::EDGE_LIST:
+            FinalizeEdgeList(comm);
+            break;
 
-const EdgeList& Generator::GetEdges() const {
-    return edges_;
+        case GraphRepresentation::CSR:
+            FinalizeCSR(comm);
+            break;
+    }
 }
 
-Graph Generator::TakeResult() {
+void Generator::FinalizeEdgeList(MPI_Comm) {}
+
+void Generator::FinalizeCSR(MPI_Comm) {}
+
+void CSROnlyGenerator::GenerateEdgeList() {
+    GenerateCSR();
+}
+
+void CSROnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
+    if (xadj_.empty()) {
+        return;
+    }
+
+    // Otherwise, we have generated the graph in CSR representation, but
+    // actually want edge list representation -> transform graph
+    FinalizeCSR(comm);
+    edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
+}
+
+void EdgeListOnlyGenerator::GenerateCSR() {
+    GenerateEdgeList();
+}
+
+void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
+    if (!xadj_.empty()) {
+        return;
+    }
+
+    // Otherwise, we have generated the graph in edge list representation, but
+    // actually want CSR format --> transform graph
+    FinalizeEdgeList(comm);
+    std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
+}
+
+SInt Generator::GetNumberOfEdges() const {
+    return std::max(adjncy_.size(), edges_.size());
+}
+
+Graph Generator::Take() {
     return {
-        std::move(edges_), vertex_range_, std::move(coordinates_), std::move(vertex_weights_),
-        std::move(edge_weights_)};
+        vertex_range_,
+        representation_,
+        std::move(edges_),
+        std::move(xadj_),
+        std::move(adjncy_),
+        std::move(vertex_weights_),
+        std::move(edge_weights_),
+        std::move(coordinates_)};
 }
 
 void Generator::SetVertexRange(const VertexRange vertex_range) {
@@ -37,6 +97,16 @@ void Generator::FilterDuplicateEdges() {
     std::sort(edges_.begin(), edges_.end());
     auto it = std::unique(edges_.begin(), edges_.end());
     edges_.erase(it, edges_.end());
+}
+
+void Generator::Reset() {
+    edges_.clear();
+    xadj_.clear();
+    adjncy_.clear();
+    vertex_weights_.clear();
+    edge_weights_.clear();
+    coordinates_.first.clear();
+    coordinates_.second.clear();
 }
 
 GeneratorFactory::~GeneratorFactory() = default;
