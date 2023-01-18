@@ -27,7 +27,7 @@
 namespace kagen {
 class HyperbolicFactory : public GeneratorFactory {
 public:
-    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const override;
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const override;
 
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
@@ -45,7 +45,6 @@ public:
     using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
-
 
 protected:
     void GenerateEdgeList() final;

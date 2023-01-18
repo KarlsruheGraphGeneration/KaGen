@@ -9,7 +9,8 @@
 #include <mpi.h>
 
 namespace kagen {
-PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+PGeneratorConfig
+RMATFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.rmat_a < 0 || config.rmat_b < 0 || config.rmat_b < 0) {
         throw ConfigurationError("probabilities may not be negative");
     }

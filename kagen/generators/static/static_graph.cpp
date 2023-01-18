@@ -7,10 +7,6 @@
 namespace kagen {
 using namespace staticgraph;
 
-PGeneratorConfig StaticGraphFactory::NormalizeParameters(PGeneratorConfig config, PEID, bool) const {
-    return config;
-}
-
 std::unique_ptr<Generator> StaticGraphFactory::Create(const PGeneratorConfig& config, PEID rank, PEID size) const {
     return std::make_unique<StaticGraph>(config, rank, size);
 }

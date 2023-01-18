@@ -111,7 +111,7 @@ void Generator::Reset() {
 
 GeneratorFactory::~GeneratorFactory() = default;
 
-PGeneratorConfig GeneratorFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, bool) const {
+PGeneratorConfig GeneratorFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, bool) const {
     if (config.k == 0) {
         config.k = static_cast<SInt>(size);
     }

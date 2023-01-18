@@ -16,9 +16,9 @@
 namespace kagen {
 class BarabassiFactory : public GeneratorFactory {
 public:
-    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const override;
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const final;
 
-    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const final;
 };
 
 class Barabassi : public virtual Generator, private EdgeListOnlyGenerator {

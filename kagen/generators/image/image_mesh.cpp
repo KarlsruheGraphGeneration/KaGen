@@ -16,7 +16,8 @@ namespace {
 constexpr bool kDebug = false;
 }
 
-PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const {
+PGeneratorConfig
+ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     ImageMeshConfig& iconfig = config.image_mesh;
 
     if (iconfig.grid_x == 0 && iconfig.max_grid_x == 0) {

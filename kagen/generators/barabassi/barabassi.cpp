@@ -11,7 +11,7 @@
 
 namespace kagen {
 PGeneratorConfig
-BarabassiFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+BarabassiFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.k == 0) {
         config.k = static_cast<SInt>(size);
     }

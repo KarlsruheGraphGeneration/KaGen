@@ -119,7 +119,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
     auto             factory = CreateGeneratorFactory(config_template.generator);
     PGeneratorConfig config;
     try {
-        config = factory->NormalizeParameters(config_template, size, output_info);
+        config = factory->NormalizeParameters(config_template, rank, size, output_info);
     } catch (ConfigurationError& ex) {
         if (output_error) {
             std::cerr << "Error: " << ex.what() << "\n";

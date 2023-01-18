@@ -5,9 +5,7 @@
 namespace kagen {
 class StaticGraphFactory : public GeneratorFactory {
 public:
-    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const override;
-
-    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const final;
 };
 
 class StaticGraph : public Generator {

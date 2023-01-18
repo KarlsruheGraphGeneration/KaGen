@@ -6,7 +6,8 @@
 #include "kagen/generators/grid/grid_2d.h"
 
 namespace kagen {
-PGeneratorConfig Grid2DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+PGeneratorConfig
+Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     EnsureSquareChunkSize(config, size);
 
     if (config.p == 0) {

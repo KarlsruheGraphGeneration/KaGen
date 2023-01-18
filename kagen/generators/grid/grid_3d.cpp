@@ -10,7 +10,8 @@ Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEI
     return std::make_unique<Grid3D>(config, rank, size);
 }
 
-PGeneratorConfig Grid3DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+PGeneratorConfig
+Grid3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     EnsureCubicChunkSize(config, size);
 
     if (config.p == 0) {

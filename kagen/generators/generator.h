@@ -101,7 +101,7 @@ class GeneratorFactory {
 public:
     virtual ~GeneratorFactory();
 
-    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const;
+    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const;
 
     virtual std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const = 0;
 
