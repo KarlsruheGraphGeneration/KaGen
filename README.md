@@ -202,8 +202,6 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = fals
 ### Random Geometric Graphs RGG(n, r)
 Generate an undirected random graph using the random geometric graph model RGG(n, r).
 
-**Note:** This generator requires the number of PEs to be a power of 2.
-
 **Note:** This generator is parameterized by the number of vertices in the graph and its edge radius. 
 Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 
 parameter is approximated such that the expected number of edges matches the desired number of edges.
