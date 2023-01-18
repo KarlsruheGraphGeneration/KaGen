@@ -135,6 +135,12 @@ The examples given below only show the C++ interface.
 **Note**: Instead of calling the library functions listed below, you can also use `KaGen::GenerateFromOptionString()` 
 to pass the generator options as a string (documentation is available in `library/kagen.h`).
 
+The library functions return the generated graph as an instance of type `kagen::KaGenResult`. 
+By default, the graph is represented as an edge list, i.e., a vector `kagen::KaGenResult::edges[]` containing pairs of vertices.
+To generate a graph in compressed sparsw row (CSR) format, call `kagen::KaGen::UseCSRRepresentation()` before generating the graph. 
+Then, access the graph via `kagen::KaGenResult::xadj[]` and `kagen::KaGenResult::adjncy[]` (depending on the generator, KaGen will 
+generate the CSR representation directly or transform the generated edge list to CSR afterwards at the cost of memory- and running time overheads).
+
 ## General Graph Format
 
 Unless noted otherwise, KaGen generates **simple**, **undirected** graphs, i.e.,
