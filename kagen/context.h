@@ -163,6 +163,8 @@ struct PGeneratorConfig {
     double        rmat_c     = 0.0;
     bool          directed   = false;
 
+    double max_vertex_imbalance = 0.03; // RGG, RDG, RHG
+
     bool coordinates = false; // Store vertex coordinates
 
     // Image mesh generator settings

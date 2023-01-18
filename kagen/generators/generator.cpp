@@ -144,14 +144,14 @@ void GeneratorFactory::EnsureSquarePowerOfTwoChunkSize(
         if (IsSquare(size) && IsPowerOfTwo(size)) {
             config.k = static_cast<SInt>(size);
         } else {
-            if (output && !IsPowerOfTwo(size)) {
-                std::cerr << "Warning: number of PEs is not a power of two: this will cause load imbalance\n";
-            }
-
             const SInt l = std::ceil(std::log2(size));
             config.k     = 1 << l;
             if (!IsSquare(config.k)) {
                 config.k *= 2;
+            }
+
+            while (config.k < size * (1.0 / config.max_vertex_imbalance - 1.0)) {
+                config.k <<= 2;
             }
         }
         if (output) {
@@ -168,10 +168,6 @@ void GeneratorFactory::EnsureCubicPowerOfTwoChunkSize(
         if (IsCubic(size) && IsPowerOfTwo(size)) {
             config.k = static_cast<SInt>(size);
         } else {
-            if (output && !IsPowerOfTwo(size)) {
-                std::cerr << "Warning: number of PEs is not a power of two: this will cause load imbalance\n";
-            }
-
             const SInt l = std::ceil(std::log2(size));
             config.k     = 1 << l;
             if (!IsCubic(config.k)) {
@@ -179,6 +175,10 @@ void GeneratorFactory::EnsureCubicPowerOfTwoChunkSize(
             }
             if (!IsCubic(config.k)) {
                 config.k *= 2;
+            }
+
+            while (config.k < size * (1.0 / config.max_vertex_imbalance - 1.0)) {
+                config.k <<= 3;
             }
         }
         if (output) {
