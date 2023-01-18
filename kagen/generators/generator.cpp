@@ -111,9 +111,13 @@ void Generator::Reset() {
 
 GeneratorFactory::~GeneratorFactory() = default;
 
-PGeneratorConfig GeneratorFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, bool) const {
+PGeneratorConfig
+GeneratorFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.k == 0) {
         config.k = static_cast<SInt>(size);
+        if (output) {
+            std::cout << "Setting number of chunks to " << config.k << std::endl;
+        }
     }
     return config;
 }
@@ -132,65 +136,56 @@ bool IsCubic(const SInt value) {
     const SInt root = std::round(std::cbrt(value));
     return root * root * root == value;
 }
-
-SInt FindSquareMultipleOf(const SInt value) {
-    if (IsSquare(value)) {
-        return value;
-    }
-    if (IsPowerOfTwo(value)) {
-        return 2 * value; // every 2nd power of two is square
-    }
-
-    // find smallest square number that is a multiple of value
-    const SInt root = std::sqrt(value);
-    for (SInt cur = root; cur < value; ++cur) {
-        const SInt squared = cur * cur;
-        if (squared % value == 0) {
-            return squared;
-        }
-    }
-    return value * value;
-}
-
-SInt FindCubeMultipleOf(const SInt value) {
-    if (IsCubic(value)) {
-        return value;
-    }
-    if (IsPowerOfTwo(value)) {
-        return IsCubic(value * 2) ? value * 2 : value * 4;
-    }
-
-    // find smallest cubic number that is a multiple of value
-    const SInt root = std::cbrt(value);
-    for (SInt cur = root; cur < value; ++cur) {
-        const SInt cubed = cur * cur * cur;
-        if (cubed % value == 0) {
-            return cubed;
-        }
-    }
-    return value * value * value;
-}
 } // namespace
 
-void GeneratorFactory::EnsurePowerOfTwoCommunicatorSize(PGeneratorConfig&, const PEID size) const {
-    if (!IsPowerOfTwo(size)) {
-        throw ConfigurationError("number of PEs must be a power of two");
+void GeneratorFactory::EnsureSquarePowerOfTwoChunkSize(
+    PGeneratorConfig& config, const PEID size, const bool output) const {
+    if (config.k == 0) {
+        if (IsSquare(size) && IsPowerOfTwo(size)) {
+            config.k = static_cast<SInt>(size);
+        } else {
+            if (output && !IsPowerOfTwo(size)) {
+                std::cerr << "Warning: number of PEs is not a power of two: this will cause load imbalance\n";
+            }
+
+            const SInt l = std::ceil(std::log2(size));
+            config.k     = 1 << l;
+            if (!IsSquare(config.k)) {
+                config.k *= 2;
+            }
+        }
+        if (output) {
+            std::cout << "Setting number of chunks to " << config.k << std::endl;
+        }
+    } else if (config.k < static_cast<SInt>(size) || !IsSquare(config.k) || !IsPowerOfTwo(config.k)) {
+        throw ConfigurationError("number of chunks must be square power of two and larger than number of PEs");
     }
 }
 
-void GeneratorFactory::EnsureSquareChunkSize(PGeneratorConfig& config, const PEID size) const {
+void GeneratorFactory::EnsureCubicPowerOfTwoChunkSize(
+    PGeneratorConfig& config, const PEID size, const bool output) const {
     if (config.k == 0) {
-        config.k = FindSquareMultipleOf(size);
-    } else if (!IsSquare(config.k)) {
-        throw ConfigurationError("number of chunks must be square");
-    }
-}
+        if (IsCubic(size) && IsPowerOfTwo(size)) {
+            config.k = static_cast<SInt>(size);
+        } else {
+            if (output && !IsPowerOfTwo(size)) {
+                std::cerr << "Warning: number of PEs is not a power of two: this will cause load imbalance\n";
+            }
 
-void GeneratorFactory::EnsureCubicChunkSize(PGeneratorConfig& config, const PEID size) const {
-    if (config.k == 0) {
-        config.k = FindCubeMultipleOf(size);
-    } else if (!IsCubic(config.k)) {
-        throw ConfigurationError("number of chunks must be cubic");
+            const SInt l = std::ceil(std::log2(size));
+            config.k     = 1 << l;
+            if (!IsCubic(config.k)) {
+                config.k *= 2;
+            }
+            if (!IsCubic(config.k)) {
+                config.k *= 2;
+            }
+        }
+        if (output) {
+            std::cout << "Setting number of chunks to " << config.k << std::endl;
+        }
+    } else if (config.k < static_cast<SInt>(size) || !IsCubic(config.k)) {
+        throw ConfigurationError("number of chunks must be cubic and larger than the number of PEs");
     }
 }
 

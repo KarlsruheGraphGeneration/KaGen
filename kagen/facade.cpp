@@ -124,7 +124,8 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
         if (output_error) {
             std::cerr << "Error: " << ex.what() << "\n";
         }
-        std::exit(1);
+        MPI_Barrier(comm);
+        MPI_Abort(comm, 1);
     }
 
     // Generate graph
@@ -184,7 +185,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
             if (output_error) {
                 std::cerr << "Error: simple graph validation failed\n";
             }
-            std::exit(1);
+            MPI_Abort(comm, 1);
         } else if (output_info) {
             std::cout << "OK" << std::endl;
         }

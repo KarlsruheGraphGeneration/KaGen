@@ -106,9 +106,8 @@ public:
     virtual std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const = 0;
 
 protected:
-    void EnsurePowerOfTwoCommunicatorSize(PGeneratorConfig& config, PEID size) const;
-    void EnsureSquareChunkSize(PGeneratorConfig& config, PEID size) const;
-    void EnsureCubicChunkSize(PGeneratorConfig& config, PEID size) const;
+    void EnsureSquarePowerOfTwoChunkSize(PGeneratorConfig& config, PEID size, bool output) const;
+    void EnsureCubicPowerOfTwoChunkSize(PGeneratorConfig& config, PEID size, bool output) const;
     void EnsureOneChunkPerPE(PGeneratorConfig& config, PEID size) const;
 };
 } // namespace kagen

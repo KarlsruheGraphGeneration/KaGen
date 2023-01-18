@@ -13,7 +13,7 @@ HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
     if (config.k == 0) {
         config.k = static_cast<SInt>(size);
     }
-    EnsurePowerOfTwoCommunicatorSize(config, size);
+    EnsureOneChunkPerPE(config, size);
 
     if (config.avg_degree == 0) {
         if (config.m == 0 || config.n == 0) {

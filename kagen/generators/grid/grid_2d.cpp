@@ -8,7 +8,7 @@
 namespace kagen {
 PGeneratorConfig
 Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
-    EnsureSquareChunkSize(config, size);
+    EnsureSquarePowerOfTwoChunkSize(config, size, output);
 
     if (config.p == 0) {
         if (config.grid_x == 0 || config.grid_y == 0 || config.m == 0) {

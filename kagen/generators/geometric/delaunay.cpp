@@ -19,8 +19,8 @@ PGeneratorConfig NormalizeParametersCommon(PGeneratorConfig config, const double
 } // namespace
 PGeneratorConfig
 Delaunay2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
-    EnsureSquareChunkSize(config, size);
-    EnsurePowerOfTwoCommunicatorSize(config, size);
+    EnsureSquarePowerOfTwoChunkSize(config, size, output);
+    // EnsurePowerOfTwoCommunicatorSize(config, size);
     EnsureOneChunkPerPE(config, size);
 
     return NormalizeParametersCommon(config, 3, output);
@@ -33,8 +33,8 @@ Delaunay2DFactory::Create(const PGeneratorConfig& config, const PEID rank, const
 
 PGeneratorConfig
 Delaunay3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
-    EnsureCubicChunkSize(config, size);
-    EnsurePowerOfTwoCommunicatorSize(config, size);
+    EnsureCubicPowerOfTwoChunkSize(config, size, output);
+    // EnsurePowerOfTwoCommunicatorSize(config, size);
 
     return NormalizeParametersCommon(config, 15.53 / 2.0, output);
 }

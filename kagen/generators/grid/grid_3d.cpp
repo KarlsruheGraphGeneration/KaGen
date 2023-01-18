@@ -12,7 +12,7 @@ Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEI
 
 PGeneratorConfig
 Grid3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
-    EnsureCubicChunkSize(config, size);
+    EnsureCubicPowerOfTwoChunkSize(config, size, output);
 
     if (config.p == 0) {
         if (config.grid_x == 0 || config.grid_y == 0 || config.grid_z == 0 || config.m == 0) {
