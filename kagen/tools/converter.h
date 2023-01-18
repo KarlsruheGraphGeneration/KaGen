@@ -52,7 +52,16 @@ BuildCSRFromEdgeList(VertexRange vertex_range, EdgeList& edges, EdgeWeights& edg
     return {std::move(xadj), std::move(adjncy)};
 }
 
-inline EdgeList BuildEdgeListFromCSR(VertexRange vertex_range, const XadjArray &xadj, const AdjncyArray &adjncy) {
-    return {};
+inline EdgeList BuildEdgeListFromCSR(VertexRange vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy) {
+    EdgeList edge_list;
+    edge_list.reserve(adjncy.size());
+
+    for (SInt u = 0; u + 1 < xadj.size(); ++u) {
+        for (SInt e = xadj[u]; e < xadj[u + 1]; ++e) {
+            edge_list.emplace_back(u + vertex_range.first, adjncy[e]);
+        }
+    }
+
+    return edge_list;
 }
 } // namespace kagen
