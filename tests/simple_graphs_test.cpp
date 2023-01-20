@@ -7,15 +7,32 @@
 
 using namespace kagen;
 
-PGeneratorConfig CreateConfig() {
+PGeneratorConfig CreateConfig(GeneratorType type) {
     PGeneratorConfig config;
-    config.n      = 1 << 10; // 2^10 vertices
-    config.m      = 1 << 12; // 2^12 edges
+    config.generator = type;
+    switch (type) {
+        case GeneratorType::GNP_UNDIRECTED:
+        case GeneratorType::GNM_UNDIRECTED:
+        case GeneratorType::RGG_2D:
+        case GeneratorType::RGG_3D:
+        case GeneratorType::RMAT:
+        case GeneratorType::KRONECKER:
+        case GeneratorType::BA:
+        case GeneratorType::RHG:
+            config.n = 1 << 10; // 2^10 vertices
+            config.m = 1 << 12; // 2^12 edges
+            break;
+
+        case GeneratorType::GRID_2D:
+        case GeneratorType::GRID_3D:
+            config.grid_x = 5;
+            config.grid_y = 5;
+            config.grid_z = 5;
+            config.p      = 0.5;
+            break;
+    }
+
     config.plexp  = 3.0;
-    config.p      = 0.5;
-    config.grid_x = 5;
-    config.grid_y = 5;
-    config.grid_z = 5;
     config.rmat_a = 0.1;
     config.rmat_b = 0.1;
     config.rmat_c = 0.1;
@@ -26,8 +43,7 @@ PGeneratorConfig CreateConfig() {
 }
 
 void TestGenerator(GeneratorType type) {
-    auto config      = CreateConfig();
-    config.generator = type;
+    auto config = CreateConfig(type);
     Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
 }
 
