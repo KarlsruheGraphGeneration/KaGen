@@ -34,3 +34,6 @@ kagen_add_test(test_image_mesh
     FILES image_mesh_test.cpp 
     CORES 1)
 
+kagen_add_test(test_simple_graphs 
+    FILES simple_graphs_test.cpp 
+    CORES 1 2 3 4 5 6 7 8)
