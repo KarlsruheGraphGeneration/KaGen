@@ -10,7 +10,7 @@ namespace kagen {
 struct RGB {
     RGB() = default;
     RGB(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b) : r(r), g(g), b(b) {}
-    
+
     std::uint8_t r;
     std::uint8_t g;
     std::uint8_t b;
@@ -31,6 +31,8 @@ private:
     SInt   num_cols_;
     SInt   overlap_;
 };
+
+void CheckKARGB(const std::string& filename, bool& exists, bool& kargb);
 
 std::pair<SInt, SInt> ReadDimensions(const std::string& filename);
 

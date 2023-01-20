@@ -14,12 +14,32 @@ namespace kagen {
 constexpr std::size_t kKargbIdentifierLength = 5;
 constexpr std::size_t kKargbHeaderLength     = kKargbIdentifierLength + 2 * sizeof(std::uint64_t);
 
+void CheckKARGB(const std::string& filename, bool& exists, bool& kargb) {
+    exists = false;
+    kargb  = false;
+
+    std::ifstream in(filename, std::ios_base::binary);
+    exists = !!in;
+    if (!exists) {
+        return;
+    }
+
+    std::array<char, kKargbIdentifierLength + 1> identifier;
+    in.read(identifier.data(), kKargbIdentifierLength * sizeof(char));
+    kargb = !std::strcmp(identifier.data(), "KARGB");
+}
+
 std::pair<SInt, SInt> ReadDimensions(const std::string& filename) {
     std::uint64_t                                rows;
     std::uint64_t                                cols;
     std::array<char, kKargbIdentifierLength + 1> identifier;
 
     std::ifstream in(filename, std::ios_base::binary);
+    if (!in) {
+        std::cerr << "Error: input file cannot  be read\n";
+        std::exit(1);
+    }
+
     in.read(identifier.data(), kKargbIdentifierLength * sizeof(char));
     in.read(reinterpret_cast<char*>(&rows), sizeof(std::uint64_t));
     in.read(reinterpret_cast<char*>(&cols), sizeof(std::uint64_t));

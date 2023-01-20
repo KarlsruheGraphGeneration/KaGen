@@ -168,10 +168,10 @@ struct PGeneratorConfig {
     bool coordinates = false; // Store vertex coordinates
 
     // Image mesh generator settings
-    ImageMeshConfig image_mesh;
+    ImageMeshConfig image_mesh{};
 
     // Settings for the static graph pseudo-generator
-    StaticGraphConfig static_graph;
+    StaticGraphConfig static_graph{};
 
     // Hashing / sampling settings
     int   seed        = 1;      // Seed for PRNG
