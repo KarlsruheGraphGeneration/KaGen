@@ -17,14 +17,8 @@ using ULONG = unsigned long long;
 using INT   = int;
 using UINT  = unsigned int;
 using PEID  = int;
-
-#ifdef KAGEN_32BIT
-using SInt  = UINT;
-using SSInt = INT;
-#else
 using SInt  = ULONG;
 using SSInt = LONG;
-#endif
 
 // High/low prec
 using HPFloat = long double;
@@ -38,14 +32,8 @@ constexpr PEID ROOT = 0;
 #define KAGEN_MPI_PEID    MPI_INT
 #define KAGEN_MPI_HPFLOAT MPI_LONG_DOUBLE
 #define KAGEN_MPI_LPFLOAT MPI_DOUBLE
-
-#ifdef KAGEN_32BIT
-    #define KAGEN_MPI_SINT  MPI_UNSIGNED_INT
-    #define KAGEN_MPI_SSINT MPI_INT
-#else
-    #define KAGEN_MPI_SINT  MPI_UNSIGNED_LONG_LONG
-    #define KAGEN_MPI_SSINT MPI_LONG_LONG
-#endif
+#define KAGEN_MPI_SINT    MPI_UNSIGNED_LONG_LONG
+#define KAGEN_MPI_SSINT   MPI_LONG_LONG
 
 enum Direction { Up, Down, Left, Right, Front, Back };
 

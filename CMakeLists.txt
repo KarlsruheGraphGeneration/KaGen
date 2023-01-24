@@ -20,7 +20,6 @@ option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators.
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
-option(KAGEN_32BIT "Use 32 bit IDs and weights." OFF)
 
 ################################################################################
 
@@ -106,13 +105,6 @@ endif ()
 # Use -ffast-math
 if (KAGEN_USE_FAST_MATH) 
     list(APPEND CMAKE_CXX_FLAGS "-ffast-math")
-endif ()
-
-if (KAGEN_32BIT)
-    add_definitions(-DKAGEN_32BITS)    
-    message(STATUS "Building with 32 bit IDs and weights")
-else ()
-    message(STATUS "Building with 64 bit IDs and weights")
 endif ()
 
 ###############################################################################
