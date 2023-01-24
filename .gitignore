@@ -29,7 +29,7 @@
 # Custom
 *.log
 docs/*
-build
+build*/
 *.pdf
 logs
 
