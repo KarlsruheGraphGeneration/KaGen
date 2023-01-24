@@ -49,6 +49,31 @@ struct KaGenResult {
           coordinates_2d(std::move(std::get<6>(result).first)),
           coordinates_3d(std::move(std::get<6>(result).second)) {}
 
+    template <typename T = SInt>
+    std::vector<std::tuple<T, T>> TakeEdges() {
+        return TakeVector<std::tuple<T, T>>(edges);
+    }
+
+    template <typename T = SInt>
+    std::vector<T> TakeXadj() {
+        return TakeVector<T>(xadj);
+    }
+
+    template <typename T = SInt>
+    std::vector<T> TakeAdjncy() {
+        return TakeVector<T>(adjncy);
+    }
+
+    template <typename T = SSInt>
+    std::vector<T> TakeVertexWeights() {
+        return TakeVector<T>(vertex_weights);
+    }
+
+    template <typename T = SSInt>
+    std::vector<T> TakeEdgeWeights() {
+        return TakeVector<T>(edge_weights);
+    }
+
     VertexRange vertex_range;
 
     // Edge list representation
@@ -63,6 +88,20 @@ struct KaGenResult {
 
     Coordinates2D coordinates_2d;
     Coordinates3D coordinates_3d;
+
+private:
+    template <typename To, typename From>
+    std::vector<To> TakeVector(From& from) {
+        if constexpr (std::is_same_v<typename From::value_type, To>) {
+            return std::move(from);
+        }
+
+        std::vector<To> copy(from.size());
+        std::copy(from.begin(), from.end(), copy.begin());
+        std::vector<typename From::value_type> free;
+        std::swap(from, free);
+        return copy;
+    }
 };
 
 class KaGen {
@@ -124,15 +163,15 @@ public:
     void SetNumberOfChunks(SInt k);
 
     /*!
-     * Represents the generated graph as a list of edges (from, to). 
+     * Represents the generated graph as a list of edges (from, to).
      * This representation requires 2 * |E| memory and is the default representation.
      */
     void UseEdgeListRepresentation();
 
     /*!
      * Represents the generated graph in compressed sparse row format.
-     * This representation requires |V| + |E| memory. However, not all generators support this representation; 
-     * for generators that do not support it, KaGen first generates the graph as a list of edges, sorts it and 
+     * This representation requires |V| + |E| memory. However, not all generators support this representation;
+     * for generators that do not support it, KaGen first generates the graph as a list of edges, sorts it and
      * then builds the CSR data structures. This requires |V|+3|E| memory and |E|*log(|E|) time.
      */
     void UseCSRRepresentation();
