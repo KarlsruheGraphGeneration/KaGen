@@ -27,14 +27,44 @@ void kagen_free(kagen_t* gen) {
     delete gen;
 }
 
-void kagen_result_vertex_range(kagen_result_t* result, unsigned long long* begin, unsigned long long* end) {
+void kagen_result_vertex_range(kagen_result_t* result, kagen_index_t* begin, kagen_index_t* end) {
     *begin = result->result_ptr->vertex_range.first;
     *end   = result->result_ptr->vertex_range.second;
 }
 
 kagen_edge_t* kagen_result_edge_list(kagen_result_t* result, size_t* nedges) {
-    *nedges = result->result_ptr->edges.size();
+    if (nedges != nullptr) {
+        *nedges = result->result_ptr->edges.size();
+    }
     return reinterpret_cast<kagen_edge_t*>(result->result_ptr->edges.data());
+}
+
+kagen_index_t* kagen_result_csr_xadj(kagen_result_t* result, size_t* nvertices) {
+    if (nvertices != nullptr) {
+        *nvertices = result->result_ptr->xadj.size() - 1;
+    }
+    return result->result_ptr->xadj.data();
+}
+
+kagen_index_t* kagen_result_csr_adjncy(kagen_result_t* result, size_t* nedges) {
+    if (nedges != nullptr) {
+        *nedges = result->result_ptr->adjncy.size();
+    }
+    return result->result_ptr->adjncy.data();
+}
+
+kagen_weight_t* kagen_result_vertex_weights(kagen_result_t* result, size_t* size) {
+    if (size != nullptr) {
+        *size = result->result_ptr->vertex_weights.size();
+    }
+    return result->result_ptr->vertex_weights.data();
+}
+
+kagen_weight_t* kagen_result_edge_weights(kagen_result_t* result, size_t* size) {
+    if (size != nullptr) {
+        *size = result->result_ptr->edge_weights.size();
+    }
+    return result->result_ptr->edge_weights.data();
 }
 
 void kagen_result_free(kagen_result_t* result) {
@@ -70,6 +100,14 @@ void kagen_use_hp_floats(kagen_t* gen, bool state) {
 }
 void kagen_set_numer_of_chunks(kagen_t* gen, unsigned long long k) {
     gen->gen_ptr->SetNumberOfChunks(k);
+}
+
+void kagen_use_edge_list_representation(kagen_t* gen) {
+    gen->gen_ptr->UseEdgeListRepresentation();
+}
+
+void kagen_use_csr_representation(kagen_t* gen) {
+    gen->gen_ptr->UseCSRRepresentation();
 }
 
 kagen_result_t* kagen_generate_from_option_string(kagen_t* gen, const char* options) {
@@ -295,7 +333,7 @@ kagen_result_t* kagen_generate_rmat(
     return result_wrapper;
 }
 
-void kagen_build_vertex_distribution(kagen_result_t* result, unsigned long long* dist, MPI_Comm comm) {
+void kagen_build_vertex_distribution(kagen_result_t* result, kagen_index_t* dist, MPI_Comm comm) {
     if (dist == NULL) {
         return;
     }
@@ -306,30 +344,4 @@ void kagen_build_vertex_distribution(kagen_result_t* result, unsigned long long*
     dist[0]        = 0;
     dist[rank + 1] = result->result_ptr->vertex_range.second;
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, dist + 1, 1, MPI_UNSIGNED_LONG_LONG, comm);
-}
-
-void kagen_build_csr(kagen_result_t* result, unsigned long long* xadj, unsigned long long* adjncy) {
-    if (xadj == NULL || adjncy == NULL) {
-        return;
-    }
-    if (!std::is_sorted(result->result_ptr->edges.begin(), result->result_ptr->edges.end())) {
-        std::sort(result->result_ptr->edges.begin(), result->result_ptr->edges.end());
-    }
-
-    const unsigned long long num_local_nodes =
-        result->result_ptr->vertex_range.second - result->result_ptr->vertex_range.first;
-
-    unsigned long long cur_vertex = 0;
-    unsigned long long cur_edge   = 0;
-
-    xadj[0] = 0;
-    for (const auto& [from, to]: result->result_ptr->edges) {
-        while (from - result->result_ptr->vertex_range.first > cur_vertex) {
-            xadj[++cur_vertex] = cur_edge;
-        }
-        adjncy[cur_edge++] = to;
-    }
-    while (cur_vertex < num_local_nodes) {
-        xadj[++cur_vertex] = cur_edge;
-    }
 }

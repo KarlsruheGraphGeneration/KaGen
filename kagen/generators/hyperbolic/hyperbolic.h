@@ -27,13 +27,13 @@
 namespace kagen {
 class HyperbolicFactory : public GeneratorFactory {
 public:
-    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const override;
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const override;
 
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
 template <typename Double>
-class Hyperbolic : public Generator {
+class Hyperbolic : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     // n, min_r, max_r, generated, offset
     using Annulus = std::tuple<SInt, Double, Double, bool, SInt>;
@@ -46,10 +46,10 @@ public:
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
-    void Finalize(MPI_Comm comm) final;
-
 protected:
-    void GenerateImpl() override;
+    void GenerateEdgeList() final;
+
+    void FinalizeEdgeList(MPI_Comm comm) final;
 
 private:
     // Config

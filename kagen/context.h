@@ -163,13 +163,15 @@ struct PGeneratorConfig {
     double        rmat_c     = 0.0;
     bool          directed   = false;
 
+    double max_vertex_imbalance = 0.03; // RGG, RDG, RHG
+
     bool coordinates = false; // Store vertex coordinates
 
     // Image mesh generator settings
-    ImageMeshConfig image_mesh;
+    ImageMeshConfig image_mesh{};
 
     // Settings for the static graph pseudo-generator
-    StaticGraphConfig static_graph;
+    StaticGraphConfig static_graph{};
 
     // Hashing / sampling settings
     int   seed        = 1;      // Seed for PRNG

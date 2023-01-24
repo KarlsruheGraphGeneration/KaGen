@@ -23,6 +23,15 @@ option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
 
 ################################################################################
 
+include(FetchContent) 
+
+FetchContent_Declare(googletest
+    SYSTEM 
+    GIT_REPOSITORY https://github.com/google/googletest.git 
+    GIT_TAG release-1.12.1)
+
+################################################################################
+
 # Prohibit in-source builds
 if ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
     message(SEND_ERROR "In-source builds are not allowed.")
@@ -108,6 +117,7 @@ list(APPEND KAGEN_LINK_LIBRARIES morton)
 ###############################################################################
 # MPI
 ###############################################################################
+set(MPI_DETERMINE_LIBRARY_VERSION TRUE) # needed for KaTestrophe
 find_package(MPI REQUIRED)
 list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
 
@@ -156,9 +166,6 @@ add_library(KaGen::cKaGen ALIAS ckagen)
 ################################################################################
 
 if (KAGEN_BUILD_TESTS)
-    add_subdirectory(extlib/googletest EXCLUDE_FROM_ALL SYSTEM)
-    include(GoogleTest)
-    enable_testing()
     add_subdirectory(tests)
 endif ()
 

@@ -9,11 +9,11 @@
 
 namespace kagen {
 PGeneratorConfig
-HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.k == 0) {
         config.k = static_cast<SInt>(size);
     }
-    EnsurePowerOfTwoCommunicatorSize(config, size);
+    EnsureOneChunkPerPE(config, size);
 
     if (config.avg_degree == 0) {
         if (config.m == 0 || config.n == 0) {
@@ -117,12 +117,12 @@ Hyperbolic<Double>::Hyperbolic(const PGeneratorConfig& config, const PEID rank, 
 }
 
 template <typename Double>
-void Hyperbolic<Double>::Finalize(MPI_Comm comm) {
+void Hyperbolic<Double>::FinalizeEdgeList(MPI_Comm comm) {
     AddReverseEdges(edges_, vertex_range_, comm);
 }
 
 template <typename Double>
-void Hyperbolic<Double>::GenerateImpl() {
+void Hyperbolic<Double>::GenerateEdgeList() {
     // Compute local chunks
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         ComputeChunk(i);

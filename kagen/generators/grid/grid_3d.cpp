@@ -10,8 +10,9 @@ Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEI
     return std::make_unique<Grid3D>(config, rank, size);
 }
 
-PGeneratorConfig Grid3DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
-    EnsureCubicChunkSize(config, size);
+PGeneratorConfig
+Grid3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
+    EnsureCubicPowerOfTwoChunkSize(config, size, output);
 
     if (config.p == 0) {
         if (config.grid_x == 0 || config.grid_y == 0 || config.grid_z == 0 || config.m == 0) {
@@ -44,7 +45,7 @@ Grid3D::Grid3D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       rank_(rank),
       size_(size) {}
 
-void Grid3D::GenerateImpl() {
+void Grid3D::GenerateEdgeList() {
     // Init dimensions
     // TODO: Only tested for cube PEs and one chunk per PE
     total_x_          = config_.grid_x;

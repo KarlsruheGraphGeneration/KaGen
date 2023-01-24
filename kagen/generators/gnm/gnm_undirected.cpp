@@ -17,7 +17,7 @@ GNMUndirected<BigInt>::GNMUndirected(const PGeneratorConfig& config, const PEID 
       rng_(config) {}
 
 template <typename BigInt>
-void GNMUndirected<BigInt>::GenerateImpl() {
+void GNMUndirected<BigInt>::GenerateEdgeList() {
     leftover_chunks_ = config_.k % size_;
     SInt num_chunks  = config_.k / size_ + ((SInt)rank_ < leftover_chunks_);
     SInt row         = rank_ * num_chunks + ((SInt)rank_ >= leftover_chunks_ ? leftover_chunks_ : 0);

@@ -14,7 +14,7 @@ GNPUndirected::GNPUndirected(const PGeneratorConfig& config, const PEID rank, co
       size_(size),
       rng_(config) {}
 
-void GNPUndirected::GenerateImpl() {
+void GNPUndirected::GenerateEdgeList() {
     // Chunk distribution
     nodes_per_chunk      = config_.n / config_.k;
     SInt leftover_chunks = config_.k % size_;

@@ -6,8 +6,9 @@
 #include "kagen/generators/grid/grid_2d.h"
 
 namespace kagen {
-PGeneratorConfig Grid2DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
-    EnsureSquareChunkSize(config, size);
+PGeneratorConfig
+Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
+    EnsureSquarePowerOfTwoChunkSize(config, size, output);
 
     if (config.p == 0) {
         if (config.grid_x == 0 || config.grid_y == 0 || config.m == 0) {
@@ -41,7 +42,7 @@ Grid2D::Grid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
       size_(size),
       rng_(config) {}
 
-void Grid2D::GenerateImpl() {
+void Grid2D::GenerateEdgeList() {
     // Init dimensions
     // @todo Only tested for cube PEs and one chunk per PE
     total_rows_       = config_.grid_y;

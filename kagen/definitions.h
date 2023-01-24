@@ -47,19 +47,36 @@ using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
 using VertexWeights = std::vector<SSInt>;
 using EdgeWeights   = std::vector<SSInt>;
 
+using XadjArray   = std::vector<SInt>;
+using AdjncyArray = std::vector<SInt>;
+
 constexpr std::size_t NEWTON_MAX_ITERS = 10000;
 constexpr double      NEWTON_EPS       = 0.001;
 
+enum class GraphRepresentation {
+    EDGE_LIST,
+    CSR,
+};
+
 struct Graph {
-    EdgeList      edges;
-    VertexRange   vertex_range;
-    Coordinates   coordinates;
+    VertexRange         vertex_range;
+    GraphRepresentation representation;
+
+    // Edge list representation only
+    EdgeList edges;
+
+    // CSR representation only
+    XadjArray   xadj;
+    AdjncyArray adjncy;
+
     VertexWeights vertex_weights;
     EdgeWeights   edge_weights;
+    Coordinates   coordinates;
 
-    std::tuple<EdgeList, VertexRange, Coordinates, VertexWeights, EdgeWeights> tuple() && {
+    std::tuple<VertexRange, EdgeList, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> tuple() && {
         return std::make_tuple(
-            std::move(edges), vertex_range, std::move(coordinates), std::move(vertex_weights), std::move(edge_weights));
+            vertex_range, std::move(edges), std::move(xadj), std::move(adjncy), std::move(vertex_weights),
+            std::move(edge_weights), std::move(coordinates));
     }
 };
 } // namespace kagen

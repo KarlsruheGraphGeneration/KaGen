@@ -142,6 +142,10 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
     // Generator parameters
     app.add_option("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
+    app.add_option(
+        "--automatic-num-chunks-imbalance-threshold", config.max_vertex_imbalance,
+        "Controls the trade-off between vertex imbalance and number of chunks when deducing the number of chunks "
+        "automatically");
     app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
     { // Options string
@@ -420,7 +424,7 @@ int main(int argc, char* argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     // Run KaGen
-    auto graph = Generate(config, MPI_COMM_WORLD);
+    auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
     WriteGraph(config, graph, MPI_COMM_WORLD);
 
     MPI_Finalize();

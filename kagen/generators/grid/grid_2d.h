@@ -15,17 +15,17 @@
 namespace kagen {
 class Grid2DFactory : public GeneratorFactory {
 public:
-    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const override;
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const final;
 
-    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const final;
 };
 
-class Grid2D : public Generator {
+class Grid2D : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     Grid2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() override;
+    void GenerateEdgeList() override;
 
 private:
     // Config

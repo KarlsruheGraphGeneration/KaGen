@@ -16,8 +16,21 @@ namespace {
 constexpr bool kDebug = false;
 }
 
-PGeneratorConfig ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const {
+PGeneratorConfig
+ImageMeshFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     ImageMeshConfig& iconfig = config.image_mesh;
+
+    {
+        bool exists = false;
+        bool kargb  = false;
+        CheckKARGB(iconfig.filename, exists, kargb);
+        if (!exists) {
+            throw ConfigurationError("input file does not exist");
+        }
+        if (!kargb) {
+            throw ConfigurationError("input file is not in KARGB format");
+        }
+    }
 
     if (iconfig.grid_x == 0 && iconfig.max_grid_x == 0) {
         iconfig.max_grid_x = std::sqrt(size);
@@ -239,7 +252,7 @@ ImageMesh::ImageMesh(const PGeneratorConfig& config, const PEID rank, const PEID
       rank_(rank),
       size_(size) {}
 
-void ImageMesh::GenerateImpl() {
+void ImageMesh::GenerateEdgeList() {
     SInt max_pixel_rows, max_pixel_cols;
     std::tie(max_pixel_rows, max_pixel_cols) = ReadDimensions(config_.image_mesh.filename);
 
@@ -277,8 +290,8 @@ void ImageMesh::GenerateImpl() {
 
     const SSInt     border = (config_.image_mesh.neighborhood > 8) ? 2 : 1;
     const ImageRect img    = ReadRect(
-        config_.image_mesh.filename, my.pixel_start_row, my.pixel_start_col, my.pixel_end_row, my.pixel_end_col,
-        border);
+           config_.image_mesh.filename, my.pixel_start_row, my.pixel_start_col, my.pixel_end_row, my.pixel_end_col,
+           border);
     const bool diagonal_edges     = config_.image_mesh.neighborhood == 8;
     const bool second_layer_edges = config_.image_mesh.neighborhood == 24;
 

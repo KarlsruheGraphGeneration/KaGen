@@ -21,12 +21,12 @@ public:
 };
 
 template <typename BigInt>
-class GNMUndirected : public Generator {
+class GNMUndirected : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     GNMUndirected(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateEdgeList() final;
 
 private:
     // Config

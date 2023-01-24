@@ -14,16 +14,22 @@ class Generator {
 public:
     virtual ~Generator();
 
-    void Generate();
+    void Generate(GraphRepresentation representation);
 
-    virtual void Finalize(MPI_Comm comm);
+    void Finalize(MPI_Comm comm);
 
-    const EdgeList& GetEdges() const;
+    SInt GetNumberOfEdges() const;
 
-    Graph TakeResult();
+    Graph Take();
 
 protected:
-    virtual void GenerateImpl() = 0;
+    virtual void GenerateEdgeList() = 0;
+
+    virtual void GenerateCSR() = 0;
+
+    virtual void FinalizeEdgeList(MPI_Comm comm);
+
+    virtual void FinalizeCSR(MPI_Comm comm);
 
     void SetVertexRange(VertexRange vetrex_range);
 
@@ -53,11 +59,18 @@ protected:
 
     void FilterDuplicateEdges();
 
-    EdgeList      edges_;
     VertexRange   vertex_range_;
+    EdgeList      edges_;
+    XadjArray     xadj_;
+    AdjncyArray   adjncy_;
     Coordinates   coordinates_;
     VertexWeights vertex_weights_;
     EdgeWeights   edge_weights_;
+
+private:
+    void Reset();
+
+    GraphRepresentation representation_;
 };
 
 class ConfigurationError : public std::exception {
@@ -72,18 +85,29 @@ private:
     std::string _what;
 };
 
+class EdgeListOnlyGenerator : virtual Generator {
+public:
+    void GenerateCSR() final;
+    void FinalizeCSR(MPI_Comm comm) final;
+};
+
+class CSROnlyGenerator : virtual Generator {
+public:
+    void GenerateEdgeList() final;
+    void FinalizeEdgeList(MPI_Comm comm) final;
+};
+
 class GeneratorFactory {
 public:
     virtual ~GeneratorFactory();
 
-    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID size, bool output) const;
+    virtual PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const;
 
     virtual std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const = 0;
 
 protected:
-    void EnsurePowerOfTwoCommunicatorSize(PGeneratorConfig& config, PEID size) const;
-    void EnsureSquareChunkSize(PGeneratorConfig& config, PEID size) const;
-    void EnsureCubicChunkSize(PGeneratorConfig& config, PEID size) const;
+    void EnsureSquarePowerOfTwoChunkSize(PGeneratorConfig& config, PEID size, bool output) const;
+    void EnsureCubicPowerOfTwoChunkSize(PGeneratorConfig& config, PEID size, bool output) const;
     void EnsureOneChunkPerPE(PGeneratorConfig& config, PEID size) const;
 };
 } // namespace kagen

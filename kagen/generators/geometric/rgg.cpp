@@ -117,9 +117,10 @@ PGeneratorConfig NormalizeParametersCommon(
 }
 } // namespace
 
-PGeneratorConfig RGG2DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
-    EnsureSquareChunkSize(config, size);
-    EnsurePowerOfTwoCommunicatorSize(config, size);
+PGeneratorConfig
+RGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
+    EnsureSquarePowerOfTwoChunkSize(config, size, output);
+    // EnsurePowerOfTwoCommunicatorSize(config, size);
 
     return NormalizeParametersCommon(config, &ApproxRadius2D, &ApproxNumNodes2D, output);
 }
@@ -129,9 +130,10 @@ RGG2DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID
     return std::make_unique<RGG2D>(config, rank, size);
 }
 
-PGeneratorConfig RGG3DFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
-    EnsureCubicChunkSize(config, size);
-    EnsurePowerOfTwoCommunicatorSize(config, size);
+PGeneratorConfig
+RGG3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
+    EnsureCubicPowerOfTwoChunkSize(config, size, output);
+    //EnsurePowerOfTwoCommunicatorSize(config, size);
 
     return NormalizeParametersCommon(config, &ApproxRadius3D, &ApproxNumNodes3D, output);
 }

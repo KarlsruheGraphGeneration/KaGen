@@ -1,6 +1,7 @@
 #include "kagen/io/io.h"
 
 #include <algorithm>
+#include <cassert>
 #include <memory>
 
 #include <mpi.h>
@@ -44,7 +45,7 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph&
 
         case OutputFormat::COORDINATES:
             return std::make_unique<CoordinatesWriter>(graph, comm);
-            
+
         case OutputFormat::BINARY_PARHIP:
             return std::make_unique<BinaryParHipWriter>(graph, comm);
     }
@@ -54,6 +55,7 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph&
 } // namespace
 
 void WriteGraph(const PGeneratorConfig& config, Graph& graph, MPI_Comm comm) {
+    assert(graph.representation == GraphRepresentation::EDGE_LIST && "graph must be in edge list representation");
     auto writer = CreateGraphWriter(config.output_format, graph, comm);
     writer->Write(config);
 }

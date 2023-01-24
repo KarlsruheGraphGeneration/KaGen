@@ -24,7 +24,7 @@
 #include "libmorton/morton3D.h"
 
 namespace kagen {
-class Geometric3D : public Generator {
+class Geometric3D : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     // n, x_off, y_off, z_off, generated, offset
     using Chunk = std::tuple<SInt, LPFloat, LPFloat, LPFloat, bool, SInt>;
@@ -43,7 +43,7 @@ public:
     }
 
 protected:
-    void GenerateImpl() final {
+    void GenerateEdgeList() final {
         // Generate point distribution
         for (SInt i = local_chunk_start_; i < local_chunk_end_; i++)
             ComputeChunk(i);

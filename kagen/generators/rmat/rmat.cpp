@@ -9,7 +9,8 @@
 #include <mpi.h>
 
 namespace kagen {
-PGeneratorConfig RMATFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+PGeneratorConfig
+RMATFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.rmat_a < 0 || config.rmat_b < 0 || config.rmat_b < 0) {
         throw ConfigurationError("probabilities may not be negative");
     }
@@ -47,7 +48,7 @@ RMAT::RMAT(const PGeneratorConfig& config, const PEID rank, const PEID size)
     num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
 }
 
-void RMAT::GenerateImpl() {
+void RMAT::GenerateEdgeList() {
     using RNG  = rmat::generators::select_t;
     using RMAT = rmat::rmat<false>;
 

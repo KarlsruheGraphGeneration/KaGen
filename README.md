@@ -135,6 +135,11 @@ The examples given below only show the C++ interface.
 **Note**: Instead of calling the library functions listed below, you can also use `KaGen::GenerateFromOptionString()` 
 to pass the generator options as a string (documentation is available in `library/kagen.h`).
 
+The library functions return the generated graph as an instance of type `kagen::KaGenResult`. 
+By default, the graph is represented as an edge list, i.e., a vector `kagen::KaGenResult::edges[]` containing pairs of vertices.
+To generate a graph in compressed sparse row (CSR) format, call `kagen::KaGen::UseCSRRepresentation()` before generating the graph. 
+Then, access the graph via `kagen::KaGenResult::xadj[]` and `kagen::KaGenResult::adjncy[]`.
+
 ## General Graph Format
 
 Unless noted otherwise, KaGen generates **simple**, **undirected** graphs, i.e.,
@@ -201,8 +206,6 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = fals
 
 ### Random Geometric Graphs RGG(n, r)
 Generate an undirected random graph using the random geometric graph model RGG(n, r).
-
-**Note:** This generator requires the number of PEs to be a power of 2.
 
 **Note:** This generator is parameterized by the number of vertices in the graph and its edge radius. 
 Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 

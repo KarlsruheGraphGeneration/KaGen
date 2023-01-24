@@ -11,7 +11,7 @@
 
 namespace kagen {
 PGeneratorConfig
-BarabassiFactory::NormalizeParameters(PGeneratorConfig config, const PEID size, const bool output) const {
+BarabassiFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.k == 0) {
         config.k = static_cast<SInt>(size);
     }
@@ -52,13 +52,13 @@ Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID
     to_   = std::min((SInt)((rank + 1) * std::ceil(config_.n / (LPFloat)size) - 1), config_.n - 1);
 }
 
-void Barabassi::Finalize(MPI_Comm comm) {
+void Barabassi::FinalizeEdgeList(MPI_Comm comm) {
     if (!config_.directed) {
         AddReverseEdges(edges_, vertex_range_, comm);
     }
 }
 
-void Barabassi::GenerateImpl() {
+void Barabassi::GenerateEdgeList() {
     GenerateEdges();
     SetVertexRange(from_, to_ + 1);
 }

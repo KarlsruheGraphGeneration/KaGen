@@ -30,7 +30,7 @@ public:
     Kronecker(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateImpl() final;
+    void GenerateEdgeList() final;
 
 private:
     // Config

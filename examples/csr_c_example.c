@@ -12,14 +12,16 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Generate 2D RGG graph with 16 nodes and edge radius 0.125
-    kagen_t*           gen   = kagen_create(MPI_COMM_WORLD);
+    kagen_t* gen = kagen_create(MPI_COMM_WORLD);
+    kagen_use_csr_representation(gen);
+
     kagen_result_t*    graph = kagen_generate_rgg2d(gen, 16, 0.125);
     unsigned long long from, to;
     kagen_result_vertex_range(graph, &from, &to);
     printf("Vertices on PE %d: [%lld, %lld)\n", rank, from, to);
 
     // Get vertex distribution
-    unsigned long long* vtxdist = malloc((size + 1) * sizeof(unsigned long long));
+    kagen_index_t* vtxdist = (kagen_index_t*)malloc((size + 1) * sizeof(kagen_index_t));
     kagen_build_vertex_distribution(graph, vtxdist, MPI_COMM_WORLD);
     printf("[PE%d] Vertex distribution: ", rank);
     for (int i = 0; i < size + 1; i++) {
@@ -29,13 +31,11 @@ int main(int argc, char* argv[]) {
     free(vtxdist);
 
     // Get CSR format
-    size_t local_num_nodes = to - from;
+    size_t local_num_nodes;
     size_t local_num_edges;
-    kagen_result_edge_list(graph, &local_num_edges);
 
-    unsigned long long* xadj   = malloc((local_num_nodes + 1) * sizeof(unsigned long long));
-    unsigned long long* adjncy = malloc((local_num_edges) * sizeof(unsigned long long));
-    kagen_build_csr(graph, xadj, adjncy);
+    kagen_index_t* xadj   = kagen_result_csr_xadj(graph, &local_num_nodes);
+    kagen_index_t* adjncy = kagen_result_csr_adjncy(graph, &local_num_edges);
 
     printf("[PE%d] Xadj: ", rank);
     for (size_t i = 0; i < local_num_nodes + 1; i++) {
@@ -49,8 +49,6 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
 
-    free(xadj);
-    free(adjncy);
     kagen_result_free(graph);
     kagen_free(gen);
     return MPI_Finalize();

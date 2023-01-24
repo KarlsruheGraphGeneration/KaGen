@@ -104,7 +104,7 @@ void PrintHeader(const PGeneratorConfig& config) {
 }
 } // namespace
 
-Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
+Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation representation, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -119,12 +119,13 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     auto             factory = CreateGeneratorFactory(config_template.generator);
     PGeneratorConfig config;
     try {
-        config = factory->NormalizeParameters(config_template, size, output_info);
+        config = factory->NormalizeParameters(config_template, rank, size, output_info);
     } catch (ConfigurationError& ex) {
         if (output_error) {
             std::cerr << "Error: " << ex.what() << "\n";
         }
-        std::exit(1);
+        MPI_Barrier(comm);
+        MPI_Abort(comm, 1);
     }
 
     // Generate graph
@@ -135,13 +136,13 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     const auto start_graphgen = MPI_Wtime();
 
     auto generator = factory->Create(config, rank, size);
-    generator->Generate();
+    generator->Generate(representation);
 
     if (output_info) {
         std::cout << "OK" << std::endl;
     }
 
-    const SInt num_edges_before_finalize = generator->GetEdges().size();
+    const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
     if (output_info) {
         std::cout << "Finalizing graph generation ... " << std::flush;
     }
@@ -151,7 +152,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
     if (output_info) {
         std::cout << "OK" << std::endl;
     }
-    const SInt num_edges_after_finalize = generator->GetEdges().size();
+    const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
 
     const auto end_graphgen = MPI_Wtime();
 
@@ -169,7 +170,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
         }
     }
 
-    auto graph = generator->TakeResult();
+    auto graph = generator->Take();
 
     // Validation
     if (config.validate_simple_graph) {
@@ -184,7 +185,7 @@ Graph Generate(const PGeneratorConfig& config_template, MPI_Comm comm) {
             if (output_error) {
                 std::cerr << "Error: simple graph validation failed\n";
             }
-            std::exit(1);
+            MPI_Abort(comm, 1);
         } else if (output_info) {
             std::cout << "OK" << std::endl;
         }

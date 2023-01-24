@@ -10,7 +10,7 @@ public:
 
     GraphSize ReadSize() final;
 
-    Graph Read(SInt from, SInt to, SInt num_edges) final;
+    Graph Read(SInt from, SInt to, SInt num_edges, GraphRepresentation representation) final;
 
     SInt FindNodeByEdge(SInt edge) final;
 
