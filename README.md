@@ -161,7 +161,7 @@ mpirun -n <nproc> ./KaGen <gnm_directed|gnm_undirected>
   [-M <number of edges as a power of two>]
   [--self-loops]
   [-k <number of chunks>]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library
@@ -186,7 +186,7 @@ mpirun -n <nproc> ./KaGen <gnp_directed|gnp_undirected>
   -p <edge probability>
   [--self-loops]
   [-k <number of chunks>]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library
@@ -217,7 +217,7 @@ mpirun -n <nproc> ./KaGen <rgg2d|rgg3d>
   -m <number of edges>                     # only if -n or -r are omitted
   [-M <number of edges as a power of two>] # only if -n or -r are omitted
   [-k <number of chunks>] 
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library
@@ -247,7 +247,7 @@ mpirun -n <nproc> ./KaGen <rdg2d|rdg3d>
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   [--periodic]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library
@@ -280,7 +280,7 @@ mpirun -n <nproc> ./KaGen <grid2d|grid3d>
   [-M <number of edges as a power of two>] # only if -p is omitted
   [--periodic]
   [-k <number of cunks>]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library 
@@ -311,7 +311,7 @@ mpirun -n <nproc> ./KaGen ba
   [--directed]
   [--self-loops]
   [-k <number of chunks>]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library
@@ -342,7 +342,7 @@ mpirun -n <nproc> ./KaGen rhg
   [-k <number of chunks>]
   [--hp-floats]
   [--no-hp-floats]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library
@@ -374,7 +374,7 @@ mpirun -n <nproc> ./KaGen rmat
   -c <probability for an edge to land in block c>
   [--directed]
   [--self-loops]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library 
@@ -401,7 +401,7 @@ mpirun -n <nproc> ./KaGen kronecker
   [-M <number of edges as a power of two>]
   [--directed]
   [--self-loops]
-  [-S <seed>]
+  [-s <seed>]
 ```
 
 #### Library 
