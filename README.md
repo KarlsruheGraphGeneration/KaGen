@@ -129,6 +129,20 @@ target_link_libraries(<your-target> PUBLIC KaGen::KaGen)  # C++ interface
 target_link_libraries(<your-target> PUBLIC KaGen::cKaGen) # C interface
 ```
 
+Alternatively, you can use `FetchContent`: 
+
+```cmake 
+include(FetchContent)
+FetchContent_Declare(KaGen 
+  GIT_REPOSITORY https://github.com/sebalamm/KaGen.git 
+  GIT_TAG master)
+FetchContent_MakeAvailable(KaGen)
+set_property(DIRECTORY "${KaGen_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL YES) # optional
+
+target_link_libraries(<your-target> PUBLIC KaGen::KaGen)  # C++ interface
+target_link_libraries(<your-target> PUBLIC KaGen::cKaGen) # C interface
+```
+
 Examples on how to use the C and C++ interfaces are available in the `examples/` directory.
 The examples given below only show the C++ interface.
 
