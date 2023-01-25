@@ -1,4 +1,4 @@
-# Communication-free Graph Generators 
+# Communication-free Graph Generators (+ others)
 
 This is the code to accompany our eponymous paper: *Funke, D., Lamm, S., Sanders, P., Schulz, C., Strash, D. and von Looz, M., 2017. Communication-free Massively Distributed Graph Generation. arXiv preprint arXiv:1710.07565.*
 You can find a freely accessible online version [in the arXiv](https://arxiv.org/abs/1710.07565).
@@ -165,9 +165,9 @@ An edge is owned by the PE that owns its tail vertex.
 Thus, an edge (u, v) is in the edge list of the PE that owns vertex u, while the reverse edge 
 (v, u) is in the edge list of the PE owning vertex v.
 
-## Graph Models
+## Communication-free Graph Generators
 
-### Erdos-Renyi Graphs G(n, m)
+### Erdos-Renyi Graphs with Fixed Number of Edges
 Generate a random graph using the Erdos-Renyi model G(n, m).
 The graph can either be directed or undirected and can contain self-loops.
 
@@ -193,7 +193,7 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNM(n, m, self_loops = fals
 
 ---
 
-### Erdos-Renyi Graphs G(n, p)
+### Erdos-Renyi graphs with fixed Edge Probability
 Generate a random graph using the Erdos-Renyi model G(n, p).
 The graph can either be directed or undirected and can contain self-loops.
 
@@ -218,7 +218,7 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = fals
 
 ---
 
-### Random Geometric Graphs RGG(n, r)
+### Random Geometric Graphs
 Generate an undirected random graph using the random geometric graph model RGG(n, r).
 
 **Note:** This generator is parameterized by the number of vertices in the graph and its edge radius. 
@@ -252,7 +252,7 @@ KaGenResult graph = gen.GenerateRGG3D_MR(m, r, coordinates = false); // deduce n
 
 --- 
 
-### Random Delaunay Graphs RDG(n)
+### Random Delaunay Graphs
 Generate an undirected random graph using the random Delaunay graph model RDG(n).
 
 **Note:** The graph can be generated with periodic boundary conditions to avoid long edges at the border using the `-p` flag. 
@@ -313,9 +313,45 @@ KaGenResult graph = gen.GenerateGrid3D_N(n, p, periodic, coordinates = false); /
 KaGenResult graph = gen.GenerateGrid3D_NM(n, m, periodic, coordinates = false); // x, y, z = cbrt(n) 
 ```
 
----
+--- 
 
-### Barabassi-Albert Graphs BA(n, d)
+### Random Hyperbolic Graphs 
+Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
+
+**Note:** On x86 systems, the generator can use 64 bit or 80 bit floating point numbers.
+This can be controlled explicitly by using the `--hp-floats` or `--no-hp-floats` flags. 
+If neither flag is set, KaGen switches to 80 bit precision automatically if the generated graph has more than 2^29 vertices.
+
+**Note:** Due to floating point inaccuracies, this generator performs communication in a post-processing step.
+
+#### Application
+```
+mpirun -n <nproc> ./KaGen rhg
+  -n <number of vertices>
+  [-N <number of vertices as a power of two>]
+  -g <power-law exponent>
+  -d <average vertex degree>
+  [-k <number of chunks>]
+  [--hp-floats]
+  [--no-hp-floats]
+  [-s <seed>]
+```
+
+#### Library
+```c++
+KaGen gen(MPI_COMM_WORLD);
+
+KaGenResult graph = gen.GenerateRHG(gamma, n, d, coordinates = false);
+KaGenResult graph = gen.GenerateRHG_NM(gamma, n, m, coordinates = false); // deduce d s.t. E[# edges] = m
+KaGenResult graph = gen.GenerateRHG_MD(gamma, m, d, coordinates = false); // deduce n s.t. E[# edges] = m
+```
+
+## Non-communication-free Graph Generators 
+
+Since the original publication, several other graph generators have been integrated into the KaGen framework. 
+
+### Barabassi-Albert Graphs 
+
 Generate a random directed graph using the Barabassi-Albert graph model BA(n, d).
 The graph may contain self-loops and multi edges.
 
@@ -338,37 +374,6 @@ KaGen gen(MPI_COMM_WORLD);
 KaGenResult graph = gen.GenerateBA(n, d, directed = false, self_loops = false);
 KaGenResult graph = gen.GenerateBA_NM(n, m, directed = false, self_loops = false);
 KaGenResult graph = gen.GenerateBA_MD(m, d, directed = false, self_loops = false);
-```
-
---- 
-
-### Random Hyperbolic Graphs RHG(n, gamma, d)
-Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
-
-**Note:** On x86 systems, the generator can use 64 bit or 80 bit floating point numbers.
-This can be controlled explicitly by using the `--hp-floats` or `--no-hp-floats` flags. 
-If neither flag is set, KaGen switches to 80 bit precision automatically if the generated graph has more than 2^29 vertices.
-
-#### Application
-```
-mpirun -n <nproc> ./KaGen rhg
-  -n <number of vertices>
-  [-N <number of vertices as a power of two>]
-  -g <power-law exponent>
-  -d <average vertex degree>
-  [-k <number of chunks>]
-  [--hp-floats]
-  [--no-hp-floats]
-  [-s <seed>]
-```
-
-#### Library
-```c++
-KaGen gen(MPI_COMM_WORLD);
-
-KaGenResult graph = gen.GenerateRHG(gamma, n, d, coordinates = false);
-KaGenResult graph = gen.GenerateRHG_NM(gamma, n, m, coordinates = false); // deduce d s.t. E[# edges] = m
-KaGenResult graph = gen.GenerateRHG_MD(gamma, m, d, coordinates = false); // deduce n s.t. E[# edges] = m
 ```
 
 ---
@@ -427,6 +432,60 @@ mpirun -n <nproc> ./KaGen kronecker
 KaGen gen(MPI_COMM_WORLD);
 
 KaGenResult graph = gen.GenerateKronecker(n, m, directed = false, self_loops = false);
+```
+
+## Static Graph Generators
+
+### Image Graph Generator
+Generates a graph based on an input image.
+Each vertex is represented by a node with edges to its neighboring vertices.
+The image has to be converted to KARGB format first (a simple binary file containing the uncompressed R, G, B channels of the image) by 
+using the `img2kargb` or `upsb2kargb` tool shipped with KaGen.
+
+#### Application
+```
+mpirun -n <nproc> ./KaGen image
+  --filename=<path to kargb file>
+  [--weight-model=<l2, inv-l2, inv-ratio>]
+  [--weight-multiplier=1]
+  [--weight-offset=0]
+  [--min-weight-threshold=1]
+  [--max-weight-threshold=inf]
+  [--neighborhood=<4, 8, 24>]
+  [--max-grid-x=<...>]
+  [--max-grid-y=<...>]
+  [--grid-x=<...>]
+  [--grid-y=<...>]
+  [--cols-per-pe=<...>]
+  [--rows-per-pe=<...>]
+```
+
+#### Library 
+
+```c++
+KaGen gen(MPI_COMM_WORLD);
+
+KaGenResult graph = gen.GenerateFromOptionString("image;filename=<...>;...");
+```
+
+### File Graph Generator
+Pseudo-generator that loads a static graph from disk.
+Can be used to convert input formats to output format, or to load static graphs when using KaGen as a library.
+
+#### Application 
+```
+mpirun -n <nproc> ./KaGen static
+  --filename=<path to graph>
+  --input-format=<metis|binary-parhip>
+  [--distribution=<balance-vertices|balance-edges>]
+```
+
+#### Library 
+
+```c++
+KaGen gen(MPI_COMM_WORLD);
+
+KaGenResult graph = gen.GenerateFromOptionString("static;filename=<...>;input_format=<...>;distribution=<...>");
 ```
 
 ---
