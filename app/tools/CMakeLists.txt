@@ -13,3 +13,6 @@ else ()
     message(STATUS "img2kargb not available: could not find ImageMagick on your system")
     message(STATUS "part2img not available: could not find ImageMagick on your system")
 endif ()
+
+add_executable(upsb2kargb upsb2kargb.cpp)
+install(TARGETS upsb2kargb DESTINATION bin)
