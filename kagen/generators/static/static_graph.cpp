@@ -54,7 +54,7 @@ void StaticGraph::GenerateImpl(const GraphRepresentation representation) {
     SInt to_edge = std::numeric_limits<SInt>::max();
 
     switch (config_.static_graph.distribution) {
-        case StaticGraphDistribution::BALANCE_NODES:
+        case StaticGraphDistribution::BALANCE_VERTICES:
             std::tie(from, to_node) = ComputeRange(n, size_, rank_);
             break;
 

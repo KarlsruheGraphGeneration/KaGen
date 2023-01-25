@@ -108,7 +108,7 @@ struct ImageMeshConfig {
 };
 
 enum class StaticGraphDistribution {
-    BALANCE_NODES,
+    BALANCE_VERTICES,
     BALANCE_EDGES,
 };
 
@@ -128,7 +128,7 @@ std::ostream& operator<<(std::ostream& out, StaticGraphFormat format);
 struct StaticGraphConfig {
     std::string             filename     = "";
     StaticGraphFormat       format       = StaticGraphFormat::METIS;
-    StaticGraphDistribution distribution = StaticGraphDistribution::BALANCE_NODES;
+    StaticGraphDistribution distribution = StaticGraphDistribution::BALANCE_VERTICES;
 };
 
 // Configuration for the generator.

@@ -212,15 +212,15 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
 
 std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap() {
     return {
-        {"balance-nodes", StaticGraphDistribution::BALANCE_NODES},
+        {"balance-vertices", StaticGraphDistribution::BALANCE_VERTICES},
         {"balance-edges", StaticGraphDistribution::BALANCE_EDGES},
     };
 }
 
 std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution) {
     switch (distribution) {
-        case StaticGraphDistribution::BALANCE_NODES:
-            return out << "balance-nodes";
+        case StaticGraphDistribution::BALANCE_VERTICES:
+            return out << "balance-vertices";
         case StaticGraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
     }
@@ -496,27 +496,56 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.rmat_c      = get_sint_or_default("rmat_c");
     config.coordinates = get_bool_or_default("coordinates");
 
-    config.image_mesh.filename             = get_string_or_default("image");
-    config.image_mesh.weight_multiplier    = get_hpfloat_or_default("weight_multiplier", 1.0);
-    config.image_mesh.weight_offset        = get_hpfloat_or_default("weight_offset", 0.0);
-    config.image_mesh.weight_min_threshold = get_hpfloat_or_default("min_weight_threshold", 1.0);
-    config.image_mesh.weight_max_threshold =
-        get_hpfloat_or_default("max_weight_threshold", std::numeric_limits<double>::max());
-    config.image_mesh.neighborhood = get_sint_or_default("neighborhood", 4);
-    config.image_mesh.max_grid_x   = get_sint_or_default("max_grid_x");
-    config.image_mesh.max_grid_y   = get_sint_or_default("max_grid_y");
-    config.image_mesh.grid_x       = get_sint_or_default("grid_x");
-    config.image_mesh.grid_y       = get_sint_or_default("grid_y");
-    config.image_mesh.cols_per_pe  = get_sint_or_default("cols_per_pe");
-    config.image_mesh.rows_per_pe  = get_sint_or_default("rows_per_pe");
+    if (config.generator == GeneratorType::IMAGE_MESH) {
+        const std::string filename = get_string_or_default("filename");
+        if (filename.empty()) {
+            throw std::runtime_error("missing filename");
+        }
+        config.image_mesh.filename             = filename;
 
-    const auto        weight_models     = GetImageMeshWeightModelMap();
-    const std::string weight_model_name = get_string_or_default("weight_model", "l2");
-    const auto        weight_model_it   = weight_models.find(weight_model_name);
-    if (weight_model_it == weight_models.end()) {
-        throw std::runtime_error("invalid weight model name");
+        config.image_mesh.weight_multiplier    = get_hpfloat_or_default("weight_multiplier", 1.0);
+        config.image_mesh.weight_offset        = get_hpfloat_or_default("weight_offset", 0.0);
+        config.image_mesh.weight_min_threshold = get_hpfloat_or_default("min_weight_threshold", 1.0);
+        config.image_mesh.weight_max_threshold =
+            get_hpfloat_or_default("max_weight_threshold", std::numeric_limits<double>::max());
+        config.image_mesh.neighborhood = get_sint_or_default("neighborhood", 4);
+        config.image_mesh.max_grid_x   = get_sint_or_default("max_grid_x");
+        config.image_mesh.max_grid_y   = get_sint_or_default("max_grid_y");
+        config.image_mesh.grid_x       = get_sint_or_default("grid_x");
+        config.image_mesh.grid_y       = get_sint_or_default("grid_y");
+        config.image_mesh.cols_per_pe  = get_sint_or_default("cols_per_pe");
+        config.image_mesh.rows_per_pe  = get_sint_or_default("rows_per_pe");
+
+        const auto        weight_models     = GetImageMeshWeightModelMap();
+        const std::string weight_model_name = get_string_or_default("weight_model", "l2");
+        const auto        weight_model_it   = weight_models.find(weight_model_name);
+        if (weight_model_it == weight_models.end()) {
+            throw std::runtime_error("invalid weight model name");
+        }
+        config.image_mesh.weight_model = weight_model_it->second;
+    } else if (config.generator == GeneratorType::STATIC_GRAPH) {
+        const std::string filename = get_string_or_default("filename");
+        if (filename.empty()) {
+            throw std::runtime_error("missing filename");
+        }
+        config.static_graph.filename = filename;
+
+        const auto        distributions     = GetStaticGraphDistributionMap();
+        const std::string distribution_name = get_string_or_default("distribution", "balance-vertices");
+        const auto        distribution_it   = distributions.find(distribution_name);
+        if (distribution_it == distributions.end()) {
+            throw std::runtime_error("invalid graph distribution");
+        }
+        config.static_graph.distribution = distribution_it->second;
+
+        const auto        formats     = GetStaticGraphFormatMap();
+        const std::string format_name = get_string_or_default("input_format", "metis");
+        const auto        format_it   = formats.find(format_name);
+        if (format_it == formats.end()) {
+            throw std::runtime_error("invalid graph input format");
+        }
+        config.static_graph.format = format_it->second;
     }
-    config.image_mesh.weight_model = weight_model_it->second;
 
     return config;
 }

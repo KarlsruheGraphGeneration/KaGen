@@ -339,7 +339,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     { // ImageMesh
         auto* cmd = app.add_subcommand("image", "Mesh graphs based on images")->alias("imagemesh")->alias("image-mesh");
         cmd->callback([&] { config.generator = GeneratorType::IMAGE_MESH; });
-        cmd->add_option("--image", config.image_mesh.filename, "Input image filename")
+        cmd->add_option("--filename", config.image_mesh.filename, "Input image filename")
             ->required()
             ->check(CLI::ExistingFile);
         cmd->add_option("--weight-model", config.image_mesh.weight_model)
@@ -370,14 +370,14 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* cmd =
             app.add_subcommand("static", "Loads a static graph from disk")->alias("staticgraph")->alias("static-graph");
         cmd->callback([&] { config.generator = GeneratorType::STATIC_GRAPH; });
-        cmd->add_option("--filename", config.static_graph.filename, "Input image filename")
+        cmd->add_option("--filename", config.static_graph.filename, "Input graph filename")
             ->required()
             ->check(CLI::ExistingFile);
         cmd->add_option("--distribution", config.static_graph.distribution)
             ->transform(CLI::CheckedTransformer(GetStaticGraphDistributionMap()).description(""))
             ->description(R"(The following options for how to distribute the static graph across PEs are available:
-  - balance-nodes: assign roughly the same number of nodes to each PE
-  - balance-edges: assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>)");
+  - balance-vertices: assign roughly the same number of nodes to each PE
+  - balance-edges:    assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>)");
         cmd->add_option("--input-format", config.static_graph.format)
             ->transform(CLI::CheckedTransformer(GetStaticGraphFormatMap()).description(""))
             ->description(R"(The following file formats are supported:
