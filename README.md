@@ -168,7 +168,7 @@ Thus, an edge (u, v) is in the edge list of the PE that owns vertex u, while the
 ## Communication-free Graph Generators
 
 ### Erdos-Renyi Graphs with Fixed Number of Edges
-Generate a random graph using the Erdos-Renyi model G(n, m).
+Generate a random Erdos-Renyi graph with a fixed number of edges.
 The graph can either be directed or undirected and can contain self-loops.
 
 #### Application
@@ -194,7 +194,7 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNM(n, m, self_loops = fals
 ---
 
 ### Erdos-Renyi graphs with fixed Edge Probability
-Generate a random graph using the Erdos-Renyi model G(n, p).
+Generate a random Erdos-Renyi graph with a fixed edge probability.
 The graph can either be directed or undirected and can contain self-loops.
 
 #### Application
@@ -219,7 +219,7 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = fals
 ---
 
 ### Random Geometric Graphs
-Generate an undirected random graph using the random geometric graph model RGG(n, r).
+Generate an undirected random geometric graph.
 
 **Note:** This generator is parameterized by the number of vertices in the graph and its edge radius. 
 Either parameter can be omitted in favor of the desired number of edges, in which case the omitted 
@@ -253,7 +253,7 @@ KaGenResult graph = gen.GenerateRGG3D_MR(m, r, coordinates = false); // deduce n
 --- 
 
 ### Random Delaunay Graphs
-Generate an undirected random graph using the random Delaunay graph model RDG(n).
+Generate an undirected random delaunay graph.
 
 **Note:** The graph can be generated with periodic boundary conditions to avoid long edges at the border using the `-p` flag. 
 However, this can yield unexpected results when using less than 9 PEs (2D) / 27 PEs (3D) to generate the graph.
@@ -316,7 +316,7 @@ KaGenResult graph = gen.GenerateGrid3D_NM(n, m, periodic, coordinates = false); 
 --- 
 
 ### Random Hyperbolic Graphs 
-Generate a two dimensional undirected random graph using the random hyperbolic graph model RHG(n, gamma, d).
+Generate a two dimensional undirected random hyperbolic graph.
 
 **Note:** On x86 systems, the generator can use 64 bit or 80 bit floating point numbers.
 This can be controlled explicitly by using the `--hp-floats` or `--no-hp-floats` flags. 
@@ -352,7 +352,7 @@ Since the original publication, several other graph generators have been integra
 
 ### Barabassi-Albert Graphs 
 
-Generate a random directed graph using the Barabassi-Albert graph model BA(n, d).
+Generate a random Barabassi-Albert graph.
 The graph may contain self-loops and multi edges.
 
 #### Application
@@ -378,8 +378,8 @@ KaGenResult graph = gen.GenerateBA_MD(m, d, directed = false, self_loops = false
 
 ---
 
-### R-MAT Graphs RMAT(n, m, a, b, c)
-Generate a random graph using the R-MAT graph model RMAT(n, m, a, b, c).
+### R-MAT Graphs
+Generate a random RMAT graph.
 
 Each PE generates a random R-MAT graph with n vertices and m/\<nproc\> edges.
 Afterwards, the vertices are assigned to PEs round-robin style and edges are distributed accordingly.
@@ -408,8 +408,8 @@ KaGenResult graph = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops
 
 ---
 
-### Kronecker Graphs KRONECKER(n, m)
-Generate a random graph using the Kronecker graph model KRONECKER(n, m).
+### Kronecker Graphs 
+Generate a random Kronecker graph.
 
 Each PE generates a random Kronecker graph with n vertices and m/\<nproc\> edges.
 Afterwards, the vertices are assigned to PEs round-robin style and edges are distributed accordingly.
