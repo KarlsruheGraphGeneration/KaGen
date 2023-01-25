@@ -280,7 +280,7 @@ KaGenResult graph = gen.GenerateRDG3D_M(m, coordinates = false);
 
 ---
 
-### Random Grid Graphs GRID(x, y [, z])
+### Random Grid Graphs
 Generate an undirected random grid graph. 
 
 #### Application 
