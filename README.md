@@ -438,7 +438,7 @@ KaGenResult graph = gen.GenerateKronecker(n, m, directed = false, self_loops = f
 
 ### Image Graph Generator
 Generates a graph based on an input image.
-Each vertex is represented by a node with edges to its neighboring vertices.
+Each pixel is represented by a vertex with edges to its neighboring vertices.
 The image has to be converted to KARGB format first (a simple binary file containing the uncompressed R, G, B channels of the image) by 
 using the `img2kargb` or `upsb2kargb` tool shipped with KaGen.
 
