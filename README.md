@@ -193,7 +193,7 @@ KaGenResult graph_undirected = gen.GenerateUndirectedGNM(n, m, self_loops = fals
 
 ---
 
-### Erdos-Renyi graphs with fixed Edge Probability
+### Erdos-Renyi graphs with Fixed Edge Probability
 Generate a random Erdos-Renyi graph with a fixed edge probability.
 The graph can either be directed or undirected and can contain self-loops.
 
