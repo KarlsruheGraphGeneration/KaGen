@@ -468,6 +468,8 @@ KaGen gen(MPI_COMM_WORLD);
 KaGenResult graph = gen.GenerateFromOptionString("image;filename=<...>;...");
 ```
 
+--- 
+
 ### File Graph Generator
 Pseudo-generator that loads a static graph from disk.
 Can be used to convert input formats to output format, or to load static graphs when using KaGen as a library.
