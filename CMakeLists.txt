@@ -131,7 +131,7 @@ list(APPEND KAGEN_LINK_LIBRARIES Sparsehash::Sparsehash)
 # CGAL
 ###############################################################################
 if (KAGEN_USE_CGAL)
-    set(CGAL_DO_NOT_WARN_ABOUT_CMAKE_BUILD_TYPE TRUE)
+    set(CGAL_DO_NOT_WARN_ABOUT_CMAKE_BUILD_TYPE TRUE CACHE BOOL "Do not warn about Debug mode")
     set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
     find_package(CGAL QUIET)
     if (CGAL_FOUND)
