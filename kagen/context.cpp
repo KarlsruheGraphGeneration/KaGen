@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <ios>
+#include <sstream>
 #include <mpi.h>
 
 namespace kagen {
@@ -501,7 +502,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         if (filename.empty()) {
             throw std::runtime_error("missing filename");
         }
-        config.image_mesh.filename             = filename;
+        config.image_mesh.filename = filename;
 
         config.image_mesh.weight_multiplier    = get_hpfloat_or_default("weight_multiplier", 1.0);
         config.image_mesh.weight_offset        = get_hpfloat_or_default("weight_offset", 0.0);
