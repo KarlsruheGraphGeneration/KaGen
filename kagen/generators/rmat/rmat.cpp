@@ -52,7 +52,7 @@ void RMAT::GenerateEdgeList() {
     using RNG  = rmat::generators::select_t;
     using RMAT = rmat::rmat<false>;
 
-    const SInt seed  = rank_ + 1;
+    const SInt seed  = rank_ + config_.seed;
     const SInt log_n = std::log2(config_.n);
     const SInt depth = std::min<SInt>(9, log_n);
 
