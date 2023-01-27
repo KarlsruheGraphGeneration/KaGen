@@ -68,7 +68,7 @@ You can install these dependencies via your package manager:
 
 ```shell
 # Ubuntu, Debian 
-apt-get install gcc-11 g++-11 libopenmpi-dev libcgal-dev libsparsehash-dev 
+apt-get install gcc-12 g++-12 libopenmpi-dev libcgal-dev libsparsehash-dev 
 
 # Arch Linux, Manjaro
 pacman -S gcc sparsehash openmpi cgal
@@ -80,7 +80,7 @@ dnf install gcc openmpi sparsehash-devel CGAL-devel
 brew install gcc open-mpi google-sparsehash cgal
 
 # macOS using MacPorts 
-port install gcc11 openmpi sparsehash cgal5
+port install gcc12 openmpi sparsehash cgal5
 ```
 
 ## Building KaGen 
