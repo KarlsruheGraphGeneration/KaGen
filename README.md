@@ -62,7 +62,7 @@ In order to compile the generators, you require:
   * Note: Apple Clang is **not** supported. 
 * OpenMPI
 * [Google Sparsehash](https://github.com/sparsehash/sparsehash)
-* The random delaunay graph generators also require CGAL. 
+* CGAL (optional, only required for the Delaunay generators)
 
 You can install these dependencies via your package manager:
 
