@@ -11,7 +11,7 @@ std::string HMetisWriter::DefaultExtension() const {
 
 void HMetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
-    out.WriteInt(m).WriteChar(' ').WriteInt(n);
+    out.WriteInt(m / 2).WriteChar(' ').WriteInt(n);
     if (HasVertexWeights() || HasEdgeWeights()) {
         out.WriteChar(' ');
         if (HasVertexWeights()) {
@@ -35,7 +35,11 @@ void HMetisWriter::AppendTo(const std::string& filename) {
         if (HasEdgeWeights()) {
             out.WriteInt(static_cast<SInt>(edge_weights_[e])).WriteChar(' ');
         }
-        out.WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
+
+        // Edges should only occur in one direction
+        if (from < to) {
+            out.WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
+        }
     }
 }
 
