@@ -29,7 +29,10 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph&
             return std::make_unique<EdgeListWriter>(graph, comm);
 
         case OutputFormat::BINARY_EDGE_LIST:
-            return std::make_unique<BinaryEdgeListWriter>(graph, comm);
+            return std::make_unique<BinaryEdgeListWriter>(graph, comm, 64);
+
+        case OutputFormat::BINARY_EDGE_LIST32:
+            return std::make_unique<BinaryEdgeListWriter>(graph, comm, 32);
 
         case OutputFormat::METIS:
             return std::make_unique<MetisWriter>(graph, comm);

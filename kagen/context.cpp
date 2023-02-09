@@ -11,6 +11,7 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
         {"none", OutputFormat::NONE},
         {"edge-list", OutputFormat::EDGE_LIST},
         {"binary-edge-list", OutputFormat::BINARY_EDGE_LIST},
+        {"binary-edge-list32", OutputFormat::BINARY_EDGE_LIST32},
         {"metis", OutputFormat::METIS},
         {"hmetis", OutputFormat::HMETIS},
         {"dot", OutputFormat::DOT},
@@ -30,6 +31,9 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
 
         case OutputFormat::BINARY_EDGE_LIST:
             return out << "binary-edge-list";
+
+        case OutputFormat::BINARY_EDGE_LIST32:
+            return out << "binary-edge-list32";
 
         case OutputFormat::METIS:
             return out << "metis";

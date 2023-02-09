@@ -27,7 +27,9 @@ void EdgeListWriter::AppendTo(const std::string& filename) {
     }
 }
 
-BinaryEdgeListWriter::BinaryEdgeListWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
+BinaryEdgeListWriter::BinaryEdgeListWriter(Graph& graph, MPI_Comm comm, int width)
+    : SequentialGraphWriter(graph, comm),
+      width_(width) {}
 
 std::string BinaryEdgeListWriter::DefaultExtension() const {
     return "binaryedgelist";
@@ -47,8 +49,13 @@ void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SIn
 void BinaryEdgeListWriter::AppendTo(const std::string& filename) {
     auto* fout = std::fopen(filename.c_str(), "ab");
     for (const auto& [from, to]: edges_) {
-        const SInt edges[2] = {from, to};
-        std::fwrite(edges, sizeof(SInt), 2, fout);
+        if (width_ == 64) {
+            const std::uint64_t edges[2] = {static_cast<std::uint64_t>(from), static_cast<std::uint64_t>(to)};
+            std::fwrite(edges, sizeof(std::uint64_t), 2, fout);
+        } else { // 32
+            const std::uint32_t edges[2] = {static_cast<std::uint32_t>(from), static_cast<std::uint32_t>(to)};
+            std::fwrite(edges, sizeof(std::uint32_t), 2, fout);
+        }
     }
     fclose(fout);
 }

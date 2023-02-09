@@ -20,6 +20,7 @@ enum class OutputFormat {
     NONE,
     EDGE_LIST,
     BINARY_EDGE_LIST,
+    BINARY_EDGE_LIST32,
     METIS,
     HMETIS,
     DOT,
