@@ -100,7 +100,7 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
             std::cout << "Writing graph to " << filename << " in " << config.output_format << " format" << std::endl;
         }
 
-        if (rank == ROOT) {
+        if (rank == ROOT && config.output_header != OutputHeader::NEVER) {
             AppendHeaderTo(filename, n, m);
         }
 
@@ -117,7 +117,7 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
             MPI_Barrier(comm_);
         }
 
-        if (rank == ROOT) {
+        if (rank == ROOT && config.output_header != OutputHeader::NEVER) {
             AppendFooterTo(filename);
         }
     } else {
