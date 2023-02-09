@@ -56,6 +56,14 @@ void CSROnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
     // actually want edge list representation -> transform graph
     FinalizeCSR(comm);
     edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
+    {
+        XadjArray tmp;
+        std::swap(xadj_, tmp);
+    }
+    {
+        AdjncyArray tmp;
+        std::swap(adjncy_, tmp);
+    }
 }
 
 void EdgeListOnlyGenerator::GenerateCSR() {
@@ -71,6 +79,10 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     // actually want CSR format --> transform graph
     FinalizeEdgeList(comm);
     std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
+    {
+        EdgeList tmp;
+        std::swap(edges_, tmp);
+    }
 }
 
 SInt Generator::GetNumberOfEdges() const {

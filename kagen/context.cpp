@@ -253,6 +253,7 @@ std::ostream& operator<<(std::ostream& out, const StaticGraphFormat format) {
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
+    out << "  Seed:                               " << config.seed << "\n";
     out << "  Validate generated graph:           " << (config.validate_simple_graph ? "yes" : "no") << "\n";
     out << "  Statistics level:                   " << config.statistics_level << "\n";
     out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";

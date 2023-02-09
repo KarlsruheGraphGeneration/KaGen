@@ -144,7 +144,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
 
     const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
     if (output_info) {
-        std::cout << "Finalizing graph generation ... " << std::flush;
+        std::cout << "Finalizing graph ... " << std::flush;
     }
     if (!config.skip_postprocessing) {
         generator->Finalize(comm);
@@ -175,7 +175,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
     // Validation
     if (config.validate_simple_graph) {
         if (output_info) {
-            std::cout << "Validating generated graph ... " << std::flush;
+            std::cout << "Validating graph ... " << std::flush;
         }
 
         bool success =
@@ -199,11 +199,15 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
             std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
 
-        if (config.statistics_level >= StatisticsLevel::BASIC) {
-            PrintBasicStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
-        }
-        if (config.statistics_level >= StatisticsLevel::ADVANCED) {
-            PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
+        if (!graph.edges.empty() || graph.adjncy.empty()) {
+            if (config.statistics_level >= StatisticsLevel::BASIC) {
+                PrintBasicStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
+            }
+            if (config.statistics_level >= StatisticsLevel::ADVANCED) {
+                PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
+            }
+        } else if (output_info) {
+            std::cout << "Graph was generated in CSR representation: statistics not available\n";
         }
     }
 
