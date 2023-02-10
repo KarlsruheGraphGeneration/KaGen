@@ -392,12 +392,14 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     }
     out << "-------------------------------------------------------------------------------\n";
 
-    out << "IO Parameters:\n";
-    out << "  Filename:                           " << config.output_file << "\n";
-    out << "  Output format:                      " << config.output_format << "\n";
-    out << "  Output header:                      " << config.output_header << "\n";
-    out << "  Distributed output:                 " << (config.output_single_file ? "no" : "yes") << "\n";
-    out << "-------------------------------------------------------------------------------\n";
+    if (config.output_format != OutputFormat::NONE) {
+        out << "IO Parameters:\n";
+        out << "  Filename:                           " << config.output_file << "\n";
+        out << "  Output format:                      " << config.output_format << "\n";
+        out << "  Output header:                      " << config.output_header << "\n";
+        out << "  Distributed output:                 " << (config.output_single_file ? "no" : "yes") << "\n";
+        out << "-------------------------------------------------------------------------------\n";
+    }
 
     return out << std::flush;
 }
