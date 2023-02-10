@@ -137,6 +137,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
 
     auto generator = factory->Create(config, rank, size);
     generator->Generate(representation);
+    MPI_Barrier(comm);
 
     if (output_info) {
         std::cout << "OK" << std::endl;
@@ -148,6 +149,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
     }
     if (!config.skip_postprocessing) {
         generator->Finalize(comm);
+        MPI_Barrier(comm);
     }
     if (output_info) {
         std::cout << "OK" << std::endl;
@@ -174,20 +176,25 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
 
     // Validation
     if (config.validate_simple_graph) {
-        if (output_info) {
-            std::cout << "Validating graph ... " << std::flush;
-        }
-
-        bool success =
-            ValidateSimpleGraph(graph.edges, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
-        if (!success) {
-            if (output_error) {
-                std::cerr << "Error: simple graph validation failed\n";
+        if (representation == GraphRepresentation::EDGE_LIST) {
+            if (output_info) {
+                std::cout << "Validating graph ... " << std::flush;
             }
-            MPI_Abort(comm, 1);
-        } else if (output_info) {
-            std::cout << "OK" << std::endl;
+
+            bool success =
+                ValidateSimpleGraph(graph.edges, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm);
+            MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
+            if (!success) {
+                if (output_error) {
+                    std::cerr << "Error: simple graph validation failed\n";
+                }
+                MPI_Abort(comm, 1);
+            } else if (output_info) {
+                std::cout << "OK" << std::endl;
+            }
+        } else if (output_info) { // CSR
+            std::cout << "Graph validation requested, but not available in CSR representation; skipping validation"
+                      << std::endl;
         }
     }
 
@@ -199,14 +206,14 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
             std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
 
-        if (!graph.edges.empty() || graph.adjncy.empty()) {
+        if (representation == GraphRepresentation::EDGE_LIST) {
             if (config.statistics_level >= StatisticsLevel::BASIC) {
                 PrintBasicStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
             }
             if (config.statistics_level >= StatisticsLevel::ADVANCED) {
                 PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
             }
-        } else if (output_info) {
+        } else { // CSR
             if (config.statistics_level >= StatisticsLevel::BASIC) {
                 PrintBasicStatistics(graph.xadj, graph.adjncy, graph.vertex_range, rank == ROOT, comm);
             }
