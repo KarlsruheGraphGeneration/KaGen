@@ -176,25 +176,23 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
 
     // Validation
     if (config.validate_simple_graph) {
-        if (representation == GraphRepresentation::EDGE_LIST) {
-            if (output_info) {
-                std::cout << "Validating graph ... " << std::flush;
-            }
+        if (output_info) {
+            std::cout << "Validating graph ... " << std::flush;
+        }
 
-            bool success =
-                ValidateSimpleGraph(graph.edges, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm);
-            MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
-            if (!success) {
-                if (output_error) {
-                    std::cerr << "Error: simple graph validation failed\n";
-                }
-                MPI_Abort(comm, 1);
-            } else if (output_info) {
-                std::cout << "OK" << std::endl;
+        bool success =
+            (representation == GraphRepresentation::EDGE_LIST)
+                ? ValidateSimpleGraph(graph.edges, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm)
+                : ValidateSimpleGraph(
+                    graph.xadj, graph.adjncy, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm);
+        MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
+        if (!success) {
+            if (output_error) {
+                std::cerr << "Error: simple graph validation failed\n";
             }
-        } else if (output_info) { // CSR
-            std::cout << "Graph validation requested, but not available in CSR representation; skipping validation"
-                      << std::endl;
+            MPI_Abort(comm, 1);
+        } else if (output_info) {
+            std::cout << "OK" << std::endl;
         }
     }
 

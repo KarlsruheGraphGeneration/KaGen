@@ -6,6 +6,8 @@
 
 #include <mpi.h>
 
+#include "kagen/tools/converter.h"
+
 namespace kagen {
 namespace {
 PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SInt>>& ranges) {
@@ -223,5 +225,12 @@ bool ValidateSimpleGraph(
     }
 
     return true;
+}
+
+bool ValidateSimpleGraph(
+    const XadjArray& xadj, const AdjncyArray& adjncy, const VertexRange vertex_range,
+    const VertexWeights& vertex_weights, const EdgeWeights& edge_weights, MPI_Comm comm) {
+    auto edges = BuildEdgeListFromCSR(vertex_range, xadj, adjncy);
+    return ValidateSimpleGraph(edges, vertex_range, vertex_weights, edge_weights, comm);
 }
 } // namespace kagen

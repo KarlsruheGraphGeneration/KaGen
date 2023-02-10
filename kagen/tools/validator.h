@@ -10,4 +10,8 @@ bool ValidateVertexRanges(const EdgeList& edge_list, VertexRange vertex_range, M
 bool ValidateSimpleGraph(
     const EdgeList& edge_list, VertexRange vertex_range, const VertexWeights& vertex_weights,
     const EdgeWeights& edge_weights, MPI_Comm comm);
+
+bool ValidateSimpleGraph(
+    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, const VertexWeights& vertex_weights,
+    const EdgeWeights& edge_weights, MPI_Comm comm);
 } // namespace kagen
