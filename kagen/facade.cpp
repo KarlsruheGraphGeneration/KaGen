@@ -207,7 +207,16 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
                 PrintAdvancedStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
             }
         } else if (output_info) {
-            std::cout << "Graph was generated in CSR representation: statistics not available\n";
+            if (config.statistics_level >= StatisticsLevel::BASIC) {
+                PrintBasicStatistics(graph.xadj, graph.adjncy, graph.vertex_range, rank == ROOT, comm);
+            }
+            if (config.statistics_level >= StatisticsLevel::ADVANCED) {
+                std::cout << "Advanced statistics are not available when generating the graph in CSR representation"
+                          << std::endl;
+            }
+        }
+        if (output_info && config.statistics_level != StatisticsLevel::NONE) {
+            std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
     }
 

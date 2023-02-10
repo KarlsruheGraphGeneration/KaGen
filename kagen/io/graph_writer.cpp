@@ -39,10 +39,6 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
     MPI_Comm_size(comm_, &size);
     const bool output = !config.quiet && rank == ROOT;
 
-    if (output) {
-        std::cout << "-------------------------------------------------------------------------------" << std::endl;
-    }
-
     const std::string base_filename = config.output_file + "." + DefaultExtension();
     const std::string filename = config.output_single_file ? base_filename : base_filename + "." + std::to_string(rank);
 

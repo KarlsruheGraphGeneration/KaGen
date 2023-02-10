@@ -194,47 +194,77 @@ SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_r
     return num_global_ghost_nodes;
 }
 
-void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
-    // Compute statistics
-    const auto local_num_nodes  = vertex_range.second - vertex_range.first;
-    const auto global_num_nodes = ReduceSum(local_num_nodes, comm);
-    const auto local_min_nodes  = ReduceMin(local_num_nodes, comm);
-    const auto local_mean_nodes = ReduceMean(local_num_nodes, comm);
-    const auto local_max_nodes  = ReduceMax(local_num_nodes, comm);
-    const auto local_sd_nodes   = ReduceSD(local_num_nodes, comm);
+namespace {
+struct DistributedElements {
+    SInt   global;
+    SInt   min;
+    double mean;
+    SInt   max;
+    double sd;
+};
 
-    const auto local_num_edges  = edges.size();
+void PrintBasicStatistics(const DistributedElements& vertices, const DistributedElements& edges) {
+    const int global_space = std::max<int>(std::log10(vertices.global), std::log10(edges.global)) + 1;
+    const int local_space  = std::max<int>(std::log10(vertices.max), std::log10(edges.max)) + 1;
+
+    const double vertex_imbalance = 1.0 * vertices.max / vertices.mean;
+    const double edge_imbalance   = 1.0 * edges.max / edges.mean;
+
+    std::cout << "Number of vertices: " << std::setw(global_space) << vertices.global << " ["
+              << "Min=" << std::setw(local_space) << vertices.min << " | "
+              << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << vertices.mean << " | "
+              << "Max=" << std::setw(local_space) << vertices.max << " | "
+              << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << vertices.sd << "]\n";
+    std::cout << "  Vertex imbalance: " << std::fixed << std::setprecision(3) << vertex_imbalance << std::endl;
+    std::cout << "Number of edges:    " << std::setw(global_space) << edges.global << " ["
+              << "Min=" << std::setw(local_space) << edges.min << " | "
+              << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << edges.mean << " | "
+              << "Max=" << std::setw(local_space) << edges.max << " | "
+              << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << edges.sd << "]\n";
+    std::cout << "  Edge imbalance:   " << std::fixed << std::setprecision(3) << edge_imbalance << std::endl;
+}
+
+void PrintBasicStatistics(const SInt local_num_vertices, const SInt local_num_edges, const bool root, MPI_Comm comm) {
+    const auto global_num_vertices = ReduceSum(local_num_vertices, comm);
+    const auto local_min_vertices  = ReduceMin(local_num_vertices, comm);
+    const auto local_mean_vertices = ReduceMean(local_num_vertices, comm);
+    const auto local_max_vertices  = ReduceMax(local_num_vertices, comm);
+    const auto local_sd_vertices   = ReduceSD(local_num_vertices, comm);
+
     const auto global_num_edges = ReduceSum(local_num_edges, comm);
     const auto local_min_edges  = ReduceMin(local_num_edges, comm);
     const auto local_mean_edges = ReduceMean(local_num_edges, comm);
     const auto local_max_edges  = ReduceMax(local_num_edges, comm);
     const auto local_sd_edges   = ReduceSD(local_num_edges, comm);
 
-    const double vertex_imbalance = 1.0 * local_max_nodes / local_mean_nodes;
-    const double edge_imbalance   = 1.0 * local_max_edges / local_mean_edges;
-
     // Print statistics on root
     if (root) {
-        const int global_space = std::max<int>(std::log10(global_num_nodes), std::log10(global_num_edges)) + 1;
-        const int local_space  = std::max<int>(std::log10(local_max_nodes), std::log10(local_max_edges)) + 1;
-
-        std::cout << "Number of vertices: " << std::setw(global_space) << global_num_nodes << " ["
-                  << "Min=" << std::setw(local_space) << local_min_nodes << " | "
-                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_nodes
-                  << " | "
-                  << "Max=" << std::setw(local_space) << local_max_nodes << " | "
-                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_nodes
-                  << "]\n";
-        std::cout << "  Vertex imbalance: " << std::fixed << std::setprecision(3) << vertex_imbalance << std::endl;
-        std::cout << "Number of edges:    " << std::setw(global_space) << global_num_edges << " ["
-                  << "Min=" << std::setw(local_space) << local_min_edges << " | "
-                  << "Mean=" << std::setw(local_space + 2) << std::fixed << std::setprecision(1) << local_mean_edges
-                  << " | "
-                  << "Max=" << std::setw(local_space) << local_max_edges << " | "
-                  << "SD=" << std::setw(local_space + 3) << std::fixed << std::setprecision(2) << local_sd_edges
-                  << "]\n";
-        std::cout << "  Edge imbalance:   " << std::fixed << std::setprecision(3) << edge_imbalance << std::endl;
+        PrintBasicStatistics(
+            {
+                global_num_vertices,
+                local_min_vertices,
+                local_mean_vertices,
+                local_max_vertices,
+                local_sd_vertices,
+            },
+            {
+                global_num_edges,
+                local_min_edges,
+                local_mean_edges,
+                local_max_edges,
+                local_sd_edges,
+            });
     }
+}
+} // namespace
+
+void PrintBasicStatistics(
+    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange, const bool root, MPI_Comm comm) {
+    PrintBasicStatistics(xadj.size() - 1, adjncy.size(), root, comm);
+}
+
+void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
+    PrintBasicStatistics(vertex_range.second - vertex_range.first, edges.size(), root, comm);
 }
 
 void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {

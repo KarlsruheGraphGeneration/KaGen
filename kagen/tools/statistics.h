@@ -33,6 +33,9 @@ double ComputeEdgeLocalicty(const EdgeList& edges, VertexRange vertex_range, MPI
 
 SInt ComputeNumberOfGhostNodes(const EdgeList& edges, VertexRange vertex_range, MPI_Comm comm);
 
+void PrintBasicStatistics(
+    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, bool root, MPI_Comm comm);
+
 void PrintBasicStatistics(const EdgeList& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
 
 void PrintAdvancedStatistics(EdgeList& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
