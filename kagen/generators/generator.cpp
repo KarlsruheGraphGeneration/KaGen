@@ -162,7 +162,7 @@ void GeneratorFactory::EnsureSquarePowerOfTwoChunkSize(
                 config.k *= 2;
             }
 
-            while (config.k < size * (1.0 / config.max_vertex_imbalance - 1.0)) {
+            while (std::ceil(1.0 * config.k / size) > (1.0 + config.max_vertex_imbalance) * config.k / size) {
                 config.k <<= 2;
             }
         }
@@ -189,7 +189,7 @@ void GeneratorFactory::EnsureCubicPowerOfTwoChunkSize(
                 config.k *= 2;
             }
 
-            while (config.k < size * (1.0 / config.max_vertex_imbalance - 1.0)) {
+            while (std::ceil(1.0 * config.k / size) > (1.0 + config.max_vertex_imbalance) * config.k / size) {
                 config.k <<= 3;
             }
         }
