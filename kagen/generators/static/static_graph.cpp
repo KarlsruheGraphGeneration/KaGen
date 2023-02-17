@@ -68,6 +68,8 @@ void StaticGraph::GenerateImpl(const GraphRepresentation representation) {
 
     auto graph      = reader->Read(from, to_node, to_edge, representation);
     vertex_range_   = graph.vertex_range;
+    xadj_           = std::move(graph.xadj);
+    adjncy_         = std::move(graph.adjncy);
     edges_          = std::move(graph.edges);
     edge_weights_   = std::move(graph.edge_weights);
     vertex_weights_ = std::move(graph.vertex_weights);
