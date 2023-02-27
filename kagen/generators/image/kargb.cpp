@@ -26,7 +26,8 @@ void CheckKARGB(const std::string& filename, bool& exists, bool& kargb) {
 
     std::array<char, kKargbIdentifierLength + 1> identifier;
     in.read(identifier.data(), kKargbIdentifierLength * sizeof(char));
-    kargb = !std::strcmp(identifier.data(), "KARGB");
+    identifier[kKargbIdentifierLength] = 0;
+    kargb                              = !std::strcmp(identifier.data(), "KARGB");
 }
 
 std::pair<SInt, SInt> ReadDimensions(const std::string& filename) {
