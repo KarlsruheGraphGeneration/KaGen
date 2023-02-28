@@ -18,6 +18,8 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
         {"dot-directed", OutputFormat::DOT_DIRECTED},
         {"coordinates", OutputFormat::COORDINATES},
         {"binary-parhip", OutputFormat::BINARY_PARHIP},
+        {"xtrapulp32", OutputFormat::XTRAPULP32},
+        {"xtrapulp64", OutputFormat::XTRAPULP64},
     };
 }
 
@@ -52,6 +54,12 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
 
         case OutputFormat::BINARY_PARHIP:
             return out << "binary-parhip";
+
+        case OutputFormat::XTRAPULP32:
+            return out << "xtrapulp32";
+
+        case OutputFormat::XTRAPULP64:
+            return out << "xtrapulp64";
     }
 
     return out << "<invalid>";

@@ -27,9 +27,10 @@ void EdgeListWriter::AppendTo(const std::string& filename) {
     }
 }
 
-BinaryEdgeListWriter::BinaryEdgeListWriter(Graph& graph, MPI_Comm comm, int width)
+BinaryEdgeListWriter::BinaryEdgeListWriter(Graph& graph, MPI_Comm comm, const int width, const bool header)
     : SequentialGraphWriter(graph, comm),
-      width_(width) {}
+      width_(width),
+      header_(header) {}
 
 std::string BinaryEdgeListWriter::DefaultExtension() const {
     return "binaryedgelist";
@@ -40,6 +41,10 @@ int BinaryEdgeListWriter::Requirements() const {
 }
 
 void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
+    if (!header_) {
+        return;
+    }
+
     auto* fout = std::fopen(filename.c_str(), "ab");
     std::fwrite(&n, sizeof(SInt), 1, fout);
     std::fwrite(&m, sizeof(SInt), 1, fout);
