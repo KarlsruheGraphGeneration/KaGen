@@ -22,7 +22,7 @@ protected:
 
 class BinaryEdgeListWriter : public SequentialGraphWriter {
 public:
-    BinaryEdgeListWriter(Graph& graph, MPI_Comm comm, int width, bool header = true);
+    BinaryEdgeListWriter(Graph& graph, MPI_Comm comm, int width, bool header, bool undirected);
 
     std::string DefaultExtension() const final;
 
@@ -36,5 +36,6 @@ protected:
 private:
     int  width_;
     bool header_;
+    bool undirected_;
 };
 } // namespace kagen

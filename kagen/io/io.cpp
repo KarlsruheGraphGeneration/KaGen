@@ -30,11 +30,13 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph&
 
         case OutputFormat::BINARY_EDGE_LIST:
         case OutputFormat::XTRAPULP64:
-            return std::make_unique<BinaryEdgeListWriter>(graph, comm, 64, format == OutputFormat::BINARY_EDGE_LIST);
+            return std::make_unique<BinaryEdgeListWriter>(
+                graph, comm, 64, format == OutputFormat::BINARY_EDGE_LIST, format == OutputFormat::XTRAPULP64);
 
         case OutputFormat::BINARY_EDGE_LIST32:
         case OutputFormat::XTRAPULP32:
-            return std::make_unique<BinaryEdgeListWriter>(graph, comm, 32, format == OutputFormat::BINARY_EDGE_LIST32);
+            return std::make_unique<BinaryEdgeListWriter>(
+                graph, comm, 32, format == OutputFormat::BINARY_EDGE_LIST32, format == OutputFormat::XTRAPULP32);
 
         case OutputFormat::METIS:
             return std::make_unique<MetisWriter>(graph, comm);
