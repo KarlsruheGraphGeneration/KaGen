@@ -166,6 +166,7 @@ add_library(KaGen::cKaGen ALIAS ckagen)
 ################################################################################
 
 if (KAGEN_BUILD_TESTS)
+    enable_testing()
     add_subdirectory(tests)
 endif ()
 
