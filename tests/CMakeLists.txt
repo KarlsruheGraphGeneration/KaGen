@@ -28,10 +28,17 @@ endfunction ()
 ### Add unit tests
 ###
 
-kagen_add_test(test_image_mesh 
-    FILES image_mesh_test.cpp 
+# Image Mesh Generator
+kagen_add_test(test_kargb 
+    FILES image/kargb_test.cpp 
     CORES 1)
 
-kagen_add_test(test_simple_graphs 
-    FILES simple_graphs_test.cpp 
-    CORES 1 2 3 4 5 6 7 8)
+# Static Graph Generator
+kagen_add_test(test_metis_generator
+    FILES static/metis_test.cpp
+    CORES 1 2 3 4 8 16)
+
+#kagen_add_test(test_binary_parhip_generator
+#FILES static/binary_parhip_test.cpp
+#CORES 1 2 3 4 8 16)
+

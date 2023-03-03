@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <iostream>
 namespace kagen {
 class MappedFileToker {
 public:
@@ -19,7 +20,7 @@ public:
         contents_ = static_cast<char*>(mmap(nullptr, length_, PROT_READ, MAP_PRIVATE, fd_, 0));
         if (contents_ == MAP_FAILED) {
             close(fd_);
-            throw std::runtime_error{"mmap failed"};
+            throw std::runtime_error("mmap failed (bad filename or empty file?)");
         }
     }
 
