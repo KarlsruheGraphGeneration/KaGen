@@ -474,6 +474,8 @@ KaGenResult graph = gen.GenerateFromOptionString("image;filename=<...>;...");
 Pseudo-generator that loads a static graph from disk.
 Can be used to convert input formats to output format, or to load static graphs when using KaGen as a library.
 
+**Note:** Currently, only `--input-format=metis --distribution=balance-vertices` is thoroughly tested.
+
 #### Application 
 ```
 mpirun -n <nproc> ./KaGen static
