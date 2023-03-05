@@ -10,10 +10,20 @@
 
 namespace kagen::testing {
 inline Graph ReadStaticGraph(
-    const char* filename, const StaticGraphDistribution distribution, const StaticGraphFormat format,
+    const std::string& filename, const StaticGraphDistribution distribution, const StaticGraphFormat format,
     const GraphRepresentation representation) {
     PGeneratorConfig config;
-    config.static_graph.filename     = filename;
+
+    switch (format) {
+        case StaticGraphFormat::METIS:
+            config.static_graph.filename = filename + ".metis";
+            break;
+
+        case StaticGraphFormat::BINARY_PARHIP:
+            config.static_graph.filename = filename + ".bgf";
+            break;
+    }
+
     config.static_graph.distribution = distribution;
     config.static_graph.format       = format;
 
@@ -27,14 +37,22 @@ inline Graph ReadStaticGraph(
 }
 
 inline Graph ReadStaticGraphOnRoot(
-    const char* filename, const StaticGraphDistribution distribution, const StaticGraphFormat format,
+    const std::string& filename, const StaticGraphDistribution distribution, const StaticGraphFormat format,
     const GraphRepresentation representation) {
     PEID rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank == 0) {
         PGeneratorConfig config;
-        config.static_graph.filename     = filename;
+        switch (format) {
+            case StaticGraphFormat::METIS:
+                config.static_graph.filename = filename + ".metis";
+                break;
+
+            case StaticGraphFormat::BINARY_PARHIP:
+                config.static_graph.filename = filename + ".bgf";
+                break;
+        }
         config.static_graph.distribution = distribution;
         config.static_graph.format       = format;
 
@@ -46,17 +64,21 @@ inline Graph ReadStaticGraphOnRoot(
     }
 }
 
-inline void ExpectEmptyGraphCSR(const Graph& graph) {
-    EXPECT_EQ(graph.xadj.size(), 1);
-    EXPECT_TRUE(graph.adjncy.empty());
-    EXPECT_TRUE(graph.vertex_weights.empty());
-    EXPECT_TRUE(graph.edge_weights.empty());
-}
+inline void ExpectEmptyGraph(const Graph& graph) {
+    switch (graph.representation) {
+        case GraphRepresentation::CSR:
+            EXPECT_EQ(graph.xadj.size(), 1);
+            EXPECT_TRUE(graph.adjncy.empty());
+            EXPECT_TRUE(graph.vertex_weights.empty());
+            EXPECT_TRUE(graph.edge_weights.empty());
+            break;
 
-inline void ExpectEmptyGraphEdgeList(const Graph& graph) {
-    EXPECT_TRUE(graph.edges.empty());
-    EXPECT_TRUE(graph.vertex_weights.empty());
-    EXPECT_TRUE(graph.edge_weights.empty());
+        case GraphRepresentation::EDGE_LIST:
+            EXPECT_TRUE(graph.edges.empty());
+            EXPECT_TRUE(graph.vertex_weights.empty());
+            EXPECT_TRUE(graph.edge_weights.empty());
+            break;
+    }
 }
 
 inline void ExpectK3CSR(const Graph& graph) {
@@ -80,6 +102,17 @@ inline void ExpectK3CSR(const Graph& graph) {
     EXPECT_NE(graph.adjncy[4], graph.adjncy[5]);
 }
 
+inline void ExpectK3(const Graph& graph) {
+    switch (graph.representation) {
+        case GraphRepresentation::CSR:
+            ExpectK3CSR(graph);
+            break;
+
+        case GraphRepresentation::EDGE_LIST:
+            break;
+    }
+}
+
 inline void ExpectP2CSR(const Graph& graph) {
     using namespace ::testing;
 
@@ -95,6 +128,17 @@ inline void ExpectP2CSR(const Graph& graph) {
     EXPECT_THAT(graph.adjncy[2], AnyOf(Eq(0), Eq(2)));
     EXPECT_NE(graph.adjncy[1], graph.adjncy[2]);
     EXPECT_EQ(graph.adjncy[3], 1);
+}
+
+inline void ExpectP2(const Graph& graph) {
+    switch (graph.representation) {
+        case GraphRepresentation::CSR:
+            ExpectP2CSR(graph);
+            break;
+
+        case GraphRepresentation::EDGE_LIST:
+            break;
+    }
 }
 
 inline void GatherWeights(const Graph& local_graph, Graph& global_graph) {
@@ -195,5 +239,17 @@ inline Graph GatherCSR(const Graph& local_graph) {
 
     GatherWeights(local_graph, global_graph);
     return global_graph;
+}
+
+inline Graph GatherGraph(const Graph& local_graph) {
+    switch (local_graph.representation) {
+        case GraphRepresentation::CSR:
+            return GatherCSR(local_graph);
+
+        case GraphRepresentation::EDGE_LIST:
+            return GatherEdgeLists(local_graph);
+    }
+
+    __builtin_unreachable();
 }
 } // namespace kagen::testing

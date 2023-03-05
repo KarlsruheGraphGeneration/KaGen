@@ -34,11 +34,7 @@ kagen_add_test(test_kargb
     CORES 1)
 
 # Static Graph Generator
-kagen_add_test(test_metis_generator
-    FILES static/metis_test.cpp
+kagen_add_test(test_static_graph_generators
+    FILES static/generic_generator_test.cpp
     CORES 1 2 3 4 8 16)
-
-#kagen_add_test(test_binary_parhip_generator
-#FILES static/binary_parhip_test.cpp
-#CORES 1 2 3 4 8 16)
 
