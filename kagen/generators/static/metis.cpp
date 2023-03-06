@@ -51,6 +51,7 @@ void ParseBody(
         }
 
         std::uint64_t node_weight = 1;
+        toker.Mark();
         if (has_node_weights) {
             node_weight = toker.ScanUnsigned();
         }
@@ -136,7 +137,7 @@ Graph MetisReader::Read(
             },
             [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
                 ++current_edge;
-                if (current_node - 1 >= from) {
+                if (current_node >= from + 1) {
                     if (has_edge_weights) {
                         graph.edge_weights.push_back(weight);
                     }
@@ -200,7 +201,7 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
 
     cached_first_node_     = current_node;
     cached_first_edge_     = current_edge;
-    cached_first_node_pos_ = toker_.Position();
+    cached_first_node_pos_ = toker_.Marked();
 
     return current_node;
 }

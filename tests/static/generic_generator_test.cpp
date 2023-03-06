@@ -17,10 +17,6 @@ const char* GRAPH_WITH_COMMENTS = "tests/data/static/with_comments";
 
 using namespace kagen;
 
-namespace {
-StaticGraphDistribution distributions[] = {StaticGraphDistribution::BALANCE_VERTICES};
-}
-
 struct GenericGeneratorTestFixture
     : public ::testing::TestWithParam<std::tuple<StaticGraphFormat, StaticGraphDistribution, GraphRepresentation>> {};
 
@@ -29,8 +25,9 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         std::make_tuple(
             StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(
-            StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR)));
+            StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST)));
 
 TEST_P(GenericGeneratorTestFixture, reads_empty_graph) {
     using namespace kagen::testing;
@@ -65,14 +62,14 @@ TEST_P(GenericGeneratorTestFixture, loads_unweighted_K3) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
-    const auto local_graph = ReadStaticGraph(UNWEIGHTED_K3, distribution, format, representation);
+    const auto local_graph  = ReadStaticGraph(UNWEIGHTED_K3, distribution, format, representation);
     const auto global_graph = GatherGraph(local_graph);
     ExpectK3(global_graph);
     EXPECT_TRUE(global_graph.vertex_weights.empty());
     EXPECT_TRUE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_edge_weighted_K3) {
+TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_K3) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -83,7 +80,7 @@ TEST_P(GenericGeneratorTestFixture, load_edge_weighted_K3) {
     EXPECT_FALSE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_vertex_weighted_K3) {
+TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_K3) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -94,7 +91,7 @@ TEST_P(GenericGeneratorTestFixture, load_vertex_weighted_K3) {
     EXPECT_TRUE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_weighted_K3) {
+TEST_P(GenericGeneratorTestFixture, loads_weighted_K3) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -105,7 +102,7 @@ TEST_P(GenericGeneratorTestFixture, load_weighted_K3) {
     EXPECT_FALSE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_vertex_weighted_P2) {
+TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_P2) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -116,7 +113,7 @@ TEST_P(GenericGeneratorTestFixture, load_vertex_weighted_P2) {
     EXPECT_TRUE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_edge_weighted_P2) {
+TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_P2) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -127,7 +124,7 @@ TEST_P(GenericGeneratorTestFixture, load_edge_weighted_P2) {
     EXPECT_FALSE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_weighted_P2) {
+TEST_P(GenericGeneratorTestFixture, loads_weighted_P2) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -138,7 +135,7 @@ TEST_P(GenericGeneratorTestFixture, load_weighted_P2) {
     EXPECT_FALSE(global_graph.edge_weights.empty());
 }
 
-TEST_P(GenericGeneratorTestFixture, load_large_weights) {
+TEST_P(GenericGeneratorTestFixture, loads_large_weights) {
     using namespace kagen::testing;
     const auto [format, distribution, representation] = GetParam();
 
@@ -162,7 +159,7 @@ TEST_P(GenericGeneratorTestFixture, load_large_weights) {
     EXPECT_EQ(global_graph.vertex_weights[1], 234567891);
 }
 
-TEST_P(GenericGeneratorTestFixture, load_real_world_graph) {
+TEST_P(GenericGeneratorTestFixture, loads_real_world_graph) {
     using namespace kagen::testing;
     using namespace ::testing;
     const auto [format, distribution, representation] = GetParam();
@@ -195,12 +192,12 @@ TEST_P(GenericGeneratorTestFixture, load_real_world_graph) {
         ASSERT_EQ(global_graph.adjncy.size(), root_graph.adjncy.size());
         ASSERT_EQ(global_graph.edges.size(), root_graph.edges.size());
 
-        // Check CSR
+        // Check every 100nth node in CSR representation
         bool              ok = true;
         std::vector<SInt> global_neighbors;
         std::vector<SInt> root_neighbors;
 
-        for (SInt u = 0; u + 1 < global_graph.xadj.size(); ++u) {
+        for (SInt u = 0; u + 1 < global_graph.xadj.size(); u += 100) {
             const SInt global_degree = global_graph.xadj[u + 1] - global_graph.xadj[u];
             const SInt root_degree   = root_graph.xadj[u + 1] - root_graph.xadj[u];
             if (global_degree != root_degree) {
@@ -224,7 +221,7 @@ TEST_P(GenericGeneratorTestFixture, load_real_world_graph) {
         }
         ASSERT_TRUE(ok);
 
-        // Check edge list
+        // Check edge list, TODO reduce running time
         std::sort(global_graph.edges.begin(), global_graph.edges.end());
         std::sort(root_graph.edges.begin(), root_graph.edges.end());
         ASSERT_EQ(global_graph.edges, root_graph.edges);

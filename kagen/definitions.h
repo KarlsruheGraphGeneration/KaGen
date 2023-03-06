@@ -7,6 +7,7 @@
  ******************************************************************************/
 #pragma once
 
+#include <ostream>
 #include <tuple>
 #include <vector>
 
@@ -57,6 +58,18 @@ enum class GraphRepresentation {
     EDGE_LIST,
     CSR,
 };
+
+inline std::ostream& operator<<(std::ostream& out, const GraphRepresentation representation) {
+    switch (representation) {
+        case GraphRepresentation::EDGE_LIST:
+            return out << "edge-list";
+
+        case GraphRepresentation::CSR:
+            return out << "csr";
+    }
+
+    return out << "<invalid>";
+}
 
 struct Graph {
     VertexRange         vertex_range;

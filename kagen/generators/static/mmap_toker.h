@@ -116,6 +116,14 @@ public:
         return position_;
     }
 
+    [[nodiscard]] std::size_t Marked() const {
+        return mark_;
+    }
+
+    void Mark() {
+        mark_ = Position();
+    }
+
     [[nodiscard]] std::size_t Length() const {
         return length_;
     }
@@ -139,6 +147,7 @@ private:
     std::size_t position_;
     std::size_t length_;
     char*       contents_;
+    std::size_t mark_;
 };
 } // namespace kagen
 
