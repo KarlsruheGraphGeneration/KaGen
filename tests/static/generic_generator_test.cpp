@@ -27,7 +27,8 @@ INSTANTIATE_TEST_SUITE_P(
             StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
         std::make_tuple(StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(
-            StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST)));
+            StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
 
 TEST_P(GenericGeneratorTestFixture, reads_empty_graph) {
     using namespace kagen::testing;
@@ -221,10 +222,22 @@ TEST_P(GenericGeneratorTestFixture, loads_real_world_graph) {
         }
         ASSERT_TRUE(ok);
 
-        // Check edge list, TODO reduce running time
-        std::sort(global_graph.edges.begin(), global_graph.edges.end());
-        std::sort(root_graph.edges.begin(), root_graph.edges.end());
-        ASSERT_EQ(global_graph.edges, root_graph.edges);
+        std::vector<std::tuple<SInt, SInt>> global_sample, root_sample;
+        for (const auto& [u, v]: global_graph.edges) {
+            if (u % 100 == 0) {
+                global_sample.emplace_back(u, v);
+            }
+        }
+        for (const auto& [u, v]: root_graph.edges) {
+            if (u % 100 == 0) {
+                root_sample.emplace_back(u, v);
+            }
+        }
+
+        // Check edge list
+        std::sort(global_sample.begin(), global_sample.end());
+        std::sort(root_sample.begin(), root_sample.end());
+        ASSERT_EQ(global_sample, root_sample);
     }
 
     // Check first and last node by hand

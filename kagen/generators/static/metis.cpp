@@ -124,12 +124,12 @@ Graph MetisReader::Read(
         ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
-                if (has_node_weights && current_node >= from && current_node < to_node) {
-                    graph.vertex_weights.push_back(weight);
-                }
-
                 if (current_node >= to_node || current_edge >= to_edge) {
                     return false;
+                }
+
+                if (has_node_weights && current_node >= from) {
+                    graph.vertex_weights.push_back(weight);
                 }
 
                 ++current_node;
@@ -149,15 +149,15 @@ Graph MetisReader::Read(
         ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
-                if (current_node >= from && current_node < to_node) {
+                if (current_node >= to_node || current_edge >= to_edge) {
+                    return false;
+                }
+
+                if (current_node >= from) {
                     graph.xadj.push_back(graph.adjncy.size());
                     if (has_node_weights) {
                         graph.vertex_weights.push_back(weight);
                     }
-                }
-
-                if (current_node >= to_node || current_edge >= to_edge) {
-                    return false;
                 }
 
                 ++current_node;
@@ -165,7 +165,7 @@ Graph MetisReader::Read(
             },
             [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
                 ++current_edge;
-                if (current_node - 1 >= from) {
+                if (current_node >= from + 1) {
                     if (has_edge_weights) {
                         graph.edge_weights.push_back(weight);
                     }
