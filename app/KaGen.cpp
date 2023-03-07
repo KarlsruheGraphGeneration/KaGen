@@ -386,19 +386,20 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     }
 
     // IO options
-    app.add_option("-o,--output", config.output_file, "Output filename");
-    app.add_option("-f,--output-format", config.output_format)
+    app.add_option("-o,--output", config.output.filename, "Output filename");
+    app.add_option("-f,--output-format", config.output.formats)
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()).description(""))
-        ->description(R"(File format for the generated graph, available formats are:
-  - none:             do not write the graph to disk
+        ->description(R"(File formats for the generated graph, available formats are:
+  - none:             do not save the generated graph
   - edge-list:        text file containing the generated edges
   - binary-edge-list: binary file containing the generated edges
   - metis:            format used by METIS
   - hmetis:           format used by hMETIS
   - binary-parhip:    binary format used by ParHIP
   - dot:              GraphViz format
+  - xtrapulp:         format used by XtraPuLP
   - coordinates:      text file containing x y z coordinates)");
-    app.add_option("--output-header", config.output_header)
+    app.add_option("--output-header", config.output.header)
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()).description(""))
         ->description(
             R"(When using distributed output: controls which PEs add a file header to their output file, possible values are:
@@ -406,12 +407,14 @@ This is mostly useful for experimental graph generators or when using KaGen to l
   - root:   only the root PE outputs a file header
   - always: every PE outputs a file header)");
     app.add_flag(
-        "--distributed-output", [&config](auto) { config.output_single_file = false; }, "Output one file for each PE");
-
-    // coordinates output format implies --coordinates
-    if (config.output_format == OutputFormat::COORDINATES) {
-        config.coordinates = true;
-    }
+        "--distributed-output", [&config](auto) { config.output.distributed = true; }, "Output one file for each PE");
+    app.add_flag(
+        "--64", [&config](auto) { config.output.width = 64; },
+        "Use 64 bit data types for the {binary-edge-list, xtrapulp} output formats.");
+    app.add_flag(
+        "--32", [&config](auto) { config.output.width = 32; },
+        "Use 32 bit data types for the {binary-edge-list, xtrapulp} output formats.");
+    app.add_flag("--extension", config.output.extension, "Always append a default extension to the output filename.");
 }
 
 int main(int argc, char* argv[]) {
@@ -422,6 +425,17 @@ int main(int argc, char* argv[]) {
     CLI::App         app("KaGen: Karlsruhe Graph Generator");
     SetupCommandLineArguments(app, config);
     CLI11_PARSE(app, argc, argv);
+
+    // Coordinates output format implies --coordinates
+    if (std::find(config.output.formats.begin(), config.output.formats.end(), OutputFormat::COORDINATES)
+        != config.output.formats.end()) {
+        config.coordinates = true;
+    }
+
+    // If use more than one output format, always make output filenames distinct by appending the default extension
+    if (config.output.formats.size() > 1) {
+        config.output.extension = true;
+    }
 
     // Run KaGen
     auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);

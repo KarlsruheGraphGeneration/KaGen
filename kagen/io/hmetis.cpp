@@ -3,7 +3,9 @@
 #include "kagen/io/buffered_writer.h"
 
 namespace kagen {
-HMetisWriter::HMetisWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
+HMetisWriter::HMetisWriter(Graph& graph, MPI_Comm comm, const bool directed)
+    : SequentialGraphWriter(graph, comm),
+      directed_(directed) {}
 
 std::string HMetisWriter::DefaultExtension() const {
     return "hgr";
@@ -37,7 +39,7 @@ void HMetisWriter::AppendTo(const std::string& filename) {
         }
 
         // Edges should only occur in one direction
-        if (from < to) {
+        if (directed_ || from < to) {
             out.WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
         }
     }

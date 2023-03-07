@@ -353,8 +353,8 @@ KaGenResult KaGen::GenerateRMAT(
 }
 
 void KaGen::SetDefaults() {
-    config_->quiet         = true;
-    config_->output_format = OutputFormat::NONE; // ignored anyways
+    config_->quiet = true;
+    config_->output.formats.clear();
     // keep all other defaults
 }
 } // namespace kagen

@@ -20,35 +20,40 @@
 
 namespace kagen {
 namespace {
-std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph& graph, MPI_Comm comm) {
+std::unique_ptr<GraphWriter>
+CreateGraphWriter(const OutputFormat format, const int width, Graph& graph, MPI_Comm comm) {
     switch (format) {
         case OutputFormat::NONE:
             return std::make_unique<NoopWriter>(graph, comm);
 
         case OutputFormat::EDGE_LIST:
-            return std::make_unique<EdgeListWriter>(graph, comm);
+        case OutputFormat::EDGE_LIST_UNDIRECTED: {
+            const bool undirected = format == OutputFormat::EDGE_LIST_UNDIRECTED;
+            return std::make_unique<EdgeListWriter>(graph, comm, true, undirected);
+        }
 
         case OutputFormat::BINARY_EDGE_LIST:
-        case OutputFormat::XTRAPULP64:
-            return std::make_unique<BinaryEdgeListWriter>(
-                graph, comm, 64, format == OutputFormat::BINARY_EDGE_LIST, format == OutputFormat::XTRAPULP64);
-
-        case OutputFormat::BINARY_EDGE_LIST32:
-        case OutputFormat::XTRAPULP32:
-            return std::make_unique<BinaryEdgeListWriter>(
-                graph, comm, 32, format == OutputFormat::BINARY_EDGE_LIST32, format == OutputFormat::XTRAPULP32);
+        case OutputFormat::BINARY_EDGE_LIST_UNDIRECTED:
+        case OutputFormat::XTRAPULP: {
+            const bool undirected = format != OutputFormat::BINARY_EDGE_LIST;
+            const bool header     = format != OutputFormat::XTRAPULP;
+            return std::make_unique<BinaryEdgeListWriter>(graph, comm, width, header, undirected);
+        }
 
         case OutputFormat::METIS:
             return std::make_unique<MetisWriter>(graph, comm);
 
         case OutputFormat::HMETIS:
-            return std::make_unique<HMetisWriter>(graph, comm);
+        case OutputFormat::HMETIS_DIRECTED: {
+            const bool directed = format == OutputFormat::HMETIS_DIRECTED;
+            return std::make_unique<HMetisWriter>(graph, comm, directed);
+        }
 
         case OutputFormat::DOT:
-            return std::make_unique<DotWriter>(graph, false, comm);
-
-        case OutputFormat::DOT_DIRECTED:
-            return std::make_unique<DotWriter>(graph, true, comm);
+        case OutputFormat::DOT_DIRECTED: {
+            const bool directed = format == OutputFormat::DOT_DIRECTED;
+            return std::make_unique<DotWriter>(graph, comm, directed);
+        }
 
         case OutputFormat::COORDINATES:
             return std::make_unique<CoordinatesWriter>(graph, comm);
@@ -63,7 +68,10 @@ std::unique_ptr<GraphWriter> CreateGraphWriter(const OutputFormat format, Graph&
 
 void WriteGraph(const PGeneratorConfig& config, Graph& graph, MPI_Comm comm) {
     assert(graph.representation == GraphRepresentation::EDGE_LIST && "graph must be in edge list representation");
-    auto writer = CreateGraphWriter(config.output_format, graph, comm);
-    writer->Write(config);
+
+    for (const OutputFormat& format: config.output.formats) {
+        auto writer = CreateGraphWriter(format, config.output.width, graph, comm);
+        writer->Write(config);
+    }
 }
 } // namespace kagen

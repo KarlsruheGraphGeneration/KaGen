@@ -103,17 +103,19 @@ To view the options of a specific graph generator, use:
 ./KaGen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker|rmat> --help
 ```
 
-By default, the generated graph is written to a single file `out.edgelist` (`-o` option) in DIMACS edge list format (`-f` option).
-Other output formats are available:
+By default, the generated graph is written to a single file `out` (`-o` option) in DIMACS edge list format (`-f` option).
+Other output formats include:
 
 - `-f edge-list`: DIMACS edge list format (default)
-- `-f binary-edge-list`: DIMACS binary edge list format
+- `-f binary-edge-list`: DIMACS binary edge list format, use `--32` to write the file with 32 bit data types 
 - `-f metis`: Metis graph format
 - `-f hmetis`: hMetis hypergraph format 
 - `-f dot`: GraphViz dot file (add `-C` to include vertex coordinates for 2D graph generators)
 - `-f coordinates`: Text file containing vertex coordinates 
 - `-f binary-parhip`: Binary graph format used by ParHiP
+- `-f xtrapulp`: Binary graph format used by [XtraPuLP](https://github.com/HPCGraphAnalysis/PuLP), use `--32` to write the file with 32 bit data types
 
+One graph can be stored in multiple formats by passing the `-f` repeatedly, e.g., `-o out -f metis -f coordinates` will write two files `out.graph` and `out.xyz`.
 If you want each PE to write its edges to a seperate file, use the `--distributed-output` flag.
 
 ## Using the KaGen Library

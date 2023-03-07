@@ -10,16 +10,16 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
     return {
         {"none", OutputFormat::NONE},
         {"edge-list", OutputFormat::EDGE_LIST},
+        {"edge-list-undirected", OutputFormat::EDGE_LIST_UNDIRECTED},
         {"binary-edge-list", OutputFormat::BINARY_EDGE_LIST},
-        {"binary-edge-list32", OutputFormat::BINARY_EDGE_LIST32},
+        {"binary-edge-list-undirected", OutputFormat::BINARY_EDGE_LIST_UNDIRECTED},
         {"metis", OutputFormat::METIS},
         {"hmetis", OutputFormat::HMETIS},
         {"dot", OutputFormat::DOT},
         {"dot-directed", OutputFormat::DOT_DIRECTED},
         {"coordinates", OutputFormat::COORDINATES},
         {"binary-parhip", OutputFormat::BINARY_PARHIP},
-        {"xtrapulp32", OutputFormat::XTRAPULP32},
-        {"xtrapulp64", OutputFormat::XTRAPULP64},
+        {"xtrapulp", OutputFormat::XTRAPULP},
     };
 }
 
@@ -31,17 +31,23 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
         case OutputFormat::EDGE_LIST:
             return out << "edge-list";
 
+        case OutputFormat::EDGE_LIST_UNDIRECTED:
+            return out << "edge-list-undirected";
+
         case OutputFormat::BINARY_EDGE_LIST:
             return out << "binary-edge-list";
 
-        case OutputFormat::BINARY_EDGE_LIST32:
-            return out << "binary-edge-list32";
+        case OutputFormat::BINARY_EDGE_LIST_UNDIRECTED:
+            return out << "binary-edge-list-undirected";
 
         case OutputFormat::METIS:
             return out << "metis";
 
         case OutputFormat::HMETIS:
             return out << "hmetis";
+
+        case OutputFormat::HMETIS_DIRECTED:
+            return out << "hmetis-directed";
 
         case OutputFormat::DOT:
             return out << "dot";
@@ -55,11 +61,8 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
         case OutputFormat::BINARY_PARHIP:
             return out << "binary-parhip";
 
-        case OutputFormat::XTRAPULP32:
-            return out << "xtrapulp32";
-
-        case OutputFormat::XTRAPULP64:
-            return out << "xtrapulp64";
+        case OutputFormat::XTRAPULP:
+            return out << "xtrapulp";
     }
 
     return out << "<invalid>";
@@ -400,12 +403,20 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     }
     out << "-------------------------------------------------------------------------------\n";
 
-    if (config.output_format != OutputFormat::NONE) {
+    if (!config.output.formats.empty()) {
         out << "IO Parameters:\n";
-        out << "  Filename:                           " << config.output_file << "\n";
-        out << "  Output format:                      " << config.output_format << "\n";
-        out << "  Output header:                      " << config.output_header << "\n";
-        out << "  Distributed output:                 " << (config.output_single_file ? "no" : "yes") << "\n";
+        out << "  Filename:                           " << config.output.filename
+            << (config.output.extension ? ".*" : "") << "\n";
+
+        out << "  Output formats:                     " << config.output.formats.front();
+        for (std::size_t i = 1; i < config.output.formats.size(); ++i) {
+            out << ", " << config.output.formats[i];
+        }
+        out << "\n";
+        out << "  Output header:                      " << config.output.header << "\n";
+        out << "  Distributed output:                 " << (config.output.distributed ? "yes" : "no") << "\n";
+        out << "  Data type width:                    "
+            << (config.output.width == 0 ? "format dependent" : std::to_string(config.output.width) + " bits") << "\n";
         out << "-------------------------------------------------------------------------------\n";
     }
 

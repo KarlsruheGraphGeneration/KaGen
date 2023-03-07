@@ -8,16 +8,20 @@
 namespace kagen {
 class EdgeListWriter : public SequentialGraphWriter {
 public:
-    EdgeListWriter(Graph& graph, MPI_Comm comm);
+    EdgeListWriter(Graph& graph, MPI_Comm comm, bool header, bool undirected);
 
     std::string DefaultExtension() const final;
 
 protected:
     int Requirements() const final;
 
-    void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
+    void AppendHeaderTo(const std::string& filename, SInt n, SInt m) final;
 
     void AppendTo(const std::string& filename) final;
+
+private:
+    bool header_;
+    bool undirected_;
 };
 
 class BinaryEdgeListWriter : public SequentialGraphWriter {
@@ -29,7 +33,7 @@ public:
 protected:
     int Requirements() const final;
 
-    void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
+    void AppendHeaderTo(const std::string& filename, SInt n, SInt m) final;
 
     void AppendTo(const std::string& filename) final;
 

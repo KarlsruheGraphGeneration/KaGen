@@ -19,16 +19,17 @@ namespace kagen {
 enum class OutputFormat {
     NONE,
     EDGE_LIST,
+    EDGE_LIST_UNDIRECTED,
     BINARY_EDGE_LIST,
-    BINARY_EDGE_LIST32,
+    BINARY_EDGE_LIST_UNDIRECTED,
     METIS,
     HMETIS,
+    HMETIS_DIRECTED,
     DOT,
     DOT_DIRECTED,
     COORDINATES,
     BINARY_PARHIP,
-    XTRAPULP64,
-    XTRAPULP32,
+    XTRAPULP,
 };
 
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();
@@ -134,6 +135,15 @@ struct StaticGraphConfig {
     StaticGraphDistribution distribution = StaticGraphDistribution::BALANCE_VERTICES;
 };
 
+struct OutputConfig {
+    std::string               filename    = "out";
+    bool                      extension   = false;
+    std::vector<OutputFormat> formats     = {OutputFormat::EDGE_LIST};
+    OutputHeader              header      = OutputHeader::ROOT;
+    bool                      distributed = false;
+    int                       width       = 0;
+};
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     // General settings
@@ -184,11 +194,7 @@ struct PGeneratorConfig {
     ULONG base_size   = 1 << 8; // Sampler base size
     ULONG hyp_base    = 1 << 8;
 
-    // IO settings
-    OutputFormat output_format      = OutputFormat::EDGE_LIST; // Output format
-    OutputHeader output_header      = OutputHeader::ROOT;      // PEs that print file headers
-    std::string  output_file        = "out";                   // Output filename
-    bool         output_single_file = true;                    // Collect all graphs in a single output file
+    OutputConfig output{};
 };
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);

@@ -24,10 +24,11 @@ void BinaryParHipWriter::Write(const PGeneratorConfig& config) {
     MPI_Comm_rank(comm_, &rank);
     MPI_Comm_size(comm_, &size);
 
-    const bool        output   = !config.quiet && rank == ROOT;
-    const std::string filename = config.output_file + "." + DefaultExtension();
+    const bool        output = !config.quiet && rank == ROOT;
+    const std::string filename =
+        config.output.extension ? config.output.filename + "." + DefaultExtension() : config.output.filename;
 
-    if (!config.output_single_file && output) {
+    if (config.output.distributed && output) {
         std::cout
             << "Warning: this file format does not support distributed output; writing the graph to a single file."
             << std::endl;
@@ -42,7 +43,7 @@ void BinaryParHipWriter::Write(const PGeneratorConfig& config) {
     const ParHipID num_global_edges    = FindNumberOfGlobalEdges(edges_, comm_);
 
     // Header
-    if (rank == ROOT && config.output_header != OutputHeader::NEVER) {
+    if (rank == ROOT && config.output.header != OutputHeader::NEVER) {
         // To be compatible with the original format used by ParHiP, we use the following versions:
         // 3 = no vertex or edge weights = compatible with ParHiP
         // 2 = no vertex weights, but edge weights
