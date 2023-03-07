@@ -37,7 +37,13 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
         std::make_tuple(
             StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_VERTICES,
-            GraphRepresentation::EDGE_LIST)));
+            GraphRepresentation::EDGE_LIST),
+        std::make_tuple(
+            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+        std::make_tuple(
+            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(
+            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
 
 namespace {
 inline Graph ReadStaticGraph(
@@ -320,9 +326,7 @@ TEST_P(GenericGeneratorTestFixture, ignores_comments) {
     const auto [format, distribution, representation] = GetParam();
 
     const auto local_graph  = ReadStaticGraph(GRAPH_WITH_COMMENTS, distribution, format, representation);
-    std::cout << "OK" << std::endl;
     const auto global_graph = GatherGraph(local_graph);
-    std::cout << "OK" << std::endl;
 
     switch (representation) {
         case GraphRepresentation::CSR:
