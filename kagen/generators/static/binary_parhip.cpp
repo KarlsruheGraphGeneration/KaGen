@@ -25,11 +25,11 @@ SInt ReadFirstEdge(std::ifstream& in, const SInt n, const SInt u) {
 }
 
 bool HasVertexWeights(const SInt version) {
-    return ~(version & 2);
+    return (version & 2) == 0;
 }
 
 bool HasEdgeWeights(const SInt version) {
-    return ~(version & 1);
+    return (version & 1) == 0;
 }
 
 template <typename T>
@@ -54,6 +54,7 @@ GraphSize BinaryParhipReader::ReadSize() {
 
 Graph BinaryParhipReader::Read(
     const SInt from, SInt to_node, const SInt to_edge, const GraphRepresentation representation) {
+
     if (to_node > n_) {
         to_node = FindNodeByEdge(to_edge);
     }
@@ -97,7 +98,7 @@ Graph BinaryParhipReader::Read(
     if (HasVertexWeights(version_)) {
         ans.vertex_weights.resize(num_local_nodes);
 
-        const SInt offset = (3 + n_ + m_ + from) * sizeof(ParHipID);
+        const SInt offset = (3 + n_ + m_ + 1 + from) * sizeof(ParHipID);
         in_.seekg(offset);
         in_.read(reinterpret_cast<char*>(ans.vertex_weights.data()), num_local_nodes * sizeof(ParHipWeight));
     }
