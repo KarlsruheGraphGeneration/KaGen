@@ -92,12 +92,7 @@ struct KaGenResult {
 private:
     template <typename To, typename From>
     std::vector<To> TakeVector(From& from) {
-    // without this, we can not include this header in code using < C++17
-#if __cplusplus >= 201703L
-        if constexpr (std::is_same_v<typename From::value_type, To>) {
-#else
         if (std::is_same<typename From::value_type, To>::value) {
-#endif
             return std::move(from);
         }
 
