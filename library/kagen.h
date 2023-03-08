@@ -23,7 +23,7 @@ enum class GraphRepresentation;
 
 using SInt          = unsigned long long;
 using SSInt         = long long;
-using EdgeList      = std::vector<std::tuple<SInt, SInt>>;
+using EdgeList      = std::vector<std::pair<SInt, SInt>>;
 using VertexRange   = std::pair<SInt, SInt>;
 using PEID          = int;
 using HPFloat       = long double;
@@ -50,8 +50,8 @@ struct KaGenResult {
           coordinates_3d(std::move(std::get<6>(result).second)) {}
 
     template <typename T = SInt>
-    std::vector<std::tuple<T, T>> TakeEdges() {
-        return TakeVector<std::tuple<T, T>>(edges);
+    std::vector<std::pair<T, T>> TakeEdges() {
+        return TakeVector<std::pair<T, T>>(edges);
     }
 
     template <typename T = SInt>
