@@ -92,7 +92,7 @@ struct KaGenResult {
 private:
     template <typename To, typename From>
     std::vector<To> TakeVector(From& from) {
-        if constexpr (std::is_same_v<typename From::value_type, To>) {
+        if (std::is_same<typename From::value_type, To>::value) {
             return std::move(from);
         }
 
