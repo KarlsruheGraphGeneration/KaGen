@@ -119,8 +119,8 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
     const auto to     = ranges[rank].second;
 
     // Create new edge arrays
-    std::vector<std::tuple<SInt, SInt>>              local_edges;
-    std::vector<std::vector<std::tuple<SInt, SInt>>> remote_edges(size);
+    std::vector<std::pair<SInt, SInt>>              local_edges;
+    std::vector<std::vector<std::pair<SInt, SInt>>> remote_edges(size);
     for (const auto& [u, v]: edge_list) {
         if (u == v) { // Ignore self loops
             continue;

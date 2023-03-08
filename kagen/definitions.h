@@ -38,7 +38,7 @@ constexpr PEID ROOT = 0;
 
 enum Direction { Up, Down, Left, Right, Front, Back };
 
-using EdgeList    = std::vector<std::tuple<SInt, SInt>>;
+using EdgeList    = std::vector<std::pair<SInt, SInt>>;
 using VertexRange = std::pair<SInt, SInt>;
 
 using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
