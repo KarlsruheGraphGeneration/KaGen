@@ -101,7 +101,6 @@ private:
             return std::move(from);
         }
 
-
         std::vector<To> copy(from.size());
         std::copy(from.begin(), from.end(), copy.begin());
         std::vector<typename From::value_type> free;
