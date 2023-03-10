@@ -352,6 +352,15 @@ KaGenResult KaGen::GenerateRMAT(
     return Generate(*config_, representation_, comm_).tuple();
 }
 
+KaGenResult KaGen::ReadFromFile(
+    std::string const& filename, const StaticGraphFormat format, const StaticGraphDistribution distribution) {
+    config_->generator                 = GeneratorType::STATIC_GRAPH;
+    config_->static_graph.filename     = filename;
+    config_->static_graph.format       = format;
+    config_->static_graph.distribution = distribution;
+    return Generate(*config_, representation_, comm_).tuple();
+}
+
 void KaGen::SetDefaults() {
     config_->quiet = true;
     config_->output.formats.clear();

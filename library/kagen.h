@@ -20,6 +20,8 @@
 namespace kagen {
 struct PGeneratorConfig;
 enum class GraphRepresentation;
+enum class StaticGraphFormat;
+enum class StaticGraphDistribution;
 
 using SInt          = unsigned long long;
 using SSInt         = long long;
@@ -281,6 +283,9 @@ public:
 
     KaGenResult
     GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
+
+    KaGenResult ReadFromFile(
+        std::string const& filename, const StaticGraphFormat format, const StaticGraphDistribution distribution);
 
 private:
     void SetDefaults();
