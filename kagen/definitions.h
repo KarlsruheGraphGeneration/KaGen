@@ -11,19 +11,9 @@
 #include <tuple>
 #include <vector>
 
-namespace kagen {
-// Constants
-using LONG  = long long;
-using ULONG = unsigned long long;
-using INT   = int;
-using UINT  = unsigned int;
-using PEID  = int;
-using SInt  = ULONG;
-using SSInt = LONG;
+#include "kagen/interface_definitions.h"
 
-// High/low prec
-using HPFloat = long double;
-using LPFloat = double;
+namespace kagen {
 
 constexpr PEID ROOT = 0;
 #define KAGEN_MPI_LONG    MPI_LONG_LONG
@@ -38,26 +28,8 @@ constexpr PEID ROOT = 0;
 
 enum Direction { Up, Down, Left, Right, Front, Back };
 
-using EdgeList    = std::vector<std::pair<SInt, SInt>>;
-using VertexRange = std::pair<SInt, SInt>;
-
-using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
-using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
-using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
-
-using VertexWeights = std::vector<SSInt>;
-using EdgeWeights   = std::vector<SSInt>;
-
-using XadjArray   = std::vector<SInt>;
-using AdjncyArray = std::vector<SInt>;
-
 constexpr std::size_t NEWTON_MAX_ITERS = 10000;
 constexpr double      NEWTON_EPS       = 0.001;
-
-enum class GraphRepresentation {
-    EDGE_LIST,
-    CSR,
-};
 
 inline std::ostream& operator<<(std::ostream& out, const GraphRepresentation representation) {
     switch (representation) {

@@ -476,7 +476,7 @@ void Hyperbolic<Double>::Query(
     else
         next_annulus = annulus_id - 1;
 
-    if (next_annulus >= total_annuli_ || (LONG)next_annulus < 0)
+    if (next_annulus >= total_annuli_ || (SSInt)next_annulus < 0)
         return;
 
     /* skips too much

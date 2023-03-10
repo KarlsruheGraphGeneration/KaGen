@@ -17,26 +17,10 @@
 
 #include <mpi.h>
 
+#include "kagen/interface_definitions.h"
+
 namespace kagen {
 struct PGeneratorConfig;
-enum class GraphRepresentation;
-enum class StaticGraphFormat;
-enum class StaticGraphDistribution;
-
-using SInt          = unsigned long long;
-using SSInt         = long long;
-using EdgeList      = std::vector<std::pair<SInt, SInt>>;
-using VertexRange   = std::pair<SInt, SInt>;
-using PEID          = int;
-using HPFloat       = long double;
-using LPFloat       = double;
-using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
-using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
-using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
-using VertexWeights = std::vector<SSInt>;
-using EdgeWeights   = std::vector<SSInt>;
-using XadjArray     = std::vector<SInt>;
-using AdjncyArray   = std::vector<SInt>;
 
 struct KaGenResult {
     inline KaGenResult() : vertex_range(0, 0) {}

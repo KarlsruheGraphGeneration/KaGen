@@ -111,19 +111,10 @@ struct ImageMeshConfig {
     SInt                 rows_per_pe          = 0;
 };
 
-enum class StaticGraphDistribution {
-    BALANCE_VERTICES,
-    BALANCE_EDGES,
-};
-
 std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap();
 
 std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution);
 
-enum class StaticGraphFormat {
-    METIS,
-    BINARY_PARHIP,
-};
 
 std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap();
 
@@ -190,9 +181,9 @@ struct PGeneratorConfig {
     int   seed        = 1;      // Seed for PRNG
     bool  hash_sample = false;  // Use hash tryagain sampling
     bool  use_binom   = false;  // Use binomial approximation to hypergeomtry
-    ULONG precision   = 32;     // Floating-point precision
-    ULONG base_size   = 1 << 8; // Sampler base size
-    ULONG hyp_base    = 1 << 8;
+    SInt precision   = 32;     // Floating-point precision
+    SInt base_size   = 1 << 8; // Sampler base size
+    SInt hyp_base    = 1 << 8;
 
     OutputConfig output{};
 };
