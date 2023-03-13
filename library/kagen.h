@@ -12,6 +12,7 @@
 #include <memory>
 #include <numeric>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -76,12 +77,13 @@ struct KaGenResult {
     Coordinates3D coordinates_3d;
 
 private:
+    template <typename To, typename From, std::enable_if_t<std::is_same_v<typename From::value_type, To>, bool> = true>
+    std::vector<To> TakeVector(From& from) {
+        return std::move(from);
+    }
+
     template <typename To, typename From>
     std::vector<To> TakeVector(From& from) {
-        if (std::is_same<typename From::value_type, To>::value) {
-            return std::move(from);
-        }
-
         std::vector<To> copy(from.size());
         std::copy(from.begin(), from.end(), copy.begin());
         std::vector<typename From::value_type> free;
