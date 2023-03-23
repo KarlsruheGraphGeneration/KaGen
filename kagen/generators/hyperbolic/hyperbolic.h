@@ -7,10 +7,10 @@
  ******************************************************************************/
 #pragma once
 
-#include <google/dense_hash_map>
 #include <iostream>
 #include <limits>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include <mpi.h>
@@ -20,6 +20,7 @@
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 #include "kagen/tools/geometry.h"
+#include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 #include "kagen/tools/sorted_mersenne.h"
@@ -77,10 +78,10 @@ private:
     SInt   right_processed_chunk_, right_processed_cell_;
 
     // Data structures
-    google::dense_hash_map<SInt, Annulus>             annuli_;
-    google::dense_hash_map<SInt, Chunk>               chunks_;
-    google::dense_hash_map<SInt, Cell>                cells_;
-    google::dense_hash_map<SInt, std::vector<Vertex>> vertices_;
+    HashMap<SInt, Annulus>             annuli_;
+    HashMap<SInt, Chunk>               chunks_;
+    HashMap<SInt, Cell>                cells_;
+    HashMap<SInt, std::vector<Vertex>> vertices_;
 
     // Avoid costly recomputations
     std::vector<SInt>                      global_cell_ids_;

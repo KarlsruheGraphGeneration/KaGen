@@ -17,8 +17,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
-option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
+option(KAGEN_USE_SPARSEHASH "Build with Google Sparsehash. If turned off, fall back to std::unordered_map<>." ON)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
+
+option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
 
 ################################################################################
@@ -103,7 +105,7 @@ if (OFF)
 endif ()
 
 # Use -ffast-math
-if (KAGEN_USE_FAST_MATH) 
+if (KAGEN_USE_FAST_MATH)
     list(APPEND CMAKE_CXX_FLAGS "-ffast-math")
 endif ()
 
@@ -124,8 +126,11 @@ list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
 ###############################################################################
 # Google Sparsehash
 ###############################################################################
-find_package(Sparsehash REQUIRED)
-list(APPEND KAGEN_LINK_LIBRARIES Sparsehash::Sparsehash)
+if (KAGEN_USE_SPARSEHASH)
+    find_package(Sparsehash REQUIRED)
+    list(APPEND KAGEN_LINK_LIBRARIES Sparsehash::Sparsehash)
+    add_definitions(-DKAGEN_SPARSEHASH_FOUND)
+endif ()
 
 ###############################################################################
 # CGAL

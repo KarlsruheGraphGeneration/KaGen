@@ -8,7 +8,6 @@
  ******************************************************************************/
 #pragma once
 
-#include <google/dense_hash_map>
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -18,6 +17,7 @@
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 #include "kagen/tools/geometry.h"
+#include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 #include "libmorton/morton2D.h"
@@ -70,12 +70,9 @@ protected:
     SInt    start_node_, num_nodes_;
 
     // Data structures
-    // std::vector<Chunk> chunks_;
-    google::dense_hash_map<SInt, Chunk> chunks_;
-    // std::vector<Cell> cells_;
-    google::dense_hash_map<SInt, Cell> cells_;
-    // std::vector<std::vector<Vertex>> vertices_;
-    google::dense_hash_map<SInt, std::vector<Vertex>> vertices_;
+    HashMap<SInt, Chunk>               chunks_;
+    HashMap<SInt, Cell>                cells_;
+    HashMap<SInt, std::vector<Vertex>> vertices_;
 
     void InitDatastructures() {
         // Chunk distribution
