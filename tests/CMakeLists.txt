@@ -28,6 +28,11 @@ endfunction ()
 ### Add unit tests
 ###
 
+# Path Graph Generator
+kagen_add_test(test_path_generator
+    FILES path/general_path_generator_test.cpp
+    CORES 1 2 3 4 8 16)
+
 # Image Mesh Generator
 kagen_add_test(test_kargb 
     FILES image/kargb_test.cpp 
@@ -37,4 +42,6 @@ kagen_add_test(test_kargb
 kagen_add_test(test_generic_static_generator
     FILES static/generic_static_generator_test.cpp
     CORES 1 2 3 4 8 16)
+
+
 

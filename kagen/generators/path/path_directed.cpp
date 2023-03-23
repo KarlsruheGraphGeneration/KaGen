@@ -13,14 +13,13 @@ PathDirected::PathDirected(const PGeneratorConfig& config, const PEID rank, cons
       rank_(rank),
       size_(size) {}
 
-std::pair<SInt, bool> PathDirected::GetTargetVertex(SInt i) const {
+std::pair<SInt, bool>
+PathDirected::GetTargetVertex(SInt i, const random_permutation::FeistelPseudoRandomPermutation& permutator) const {
     if (!config_.permute) {
         const SInt j = (i + 1) % config_.n;
         return std::make_pair(j, j != 0 || config_.periodic);
     } else {
-        static LCGPseudoRandomPermutation permutator(config_.n - 1);
-        SInt                              j = (permutator.finv(i) + 1) % config_.n;
-        std::cout << "i: " << i << " permutator.finv(): " << permutator.finv(i) + 1 << std::endl;
+        SInt j = (permutator.finv(i) + 1) % config_.n;
         return std::make_pair(permutator.f(j), j != 0 || config_.periodic);
     }
 }
@@ -29,6 +28,7 @@ void PathDirected::GenerateEdgeList() {
     if (config_.n <= 1) {
         return;
     }
+    auto permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(config_.n - 1, 0);
 
     // all PE get n / size nodes
     // the first n modulo size PEs obtain one additional node.
@@ -38,9 +38,8 @@ void PathDirected::GenerateEdgeList() {
     const SInt begin_nodes                 = std::min(num_pe_with_additional_node, rank_) + rank_ * nodes_per_pe;
     const SInt end_nodes                   = begin_nodes + nodes_per_pe + has_pe_additional_node;
 
-
     for (SInt i = begin_nodes; i < end_nodes; ++i) {
-        const auto [j, is_valid] = GetTargetVertex(i);
+        const auto [j, is_valid] = GetTargetVertex(i, permutator);
         if (is_valid) {
             PushEdge(i, j);
         }

@@ -5,3 +5,6 @@
 [submodule "extlib/libmorton"]
 	path = extlib/libmorton
 	url = https://github.com/Forceflow/libmorton.git
+[submodule "extlib/xxHash"]
+	path = extlib/xxHash
+	url = https://github.com/Cyan4973/xxHash.git
