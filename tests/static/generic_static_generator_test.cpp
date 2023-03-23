@@ -142,8 +142,8 @@ inline void ExpectK3CSR(const Graph& graph) {
 inline void ExpectK3EdgeList(const Graph& graph) {
     using namespace ::testing;
 
-    auto e = [](const SInt u, const SInt v) -> std::tuple<SInt, SInt> {
-        return std::make_tuple(u, v);
+    auto e = [](const SInt u, const SInt v) -> std::pair<SInt, SInt> {
+        return std::make_pair(u, v);
     };
 
     EXPECT_THAT(graph.edges, UnorderedElementsAre(e(0, 1), e(1, 0), e(0, 2), e(2, 0), e(1, 2), e(2, 1)));
@@ -181,8 +181,8 @@ inline void ExpectP2CSR(const Graph& graph) {
 inline void ExpectP2EdgeList(const Graph& graph) {
     using namespace ::testing;
 
-    auto e = [](const SInt u, const SInt v) -> std::tuple<SInt, SInt> {
-        return std::make_tuple(u, v);
+    auto e = [](const SInt u, const SInt v) -> std::pair<SInt, SInt> {
+        return std::make_pair(u, v);
     };
 
     EXPECT_THAT(graph.edges, UnorderedElementsAre(e(0, 1), e(1, 0), e(1, 2), e(2, 1)));
