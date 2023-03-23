@@ -355,7 +355,7 @@ private:
 
 class IdentityPermutation {
 public:
-    IdentityPermutation(){};
+    IdentityPermutation() {}
 
     // Use IdentityPermutation as a replacement for FeistelPseudoRandomPermutation.
     static IdentityPermutation buildPermutation(uint64_t maxValueDummy = 0, uint64_t seedDummy = 0) {
