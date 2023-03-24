@@ -19,6 +19,7 @@
 #include "kagen/generators/gnp/gnp_undirected.h"
 #include "kagen/generators/grid/grid_2d.h"
 #include "kagen/generators/grid/grid_3d.h"
+#include "kagen/generators/path/path_directed.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
 #include "kagen/generators/image/image_mesh.h"
 #include "kagen/generators/kronecker/kronecker.h"
@@ -66,6 +67,9 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::GRID_3D:
             return std::make_unique<Grid3DFactory>();
+
+        case GeneratorType::PATH_DIRECTED:
+            return std::make_unique<PathDirectedFactory>();
 
         case GeneratorType::BA:
             return std::make_unique<BarabassiFactory>();

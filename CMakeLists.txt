@@ -117,6 +117,19 @@ target_include_directories(morton SYSTEM INTERFACE extlib/libmorton/include)
 list(APPEND KAGEN_LINK_LIBRARIES morton)
 
 ###############################################################################
+# xxHash 
+###############################################################################
+# Load and include xxHash
+message(STATUS "Configuring xxHash...")
+set(${PROJECT_NAME}_XXHASH_DIR "${CMAKE_CURRENT_LIST_DIR}/extlib/xxHash" CACHE PATH "Path to the xxHash source directory")
+set(BUILD_SHARED_LIBS OFF)
+set(XXHASH_BUILD_ENABLE_INLINE_API ON)
+set(XXHASH_BUILD_XXHSUM OFF)
+add_subdirectory("${${PROJECT_NAME}_XXHASH_DIR}/cmake_unofficial" "${${PROJECT_NAME}_XXHASH_DIR/build}" EXCLUDE_FROM_ALL)
+
+list(APPEND KAGEN_LINK_LIBRARIES xxhash)
+
+###############################################################################
 # MPI
 ###############################################################################
 set(MPI_DETERMINE_LIBRARY_VERSION TRUE) # needed for KaTestrophe

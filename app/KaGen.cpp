@@ -286,6 +286,23 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         params->silent();
     }
 
+    { // PATH_DIRECTED
+        auto* cmd = app.add_subcommand("path-directed", "Directed Path Graph")->alias("path_directed");
+        cmd->callback([&] { config.generator = GeneratorType::PATH_DIRECTED; });
+        cmd->add_flag(
+            "--periodic", config.periodic,
+            "Enables the periodic boundary condition. If enabled the generated path is a cycle.");
+        cmd->add_flag(
+            "--permute", config.permute,
+            "Enables the permuation of vertices. If enabled the path is permuted following a pseudo-random "
+            "permutation.");
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        params->require_option(1);
+        params->silent();
+    }
+
     { // BA
         auto* cmd = app.add_subcommand("ba", "Barabassi Graph");
         cmd->callback([&] { config.generator = GeneratorType::BA; });

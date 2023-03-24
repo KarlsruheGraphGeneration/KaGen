@@ -59,6 +59,7 @@ enum class GeneratorType {
 #endif // KAGEN_CGAL_FOUND
     GRID_2D,
     GRID_3D,
+    PATH_DIRECTED,
     BA,
     KRONECKER,
     RHG,
@@ -166,6 +167,7 @@ struct PGeneratorConfig {
     double        rmat_b     = 0.0;
     double        rmat_c     = 0.0;
     bool          directed   = false;
+    bool          permute    = false; // Permute node vertices
 
     double max_vertex_imbalance = 0.1; // RGG, RDG, RHG
 

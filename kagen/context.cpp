@@ -105,6 +105,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
 #endif // KAGEN_CGAL_FOUND
         {"grid2d", GeneratorType::GRID_2D},
         {"grid3d", GeneratorType::GRID_3D},
+        {"path", GeneratorType::PATH_DIRECTED},
         {"ba", GeneratorType::BA},
         {"kronecker", GeneratorType::KRONECKER},
         {"rhg", GeneratorType::RHG},
@@ -151,6 +152,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
 
         case GeneratorType::GRID_3D:
             return out << "grid3d";
+
+        case GeneratorType::PATH_DIRECTED:
+            return out << "path-directed";
 
         case GeneratorType::BA:
             return out << "ba";
@@ -321,6 +325,12 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             out << "  Edge probability:                   " << (config.p == 0.0 ? "auto" : std::to_string(config.p))
                 << "\n";
             out << "  Periodic boundary:                  " << (config.periodic ? "yes" : "no") << "\n";
+            break;
+
+        case GeneratorType::PATH_DIRECTED:
+            out << "  Number of vertices:                 " << config.n << "\n";
+            out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
+            out << "  Permute vertices:                   " << (config.permute  ? "yes" : "no") << "\n";
             break;
 
         case GeneratorType::BA:
@@ -522,6 +532,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.rmat_b      = get_sint_or_default("rmat_b");
     config.rmat_c      = get_sint_or_default("rmat_c");
     config.coordinates = get_bool_or_default("coordinates");
+    config.permute     = get_bool_or_default("permute");
 
     if (config.generator == GeneratorType::IMAGE_MESH) {
         const std::string filename = get_string_or_default("filename");
