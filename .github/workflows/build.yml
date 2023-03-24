@@ -40,4 +40,4 @@ jobs:
     - name: build
       run: cmake --build build/ --parallel ${{ steps.cpu-cores.outputs.count }}
     - name: test 
-      run: ctest
+      run: cd build; ctest
