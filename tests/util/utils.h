@@ -59,6 +59,7 @@ inline Graph GatherEdgeLists(const Graph& local_graph) {
     const SInt num_global_edges = displs.back() + recvcounts.back();
 
     Graph global_graph;
+    global_graph.representation = local_graph.representation;
     global_graph.edges.resize(num_global_edges / 2);
     MPI_Allgatherv(
         local_graph.edges.data(), num_local_edges, KAGEN_MPI_SINT, global_graph.edges.data(), recvcounts.data(),
@@ -93,6 +94,7 @@ inline Graph GatherCSR(const Graph& local_graph) {
     }
 
     Graph global_graph;
+    global_graph.representation = local_graph.representation;
     global_graph.xadj.resize(degree_recvcounts.back() + degree_displs.back() + 1);
     global_graph.adjncy.resize(edges_recvcounts.back() + edges_displs.back());
 
