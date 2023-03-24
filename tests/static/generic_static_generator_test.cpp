@@ -9,7 +9,7 @@
 #include "kagen/context.h"
 #include "kagen/generators/static/static_graph.h"
 
-#include "util/utils.h"
+#include "tests/util/utils.h"
 
 const char* EMPTY_GRAPH         = "tests/data/static/empty";
 const char* REAL_WORLD_GRAPH    = "tests/data/static/144";
