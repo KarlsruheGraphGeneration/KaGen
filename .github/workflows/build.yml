@@ -42,6 +42,4 @@ jobs:
     - name: test 
       run: |
         cd ./build
-        pwd
-        ls -l
-        ctest
+        ctest --output-on-failure
