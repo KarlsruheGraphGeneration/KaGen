@@ -37,9 +37,9 @@ kagen_add_test(test_kargb
     FILES image/kargb_test.cpp 
     CORES 1)
 
-# Static Graph Generator
-kagen_add_test(test_generic_static_generator
-    FILES static/generic_static_generator_test.cpp
+# File Graph Generator
+kagen_add_test(test_generic_file_generator
+    FILES file/generic_file_generator_test.cpp
     CORES 1 2 3 4 8 16)
 
 

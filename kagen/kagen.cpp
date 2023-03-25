@@ -354,7 +354,7 @@ KaGenResult KaGen::GenerateRMAT(
 
 KaGenResult KaGen::ReadFromFile(
     std::string const& filename, const StaticGraphFormat format, const StaticGraphDistribution distribution) {
-    config_->generator                 = GeneratorType::STATIC_GRAPH;
+    config_->generator                 = GeneratorType::FILE;
     config_->static_graph.filename     = filename;
     config_->static_graph.format       = format;
     config_->static_graph.distribution = distribution;

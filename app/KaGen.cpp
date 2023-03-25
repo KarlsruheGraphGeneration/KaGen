@@ -383,10 +383,11 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--rows-per-pe", config.image_mesh.rows_per_pe, "Number of rows assigned to the same PE");
     }
 
-    { // Static graph
+    { // Graph from file
         auto* cmd =
-            app.add_subcommand("static", "Loads a static graph from disk")->alias("staticgraph")->alias("static-graph");
-        cmd->callback([&] { config.generator = GeneratorType::STATIC_GRAPH; });
+            app.add_subcommand("file", "Loads a static graph from disk")->alias("staticgraph")->alias("static-graph");
+        cmd->alias("file"); // @deprecated
+        cmd->callback([&] { config.generator = GeneratorType::FILE; });
         cmd->add_option("--filename", config.static_graph.filename, "Input graph filename")
             ->required()
             ->check(CLI::ExistingFile);

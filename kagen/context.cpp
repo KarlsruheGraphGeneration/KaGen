@@ -113,9 +113,8 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"image", GeneratorType::IMAGE_MESH},
         {"imagemesh", GeneratorType::IMAGE_MESH},
         {"image-mesh", GeneratorType::IMAGE_MESH},
-        {"static", GeneratorType::STATIC_GRAPH},
-        {"staticgraph", GeneratorType::STATIC_GRAPH},
-        {"static-graph", GeneratorType::STATIC_GRAPH},
+        {"file", GeneratorType::FILE},
+        {"static", GeneratorType::FILE}, // @deprecated
     };
 }
 
@@ -139,13 +138,11 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
         case GeneratorType::RGG_3D:
             return out << "rgg3d";
 
-#ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
             return out << "rdg2d";
 
         case GeneratorType::RDG_3D:
             return out << "rdg3d";
-#endif // KAGEN_CGAL_FOUND
 
         case GeneratorType::GRID_2D:
             return out << "grid2d";
@@ -171,8 +168,8 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
         case GeneratorType::IMAGE_MESH:
             return out << "image-mesh";
 
-        case GeneratorType::STATIC_GRAPH:
-            return out << "static-graph";
+        case GeneratorType::FILE:
+            return out << "file";
     }
 
     return out << "<invalid>";
@@ -414,7 +411,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << "\n";
             break;
 
-        case GeneratorType::STATIC_GRAPH:
+        case GeneratorType::FILE:
             out << "  Input file:                         " << config.static_graph.filename << "\n";
             out << "  File format:                        " << config.static_graph.format << "\n";
             out << "  Distribution:                       " << config.static_graph.distribution << "\n";
@@ -423,7 +420,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
 
     // RMAT does not use chunks
     if (config.generator != GeneratorType::RMAT && config.generator != GeneratorType::IMAGE_MESH
-        && config.generator != GeneratorType::STATIC_GRAPH) {
+        && config.generator != GeneratorType::FILE) {
         if (config.k == 0) {
             out << "  Number of chunks:                   auto\n";
         } else {
@@ -580,7 +577,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             throw std::runtime_error("invalid weight model name");
         }
         config.image_mesh.weight_model = weight_model_it->second;
-    } else if (config.generator == GeneratorType::STATIC_GRAPH) {
+    } else if (config.generator == GeneratorType::FILE) {
         const std::string filename = get_string_or_default("filename");
         if (filename.empty()) {
             throw std::runtime_error("missing filename");

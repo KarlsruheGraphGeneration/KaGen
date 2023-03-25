@@ -474,7 +474,7 @@ Can be used to convert input formats to output format, or to load static graphs 
 
 #### Application 
 ```
-mpirun -n <nproc> ./KaGen static
+mpirun -n <nproc> ./KaGen file
   --filename=<path to graph>
   --input-format=<metis|binary-parhip>
   [--distribution=<balance-vertices|balance-edges>]
@@ -485,7 +485,7 @@ mpirun -n <nproc> ./KaGen static
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateFromOptionString("static;filename=<...>;input_format=<...>;distribution=<...>");
+KaGenResult graph = gen.GenerateFromOptionString("file;filename=<...>;input_format=<...>;distribution=<...>");
 ```
 
 ---

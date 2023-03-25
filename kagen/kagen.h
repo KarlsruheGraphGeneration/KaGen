@@ -90,7 +90,7 @@ enum class GeneratorType {
     RHG,
     RMAT,
     IMAGE_MESH,
-    STATIC_GRAPH,
+    FILE,
 };
 
 enum class StatisticsLevel : std::uint8_t {

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <stdexcept>
 
 #include <mpi.h>
 
@@ -19,10 +20,10 @@
 #include "kagen/generators/gnp/gnp_undirected.h"
 #include "kagen/generators/grid/grid_2d.h"
 #include "kagen/generators/grid/grid_3d.h"
-#include "kagen/generators/path/path_directed.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
 #include "kagen/generators/image/image_mesh.h"
 #include "kagen/generators/kronecker/kronecker.h"
+#include "kagen/generators/path/path_directed.h"
 #include "kagen/generators/rmat/rmat.h"
 #include "kagen/generators/static/static_graph.h"
 
@@ -86,11 +87,11 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
         case GeneratorType::IMAGE_MESH:
             return std::make_unique<ImageMeshFactory>();
 
-        case GeneratorType::STATIC_GRAPH:
+        case GeneratorType::FILE:
             return std::make_unique<StaticGraphFactory>();
     }
 
-    __builtin_unreachable();
+    throw std::runtime_error("invalid graph generator type");
 }
 
 namespace {
