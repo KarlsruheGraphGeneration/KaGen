@@ -173,13 +173,12 @@ list(APPEND KAGEN_LINK_LIBRARIES sampling spooky)
 
 add_subdirectory(kagen)
 add_subdirectory(app)
-add_subdirectory(library)
 add_subdirectory(examples)
 
 ################################################################################
 
 add_library(KaGen::KaGen ALIAS kagen)
-add_library(KaGen::cKaGen ALIAS ckagen)
+add_library(KaGen::cKaGen ALIAS kagen) # @deprecated
 
 ################################################################################
 

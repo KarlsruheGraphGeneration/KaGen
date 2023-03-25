@@ -2,7 +2,6 @@
 
 #include <mpi.h>
 
-#include "ckagen.h"
 #include "kagen.h"
 
 struct kagen_obj {
@@ -20,7 +19,7 @@ kagen_obj* kagen_create(MPI_Comm comm) {
 }
 
 void kagen_free(kagen_obj* gen) {
-    if (gen == NULL) {
+    if (gen == nullptr) {
         return;
     }
     delete gen->gen_ptr;
@@ -68,7 +67,7 @@ kagen_weight* kagen_result_edge_weights(kagen_result* result, size_t* size) {
 }
 
 void kagen_result_free(kagen_result* result) {
-    if (result == NULL) {
+    if (result == nullptr) {
         return;
     }
     delete result->result_ptr;
@@ -334,7 +333,7 @@ kagen_result* kagen_generate_rmat(
 }
 
 void kagen_build_vertex_distribution(kagen_result* result, kagen_index* dist, MPI_Comm comm) {
-    if (dist == NULL) {
+    if (dist == nullptr) {
         return;
     }
 
@@ -345,3 +344,4 @@ void kagen_build_vertex_distribution(kagen_result* result, kagen_index* dist, MP
     dist[rank + 1] = result->result_ptr->vertex_range.second;
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, dist + 1, 1, MPI_UNSIGNED_LONG_LONG, comm);
 }
+

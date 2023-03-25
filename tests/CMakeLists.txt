@@ -18,7 +18,6 @@ function (kagen_add_test KAGEN_TARGET_NAME)
     katestrophe_add_test_executable(${KAGEN_TARGET_NAME} FILES ${KAGEN_FILES})
     target_link_libraries(${KAGEN_TARGET_NAME} PRIVATE
         mpi-gtest-main
-        kagen_obj
         KaGen::KaGen)
     target_include_directories(${KAGEN_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     katestrophe_add_mpi_test(${KAGEN_TARGET_NAME} CORES ${KAGEN_CORES})

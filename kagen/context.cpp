@@ -266,6 +266,25 @@ std::ostream& operator<<(std::ostream& out, const StaticGraphFormat format) {
     return out << "<invalid>";
 }
 
+std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap() {
+    return {
+        {"edge-list", GraphRepresentation::EDGE_LIST},
+        {"csr", GraphRepresentation::CSR},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, const GraphRepresentation representation) {
+    switch (representation) {
+        case GraphRepresentation::EDGE_LIST:
+            return out << "edge-list";
+
+        case GraphRepresentation::CSR:
+            return out << "csr";
+    }
+
+    return out << "<invalid>";
+}
+
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Seed:                               " << config.seed << "\n";
@@ -330,7 +349,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::PATH_DIRECTED:
             out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
-            out << "  Permute vertices:                   " << (config.permute  ? "yes" : "no") << "\n";
+            out << "  Permute vertices:                   " << (config.permute ? "yes" : "no") << "\n";
             break;
 
         case GeneratorType::BA:

@@ -1,4 +1,4 @@
-#include <ckagen.h>
+#include <kagen.h>
 #include <stdio.h>
 
 #include <mpi.h>

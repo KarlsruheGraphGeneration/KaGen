@@ -14,24 +14,9 @@
 #include <unordered_map>
 
 #include "kagen/definitions.h"
+#include "kagen/kagen.h"
 
 namespace kagen {
-enum class OutputFormat {
-    NONE,
-    EDGE_LIST,
-    EDGE_LIST_UNDIRECTED,
-    BINARY_EDGE_LIST,
-    BINARY_EDGE_LIST_UNDIRECTED,
-    METIS,
-    HMETIS,
-    HMETIS_DIRECTED,
-    DOT,
-    DOT_DIRECTED,
-    COORDINATES,
-    BINARY_PARHIP,
-    XTRAPULP,
-};
-
 std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();
 
 std::ostream& operator<<(std::ostream& out, OutputFormat format);
@@ -46,37 +31,9 @@ std::unordered_map<std::string, OutputHeader> GetOutputHeaderMap();
 
 std::ostream& operator<<(std::ostream& out, OutputHeader output_header);
 
-enum class GeneratorType {
-    GNM_DIRECTED,
-    GNM_UNDIRECTED,
-    GNP_DIRECTED,
-    GNP_UNDIRECTED,
-    RGG_2D,
-    RGG_3D,
-#ifdef KAGEN_CGAL_FOUND
-    RDG_2D,
-    RDG_3D,
-#endif // KAGEN_CGAL_FOUND
-    GRID_2D,
-    GRID_3D,
-    PATH_DIRECTED,
-    BA,
-    KRONECKER,
-    RHG,
-    RMAT,
-    IMAGE_MESH,
-    STATIC_GRAPH,
-};
-
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
 
 std::ostream& operator<<(std::ostream& out, GeneratorType generator_type);
-
-enum class StatisticsLevel : std::uint8_t {
-    NONE     = 0,
-    BASIC    = 1,
-    ADVANCED = 2,
-};
 
 bool operator<=(StatisticsLevel a, StatisticsLevel b);
 
@@ -84,17 +41,21 @@ std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
 
 std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
 
-enum class ImageMeshWeightModel : std::uint8_t {
-    L2         = 0,
-    INV_L2     = 1,
-    RATIO      = 2,
-    INV_RATIO  = 3,
-    SIMILARITY = 4,
-};
-
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
+
+std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap();
+
+std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution);
+
+std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap();
+
+std::ostream& operator<<(std::ostream& out, StaticGraphFormat format);
+
+std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
+
+std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 
 struct ImageMeshConfig {
     std::string          filename             = "";
@@ -111,15 +72,6 @@ struct ImageMeshConfig {
     SInt                 cols_per_pe          = 0;
     SInt                 rows_per_pe          = 0;
 };
-
-std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap();
-
-std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution);
-
-
-std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap();
-
-std::ostream& operator<<(std::ostream& out, StaticGraphFormat format);
 
 struct StaticGraphConfig {
     std::string             filename     = "";
@@ -180,9 +132,9 @@ struct PGeneratorConfig {
     StaticGraphConfig static_graph{};
 
     // Hashing / sampling settings
-    int   seed        = 1;      // Seed for PRNG
-    bool  hash_sample = false;  // Use hash tryagain sampling
-    bool  use_binom   = false;  // Use binomial approximation to hypergeomtry
+    int  seed        = 1;      // Seed for PRNG
+    bool hash_sample = false;  // Use hash tryagain sampling
+    bool use_binom   = false;  // Use binomial approximation to hypergeomtry
     SInt precision   = 32;     // Floating-point precision
     SInt base_size   = 1 << 8; // Sampler base size
     SInt hyp_base    = 1 << 8;

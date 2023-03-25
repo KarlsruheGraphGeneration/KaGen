@@ -1,28 +1,135 @@
-/*******************************************************************************
- * interface/kagen_interface.h
- *
- * Copyright (C) 2016-2017 Sebastian Lamm <lamm@ira.uka.de>
- *
- * All rights reserved. Published under the BSD-2 license in the LICENSE file.
- ******************************************************************************/
 #pragma once
 
-#include <algorithm>
-#include <iterator>
-#include <memory>
-#include <numeric>
-#include <string>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#ifdef __cplusplus
+    #include <algorithm>
+    #include <iterator>
+    #include <memory>
+    #include <numeric>
+    #include <string>
+    #include <tuple>
+    #include <type_traits>
+    #include <utility>
+    #include <vector>
+#endif
 
 #include <mpi.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-#include "kagen/interface_definitions.h"
+//
+// KaGen data types
+//
 
+#define KAGEN_MPI_UINT    MPI_UNSIGNED
+#define KAGEN_MPI_PEID    MPI_INT
+#define KAGEN_MPI_HPFLOAT MPI_LONG_DOUBLE
+#define KAGEN_MPI_LPFLOAT MPI_DOUBLE
+#define KAGEN_MPI_SINT    MPI_UNSIGNED_LONG_LONG
+#define KAGEN_MPI_SSINT   MPI_LONG_LONG
+
+// C++ interface
+#ifdef __cplusplus
 namespace kagen {
-struct PGeneratorConfig;
+using SInt          = unsigned long long;
+using SSInt         = long long;
+using EdgeList      = std::vector<std::pair<SInt, SInt>>;
+using VertexRange   = std::pair<SInt, SInt>;
+using PEID          = int;
+using HPFloat       = long double;
+using LPFloat       = double;
+using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
+using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
+using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
+using VertexWeights = std::vector<SSInt>;
+using EdgeWeights   = std::vector<SSInt>;
+using XadjArray     = std::vector<SInt>;
+using AdjncyArray   = std::vector<SInt>;
+} // namespace kagen
+#endif
 
+// C interface
+typedef unsigned long long kagen_index;
+typedef long long          kagen_weight;
+
+//
+// Config enums (C++ interface only)
+//
+
+#ifdef __cplusplus
+namespace kagen {
+enum class OutputFormat {
+    NONE,
+    EDGE_LIST,
+    EDGE_LIST_UNDIRECTED,
+    BINARY_EDGE_LIST,
+    BINARY_EDGE_LIST_UNDIRECTED,
+    METIS,
+    HMETIS,
+    HMETIS_DIRECTED,
+    DOT,
+    DOT_DIRECTED,
+    COORDINATES,
+    BINARY_PARHIP,
+    XTRAPULP,
+};
+
+enum class GeneratorType {
+    GNM_DIRECTED,
+    GNM_UNDIRECTED,
+    GNP_DIRECTED,
+    GNP_UNDIRECTED,
+    RGG_2D,
+    RGG_3D,
+    RDG_2D,
+    RDG_3D,
+    GRID_2D,
+    GRID_3D,
+    PATH_DIRECTED,
+    BA,
+    KRONECKER,
+    RHG,
+    RMAT,
+    IMAGE_MESH,
+    STATIC_GRAPH,
+};
+
+enum class StatisticsLevel : std::uint8_t {
+    NONE     = 0,
+    BASIC    = 1,
+    ADVANCED = 2,
+};
+
+enum class ImageMeshWeightModel : std::uint8_t {
+    L2         = 0,
+    INV_L2     = 1,
+    RATIO      = 2,
+    INV_RATIO  = 3,
+    SIMILARITY = 4,
+};
+
+enum class GraphRepresentation {
+    EDGE_LIST,
+    CSR,
+};
+
+enum class StaticGraphFormat {
+    METIS,
+    BINARY_PARHIP,
+};
+
+enum class StaticGraphDistribution {
+    BALANCE_VERTICES,
+    BALANCE_EDGES,
+};
+} // namespace kagen
+#endif
+
+//
+// C++ interface
+//
+
+#ifdef __cplusplus
+namespace kagen {
 struct KaGenResult {
     inline KaGenResult() : vertex_range(0, 0) {}
     inline KaGenResult(
@@ -276,9 +383,9 @@ public:
 private:
     void SetDefaults();
 
-    MPI_Comm                          comm_;
-    std::unique_ptr<PGeneratorConfig> config_;
-    GraphRepresentation               representation_;
+    MPI_Comm                                 comm_;
+    std::unique_ptr<struct PGeneratorConfig> config_;
+    GraphRepresentation                      representation_;
 };
 
 /*!
@@ -307,4 +414,95 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
     return distribution;
 }
 } // namespace kagen
+#endif
+
+//
+// C interface
+//
+
+typedef struct kagen_obj    kagen_obj;
+typedef struct kagen_result kagen_result;
+
+typedef struct {
+    kagen_index source;
+    kagen_index target;
+} kagen_edge;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+kagen_obj* kagen_create(MPI_Comm comm);
+void       kagen_free(kagen_obj* gen);
+
+void          kagen_result_vertex_range(kagen_result* result, kagen_index* begin, kagen_index* end);
+kagen_edge*   kagen_result_edge_list(kagen_result* result, size_t* nedges);
+kagen_index*  kagen_result_csr_xadj(kagen_result* result, size_t* nvertices);
+kagen_index*  kagen_result_csr_adjncy(kagen_result* result, size_t* nedges);
+kagen_weight* kagen_result_vertex_weights(kagen_result* result, size_t* size);
+kagen_weight* kagen_result_edge_weights(kagen_result* result, size_t* size);
+void          kagen_result_free(kagen_result* result);
+
+void kagen_set_seed(kagen_obj* gen, int seed);
+void kagen_enable_undirected_graph_verification(kagen_obj* gen);
+void kagen_enable_basic_statistics(kagen_obj* gen);
+void kagen_enable_advanced_statistics(kagen_obj* gen);
+void kagen_enable_output(kagen_obj* gen, bool header);
+void kagen_use_hp_floats(kagen_obj* gen, bool state);
+void kagen_set_numer_of_chunks(kagen_obj* gen, unsigned long long k);
+void kagen_use_edge_list_representation(kagen_obj* gen);
+void kagen_use_csr_representation(kagen_obj* gen);
+
+kagen_result* kagen_generate_from_option_string(kagen_obj* gen, const char* options);
+
+kagen_result* kagen_generate_directed_gnm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool self_loops);
+kagen_result*
+kagen_generate_undirected_gnm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool self_loops);
+kagen_result* kagen_generate_directed_gnp(kagen_obj* gen, unsigned long long n, double p, bool self_loops);
+kagen_result* kagen_generate_undirected_gnp(kagen_obj* gen, unsigned long long n, double p, bool self_loops);
+
+kagen_result* kagen_generate_rgg2d(kagen_obj* gen, unsigned long long n, double r);
+kagen_result* kagen_generate_rgg2d_nm(kagen_obj* gen, unsigned long long n, unsigned long long m);
+kagen_result* kagen_generate_rgg2d_mr(kagen_obj* gen, unsigned long long m, double r);
+
+kagen_result* kagen_generate_rgg3d(kagen_obj* gen, unsigned long long n, double r);
+kagen_result* kagen_generate_rgg3d_nm(kagen_obj* gen, unsigned long long n, unsigned long long m);
+kagen_result* kagen_generate_rgg3d_mr(kagen_obj* gen, unsigned long long m, double r);
+
+kagen_result* kagen_generate_rdg2d(kagen_obj* gen, unsigned long long n, bool periodic);
+kagen_result* kagen_generate_rdg2d_m(kagen_obj* gen, unsigned long long m, bool periodic);
+kagen_result* kagen_generate_rdg3d(kagen_obj* gen, unsigned long long n);
+kagen_result* kagen_generate_rdg3d_m(kagen_obj* gen, unsigned long long m);
+
+kagen_result*
+kagen_generate_ba(kagen_obj* gen, unsigned long long n, unsigned long long d, bool directed, bool self_loops);
+kagen_result*
+kagen_generate_ba_nm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops);
+kagen_result*
+kagen_generate_ba_md(kagen_obj* gen, unsigned long long m, unsigned long long d, bool directed, bool self_loops);
+
+kagen_result* kagen_generate_rhg(kagen_obj* gen, double gamma, unsigned long long n, double d);
+kagen_result* kagen_generate_rhg_nm(kagen_obj* gen, double gamma, unsigned long long n, unsigned long long m);
+kagen_result* kagen_generate_rhg_md(kagen_obj* gen, double gamma, unsigned long long m, double d);
+
+kagen_result*
+kagen_generate_grid2d(kagen_obj* gen, unsigned long long grid_x, unsigned long long grid_y, double p, bool periodic);
+kagen_result* kagen_generate_grid2d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
+kagen_result* kagen_generate_grid3d(
+    kagen_obj* gen, unsigned long long grid_x, unsigned long long grid_y, unsigned long long grid_z, double p,
+    bool periodic);
+kagen_result* kagen_generate_grid3d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
+
+kagen_result*
+kagen_generate_kronecker(kagen_obj* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops);
+
+kagen_result* kagen_generate_rmat(
+    kagen_obj* gen, unsigned long long n, unsigned long long m, double a, double b, double c, bool directed,
+    bool self_loops);
+
+void kagen_build_vertex_distribution(kagen_result* result, kagen_index* dist, MPI_Comm comm);
+
+#ifdef __cplusplus
+}
+#endif
 
