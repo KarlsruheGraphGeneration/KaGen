@@ -120,15 +120,12 @@ If you want each PE to write its edges to a seperate file, use the `--distribute
 
 ## Using the KaGen Library
 
-The KaGen C++ library is located at `build/library/libkagen.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead).
-Additionally, a C library is located at `build/library/libckagen.a`. 
-
+The KaGen library is located at `build/library/libkagen.a` (use `-DBUILD_SHARED_LIBS=On` to build a shared library instead) and can be used in C++ and C projects.
 If you are using CMake, you can use KaGen by adding this repository as a Git submodule to your project and including it in your CMake configuration:
 
 ```cmake 
 add_subdirectory(external/KaGen)
-target_link_libraries(<your-target> PUBLIC KaGen::KaGen)  # C++ interface
-target_link_libraries(<your-target> PUBLIC KaGen::cKaGen) # C interface
+target_link_libraries(<your-target> PUBLIC KaGen::KaGen)
 ```
 
 Alternatively, you can use `FetchContent`: 
@@ -141,15 +138,14 @@ FetchContent_Declare(KaGen
 FetchContent_MakeAvailable(KaGen)
 set_property(DIRECTORY "${KaGen_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL YES) # optional
 
-target_link_libraries(<your-target> PUBLIC KaGen::KaGen)  # C++ interface
-target_link_libraries(<your-target> PUBLIC KaGen::cKaGen) # C interface
+target_link_libraries(<your-target> PUBLIC KaGen::KaGen)
 ```
 
 Examples on how to use the C and C++ interfaces are available in the `examples/` directory.
 The examples given below only show the C++ interface.
 
 **Note**: Instead of calling the library functions listed below, you can also use `KaGen::GenerateFromOptionString()` 
-to pass the generator options as a string (documentation is available in `library/kagen.h`).
+to pass the generator options as a string (documentation is available in `kagen/kagen.h`).
 
 The library functions return the generated graph as an instance of type `kagen::KaGenResult`. 
 By default, the graph is represented as an edge list, i.e., a vector `kagen::KaGenResult::edges[]` containing pairs of vertices.
