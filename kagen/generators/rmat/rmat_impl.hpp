@@ -20,9 +20,8 @@
 
     #include "kagen/generators/rmat/alias_key.hpp"
     #include "kagen/generators/rmat/graph500.hpp"
-
-    #include <tlx/logger.hpp>
-    #include <tlx/math.hpp>
+    #include "kagen/tlx/aggregate.hpp"
+    #include "kagen/tlx/clz.hpp"
 
     #include <array>
     #include <ios>
@@ -86,8 +85,8 @@ public:
           log_n(log_n_),
           node_mask((path{1} << log_n_) - 1),
           scramble_state(graph500::init_scramble_state(rng, log_n)) {
-        sLOG << "RMAT: need" << 2 * log_n << "path bits";
-        sLOG << "RMAT: node extraction mask" << std::hex << node_mask;
+        // sLOG << "RMAT: need" << 2 * log_n << "path bits";
+        // sLOG << "RMAT: node extraction mask" << std::hex << node_mask;
     }
 
     void init(int max_depth) {
@@ -101,13 +100,13 @@ public:
 
         enum_items(0, 1.0, 0);
 
-        //sLOG1 << "generated" << entries.size() << "path prefixes in" << t.get_and_reset() << "ms";
+        // sLOG1 << "generated" << entries.size() << "path prefixes in" << t.get_and_reset() << "ms";
 
         table.init(entries.size());
-        //sLOG1 << "init table in" << t.get_and_reset() << "ms";
+        // sLOG1 << "init table in" << t.get_and_reset() << "ms";
 
         table.construct(entries.begin(), entries.end(), /* is_dist */ true);
-        //sLOG1 << "construct table in" << t.get_and_reset() << "ms";
+        // sLOG1 << "construct table in" << t.get_and_reset() << "ms";
     }
 
     template <typename RNG>
@@ -127,9 +126,11 @@ public:
             path     src_part, dst_part;
             unsigned bits_in_prefix = split_prefix(next, src_part, dst_part);
 
+            /*
             sLOG << "Prefix" << std::hex << next << "with" << std::dec << bits_in_prefix
                  << "bits per half; src half:" << std::hex << src_part << "dst:" << dst_part
                  << "old tentative result:" << result;
+            */
 
             bits_per_half += bits_in_prefix;
             result <<= bits_in_prefix;
@@ -138,12 +139,14 @@ public:
         } while (bits_per_half < log_n);
         // remove unneeded bits
         unsigned shift = bits_per_half - log_n;
+        /*
         sLOG << "got enough bits in" << std::hex << result << "-- removing" << std::dec << shift << "of"
              << bits_per_half;
+        */
         result >>= shift;
         node src = static_cast<node>(result >> path_half_bits);
         node dst = static_cast<node>(result & node_mask);
-        sLOG << "Extracted nodes" << std::hex << src << dst << "from" << result;
+        // sLOG << "Extracted nodes" << std::hex << src << dst << "from" << result;
         stats.record_edge_done();
 
         if constexpr (scramble_ids) {
@@ -171,9 +174,11 @@ public:
             path     src_part, dst_part;
             unsigned bits_in_prefix = split_prefix(next, src_part, dst_part);
 
+            /*
             sLOG << "Prefix" << std::hex << next << "with" << std::dec << bits_in_prefix
                  << "bits per half; src half:" << std::hex << src_part << "dst:" << dst_part
                  << "old tentative result:" << result;
+            */
 
             bits_per_half += bits_in_prefix;
             result <<= bits_in_prefix;
@@ -181,15 +186,17 @@ public:
             result |= dst_part;
 
             if (bits_per_half >= log_n) {
+                /*
                 sLOG << "got enough bits in" << std::hex << result << "-- have" << std::dec << bits_per_half << "need"
                      << log_n;
+                */
                 // we have enough bits for an edge, extract it
                 int  excess = bits_per_half - log_n;
                 path tmp = (result >> excess), removal_mask = (path{1} << excess) - 1;
                 node src = (tmp >> path_half_bits), dst = tmp & node_mask;
 
-                sLOG << "Extracted nodes" << std::hex << src << dst << "from" << result;
-                // implement clip-and-flip
+                // sLOG << "Extracted nodes" << std::hex << src << dst << "from" << result;
+                //  implement clip-and-flip
     #ifdef RMAT_CLIPFLIP
                 if (src > dst)
                     std::swap(src, dst);
@@ -207,7 +214,7 @@ public:
                 // Reuse the remaining `leftover` bits
                 bits_per_half -= log_n;
                 result &= removal_mask;
-                sLOG << bits_per_half << "bits remaining, tentative result:" << std::hex << result;
+                // sLOG << bits_per_half << "bits remaining, tentative result:" << std::hex << result;
             }
         }
     }
@@ -247,16 +254,20 @@ protected:
             unsigned dst_pos    = depth;
             unsigned src_pos    = depth + prefix_half_bits;
 
+            /*
             sLOG << "Considering bits" << src_pos << "and" << dst_pos << "of" << pref
                  << "src half:" << (new_prefix >> prefix_half_bits) << "dst half:" << (new_prefix & dst_mask)
                  << "direction" << d;
+            */
 
             // Then add this position and the new marker bit
             new_prefix |= ((d >> 1) << src_pos);
             new_prefix |= ((d & 1) << dst_pos);
 
+            /*
             sLOG << "\tresult:" << new_prefix << "src half:" << (new_prefix >> prefix_half_bits)
                  << "dst half:" << (new_prefix & dst_mask);
+            */
 
             const double new_prob = prob * quad[d];
             if (depth + 1 < table_depth) {

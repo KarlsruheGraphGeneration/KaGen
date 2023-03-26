@@ -19,6 +19,7 @@ option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_USE_SPARSEHASH "Build with Google Sparsehash. If turned off, fall back to std::unordered_map<>." ON)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
+option(KAGEN_USE_MKL "Build with Intel MKL random generator." OFF)
 
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
@@ -161,13 +162,20 @@ if (KAGEN_USE_CGAL)
 endif ()
 
 ###############################################################################
-# Sampling library 
+# Sampling library -> MKL
 ###############################################################################
-# Do not use MKL by default
-set(SAMPLING_USE_MKL OFF CACHE BOOL "Use MKL for sampling.")
-
-add_subdirectory(extlib/sampling EXCLUDE_FROM_ALL SYSTEM)
-list(APPEND KAGEN_LINK_LIBRARIES sampling spooky)
+if (KAGEN_USE_MKL)
+    find_package(MKL)
+    if (MKL_FOUND)
+        message(STATUS "MKL found")
+        list(APPEND KAGEN_INCLUDE_DIRS ${MKL_INCLUDE_DIR})
+        list(APPEND KAGEN_LINK_LIBRARIES ${MKL_LP_LIBRARY} ${MKL_CORE_LIBRARY} ${MKL_SEQUENTIAL_LIBRARY})
+        add_definitions(-DSAMPLING_HAVE_MKL)
+        add_definitions(-DRMAT_HAVE_MKL)
+    else ()
+        message(STATUS "MKL requested but not found, building without MKL")
+    endif ()
+endif ()
 
 ################################################################################
 
@@ -178,7 +186,7 @@ add_subdirectory(examples)
 ################################################################################
 
 add_library(KaGen::KaGen ALIAS kagen)
-add_library(KaGen::cKaGen ALIAS kagen) # @deprecated
+add_library(KaGen::cKaGen ALIAS kagen) # @deprecated, use KaGen::KaGen
 
 ################################################################################
 

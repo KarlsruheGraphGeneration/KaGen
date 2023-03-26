@@ -321,13 +321,11 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << "\n";
             break;
 
-#ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
         case GeneratorType::RDG_3D:
             out << "  Number of vertices:                 " << config.n << "\n";
             out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
             break;
-#endif // KAGEN_CGAL_FOUND
 
         case GeneratorType::GRID_3D:
             out << "  Grid z:                             " << config.grid_z << "\n";

@@ -9,12 +9,11 @@
 
 #pragma once
 
-#include <sampling/hash.hpp>
-
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 #include "kagen/generators/graph500_generator.h"
+#include "kagen/sampling/hash.hpp"
 
 // forward declaration
 struct mrg_state;

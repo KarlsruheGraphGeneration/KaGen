@@ -5,20 +5,13 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
-#ifndef _RNG_WRAPPER_H_
-#define _RNG_WRAPPER_H_
+#pragma once
 
 #include <random>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-inline std::ostream&   operator<<(std::ostream& out, const __int128& i) {
-      return out << std::int64_t(i >> 64) << "-" << std::int64_t(i);
-}
-#pragma GCC diagnostic pop
-
-#include <sampling/methodR.hpp>
+#include "kagen/context.h"
+#include "kagen/kagen.h"
+#include "kagen/sampling/methodR.hpp"
 
 namespace kagen {
 template <typename int_t = std::int64_t>
@@ -60,4 +53,3 @@ private:
 };
 
 } // namespace kagen
-#endif

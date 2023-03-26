@@ -61,6 +61,11 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::RDG_3D:
             return std::make_unique<Delaunay3DFactory>();
+#else  // KAGEN_CGAL_FOUND
+        case GeneratorType::RDG_2D:
+        case GeneratorType::RDG_3D:
+            // throw exception after switch
+            break;
 #endif // KAGEN_CGAL_FOUND
 
         case GeneratorType::GRID_2D:
