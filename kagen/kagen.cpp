@@ -200,18 +200,22 @@ KaGenResult KaGen::GenerateRDG3D_M(const SInt m, const bool coordinates) {
 #else  // KAGEN_CGAL_FOUND
 KaGenResult KaGen::GenerateRDG2D(SInt, bool, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+    return {};
 }
 
 KaGenResult KaGen::GenerateRDG2D_M(SInt, bool, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+    return {};
 }
 
 KaGenResult KaGen::GenerateRDG3D(SInt, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+    return {};
 }
 
 KaGenResult KaGen::GenerateRDG3D_M(SInt, bool) {
     throw std::runtime_error("Library was compiled without CGAL. Thus, delaunay generators are not available.");
+    return {};
 }
 #endif // KAGEN_CGAL_FOUND
 

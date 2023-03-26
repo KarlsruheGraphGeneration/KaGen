@@ -51,7 +51,6 @@ list(APPEND KAGEN_WARNING_FLAGS
     "-W"
     "-Wall"
     "-Wextra"
-    "-Wcast-align"
     "-Wpedantic"
     "-Wno-unused-local-typedefs"
     )
@@ -65,7 +64,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif ()
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     list(APPEND KAGEN_WARNING_FLAGS
-        "-Wcast-align"
         "-Wnoexcept"
         "-Wsuggest-attribute=noreturn"
         "-Wsuggest-override"

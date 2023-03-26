@@ -189,7 +189,7 @@ public:
         ULONG hash = SpookyHash::Hash32(&x, 4, SAMPLING_SEEDA);
 #endif
         return hash;
-    };
+    }
 };
 
 } // namespace sampling
