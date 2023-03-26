@@ -65,7 +65,6 @@ endif ()
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     list(APPEND KAGEN_WARNING_FLAGS
         "-Wnoexcept"
-        "-Wsuggest-attribute=noreturn"
         "-Wsuggest-override"
         "-fdiagnostics-color=always"
         "-Wcast-qual"
