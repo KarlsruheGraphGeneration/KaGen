@@ -10,7 +10,7 @@
 #ifndef RMAT_GRAPH500_HEADER
     #define RMAT_GRAPH500_HEADER
 
-    #include <tlx/define.hpp>
+    #include "kagen/tlx/attribute_always_inline.hpp"
 
     // generate unweighted graphs
     #ifdef SSSP

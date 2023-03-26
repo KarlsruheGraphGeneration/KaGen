@@ -16,9 +16,9 @@
 #endif
 #include <inttypes.h>
 
-#include "graph_generator.h"
-#include "splittable_mrg.h"
-#include "user_settings.h"
+#include "kagen/generators/rmat/graph500/graph_generator.h"
+#include "kagen/generators/rmat/graph500/splittable_mrg.h"
+#include "kagen/generators/rmat/graph500/user_settings.h"
 
 /* Initiator settings: for faster random number generation, the initiator
  * probabilities are defined as fractions (a = INITIATOR_A_NUMERATOR /

@@ -58,8 +58,6 @@ const char* dSFMT::name = "dSFMT";
 
 namespace _dSFMT {
 
-extern "C" {
-
 /*----------------
   STATIC FUNCTIONS
   ----------------*/
@@ -272,8 +270,6 @@ void dsfmt_chk_init_gen_rand(dsfmt_t* dsfmt, uint32_t seed, int mexp) {
 #if defined(__INTEL_COMPILER)
     #pragma warning(default : 981)
 #endif
-
-} // extern "C"
 
 } // namespace _dSFMT
 } // namespace generators

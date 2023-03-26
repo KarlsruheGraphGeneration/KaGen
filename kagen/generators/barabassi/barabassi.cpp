@@ -3,10 +3,9 @@
 #include <iostream>
 #include <vector>
 
-#include <sampling/hash.hpp>
-
 #include "kagen/generators/barabassi/barabassi.h"
 #include "kagen/generators/generator.h"
+#include "kagen/sampling/hash.hpp"
 #include "kagen/tools/postprocessor.h"
 
 namespace kagen {

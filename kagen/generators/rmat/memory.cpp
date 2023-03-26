@@ -12,11 +12,9 @@ namespace rmat {
 
 // Allocate memory using huge pages
 void* alloc_hugepage(size_t size) {
-    constexpr bool debug = false;
-
     constexpr size_t alignment = 2 * 1024 * 1024;
     size_t           bytes     = align_size(size, alignment);
-    sLOG << "Allocating" << bytes << "bytes instead of" << size;
+    // sLOG << "Allocating" << bytes << "bytes instead of" << size;
     void* ptr = aligned_alloc(alignment, bytes);
 #if __APPLE__
     madvise(ptr, bytes, MADV_NORMAL);

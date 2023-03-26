@@ -8,14 +8,12 @@
 
 #pragma once
 #ifndef RMAT_MEMORY_HEADER
-#define RMAT_MEMORY_HEADER
+    #define RMAT_MEMORY_HEADER
 
-#include <tlx/logger.hpp>
-
-#include <sys/mman.h> // madvise
-#include <cstdlib>
-#include <cstring> // memcpy
-#include <memory>
+    #include <cstdlib>
+    #include <cstring> // memcpy
+    #include <memory>
+    #include <sys/mman.h> // madvise
 
 namespace rmat {
 
@@ -31,7 +29,7 @@ void* allocate(size_t size);
 
 struct deallocator {
     template <typename T>
-    void operator()(T *ptr) {
+    void operator()(T* ptr) {
         free((void*)ptr);
     }
 };

@@ -7,25 +7,22 @@
  ******************************************************************************/
 
 #pragma once
-#ifndef RMAT_ALIAS_KEY_HEADER
-    #define RMAT_ALIAS_KEY_HEADER
 
-    #include "kagen/generators/rmat/memory.hpp"
-    #include "kagen/generators/rmat/timer.hpp"
-    #include "kagen/generators/rmat/util.hpp"
+#include "kagen/generators/rmat/memory.hpp"
+#include "kagen/generators/rmat/timer.hpp"
+#include "kagen/tlx/attribute_always_inline.hpp"
 
-    #include <tlx/define.hpp>
-    #include <tlx/logger.hpp>
+#include <cassert>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <ostream>
+#include <utility>
+#include <vector>
 
-    #include <cassert>
-    #include <limits>
-    #include <memory>
-    #include <numeric>
-    #include <utility>
-
-    #ifndef NDEBUG
-        #include <unordered_map>
-    #endif
+#ifndef NDEBUG
+    #include <unordered_map>
+#endif
 
 namespace rmat {
 
@@ -72,17 +69,19 @@ struct alias_key {
     void construct(Iterator begin, Iterator end, bool is_dist = false) {
         timer t;
         if (end - begin != static_cast<ssize_t>(size_)) {
+            /*
             sLOG1 << "Error: tried to construct alias table of incorrect size!"
                   << "Expected" << size_ << "got" << end - begin;
+            */
             return;
         }
         timers_.clear();
 
-    #ifdef NDEBUG
+#ifdef NDEBUG
         if (is_dist) {
             W_ = 1.0;
         } else {
-    #endif
+#endif
             W_ = std::accumulate(begin, end, 0.0, [](double curr, auto b) { return curr + b.second; });
             // If the input is supposed to be a probability distribution and
             // we're in debug mode, check that the weights really sum to 1
@@ -90,75 +89,79 @@ struct alias_key {
                 assert(std::abs(W_ - 1.0) < 1e-6);
                 W_ = 1.0;
             }
-    #ifdef NDEBUG
+#ifdef NDEBUG
         }
-    #endif
+#endif
 
         W_n_ = W_ / size_;
-        LOG << "W = " << W_ << ", W/n = " << W_n_;
+        // LOG << "W = " << W_ << ", W/n = " << W_n_;
         timers_.push_back(t.get_and_reset());
-        LOGC(time) << "Step 0: preprocessing took " << timers_.back() << "ms";
+        // LOGC(time) << "Step 0: preprocessing took " << timers_.back() << "ms";
 
         // Classify into small and large items
         ssize_t i_small = 0, i_large = size_ - 1;
         for (Iterator it = begin; it != end; ++it) {
             if (is_small(it->second)) {
-                LOG << *it << " is small";
+                // LOG << *it << " is small";
                 work_[i_small++] = *it;
             } else {
-                LOG << *it << " is large";
+                // LOG << *it << " is large";
                 work_[i_large--] = *it;
             }
         }
         assert(i_small > i_large); // must meet
         timers_.push_back(t.get_and_reset());
-        LOGC(time) << "Step 1: classification took " << timers_.back() << "ms";
+        // LOGC(time) << "Step 1: classification took " << timers_.back() << "ms";
 
         // Assign items
         auto s_begin = work_.get(), s_end = work_.get() + i_small, l_begin = s_end, l_end = work_.get() + size_,
              small = s_begin, large = l_begin;
         size_t table_idx = 0;
-        LOG_ARR(work_.get(), "work");
+        // LOG_ARR(work_.get(), "work");
         while (small != s_end && large != l_end) {
+            /*
             LOG << "table_[" << table_idx << "] = (" << small->second << ", " << small->first << ", " << large->first
                 << ")";
+            */
             table_[table_idx++] = tableitem(small->second, small->first, large->first);
             large->second       = (large->second + small->second) - W_n_;
 
             if (is_small(large)) {
-                sLOG << "large item became small, remaining piece" << *large << "moving to end of small items";
+                // sLOG << "large item became small, remaining piece" << *large << "moving to end of small items";
                 if (large > s_end) {
                     std::swap(large, s_end);
                 } else {
-                    LOG << "no need to swap, is first";
+                    // LOG << "no need to swap, is first";
                 }
                 s_end++;
                 // l_begin++; // not really needed, just for bookkeping
                 large++;
             } else {
-                sLOG << "large item" << *large << "remained large, advancing small";
+                // sLOG << "large item" << *large << "remained large, advancing small";
             }
             small++;
         }
         while (large != l_end) {
             size_t i_large = large->first;
-            LOG << "large item left at the end: " << *large;
-            LOG << "table_[" << table_idx << "] = (" << W_n_ << ", " << i_large << ", -1)";
+            // LOG << "large item left at the end: " << *large;
+            // LOG << "table_[" << table_idx << "] = (" << W_n_ << ", " << i_large << ", -1)";
 
             table_[table_idx++] = tableitem(W_n_, i_large, i_large);
             large++;
         }
         while (small != s_end) {
             size_t i_small = small->first;
+            /*
             sLOG << "encountered some numerical instability!"
                  << "Item" << i_small << "weight" << *small;
             LOG << "table_[" << table_idx << "] = (" << W_n_ << ", " << i_small << ", -1)";
+            */
 
             table_[table_idx++] = tableitem(W_n_, i_small, i_small);
             small++;
         }
         timers_.push_back(t.get_and_reset());
-        LOGC(time) << "Step 2: assignment took " << timers_.back() << "ms";
+        // LOGC(time) << "Step 2: assignment took " << timers_.back() << "ms";
     }
 
     // Query given a uniformly distributed [0,1) random value
@@ -181,7 +184,7 @@ struct alias_key {
     void verify(Iterator begin, Iterator end) const {
         (void)begin;
         (void)end;
-    #ifndef NDEBUG
+#ifndef NDEBUG
         assert(end - begin == static_cast<ssize_t>(size_));
         std::unordered_map<key_type, double> weights(size_);
 
@@ -200,11 +203,11 @@ struct alias_key {
             key_type key    = it->first;
             double   should = it->second;
             double   have   = weights[key];
-            sLOG << "key" << key << "should be" << should << "have" << have;
+            // sLOG << "key" << key << "should be" << should << "have" << have;
             assert(std::abs(should - have) < W_ * 1e-10);
         }
-        LOG1 << "Verification succeeded!";
-    #endif
+        // LOG1 << "Verification succeeded!";
+#endif
     }
 
     std::vector<double> get_timers() const {
@@ -239,4 +242,3 @@ protected:
 
 } // namespace rmat
 
-#endif // RMAT_ALIAS_KEY_HEADER

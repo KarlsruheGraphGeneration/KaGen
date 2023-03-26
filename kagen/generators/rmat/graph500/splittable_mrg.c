@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-#include "mod_arith.h"
-#include "splittable_mrg.h"
+#include "kagen/generators/rmat/graph500/mod_arith.h"
+#include "kagen/generators/rmat/graph500/splittable_mrg.h"
 
 /* Multiple recursive generator from L'Ecuyer, P., Blouin, F., and       */
 /* Couture, R. 1993. A search for good multiple recursive random number  */
