@@ -3,11 +3,12 @@
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
-#include "kagen/tools/random_permutation.h"
 
 namespace kagen {
 class PathDirectedFactory : public GeneratorFactory {
 public:
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const final;
+
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const final;
 };
 
@@ -19,9 +20,6 @@ protected:
     void GenerateEdgeList() final;
 
 private:
-    std::pair<SInt, bool>
-    GetTargetVertex(SInt j, const random_permutation::FeistelPseudoRandomPermutation& permutator_) const;
-
     const PGeneratorConfig& config_;
 
     PEID rank_;

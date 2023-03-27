@@ -15,11 +15,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 ################################################################################
 
+option(KAGEN_NODEPS "Build KaGen without any dependencies." OFF)
+
 option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
 option(KAGEN_USE_SPARSEHASH "Build with Google Sparsehash. If turned off, fall back to std::unordered_map<>." ON)
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
 option(KAGEN_USE_MKL "Build with Intel MKL random generator." OFF)
+option(KAGEN_USE_XXHASH "Build with xxHash. If turned off, path permutation will not be available." ON)
 
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
@@ -34,6 +37,15 @@ FetchContent_Declare(googletest
     GIT_TAG release-1.12.1)
 
 ################################################################################
+
+# If KAGEN_NODEPS is set, disable all dependency flags
+if (KAGEN_NODEPS)
+    set(KAGEN_USE_CGAL OFF)
+    set(KAGEN_USE_SPARSEHASH OFF)
+    set(KAGEN_USE_MKL OFF)
+    set(KAGEN_USE_XXHASH OFF)
+    set(KAGEN_BUILD_TESTS OFF) # requires GoogleTest
+endif ()
 
 # Prohibit in-source builds
 if ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
@@ -117,15 +129,16 @@ list(APPEND KAGEN_LINK_LIBRARIES morton)
 ###############################################################################
 # xxHash 
 ###############################################################################
-# Load and include xxHash
-message(STATUS "Configuring xxHash...")
-set(${PROJECT_NAME}_XXHASH_DIR "${CMAKE_CURRENT_LIST_DIR}/extlib/xxHash" CACHE PATH "Path to the xxHash source directory")
-set(BUILD_SHARED_LIBS OFF)
-set(XXHASH_BUILD_ENABLE_INLINE_API ON)
-set(XXHASH_BUILD_XXHSUM OFF)
-add_subdirectory("${${PROJECT_NAME}_XXHASH_DIR}/cmake_unofficial" "${${PROJECT_NAME}_XXHASH_DIR/build}" EXCLUDE_FROM_ALL)
-
-list(APPEND KAGEN_LINK_LIBRARIES xxhash)
+if (KAGEN_USE_XXHASH)
+    message(STATUS "Configuring xxHash...")
+    set(${PROJECT_NAME}_XXHASH_DIR "${CMAKE_CURRENT_LIST_DIR}/extlib/xxHash" CACHE PATH "Path to the xxHash source directory")
+    set(BUILD_SHARED_LIBS OFF)
+    set(XXHASH_BUILD_ENABLE_INLINE_API ON)
+    set(XXHASH_BUILD_XXHSUM OFF)
+    add_subdirectory("${${PROJECT_NAME}_XXHASH_DIR}/cmake_unofficial" "${${PROJECT_NAME}_XXHASH_DIR/build}" EXCLUDE_FROM_ALL)
+    list(APPEND KAGEN_LINK_LIBRARIES xxhash)
+    add_definitions(-DKAGEN_XXHASH_FOUND)
+endif ()
 
 ###############################################################################
 # MPI
