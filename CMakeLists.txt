@@ -40,6 +40,8 @@ FetchContent_Declare(googletest
 
 # If KAGEN_NODEPS is set, disable all dependency flags
 if (KAGEN_NODEPS)
+    message(STATUS "Building without any dependencies.")
+
     set(KAGEN_USE_CGAL OFF)
     set(KAGEN_USE_SPARSEHASH OFF)
     set(KAGEN_USE_MKL OFF)
@@ -130,7 +132,8 @@ list(APPEND KAGEN_LINK_LIBRARIES morton)
 # xxHash 
 ###############################################################################
 if (KAGEN_USE_XXHASH)
-    message(STATUS "Configuring xxHash...")
+    message(STATUS "Building with xxHash")
+
     set(${PROJECT_NAME}_XXHASH_DIR "${CMAKE_CURRENT_LIST_DIR}/extlib/xxHash" CACHE PATH "Path to the xxHash source directory")
     set(BUILD_SHARED_LIBS OFF)
     set(XXHASH_BUILD_ENABLE_INLINE_API ON)
@@ -151,6 +154,7 @@ list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
 # Google Sparsehash
 ###############################################################################
 if (KAGEN_USE_SPARSEHASH)
+    message(STATUS "Building with Sparsehash")
     find_package(Sparsehash REQUIRED)
     list(APPEND KAGEN_LINK_LIBRARIES Sparsehash::Sparsehash)
     add_definitions(-DKAGEN_SPARSEHASH_FOUND)
@@ -177,11 +181,12 @@ endif ()
 if (KAGEN_USE_MKL)
     find_package(MKL)
     if (MKL_FOUND)
-        message(STATUS "MKL found")
+        message(STATUS "Building with MKL")
         list(APPEND KAGEN_INCLUDE_DIRS ${MKL_INCLUDE_DIR})
         list(APPEND KAGEN_LINK_LIBRARIES ${MKL_LP_LIBRARY} ${MKL_CORE_LIBRARY} ${MKL_SEQUENTIAL_LIBRARY})
         add_definitions(-DSAMPLING_HAVE_MKL)
         add_definitions(-DRMAT_HAVE_MKL)
+        add_definitions(-DKAGEN_MKL_FOUND)
     else ()
         message(STATUS "MKL requested but not found, building without MKL")
     endif ()

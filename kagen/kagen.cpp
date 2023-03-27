@@ -9,7 +9,36 @@
 #include "kagen/facade.h"
 
 namespace kagen {
-namespace {}
+std::string BuildDescription() {
+    std::stringstream ss;
+    ss << "v" << KAGEN_VERSION_MAJOR << "." << KAGEN_VERSION_MINOR << "." << KAGEN_VERSION_PATCH;
+    ss << " (";
+#ifdef KAGEN_CGAL_FOUND
+    ss << "CGal=yes";
+#else  // KAGEN_CGAL_FOUND
+    ss << "CGal=no";
+#endif // KAGEN_CGAL_FOUND
+    ss << ", ";
+#ifdef KAGEN_SPARSEHASH_FOUND
+    ss << "Sparsehash=yes";
+#else  // KAGEN_SPARSEHASH_FOUND
+    ss << "Sparsehash=no";
+#endif // KAGEN_SPARSEHASH_FOUND
+    ss << ", ";
+#ifdef KAGEN_XXHASH_FOUND
+    ss << "xxHash=yes";
+#else  // KAGEN_XXHASH_FOUND
+    ss << "xxHash=no";
+#endif // KAGEN_XXHASH_FOUND
+    ss << ", ";
+#ifdef KAGEN_MKL_FOUND
+    ss << "MKL=yes";
+#else  // KAGEN_MKL_FOUND
+    ss << "MKL=no";
+#endif // KAGEN_MKL_FOUND
+    ss << ")";
+    return ss.str();
+}
 
 KaGen::KaGen(MPI_Comm comm)
     : comm_(comm),

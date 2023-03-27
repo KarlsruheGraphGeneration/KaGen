@@ -19,6 +19,14 @@
 
 using namespace kagen;
 
+void PrintVersion() {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == ROOT) {
+        std::cout << BuildDescription() << std::endl;
+    }
+}
+
 void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     auto log_cb = [&](SInt& result) {
         return [&](const SInt value) {
@@ -111,6 +119,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     // General parameters
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
+    app.add_flag(
+           "-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")
+        ->trigger_on_parse();
     app.add_flag("-V,--validate", config.validate_simple_graph)
         ->description(
             R"(Validate that the generated graph is undirected and does not have duplicated edges or inconsistent edge weights.
@@ -459,6 +470,5 @@ int main(int argc, char* argv[]) {
     auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
     WriteGraph(config, graph, MPI_COMM_WORLD);
 
-    MPI_Finalize();
-    return 0;
+    return MPI_Finalize();
 }

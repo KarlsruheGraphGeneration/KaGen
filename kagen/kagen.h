@@ -16,6 +16,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define KAGEN_VERSION_MAJOR 0
+#define KAGEN_VERSION_MINOR 1
+#define KAGEN_VERSION_PATCH 0
+
+#ifdef __cplusplus
+namespace kagen {
+std::string BuildDescription();
+}
+#endif
+
 //
 // KaGen data types
 //
