@@ -198,11 +198,17 @@ endif ()
 ################################################################################
 
 add_subdirectory(kagen)
+
 if (KAGEN_BUILD_APPS)
     add_subdirectory(app)
+else ()
+    message(STATUS "Apps disabled.")
 endif ()
+
 if (KAGEN_BUILD_EXAMPLES) 
     add_subdirectory(examples)
+else ()
+    message(STATUS "Examples disabled.")
 endif ()
 
 ################################################################################
