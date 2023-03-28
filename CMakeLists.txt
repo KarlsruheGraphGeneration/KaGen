@@ -25,7 +25,10 @@ option(KAGEN_USE_MKL "Build with Intel MKL random generator." OFF)
 option(KAGEN_USE_XXHASH "Build with xxHash. If turned off, path permutation will not be available." ON)
 
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
+
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
+option(KAGEN_BUILD_APPS "Build binaries." ON)
+option(KAGEN_BUILD_EXAMPLES "Build examples." ON)
 
 ################################################################################
 
@@ -195,8 +198,12 @@ endif ()
 ################################################################################
 
 add_subdirectory(kagen)
-add_subdirectory(app)
-add_subdirectory(examples)
+if (KAGEN_BUILD_APPS)
+    add_subdirectory(app)
+endif ()
+if (KAGEN_BUILD_EXAMPLES) 
+    add_subdirectory(examples)
+endif ()
 
 ################################################################################
 
