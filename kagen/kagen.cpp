@@ -358,6 +358,14 @@ KaGenResult KaGen::GenerateGrid3D_NM(const SInt n, const SInt m, const bool peri
     return GenerateGrid3D_Impl(*config_, cbrt_n, cbrt_n, cbrt_n, 0.0, m, periodic, coordinates, representation_, comm_);
 }
 
+KaGenResult KaGen::GenerateDirectedPath(unsigned long long n, bool permute, bool periodic) {
+    config_->generator  = GeneratorType::PATH_DIRECTED;
+    config_->n          = n;
+    config_->permute   = permute;
+    config_->periodic   = periodic;
+    return Generate(*config_, representation_, comm_).tuple();
+}
+
 KaGenResult KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, const bool self_loops) {
     config_->generator  = GeneratorType::KRONECKER;
     config_->n          = n;

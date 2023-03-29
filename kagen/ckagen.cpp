@@ -313,6 +313,13 @@ kagen_result* kagen_generate_grid3d_n(kagen_obj* gen, unsigned long long n, doub
     return result_wrapper;
 }
 
+kagen_result* kagen_generate_directed_path(kagen_obj* gen, unsigned long long n, bool permute, bool periodic) {
+    auto result = gen->gen_ptr->GenerateDirectedPath(n, permute, periodic);
+    kagen_result* result_wrapper = new kagen_result;
+    result_wrapper->result_ptr   = new kagen::KaGenResult(std::move(result));
+    return result_wrapper;
+}
+
 kagen_result*
 kagen_generate_kronecker(kagen_obj* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops) {
     auto result = gen->gen_ptr->GenerateKronecker(n, m, directed, self_loops);
@@ -344,4 +351,3 @@ void kagen_build_vertex_distribution(kagen_result* result, kagen_index* dist, MP
     dist[rank + 1] = result->result_ptr->vertex_range.second;
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, dist + 1, 1, MPI_UNSIGNED_LONG_LONG, comm);
 }
-

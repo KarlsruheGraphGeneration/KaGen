@@ -382,6 +382,8 @@ public:
 
     KaGenResult GenerateGrid3D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
 
+    KaGenResult GenerateDirectedPath(unsigned long long n, bool permute = false, bool periodic = false);
+
     KaGenResult GenerateKronecker(SInt n, SInt m, bool directed = false, bool self_loops = false);
 
     KaGenResult
@@ -503,6 +505,8 @@ kagen_result* kagen_generate_grid3d(
     bool periodic);
 kagen_result* kagen_generate_grid3d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
 
+kagen_result* kagen_generate_directed_path(kagen_obj* gen, unsigned long long n, bool permuted, bool periodic);
+
 kagen_result*
 kagen_generate_kronecker(kagen_obj* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops);
 
@@ -515,4 +519,3 @@ void kagen_build_vertex_distribution(kagen_result* result, kagen_index* dist, MP
 #ifdef __cplusplus
 }
 #endif
-
