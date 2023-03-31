@@ -154,6 +154,12 @@ find_package(MPI REQUIRED)
 list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
 
 ###############################################################################
+# OpenMP
+###############################################################################
+find_package(OpenMP REQUIRED)
+list(APPEND KAGEN_LINK_LIBRARIES OpenMP::OpenMP_CXX)
+
+###############################################################################
 # Google Sparsehash
 ###############################################################################
 if (KAGEN_USE_SPARSEHASH)
