@@ -42,6 +42,8 @@ void PathDirected::GenerateEdgeList() {
     const bool has_pe_additional_node      = rank_ < num_pe_with_additional_node;
     const SInt begin_nodes                 = std::min(num_pe_with_additional_node, rank_) + rank_ * nodes_per_pe;
     const SInt end_nodes                   = begin_nodes + nodes_per_pe + has_pe_additional_node;
+    const SInt last_node_on_pe             = end_nodes > begin_nodes ? end_nodes - 1 : begin_nodes;
+    SetVertexRange(begin_nodes, last_node_on_pe);
 
     for (SInt i = begin_nodes; i < end_nodes; ++i) {
         const auto [j, is_valid] = [&]() -> std::pair<SInt, bool> {
