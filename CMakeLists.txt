@@ -154,10 +154,10 @@ find_package(MPI REQUIRED)
 list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
 
 ###############################################################################
-# OpenMP
+# pthread
 ###############################################################################
-find_package(OpenMP REQUIRED)
-list(APPEND KAGEN_LINK_LIBRARIES OpenMP::OpenMP_CXX)
+find_package(Threads REQUIRED)
+list(APPEND KAGEN_LINK_LIBRARIES Threads::Threads)
 
 ###############################################################################
 # Google Sparsehash
