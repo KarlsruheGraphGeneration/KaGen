@@ -54,11 +54,11 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
     const bool has_coordinates3d          = coordinates_.second.size() == vertex_range_.second - vertex_range_.first;
 
     // Check if edges have to be sorted
-    if (requires_sorted_edges && !std::is_sorted(edges_.begin(), edges_.end())) {
-        auto cmp_from = [](const auto& lhs, const auto& rhs) {
-            return std::get<0>(lhs) < std::get<0>(rhs);
-        };
+    auto cmp_from = [](const auto& lhs, const auto& rhs) {
+        return std::get<0>(lhs) < std::get<0>(rhs);
+    };
 
+    if (requires_sorted_edges && !std::is_sorted(edges_.begin(), edges_.end(), cmp_from)) {
         if (!edge_weights_.empty()) {
             std::vector<SSInt> indices(edges_.size());
             std::iota(indices.begin(), indices.end(), 0);
