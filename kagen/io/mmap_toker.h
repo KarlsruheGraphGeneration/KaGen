@@ -113,19 +113,11 @@ public:
     }
 
     void Advance() {
-        ++column_;
-        if (Current() == '\n') {
-            NextRow();
-        }
         ++position_;
     }
 
     [[nodiscard]] std::size_t Position() const {
         return position_;
-    }
-
-    [[nodiscard]] std::pair<std::size_t, std::size_t> FilePosition() const {
-        return {row_, column_};
     }
 
     [[nodiscard]] std::size_t Marked() const {
@@ -155,19 +147,11 @@ private:
         return static_cast<std::size_t>(file_info.st_size);
     }
 
-    void NextRow() {
-        ++row_;
-        column_ = 0;
-    }
-
     int         fd_;
     std::size_t position_;
     std::size_t length_;
     char*       contents_;
     std::size_t mark_;
-
-    std::size_t row_;
-    std::size_t column_;
 };
 } // namespace kagen
 

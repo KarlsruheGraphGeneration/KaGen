@@ -1,7 +1,7 @@
 #pragma once
 
 #include "kagen/generators/static/graph_reader.h"
-#include "kagen/generators/static/mmap_toker.h"
+#include "kagen/io/mmap_toker.h"
 
 namespace kagen::staticgraph {
 class MetisReader : public GraphReader {

@@ -21,3 +21,8 @@ endif ()
 
 add_executable(upsb2kargb upsb2kargb.cpp)
 install(TARGETS upsb2kargb DESTINATION bin)
+
+add_executable(chkmetis chkmetis.cpp)
+target_link_libraries(chkmetis PRIVATE kagen)
+target_include_directories(chkmetis PRIVATE ${PROJECT_SOURCE_DIR})
+install(TARGETS chkmetis DESTINATION bin)

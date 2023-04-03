@@ -1,5 +1,5 @@
 #include "kagen/generators/static/metis.h"
-#include "kagen/generators/static/mmap_toker.h"
+#include "kagen/io/mmap_toker.h"
 
 namespace kagen::staticgraph {
 namespace {
