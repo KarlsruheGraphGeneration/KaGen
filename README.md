@@ -147,10 +147,10 @@ The examples given below only show the C++ interface.
 **Note**: Instead of calling the library functions listed below, you can also use `KaGen::GenerateFromOptionString()` 
 to pass the generator options as a string (documentation is available in `kagen/kagen.h`).
 
-The library functions return the generated graph as an instance of type `kagen::KaGenResult`. 
-By default, the graph is represented as an edge list, i.e., a vector `kagen::KaGenResult::edges[]` containing pairs of vertices.
+The library functions return the generated graph as an instance of type `kagen::Graph`. 
+By default, the graph is represented as an edge list, i.e., a vector `kagen::Graph::edges[]` containing pairs of vertices.
 To generate a graph in compressed sparse row (CSR) format, call `kagen::KaGen::UseCSRRepresentation()` before generating the graph. 
-Then, access the graph via `kagen::KaGenResult::xadj[]` and `kagen::KaGenResult::adjncy[]`.
+Then, access the graph via `kagen::Graph::xadj[]` and `kagen::Graph::adjncy[]`.
 
 ## General Graph Format
 
@@ -185,8 +185,8 @@ mpirun -n <nproc> ./KaGen <gnm_directed|gnm_undirected>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph_directed = gen.GenerateDirectedGNM(n, m, self_loops = false);
-KaGenResult graph_undirected = gen.GenerateUndirectedGNM(n, m, self_loops = false);
+Graph graph_directed = gen.GenerateDirectedGNM(n, m, self_loops = false);
+Graph graph_undirected = gen.GenerateUndirectedGNM(n, m, self_loops = false);
 ```
 
 ---
@@ -210,8 +210,8 @@ mpirun -n <nproc> ./KaGen <gnp_directed|gnp_undirected>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph_directed = gen.GenerateDirectedGNP(n, p, self_loops = false);
-KaGenResult graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = false);
+Graph graph_directed = gen.GenerateDirectedGNP(n, p, self_loops = false);
+Graph graph_undirected = gen.GenerateUndirectedGNP(n, p, self_loops = false);
 ```
 
 ---
@@ -239,13 +239,13 @@ mpirun -n <nproc> ./KaGen <rgg2d|rgg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateRGG2D(n, r, coordinates = false);
-KaGenResult graph = gen.GenerateRGG2D_NM(n, m, coordinates = false); // deduce r s.t. E[# edges] = m
-KaGenResult graph = gen.GenerateRGG2D_MR(m, r, coordinates = false); // deduce n s.t. E[# edges] = m
+Graph graph = gen.GenerateRGG2D(n, r, coordinates = false);
+Graph graph = gen.GenerateRGG2D_NM(n, m, coordinates = false); // deduce r s.t. E[# edges] = m
+Graph graph = gen.GenerateRGG2D_MR(m, r, coordinates = false); // deduce n s.t. E[# edges] = m
 
-KaGenResult graph = gen.GenerateRGG3D(n, r, coordinates = false);
-KaGenResult graph = gen.GenerateRGG3D_NM(n, m, coordinates = false); // deduce r s.t. E[# edges] = m
-KaGenResult graph = gen.GenerateRGG3D_MR(m, r, coordinates = false); // deduce n s.t. E[# edges] = m
+Graph graph = gen.GenerateRGG3D(n, r, coordinates = false);
+Graph graph = gen.GenerateRGG3D_NM(n, m, coordinates = false); // deduce r s.t. E[# edges] = m
+Graph graph = gen.GenerateRGG3D_MR(m, r, coordinates = false); // deduce n s.t. E[# edges] = m
 ```
 
 --- 
@@ -269,11 +269,11 @@ mpirun -n <nproc> ./KaGen <rdg2d|rdg3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateRDG2D(n, periodic, coordinates = false);
-KaGenResult graph = gen.GenerateRDG2D_M(m, periodic, coordinates = false);
+Graph graph = gen.GenerateRDG2D(n, periodic, coordinates = false);
+Graph graph = gen.GenerateRDG2D_M(m, periodic, coordinates = false);
 
-KaGenResult graph = gen.GenerateRDG3D(n, coordinates = false);
-KaGenResult graph = gen.GenerateRDG3D_M(m, coordinates = false);
+Graph graph = gen.GenerateRDG3D(n, coordinates = false);
+Graph graph = gen.GenerateRDG3D_M(m, coordinates = false);
 ```
 
 ---
@@ -302,13 +302,13 @@ mpirun -n <nproc> ./KaGen <grid2d|grid3d>
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateGrid2D(x, y, p, periodic, coordinates = false);
-KaGenResult graph = gen.GenerateGrid2D_N(n, p, periodic, coordinates = false); // x, y = sqrt(n)
-KaGenResult graph = gen.GenerateGrid2D_NM(n, m, periodic, coordinates = false); // x, y = sqrt(n)
+Graph graph = gen.GenerateGrid2D(x, y, p, periodic, coordinates = false);
+Graph graph = gen.GenerateGrid2D_N(n, p, periodic, coordinates = false); // x, y = sqrt(n)
+Graph graph = gen.GenerateGrid2D_NM(n, m, periodic, coordinates = false); // x, y = sqrt(n)
 
-KaGenResult graph = gen.GenerateGrid3D(x, y, z, p, periodic, coordinates = false);
-KaGenResult graph = gen.GenerateGrid3D_N(n, p, periodic, coordinates = false); // x, y, z = cbrt(n) 
-KaGenResult graph = gen.GenerateGrid3D_NM(n, m, periodic, coordinates = false); // x, y, z = cbrt(n) 
+Graph graph = gen.GenerateGrid3D(x, y, z, p, periodic, coordinates = false);
+Graph graph = gen.GenerateGrid3D_N(n, p, periodic, coordinates = false); // x, y, z = cbrt(n) 
+Graph graph = gen.GenerateGrid3D_NM(n, m, periodic, coordinates = false); // x, y, z = cbrt(n) 
 ```
 
 --- 
@@ -339,9 +339,9 @@ mpirun -n <nproc> ./KaGen rhg
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateRHG(gamma, n, d, coordinates = false);
-KaGenResult graph = gen.GenerateRHG_NM(gamma, n, m, coordinates = false); // deduce d s.t. E[# edges] = m
-KaGenResult graph = gen.GenerateRHG_MD(gamma, m, d, coordinates = false); // deduce n s.t. E[# edges] = m
+Graph graph = gen.GenerateRHG(gamma, n, d, coordinates = false);
+Graph graph = gen.GenerateRHG_NM(gamma, n, m, coordinates = false); // deduce d s.t. E[# edges] = m
+Graph graph = gen.GenerateRHG_MD(gamma, m, d, coordinates = false); // deduce n s.t. E[# edges] = m
 ```
 
 ## Non-communication-free Graph Generators 
@@ -369,9 +369,9 @@ mpirun -n <nproc> ./KaGen ba
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateBA(n, d, directed = false, self_loops = false);
-KaGenResult graph = gen.GenerateBA_NM(n, m, directed = false, self_loops = false);
-KaGenResult graph = gen.GenerateBA_MD(m, d, directed = false, self_loops = false);
+Graph graph = gen.GenerateBA(n, d, directed = false, self_loops = false);
+Graph graph = gen.GenerateBA_NM(n, m, directed = false, self_loops = false);
+Graph graph = gen.GenerateBA_MD(m, d, directed = false, self_loops = false);
 ```
 
 ---
@@ -401,7 +401,7 @@ mpirun -n <nproc> ./KaGen rmat
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops = false);
+Graph graph = gen.GenerateRMAT(n, m, a, b, c, directed = false, self_loops = false);
 ```
 
 ---
@@ -429,7 +429,7 @@ mpirun -n <nproc> ./KaGen kronecker
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateKronecker(n, m, directed = false, self_loops = false);
+Graph graph = gen.GenerateKronecker(n, m, directed = false, self_loops = false);
 ```
 
 ## Static Graph Generators
@@ -463,7 +463,7 @@ mpirun -n <nproc> ./KaGen image
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateFromOptionString("image;filename=<...>;...");
+Graph graph = gen.GenerateFromOptionString("image;filename=<...>;...");
 ```
 
 --- 
@@ -485,7 +485,7 @@ mpirun -n <nproc> ./KaGen file
 ```c++
 KaGen gen(MPI_COMM_WORLD);
 
-KaGenResult graph = gen.GenerateFromOptionString("file;filename=<...>;input_format=<...>;distribution=<...>");
+Graph graph = gen.GenerateFromOptionString("file;filename=<...>;input_format=<...>;distribution=<...>");
 ```
 
 ---
