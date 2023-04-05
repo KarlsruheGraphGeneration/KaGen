@@ -115,7 +115,7 @@ Other output formats include:
 - `-f parhip`: Binary graph format used by [ParHIP](https://github.com/KaHIP/KaHIP)
 - `-f xtrapulp`: Binary graph format used by [XtraPuLP](https://github.com/HPCGraphAnalysis/PuLP), use `--32` to write the file with 32 bit data types
 
-One graph can be stored in multiple formats by passing the `-f` repeatedly, e.g., `-o out -f metis -f coordinates` will write two files `out.graph` and `out.xyz`.
+One graph can be stored in multiple formats by passing the `-f` repeatedly, e.g., `-o out -f metis -f coordinates` will write two files `out.metis` and `out.xyz`.
 If you want each PE to write its edges to a seperate file, use the `--distributed-output` flag.
 
 ## Using the KaGen Library
