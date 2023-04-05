@@ -6,63 +6,69 @@
 #include <mpi.h>
 
 namespace kagen {
-std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
+std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
     return {
-        {"none", OutputFormat::NONE},
-        {"edge-list", OutputFormat::EDGE_LIST},
-        {"edge-list-undirected", OutputFormat::EDGE_LIST_UNDIRECTED},
-        {"binary-edge-list", OutputFormat::BINARY_EDGE_LIST},
-        {"binary-edge-list-undirected", OutputFormat::BINARY_EDGE_LIST_UNDIRECTED},
-        {"metis", OutputFormat::METIS},
-        {"hmetis", OutputFormat::HMETIS},
-        {"dot", OutputFormat::DOT},
-        {"dot-directed", OutputFormat::DOT_DIRECTED},
-        {"coordinates", OutputFormat::COORDINATES},
-        {"binary-parhip", OutputFormat::PARHIP}, // @deprecated
-        {"parhip", OutputFormat::PARHIP},
-        {"xtrapulp", OutputFormat::XTRAPULP},
+        {"edge-list", FileFormat::EDGE_LIST},
+        {"edge-list-undirected", FileFormat::EDGE_LIST_UNDIRECTED},
+        {"binary-edge-list", FileFormat::BINARY_EDGE_LIST},
+        {"binary-edge-list-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED},
+        {"metis", FileFormat::METIS},
+        {"hmetis", FileFormat::HMETIS},
+        {"dot", FileFormat::DOT},
+        {"dot-directed", FileFormat::DOT_DIRECTED},
+        {"coordinates", FileFormat::COORDINATES},
+        {"binary-parhip", FileFormat::PARHIP}, // @deprecated
+        {"parhip", FileFormat::PARHIP},
+        {"xtrapulp", FileFormat::XTRAPULP},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
-    switch (output_format) {
-        case OutputFormat::NONE:
-            return out << "none";
+std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
+    return {
+        {"metis", FileFormat::METIS},
+        {"parhip", FileFormat::PARHIP},
+    };
+}
 
-        case OutputFormat::EDGE_LIST:
+std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
+    switch (output_format) {
+        case FileFormat::EXTENSION:
+            return out << "extension";
+
+        case FileFormat::EDGE_LIST:
             return out << "edge-list";
 
-        case OutputFormat::EDGE_LIST_UNDIRECTED:
+        case FileFormat::EDGE_LIST_UNDIRECTED:
             return out << "edge-list-undirected";
 
-        case OutputFormat::BINARY_EDGE_LIST:
+        case FileFormat::BINARY_EDGE_LIST:
             return out << "binary-edge-list";
 
-        case OutputFormat::BINARY_EDGE_LIST_UNDIRECTED:
+        case FileFormat::BINARY_EDGE_LIST_UNDIRECTED:
             return out << "binary-edge-list-undirected";
 
-        case OutputFormat::METIS:
+        case FileFormat::METIS:
             return out << "metis";
 
-        case OutputFormat::HMETIS:
+        case FileFormat::HMETIS:
             return out << "hmetis";
 
-        case OutputFormat::HMETIS_DIRECTED:
+        case FileFormat::HMETIS_DIRECTED:
             return out << "hmetis-directed";
 
-        case OutputFormat::DOT:
+        case FileFormat::DOT:
             return out << "dot";
 
-        case OutputFormat::DOT_DIRECTED:
+        case FileFormat::DOT_DIRECTED:
             return out << "dot-directed";
 
-        case OutputFormat::COORDINATES:
+        case FileFormat::COORDINATES:
             return out << "coordinates";
 
-        case OutputFormat::PARHIP:
+        case FileFormat::PARHIP:
             return out << "parhip";
 
-        case OutputFormat::XTRAPULP:
+        case FileFormat::XTRAPULP:
             return out << "xtrapulp";
     }
 
@@ -228,7 +234,7 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, GraphDistribution> GetStaticGraphDistributionMap() {
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
     return {
         {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
         {"balance-edges", GraphDistribution::BALANCE_EDGES},
@@ -241,25 +247,6 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
             return out << "balance-vertices";
         case GraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
-    }
-
-    return out << "<invalid>";
-}
-
-std::unordered_map<std::string, InputFormat> GetStaticGraphFormatMap() {
-    return {
-        {"metis", InputFormat::METIS},
-        {"binary-parhip", InputFormat::PARHIP}, // @deprecated
-        {"parhip", InputFormat::PARHIP},
-    };
-}
-
-std::ostream& operator<<(std::ostream& out, const InputFormat format) {
-    switch (format) {
-        case InputFormat::METIS:
-            return out << "metis";
-        case InputFormat::PARHIP:
-            return out << "parhip";
     }
 
     return out << "<invalid>";
@@ -412,9 +399,9 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             break;
 
         case GeneratorType::FILE:
-            out << "  Input file:                         " << config.static_graph.filename << "\n";
-            out << "  File format:                        " << config.static_graph.format << "\n";
-            out << "  Distribution:                       " << config.static_graph.distribution << "\n";
+            out << "  Input file:                         " << config.input_graph.filename << "\n";
+            out << "  File format:                        " << config.input_graph.format << "\n";
+            out << "  Distribution:                       " << config.input_graph.distribution << "\n";
             break;
     }
 
@@ -429,20 +416,22 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     }
     out << "-------------------------------------------------------------------------------\n";
 
-    if (!config.output.formats.empty()) {
+    if (!config.output_graph.formats.empty()) {
         out << "IO Parameters:\n";
-        out << "  Filename:                           " << config.output.filename
-            << (config.output.extension ? ".*" : "") << "\n";
+        out << "  Filename:                           " << config.output_graph.filename
+            << (config.output_graph.extension ? ".*" : "") << "\n";
 
-        out << "  Output formats:                     " << config.output.formats.front();
-        for (std::size_t i = 1; i < config.output.formats.size(); ++i) {
-            out << ", " << config.output.formats[i];
+        out << "  Output formats:                     " << config.output_graph.formats.front();
+        for (std::size_t i = 1; i < config.output_graph.formats.size(); ++i) {
+            out << ", " << config.output_graph.formats[i];
         }
         out << "\n";
-        out << "  Output header:                      " << config.output.header << "\n";
-        out << "  Distributed output:                 " << (config.output.distributed ? "yes" : "no") << "\n";
+        out << "  Output header:                      " << config.output_graph.header << "\n";
+        out << "  Distributed output:                 " << (config.output_graph.distributed ? "yes" : "no") << "\n";
         out << "  Data type width:                    "
-            << (config.output.width == 0 ? "format dependent" : std::to_string(config.output.width) + " bits") << "\n";
+            << (config.output_graph.width == 0 ? "format dependent"
+                                               : std::to_string(config.output_graph.width) + " bits")
+            << "\n";
         out << "-------------------------------------------------------------------------------\n";
     }
 
@@ -582,23 +571,23 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         if (filename.empty()) {
             throw std::runtime_error("missing filename");
         }
-        config.static_graph.filename = filename;
+        config.input_graph.filename = filename;
 
-        const auto        distributions     = GetStaticGraphDistributionMap();
+        const auto        distributions     = GetGraphDistributionMap();
         const std::string distribution_name = get_string_or_default("distribution", "balance-vertices");
         const auto        distribution_it   = distributions.find(distribution_name);
         if (distribution_it == distributions.end()) {
             throw std::runtime_error("invalid graph distribution");
         }
-        config.static_graph.distribution = distribution_it->second;
+        config.input_graph.distribution = distribution_it->second;
 
-        const auto        formats     = GetStaticGraphFormatMap();
+        const auto        formats     = GetInputFormatMap();
         const std::string format_name = get_string_or_default("input_format", "metis");
         const auto        format_it   = formats.find(format_name);
         if (format_it == formats.end()) {
             throw std::runtime_error("invalid graph input format");
         }
-        config.static_graph.format = format_it->second;
+        config.input_graph.format = format_it->second;
     }
 
     return config;

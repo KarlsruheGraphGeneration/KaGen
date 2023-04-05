@@ -67,8 +67,8 @@ typedef long long          kagen_weight;
 
 #ifdef __cplusplus
 namespace kagen {
-enum class OutputFormat {
-    NONE,
+enum class FileFormat {
+    EXTENSION,
     EDGE_LIST,
     EDGE_LIST_UNDIRECTED,
     BINARY_EDGE_LIST,
@@ -120,11 +120,6 @@ enum class ImageMeshWeightModel : std::uint8_t {
 enum class GraphRepresentation {
     EDGE_LIST,
     CSR,
-};
-
-enum class InputFormat {
-    METIS,
-    PARHIP,
 };
 
 enum class GraphDistribution {
@@ -381,7 +376,7 @@ public:
 
     Graph GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
 
-    Graph ReadFromFile(std::string const& filename, const InputFormat format, const GraphDistribution distribution);
+    Graph ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution);
 
 private:
     void SetDefaults();

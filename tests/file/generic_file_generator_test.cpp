@@ -11,60 +11,56 @@
 
 #include "tests/util/utils.h"
 
-const char* EMPTY_GRAPH         = "tests/data/static/empty";
-const char* REAL_WORLD_GRAPH    = "tests/data/static/144";
-const char* EDGE_WEIGHTED_K3    = "tests/data/static/edge_weighted_K3";
-const char* EDGE_WEIGHTED_P2    = "tests/data/static/edge_weighted_P2";
-const char* VERTEX_WEIGHTED_K3  = "tests/data/static/vertex_weighted_K3";
-const char* VERTEX_WEIGHTED_P2  = "tests/data/static/vertex_weighted_P2";
-const char* UNWEIGHTED_K3       = "tests/data/static/unweighted_K3";
-const char* WEIGHTED_K3         = "tests/data/static/weighted_K3";
-const char* WEIGHTED_P2         = "tests/data/static/weighted_P2";
-const char* LARGE_WEIGHTS       = "tests/data/static/large_weights";
-const char* GRAPH_WITH_COMMENTS = "tests/data/static/with_comments";
+const char* EMPTY_GRAPH         = "tests/data/graphs/empty";
+const char* REAL_WORLD_GRAPH    = "tests/data/graphs/144";
+const char* EDGE_WEIGHTED_K3    = "tests/data/graphs/edge_weighted_K3";
+const char* EDGE_WEIGHTED_P2    = "tests/data/graphs/edge_weighted_P2";
+const char* VERTEX_WEIGHTED_K3  = "tests/data/graphs/vertex_weighted_K3";
+const char* VERTEX_WEIGHTED_P2  = "tests/data/graphs/vertex_weighted_P2";
+const char* UNWEIGHTED_K3       = "tests/data/graphs/unweighted_K3";
+const char* WEIGHTED_K3         = "tests/data/graphs/weighted_K3";
+const char* WEIGHTED_P2         = "tests/data/graphs/weighted_P2";
+const char* LARGE_WEIGHTS       = "tests/data/graphs/large_weights";
+const char* GRAPH_WITH_COMMENTS = "tests/data/graphs/with_comments";
 
 using namespace kagen;
 
 struct GenericGeneratorTestFixture
-    : public ::testing::TestWithParam<std::tuple<InputFormat, GraphDistribution, GraphRepresentation>> {};
+    : public ::testing::TestWithParam<std::tuple<FileFormat, GraphDistribution, GraphRepresentation>> {};
 
 INSTANTIATE_TEST_SUITE_P(
     GenericGeneratorTest, GenericGeneratorTestFixture,
     ::testing::Values(
-        std::make_tuple(
-            InputFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(InputFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
-        std::make_tuple(
-            InputFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(InputFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
-        std::make_tuple(
-            InputFormat::PARHIP, GraphDistribution::BALANCE_VERTICES,
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            InputFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
-        std::make_tuple(
-            InputFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            InputFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
 
 namespace {
 inline Graph ReadStaticGraph(
-    const std::string& filename, const GraphDistribution distribution, const InputFormat format,
+    const std::string& filename, const GraphDistribution distribution, const FileFormat format,
     const GraphRepresentation representation) {
     PGeneratorConfig config;
 
     switch (format) {
-        case InputFormat::METIS:
-            config.static_graph.filename = filename + ".metis";
+        case FileFormat::METIS:
+            config.input_graph.filename = filename + ".metis";
             break;
 
-        case InputFormat::PARHIP:
-            config.static_graph.filename = filename + ".bgf";
+        case FileFormat::PARHIP:
+            config.input_graph.filename = filename + ".parhip";
             break;
+
+        default:
+            throw std::runtime_error("unsupported");
     }
 
-    config.static_graph.distribution = distribution;
-    config.static_graph.format       = format;
+    config.input_graph.distribution = distribution;
+    config.input_graph.format       = format;
 
     PEID size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -76,7 +72,7 @@ inline Graph ReadStaticGraph(
 }
 
 inline Graph ReadStaticGraphOnRoot(
-    const std::string& filename, const GraphDistribution distribution, const InputFormat format,
+    const std::string& filename, const GraphDistribution distribution, const FileFormat format,
     const GraphRepresentation representation) {
     PEID rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -84,16 +80,19 @@ inline Graph ReadStaticGraphOnRoot(
     if (rank == 0) {
         PGeneratorConfig config;
         switch (format) {
-            case InputFormat::METIS:
-                config.static_graph.filename = filename + ".metis";
+            case FileFormat::METIS:
+                config.input_graph.filename = filename + ".metis";
                 break;
 
-            case InputFormat::PARHIP:
-                config.static_graph.filename = filename + ".bgf";
+            case FileFormat::PARHIP:
+                config.input_graph.filename = filename + ".parhip";
                 break;
+
+            default:
+                throw std::runtime_error("unsupported");
         }
-        config.static_graph.distribution = distribution;
-        config.static_graph.format       = format;
+        config.input_graph.distribution = distribution;
+        config.input_graph.format       = format;
 
         FileGraphGenerator generator(config, 0, 1);
         generator.Generate(representation);

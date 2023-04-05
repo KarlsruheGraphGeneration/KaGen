@@ -4,45 +4,20 @@
 #include <iostream>
 
 #include "kagen/context.h"
-#include "kagen/io/graph_writer.h"
+#include "kagen/io/seq_graph_writer.h"
 #include "kagen/tools/statistics.h"
 
 namespace kagen {
-GraphWriter::GraphWriter(Graph& graph, MPI_Comm comm)
-    : edges_(graph.edges),
-      vertex_range_(graph.vertex_range),
-      coordinates_(graph.coordinates),
-      vertex_weights_(graph.vertex_weights),
-      edge_weights_(graph.edge_weights),
-      comm_(comm) {
-    has_vertex_weights_ =
-        !vertex_weights_.empty() && vertex_weights_.size() == vertex_range_.second - vertex_range_.first;
-    has_edge_weights_ = !edge_weights_.empty() && edge_weights_.size() == edges_.size();
-    MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights_, 1, MPI_CXX_BOOL, MPI_LAND, comm_);
-    MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights_, 1, MPI_CXX_BOOL, MPI_LAND, comm_);
-}
+SequentialGraphWriter::SequentialGraphWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : GraphWriter(config, graph, comm) {}
 
-GraphWriter::~GraphWriter() = default;
-
-bool GraphWriter::HasVertexWeights() const {
-    return has_vertex_weights_;
-}
-
-bool GraphWriter::HasEdgeWeights() const {
-    return has_edge_weights_;
-}
-
-SequentialGraphWriter::SequentialGraphWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}
-
-void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
+void SequentialGraphWriter::Write(const bool report_progress) {
     PEID rank, size;
     MPI_Comm_rank(comm_, &rank);
     MPI_Comm_size(comm_, &size);
-    const bool output = !config.quiet && rank == ROOT;
+    const bool output = report_progress && rank == ROOT;
 
-    const std::string base_filename =
-        config.output.extension ? config.output.filename + "." + DefaultExtension() : config.output.filename;
-    const std::string filename = config.output.distributed ? base_filename + "." + std::to_string(rank) : base_filename;
+    const std::string filename = config_.distributed ? config_.filename + "." + std::to_string(rank) : config_.filename;
 
     const bool requires_sorted_edges      = Requirements() & Requirement::SORTED_EDGES;
     const bool requires_coordinates       = Requirements() & Requirement::COORDINATES;
@@ -104,7 +79,7 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
     // Everything OK, write graph
     CreateFile(filename);
 
-    if (!config.output.distributed) {
+    if (!config_.distributed) {
         const SInt n = FindNumberOfGlobalNodes(vertex_range_, comm_);
         const SInt m = FindNumberOfGlobalEdges(edges_, comm_);
 
@@ -112,7 +87,7 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
             std::cout << "Writing graph to " << filename << " ..." << std::endl;
         }
 
-        if (rank == ROOT && config.output.header != OutputHeader::NEVER) {
+        if (rank == ROOT && config_.header != OutputHeader::NEVER) {
             AppendHeaderTo(filename, n, m);
         }
 
@@ -129,22 +104,22 @@ void SequentialGraphWriter::Write(const PGeneratorConfig& config) {
             }
         }
 
-        if (rank == ROOT && config.output.header != OutputHeader::NEVER) {
+        if (rank == ROOT && config_.header != OutputHeader::NEVER) {
             AppendFooterTo(filename);
         }
     } else {
-        const SInt n                   = vertex_range_.second - vertex_range_.first;
-        const SInt m                   = edges_.size();
-        const bool write_header_footer = (rank == ROOT && config.output.header == OutputHeader::ROOT)
-                                         || config.output.header == OutputHeader::ALWAYS;
+        const SInt n = vertex_range_.second - vertex_range_.first;
+        const SInt m = edges_.size();
+        const bool write_header_footer =
+            (rank == ROOT && config_.header == OutputHeader::ROOT) || config_.header == OutputHeader::ALWAYS;
 
         if (output) {
-            std::cout << "Writing graph to [" << base_filename << ".0";
+            std::cout << "Writing graph to [" << config_.filename << ".0";
             if (size > 2) {
                 std::cout << ", ...";
             }
             if (size > 1) {
-                std::cout << ", " << base_filename << "." << size - 1;
+                std::cout << ", " << config_.filename << "." << size - 1;
             }
             std::cout << "] ..." << std::endl;
         }
@@ -168,12 +143,4 @@ int SequentialGraphWriter::Requirements() const {
 void SequentialGraphWriter::CreateFile(const std::string& filename) {
     std::ofstream ofs(filename);
 }
-
-NoopWriter::NoopWriter(Graph& graph, MPI_Comm comm) : GraphWriter(graph, comm) {}
-
-std::string NoopWriter::DefaultExtension() const {
-    return "";
-}
-
-void NoopWriter::Write(const PGeneratorConfig&) {}
 } // namespace kagen

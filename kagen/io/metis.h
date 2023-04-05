@@ -2,16 +2,14 @@
 
 #include <mpi.h>
 
-#include "kagen/io/graph_reader.h"
-#include "kagen/io/graph_writer.h"
+#include "kagen/io/graph_format.h"
 #include "kagen/io/mmap_toker.h"
+#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
 class MetisWriter : public SequentialGraphWriter {
 public:
-    MetisWriter(Graph& graph, MPI_Comm comm);
-
-    std::string DefaultExtension() const final;
+    MetisWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
 
 protected:
     void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
@@ -27,7 +25,7 @@ public:
 
     GraphSize ReadSize() final;
 
-    Graph Read(SInt from, SInt to, SInt num_edges, GraphRepresentation representation) final;
+    Graph Read(SInt from, SInt to, GraphRepresentation representation) final;
 
     SInt FindNodeByEdge(SInt edge) final;
 
@@ -37,5 +35,16 @@ private:
     SInt cached_first_node_     = 0;
     SInt cached_first_edge_     = 0;
     SInt cached_first_node_pos_ = 0;
+};
+
+class MetisFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "metis";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+
+    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 } // namespace kagen

@@ -2,23 +2,20 @@
 
 #include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
-#include "kagen/io/graph_writer.h"
+#include "kagen/io/graph_format.h"
 
 namespace kagen {
-EdgeListWriter::EdgeListWriter(Graph& graph, MPI_Comm comm, const bool header, const bool undirected)
-    : SequentialGraphWriter(graph, comm),
+EdgelistWriter::EdgelistWriter(
+    const bool header, const bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm),
       header_(header),
-      undirected_(undirected) {}
+      directed_(directed) {}
 
-std::string EdgeListWriter::DefaultExtension() const {
-    return "edgelist";
-}
-
-int EdgeListWriter::Requirements() const {
+int EdgelistWriter::Requirements() const {
     return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
 }
 
-void EdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
+void EdgelistWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     if (!header_) {
         return;
     }
@@ -27,32 +24,47 @@ void EdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, c
     out.WriteString("p ").WriteInt(n).WriteChar(' ').WriteInt(m).WriteChar('\n').Flush();
 }
 
-void EdgeListWriter::AppendTo(const std::string& filename) {
+void EdgelistWriter::AppendTo(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
     for (const auto& [from, to]: edges_) {
-        if (undirected_ && from > to) {
+        if (!directed_ && from > to) {
             continue;
         }
         out.WriteString("e ").WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
     }
 }
 
-BinaryEdgeListWriter::BinaryEdgeListWriter(
-    Graph& graph, MPI_Comm comm, const int width, const bool header, const bool undirected)
-    : SequentialGraphWriter(graph, comm),
-      width_(width),
-      header_(header),
-      undirected_(undirected) {}
-
-std::string BinaryEdgeListWriter::DefaultExtension() const {
-    return "binaryedgelist";
+std::unique_ptr<GraphReader> EdgelistFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
 }
 
-int BinaryEdgeListWriter::Requirements() const {
+std::unique_ptr<GraphWriter>
+EdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<EdgelistWriter>(true, true, config, graph, comm);
+}
+
+std::unique_ptr<GraphReader> UndirectedEdgelistFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+UndirectedEdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<EdgelistWriter>(true, false, config, graph, comm);
+}
+
+BinaryEdgelistWriter::BinaryEdgelistWriter(
+    const bool header, const bool directed, const int datatype_size, const OutputGraphConfig& config, Graph& graph,
+    MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm),
+      header_(header),
+      directed_(directed),
+      datatype_size_(datatype_size) {}
+
+int BinaryEdgelistWriter::Requirements() const {
     return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
 }
 
-void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
+void BinaryEdgelistWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     if (!header_) {
         return;
     }
@@ -63,13 +75,13 @@ void BinaryEdgeListWriter::AppendHeaderTo(const std::string& filename, const SIn
     std::fclose(fout);
 }
 
-void BinaryEdgeListWriter::AppendTo(const std::string& filename) {
+void BinaryEdgelistWriter::AppendTo(const std::string& filename) {
     auto* fout = std::fopen(filename.c_str(), "ab");
     for (const auto& [from, to]: edges_) {
-        if (undirected_ && from > to) {
+        if (!directed_ && from > to) {
             continue;
         }
-        if (width_ == 32) {
+        if (datatype_size_ == 32) {
             const std::uint32_t edges[2] = {static_cast<std::uint32_t>(from), static_cast<std::uint32_t>(to)};
             std::fwrite(edges, sizeof(std::uint32_t), 2, fout);
         } else { // Default: 64 bit
@@ -78,5 +90,32 @@ void BinaryEdgeListWriter::AppendTo(const std::string& filename) {
         }
     }
     fclose(fout);
+}
+
+std::unique_ptr<GraphReader> BinaryEdgelistFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+BinaryEdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<BinaryEdgelistWriter>(true, true, config.width, config, graph, comm);
+}
+
+std::unique_ptr<GraphReader> UndirectedBinaryEdgelistFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+UndirectedBinaryEdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<BinaryEdgelistWriter>(true, false, config.width, config, graph, comm);
+}
+
+std::unique_ptr<GraphReader> XtrapulpFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+XtrapulpFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<BinaryEdgelistWriter>(false, false, config.width, config, graph, comm);
 }
 } // namespace kagen

@@ -1,15 +1,16 @@
 #pragma once
 
+#include <string>
+
 #include <mpi.h>
 
-#include "kagen/io/graph_writer.h"
+#include "kagen/io/graph_format.h"
+#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
 class DotWriter : public SequentialGraphWriter {
 public:
-    DotWriter(Graph& graph, MPI_Comm comm, bool directed);
-
-    std::string DefaultExtension() const final;
+    DotWriter(const bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
 
 protected:
     int Requirements() const final;
@@ -22,5 +23,27 @@ protected:
 
 private:
     bool directed_;
+};
+
+class DotFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "dot";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+
+    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+};
+
+class DirectedDotFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "dot";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+
+    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 } // namespace kagen

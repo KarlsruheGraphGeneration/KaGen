@@ -1,14 +1,11 @@
 #include "kagen/io/coordinates.h"
 
 #include "kagen/io/buffered_writer.h"
-#include "kagen/io/graph_writer.h"
+#include "kagen/io/graph_format.h"
 
 namespace kagen {
-CoordinatesWriter::CoordinatesWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
-
-std::string CoordinatesWriter::DefaultExtension() const {
-    return "xyz";
-}
+CoordinatesWriter::CoordinatesWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm) {}
 
 void CoordinatesWriter::AppendHeaderTo(const std::string&, SInt, SInt) {}
 
@@ -25,5 +22,14 @@ void CoordinatesWriter::AppendTo(const std::string& filename) {
 
 int CoordinatesWriter::Requirements() const {
     return SequentialGraphWriter::Requirement::COORDINATES;
+}
+
+std::unique_ptr<GraphReader> CoordinatesFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+CoordinatesFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<CoordinatesWriter>(config, graph, comm);
 }
 } // namespace kagen

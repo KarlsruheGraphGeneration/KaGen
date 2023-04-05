@@ -17,9 +17,11 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
-std::unordered_map<std::string, OutputFormat> GetOutputFormatMap();
+std::unordered_map<std::string, FileFormat> GetOutputFormatMap();
 
-std::ostream& operator<<(std::ostream& out, OutputFormat format);
+std::unordered_map<std::string, FileFormat> GetInputFormatMap();
+
+std::ostream& operator<<(std::ostream& out, FileFormat format);
 
 enum class OutputHeader {
     ALWAYS,
@@ -45,13 +47,9 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
-std::unordered_map<std::string, GraphDistribution> GetStaticGraphDistributionMap();
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
-
-std::unordered_map<std::string, InputFormat> GetStaticGraphFormatMap();
-
-std::ostream& operator<<(std::ostream& out, InputFormat format);
 
 std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
 
@@ -73,19 +71,19 @@ struct ImageMeshConfig {
     SInt                 rows_per_pe          = 0;
 };
 
-struct StaticGraphConfig {
-    std::string             filename     = "";
-    InputFormat       format       = InputFormat::METIS;
+struct InputGraphConfig {
+    std::string       filename     = "";
+    FileFormat        format       = FileFormat::EXTENSION;
     GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
 };
 
-struct OutputConfig {
-    std::string               filename    = "out";
-    bool                      extension   = false;
-    std::vector<OutputFormat> formats     = {OutputFormat::EDGE_LIST};
-    OutputHeader              header      = OutputHeader::ROOT;
-    bool                      distributed = false;
-    int                       width       = 0;
+struct OutputGraphConfig {
+    std::string             filename    = "out";
+    bool                    extension   = false;
+    std::vector<FileFormat> formats     = {FileFormat::EDGE_LIST};
+    OutputHeader            header      = OutputHeader::ROOT;
+    bool                    distributed = false;
+    int                     width       = 0;
 };
 
 // Configuration for the generator.
@@ -129,7 +127,7 @@ struct PGeneratorConfig {
     ImageMeshConfig image_mesh{};
 
     // Settings for the static graph pseudo-generator
-    StaticGraphConfig static_graph{};
+    InputGraphConfig input_graph{};
 
     // Hashing / sampling settings
     int  seed        = 1;      // Seed for PRNG
@@ -139,7 +137,7 @@ struct PGeneratorConfig {
     SInt base_size   = 1 << 8; // Sampler base size
     SInt hyp_base    = 1 << 8;
 
-    OutputConfig output{};
+    OutputGraphConfig output_graph{};
 };
 
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);

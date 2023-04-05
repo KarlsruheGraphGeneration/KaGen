@@ -1,8 +1,6 @@
 #include "kagen/generators/file/file_graph.h"
 
-#include "kagen/io/binary_parhip.h"
-#include "kagen/io/graph_reader.h"
-#include "kagen/io/metis.h"
+#include "kagen/io.h"
 
 namespace kagen {
 std::unique_ptr<Generator> FileGraphFactory::Create(const PGeneratorConfig& config, PEID rank, PEID size) const {
@@ -10,17 +8,6 @@ std::unique_ptr<Generator> FileGraphFactory::Create(const PGeneratorConfig& conf
 }
 
 namespace {
-std::unique_ptr<GraphReader> CreateReader(const PGeneratorConfig& config) {
-    switch (config.static_graph.format) {
-        case InputFormat::METIS:
-            return std::make_unique<MetisReader>(config.static_graph.filename);
-        case InputFormat::PARHIP:
-            return std::make_unique<BinaryParhipReader>(config.static_graph.filename);
-    }
-
-    __builtin_unreachable();
-}
-
 std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
     const SInt chunk = n / size;
     const SInt rem   = n % size;
@@ -44,27 +31,26 @@ void FileGraphGenerator::GenerateCSR() {
 }
 
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
-    auto reader       = CreateReader(config_);
+    auto reader       = CreateGraphReader(config_.input_graph.format, config_.input_graph);
     const auto [n, m] = reader->ReadSize();
 
-    SInt from    = 0;
-    SInt to_node = std::numeric_limits<SInt>::max();
-    SInt to_edge = std::numeric_limits<SInt>::max();
+    SInt from = 0;
+    SInt to   = std::numeric_limits<SInt>::max();
 
-    switch (config_.static_graph.distribution) {
+    switch (config_.input_graph.distribution) {
         case GraphDistribution::BALANCE_VERTICES:
-            std::tie(from, to_node) = ComputeRange(n, size_, rank_);
+            std::tie(from, to) = ComputeRange(n, size_, rank_);
             break;
 
         case GraphDistribution::BALANCE_EDGES: {
             const auto edge_range = ComputeRange(m, size_, rank_);
             from                  = reader->FindNodeByEdge(edge_range.first);
-            to_edge               = edge_range.second;
+            to                    = reader->FindNodeByEdge(edge_range.second);
             break;
         }
     }
 
-    auto graph      = reader->Read(from, to_node, to_edge, representation);
+    auto graph      = reader->Read(from, to, representation);
     vertex_range_   = graph.vertex_range;
     xadj_           = std::move(graph.xadj);
     adjncy_         = std::move(graph.adjncy);

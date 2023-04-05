@@ -389,17 +389,17 @@ Graph KaGen::GenerateRMAT(
     return Generate(*config_, representation_, comm_);
 }
 
-Graph KaGen::ReadFromFile(std::string const& filename, const InputFormat format, const GraphDistribution distribution) {
-    config_->generator                 = GeneratorType::FILE;
-    config_->static_graph.filename     = filename;
-    config_->static_graph.format       = format;
-    config_->static_graph.distribution = distribution;
+Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution) {
+    config_->generator                = GeneratorType::FILE;
+    config_->input_graph.filename     = filename;
+    config_->input_graph.format       = format;
+    config_->input_graph.distribution = distribution;
     return Generate(*config_, representation_, comm_);
 }
 
 void KaGen::SetDefaults() {
     config_->quiet = true;
-    config_->output.formats.clear();
+    config_->output_graph.formats.clear();
     // keep all other defaults
 }
 } // namespace kagen

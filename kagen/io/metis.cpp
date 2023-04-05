@@ -1,14 +1,11 @@
 #include "kagen/io/metis.h"
 
 #include "kagen/io/buffered_writer.h"
-#include "kagen/io/graph_writer.h"
+#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-MetisWriter::MetisWriter(Graph& graph, MPI_Comm comm) : SequentialGraphWriter(graph, comm) {}
-
-std::string MetisWriter::DefaultExtension() const {
-    return "graph";
-}
+MetisWriter::MetisWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm) {}
 
 int MetisWriter::Requirements() const {
     return SequentialGraphWriter::Requirement::SORTED_EDGES;
@@ -153,23 +150,20 @@ void Parse(MappedFileToker& toker, FormatCB&& format_cb, NodeCB&& node_cb, EdgeC
 
 MetisReader::MetisReader(const std::string& filename) : toker_(filename) {}
 
-GraphSize MetisReader::ReadSize() {
+std::pair<SInt, SInt> MetisReader::ReadSize() {
     toker_.Reset();
     const auto [n, m, has_node_weights, has_edge_weights] = ParseHeader(toker_);
     return {n, m};
 }
 
-Graph MetisReader::Read(
-    const SInt from, const SInt to_node, const SInt to_edge, const GraphRepresentation representation) {
+Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresentation representation) {
     SInt current_node = 0;
-    SInt current_edge = 0;
 
     toker_.Reset();
     const auto [global_n, global_m, has_node_weights, has_edge_weights] = ParseHeader(toker_);
 
     if (cached_first_node_pos_ > 0 && cached_first_node_ == from) {
         current_node = cached_first_node_;
-        current_edge = cached_first_edge_;
         toker_.Seek(cached_first_node_pos_);
     }
 
@@ -178,7 +172,7 @@ Graph MetisReader::Read(
         ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
-                if (current_node >= to_node || current_edge >= to_edge) {
+                if (current_node >= to_node) {
                     return false;
                 }
 
@@ -190,7 +184,6 @@ Graph MetisReader::Read(
                 return true;
             },
             [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
-                ++current_edge;
                 if (current_node >= from + 1) {
                     if (has_edge_weights) {
                         graph.edge_weights.push_back(weight);
@@ -203,7 +196,7 @@ Graph MetisReader::Read(
         ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
-                if (current_node >= to_node || current_edge >= to_edge) {
+                if (current_node >= to_node) {
                     return false;
                 }
 
@@ -218,7 +211,6 @@ Graph MetisReader::Read(
                 return true;
             },
             [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
-                ++current_edge;
                 if (current_node >= from + 1) {
                     if (has_edge_weights) {
                         graph.edge_weights.push_back(weight);
@@ -258,5 +250,14 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
     cached_first_node_pos_ = toker_.Marked();
 
     return current_node;
+}
+
+std::unique_ptr<GraphReader> MetisFactory::CreateReader(const InputGraphConfig& config) const {
+    return std::make_unique<MetisReader>(config.filename);
+}
+
+std::unique_ptr<GraphWriter>
+MetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<MetisWriter>(config, graph, comm);
 }
 } // namespace kagen

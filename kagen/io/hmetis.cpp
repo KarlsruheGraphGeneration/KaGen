@@ -1,17 +1,14 @@
 #include "kagen/io/hmetis.h"
 
 #include "kagen/io/buffered_writer.h"
+#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-HMetisWriter::HMetisWriter(Graph& graph, MPI_Comm comm, const bool directed)
-    : SequentialGraphWriter(graph, comm),
+HmetisWriter::HmetisWriter(const bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm),
       directed_(directed) {}
 
-std::string HMetisWriter::DefaultExtension() const {
-    return "hgr";
-}
-
-void HMetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
+void HmetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteInt(m / 2).WriteChar(' ').WriteInt(n);
     if (HasVertexWeights() || HasEdgeWeights()) {
@@ -28,7 +25,7 @@ void HMetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, con
     out.WriteChar('\n').Flush();
 }
 
-void HMetisWriter::AppendTo(const std::string& filename) {
+void HmetisWriter::AppendTo(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
 
     for (SInt e = 0; e < edges_.size(); ++e) {
@@ -45,7 +42,7 @@ void HMetisWriter::AppendTo(const std::string& filename) {
     }
 }
 
-void HMetisWriter::AppendFooterTo(const std::string& filename) {
+void HmetisWriter::AppendFooterTo(const std::string& filename) {
     if (!HasVertexWeights()) {
         return;
     }
@@ -54,5 +51,23 @@ void HMetisWriter::AppendFooterTo(const std::string& filename) {
     for (const SSInt& weight: vertex_weights_) {
         out.WriteInt(weight).WriteChar('\n').Flush();
     }
+}
+
+std::unique_ptr<GraphReader> HmetisFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+HmetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<HmetisWriter>(false, config, graph, comm);
+}
+
+std::unique_ptr<GraphReader> DirectedHmetisFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+DirectedHmetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<HmetisWriter>(true, config, graph, comm);
 }
 } // namespace kagen

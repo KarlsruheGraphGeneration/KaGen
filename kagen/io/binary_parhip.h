@@ -5,26 +5,24 @@
 
 #include <mpi.h>
 
-#include "kagen/io/graph_reader.h"
-#include "kagen/io/graph_writer.h"
+#include "kagen/context.h"
+#include "kagen/io/graph_format.h"
 
 namespace kagen {
-class BinaryParHipWriter : public GraphWriter {
+class ParhipWriter : public GraphWriter {
 public:
-    BinaryParHipWriter(Graph& graph, MPI_Comm comm);
+    ParhipWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
 
-    std::string DefaultExtension() const final;
-
-    void Write(const PGeneratorConfig& config) final;
+    void Write(bool report_progress) final;
 };
 
-class BinaryParhipReader : public GraphReader {
+class ParhipReader : public GraphReader {
 public:
-    BinaryParhipReader(const std::string& filename);
+    ParhipReader(const std::string& filename);
 
     GraphSize ReadSize() final;
 
-    Graph Read(SInt from, SInt to_node, SInt to_edge, GraphRepresentation representation) final;
+    Graph Read(SInt from, SInt to_node, GraphRepresentation representation) final;
 
     SInt FindNodeByEdge(SInt edge) final;
 
@@ -34,5 +32,15 @@ private:
     SInt n_       = 0;
     SInt m_       = 0;
     SInt version_ = 0;
+};
+
+class ParhipFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "parhip";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 } // namespace kagen

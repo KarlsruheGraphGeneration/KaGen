@@ -1,15 +1,12 @@
 #include "kagen/io/dot.h"
 
 #include "kagen/io/buffered_writer.h"
+#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-DotWriter::DotWriter(Graph& graph, MPI_Comm comm, const bool directed)
-    : SequentialGraphWriter(graph, comm),
+DotWriter::DotWriter(const bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm),
       directed_(directed) {}
-
-std::string DotWriter::DefaultExtension() const {
-    return "dot";
-}
 
 int DotWriter::Requirements() const {
     return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
@@ -50,5 +47,23 @@ void DotWriter::AppendTo(const std::string& filename) {
 void DotWriter::AppendFooterTo(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteString("}\n").Flush();
+}
+
+std::unique_ptr<GraphReader> DotFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+DotFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<DotWriter>(false, config, graph, comm);
+}
+
+std::unique_ptr<GraphReader> DirectedDotFactory::CreateReader(const InputGraphConfig&) const {
+    return nullptr;
+}
+
+std::unique_ptr<GraphWriter>
+DirectedDotFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<DotWriter>(true, config, graph, comm);
 }
 } // namespace kagen
