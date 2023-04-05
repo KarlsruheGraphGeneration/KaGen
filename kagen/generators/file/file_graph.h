@@ -3,14 +3,14 @@
 #include "kagen/generators/generator.h"
 
 namespace kagen {
-class StaticGraphFactory : public GeneratorFactory {
+class FileGraphFactory : public GeneratorFactory {
 public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const final;
 };
 
-class StaticGraph : public Generator {
+class FileGraphGenerator : public Generator {
 public:
-    StaticGraph(const PGeneratorConfig& config, const PEID rank, const PEID size);
+    FileGraphGenerator(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
 protected:
     void GenerateEdgeList() final;

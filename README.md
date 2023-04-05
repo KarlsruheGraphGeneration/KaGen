@@ -112,7 +112,7 @@ Other output formats include:
 - `-f hmetis`: hMetis hypergraph format 
 - `-f dot`: GraphViz dot file (add `-C` to include vertex coordinates for 2D graph generators)
 - `-f coordinates`: Text file containing vertex coordinates 
-- `-f binary-parhip`: Binary graph format used by [ParHIP](https://github.com/KaHIP/KaHIP)
+- `-f parhip`: Binary graph format used by [ParHIP](https://github.com/KaHIP/KaHIP)
 - `-f xtrapulp`: Binary graph format used by [XtraPuLP](https://github.com/HPCGraphAnalysis/PuLP), use `--32` to write the file with 32 bit data types
 
 One graph can be stored in multiple formats by passing the `-f` repeatedly, e.g., `-o out -f metis -f coordinates` will write two files `out.graph` and `out.xyz`.
@@ -476,7 +476,7 @@ Can be used to convert input formats to output format, or to load static graphs 
 ```
 mpirun -n <nproc> ./KaGen file
   --filename=<path to graph>
-  --input-format=<metis|binary-parhip>
+  --input-format=<metis|parhip>
   [--distribution=<balance-vertices|balance-edges>]
 ```
 

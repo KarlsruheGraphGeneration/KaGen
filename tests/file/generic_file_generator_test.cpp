@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "kagen/context.h"
-#include "kagen/generators/static/static_graph.h"
+#include "kagen/generators/file/file_graph.h"
 
 #include "tests/util/utils.h"
 
@@ -26,39 +26,39 @@ const char* GRAPH_WITH_COMMENTS = "tests/data/static/with_comments";
 using namespace kagen;
 
 struct GenericGeneratorTestFixture
-    : public ::testing::TestWithParam<std::tuple<StaticGraphFormat, StaticGraphDistribution, GraphRepresentation>> {};
+    : public ::testing::TestWithParam<std::tuple<InputFormat, GraphDistribution, GraphRepresentation>> {};
 
 INSTANTIATE_TEST_SUITE_P(
     GenericGeneratorTest, GenericGeneratorTestFixture,
     ::testing::Values(
         std::make_tuple(
-            StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+            InputFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(InputFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(
-            StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(StaticGraphFormat::METIS, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+            InputFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(InputFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
         std::make_tuple(
-            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_VERTICES,
+            InputFormat::PARHIP, GraphDistribution::BALANCE_VERTICES,
             GraphRepresentation::EDGE_LIST),
         std::make_tuple(
-            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+            InputFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(
-            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+            InputFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
         std::make_tuple(
-            StaticGraphFormat::BINARY_PARHIP, StaticGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
+            InputFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
 
 namespace {
 inline Graph ReadStaticGraph(
-    const std::string& filename, const StaticGraphDistribution distribution, const StaticGraphFormat format,
+    const std::string& filename, const GraphDistribution distribution, const InputFormat format,
     const GraphRepresentation representation) {
     PGeneratorConfig config;
 
     switch (format) {
-        case StaticGraphFormat::METIS:
+        case InputFormat::METIS:
             config.static_graph.filename = filename + ".metis";
             break;
 
-        case StaticGraphFormat::BINARY_PARHIP:
+        case InputFormat::PARHIP:
             config.static_graph.filename = filename + ".bgf";
             break;
     }
@@ -70,13 +70,13 @@ inline Graph ReadStaticGraph(
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    StaticGraph generator(config, rank, size);
+    FileGraphGenerator generator(config, rank, size);
     generator.Generate(representation);
     return generator.Take();
 }
 
 inline Graph ReadStaticGraphOnRoot(
-    const std::string& filename, const StaticGraphDistribution distribution, const StaticGraphFormat format,
+    const std::string& filename, const GraphDistribution distribution, const InputFormat format,
     const GraphRepresentation representation) {
     PEID rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -84,18 +84,18 @@ inline Graph ReadStaticGraphOnRoot(
     if (rank == 0) {
         PGeneratorConfig config;
         switch (format) {
-            case StaticGraphFormat::METIS:
+            case InputFormat::METIS:
                 config.static_graph.filename = filename + ".metis";
                 break;
 
-            case StaticGraphFormat::BINARY_PARHIP:
+            case InputFormat::PARHIP:
                 config.static_graph.filename = filename + ".bgf";
                 break;
         }
         config.static_graph.distribution = distribution;
         config.static_graph.format       = format;
 
-        StaticGraph generator(config, 0, 1);
+        FileGraphGenerator generator(config, 0, 1);
         generator.Generate(representation);
         return generator.Take();
     } else {

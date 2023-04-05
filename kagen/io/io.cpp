@@ -58,7 +58,7 @@ CreateGraphWriter(const OutputFormat format, const int width, Graph& graph, MPI_
         case OutputFormat::COORDINATES:
             return std::make_unique<CoordinatesWriter>(graph, comm);
 
-        case OutputFormat::BINARY_PARHIP:
+        case OutputFormat::PARHIP:
             return std::make_unique<BinaryParHipWriter>(graph, comm);
     }
 

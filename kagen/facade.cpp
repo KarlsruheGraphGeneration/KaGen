@@ -13,6 +13,7 @@
 
 // Generators
 #include "kagen/generators/barabassi/barabassi.h"
+#include "kagen/generators/file/file_graph.h"
 #include "kagen/generators/geometric/rgg.h"
 #include "kagen/generators/gnm/gnm_directed.h"
 #include "kagen/generators/gnm/gnm_undirected.h"
@@ -25,7 +26,6 @@
 #include "kagen/generators/kronecker/kronecker.h"
 #include "kagen/generators/path/path_directed.h"
 #include "kagen/generators/rmat/rmat.h"
-#include "kagen/generators/static/static_graph.h"
 
 #ifdef KAGEN_CGAL_FOUND
     #include "kagen/generators/geometric/delaunay.h"
@@ -93,7 +93,7 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
             return std::make_unique<ImageMeshFactory>();
 
         case GeneratorType::FILE:
-            return std::make_unique<StaticGraphFactory>();
+            return std::make_unique<FileGraphFactory>();
     }
 
     throw std::runtime_error("invalid graph generator type");

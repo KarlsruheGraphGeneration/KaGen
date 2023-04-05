@@ -45,13 +45,13 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
-std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap();
+std::unordered_map<std::string, GraphDistribution> GetStaticGraphDistributionMap();
 
-std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution);
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 
-std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap();
+std::unordered_map<std::string, InputFormat> GetStaticGraphFormatMap();
 
-std::ostream& operator<<(std::ostream& out, StaticGraphFormat format);
+std::ostream& operator<<(std::ostream& out, InputFormat format);
 
 std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
 
@@ -75,8 +75,8 @@ struct ImageMeshConfig {
 
 struct StaticGraphConfig {
     std::string             filename     = "";
-    StaticGraphFormat       format       = StaticGraphFormat::METIS;
-    StaticGraphDistribution distribution = StaticGraphDistribution::BALANCE_VERTICES;
+    InputFormat       format       = InputFormat::METIS;
+    GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
 };
 
 struct OutputConfig {

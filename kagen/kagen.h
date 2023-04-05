@@ -79,7 +79,7 @@ enum class OutputFormat {
     DOT,
     DOT_DIRECTED,
     COORDINATES,
-    BINARY_PARHIP,
+    PARHIP,
     XTRAPULP,
 };
 
@@ -122,12 +122,12 @@ enum class GraphRepresentation {
     CSR,
 };
 
-enum class StaticGraphFormat {
+enum class InputFormat {
     METIS,
-    BINARY_PARHIP,
+    PARHIP,
 };
 
-enum class StaticGraphDistribution {
+enum class GraphDistribution {
     BALANCE_VERTICES,
     BALANCE_EDGES,
 };
@@ -390,7 +390,7 @@ public:
     GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
 
     KaGenResult ReadFromFile(
-        std::string const& filename, const StaticGraphFormat format, const StaticGraphDistribution distribution);
+        std::string const& filename, const InputFormat format, const GraphDistribution distribution);
 
 private:
     void SetDefaults();

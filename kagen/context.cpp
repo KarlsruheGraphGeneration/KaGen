@@ -18,7 +18,8 @@ std::unordered_map<std::string, OutputFormat> GetOutputFormatMap() {
         {"dot", OutputFormat::DOT},
         {"dot-directed", OutputFormat::DOT_DIRECTED},
         {"coordinates", OutputFormat::COORDINATES},
-        {"binary-parhip", OutputFormat::BINARY_PARHIP},
+        {"binary-parhip", OutputFormat::PARHIP}, // @deprecated
+        {"parhip", OutputFormat::PARHIP},
         {"xtrapulp", OutputFormat::XTRAPULP},
     };
 }
@@ -58,8 +59,8 @@ std::ostream& operator<<(std::ostream& out, OutputFormat output_format) {
         case OutputFormat::COORDINATES:
             return out << "coordinates";
 
-        case OutputFormat::BINARY_PARHIP:
-            return out << "binary-parhip";
+        case OutputFormat::PARHIP:
+            return out << "parhip";
 
         case OutputFormat::XTRAPULP:
             return out << "xtrapulp";
@@ -227,37 +228,38 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, StaticGraphDistribution> GetStaticGraphDistributionMap() {
+std::unordered_map<std::string, GraphDistribution> GetStaticGraphDistributionMap() {
     return {
-        {"balance-vertices", StaticGraphDistribution::BALANCE_VERTICES},
-        {"balance-edges", StaticGraphDistribution::BALANCE_EDGES},
+        {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
+        {"balance-edges", GraphDistribution::BALANCE_EDGES},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, StaticGraphDistribution distribution) {
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
     switch (distribution) {
-        case StaticGraphDistribution::BALANCE_VERTICES:
+        case GraphDistribution::BALANCE_VERTICES:
             return out << "balance-vertices";
-        case StaticGraphDistribution::BALANCE_EDGES:
+        case GraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
     }
 
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, StaticGraphFormat> GetStaticGraphFormatMap() {
+std::unordered_map<std::string, InputFormat> GetStaticGraphFormatMap() {
     return {
-        {"metis", StaticGraphFormat::METIS},
-        {"binary-parhip", StaticGraphFormat::BINARY_PARHIP},
+        {"metis", InputFormat::METIS},
+        {"binary-parhip", InputFormat::PARHIP}, // @deprecated
+        {"parhip", InputFormat::PARHIP},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, const StaticGraphFormat format) {
+std::ostream& operator<<(std::ostream& out, const InputFormat format) {
     switch (format) {
-        case StaticGraphFormat::METIS:
+        case InputFormat::METIS:
             return out << "metis";
-        case StaticGraphFormat::BINARY_PARHIP:
-            return out << "binary-parhip";
+        case InputFormat::PARHIP:
+            return out << "parhip";
     }
 
     return out << "<invalid>";

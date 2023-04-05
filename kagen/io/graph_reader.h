@@ -1,12 +1,12 @@
 #pragma once
 
-#include <exception>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
-#include "kagen/generators/generator.h"
+#include "kagen/definitions.h"
 
-namespace kagen::staticgraph {
+namespace kagen {
 class IOError : public std::exception {
 public:
     IOError(std::string what) : _what(std::move(what)) {}
@@ -31,4 +31,4 @@ public:
 
     virtual SInt FindNodeByEdge(SInt edge) = 0;
 };
-} // namespace kagen::staticgraph
+} // namespace kagen
