@@ -8,10 +8,14 @@
 namespace kagen {
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
     return {
-        {"edge-list", FileFormat::EDGE_LIST},
-        {"edge-list-undirected", FileFormat::EDGE_LIST_UNDIRECTED},
-        {"binary-edge-list", FileFormat::BINARY_EDGE_LIST},
-        {"binary-edge-list-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED},
+        {"edgelist", FileFormat::EDGE_LIST},
+        {"edge-list", FileFormat::EDGE_LIST}, // @deprecated
+        {"edgelist-undirected", FileFormat::EDGE_LIST_UNDIRECTED},
+        {"edge-list-undirected", FileFormat::EDGE_LIST_UNDIRECTED}, // @deprecated
+        {"binary-edgelist", FileFormat::BINARY_EDGE_LIST},
+        {"binary-edge-list", FileFormat::BINARY_EDGE_LIST}, // @deprecated
+        {"binary-edgelist-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED},
+        {"binary-edge-list-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED}, // @deprecated
         {"metis", FileFormat::METIS},
         {"hmetis", FileFormat::HMETIS},
         {"dot", FileFormat::DOT},
@@ -36,16 +40,16 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
             return out << "extension";
 
         case FileFormat::EDGE_LIST:
-            return out << "edge-list";
+            return out << "edgelist";
 
         case FileFormat::EDGE_LIST_UNDIRECTED:
-            return out << "edge-list-undirected";
+            return out << "edgelist-undirected";
 
         case FileFormat::BINARY_EDGE_LIST:
-            return out << "binary-edge-list";
+            return out << "binary-edgelist";
 
         case FileFormat::BINARY_EDGE_LIST_UNDIRECTED:
-            return out << "binary-edge-list-undirected";
+            return out << "binary-edgelist-undirected";
 
         case FileFormat::METIS:
             return out << "metis";

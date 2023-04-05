@@ -106,8 +106,8 @@ To view the options of a specific graph generator, use:
 By default, the generated graph is written to a single file `out` (`-o` option) in DIMACS edge list format (`-f` option).
 Other output formats include:
 
-- `-f edge-list`: DIMACS edge list format (default)
-- `-f binary-edge-list`: DIMACS binary edge list format, use `--32` to write the file with 32 bit data types 
+- `-f edgelist`: DIMACS edge list format (default)
+- `-f binary-edgelist`: DIMACS binary edge list format, use `--32` to write the file with 32 bit data types 
 - `-f metis`: Metis graph format
 - `-f hmetis`: hMetis hypergraph format 
 - `-f dot`: GraphViz dot file (add `-C` to include vertex coordinates for 2D graph generators)

@@ -1,4 +1,4 @@
-#include "kagen/io/binary_parhip.h"
+#include "kagen/io/parhip.h"
 
 #include <algorithm>
 #include <array>

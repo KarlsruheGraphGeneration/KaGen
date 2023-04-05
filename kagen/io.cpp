@@ -9,13 +9,13 @@
 
 #include "kagen/context.h"
 #include "kagen/definitions.h"
-#include "kagen/io/binary_parhip.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/io/coordinates.h"
 #include "kagen/io/dot.h"
 #include "kagen/io/edgelist.h"
 #include "kagen/io/hmetis.h"
 #include "kagen/io/metis.h"
+#include "kagen/io/parhip.h"
 #include "kagen/tools/statistics.h"
 
 namespace kagen {
