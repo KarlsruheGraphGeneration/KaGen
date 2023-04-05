@@ -17,7 +17,7 @@
 #include <stddef.h>
 
 #define KAGEN_VERSION_MAJOR 0
-#define KAGEN_VERSION_MINOR 1
+#define KAGEN_VERSION_MINOR 2
 #define KAGEN_VERSION_PATCH 0
 
 #ifdef __cplusplus
@@ -140,18 +140,20 @@ enum class GraphDistribution {
 
 #ifdef __cplusplus
 namespace kagen {
-struct KaGenResult {
-    inline KaGenResult() : vertex_range(0, 0) {}
-    inline KaGenResult(
-        std::tuple<VertexRange, EdgeList, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> result)
-        : vertex_range(std::move(std::get<0>(result))),
-          edges(std::move(std::get<1>(result))),
-          xadj(std::move(std::get<2>(result))),
-          adjncy(std::move(std::get<3>(result))),
-          vertex_weights(std::move(std::get<4>(result))),
-          edge_weights(std::move(std::get<5>(result))),
-          coordinates_2d(std::move(std::get<6>(result).first)),
-          coordinates_3d(std::move(std::get<6>(result).second)) {}
+struct Graph {
+    VertexRange         vertex_range;
+    GraphRepresentation representation;
+
+    // Edge list representation only
+    EdgeList edges;
+
+    // CSR representation only
+    XadjArray   xadj;
+    AdjncyArray adjncy;
+
+    VertexWeights vertex_weights;
+    EdgeWeights   edge_weights;
+    Coordinates   coordinates;
 
     template <typename T = SInt>
     std::vector<std::pair<T, T>> TakeEdges() {
@@ -178,20 +180,11 @@ struct KaGenResult {
         return TakeVector<T>(edge_weights);
     }
 
-    VertexRange vertex_range;
-
-    // Edge list representation
-    EdgeList edges;
-
-    // CSR representation
-    XadjArray   xadj;
-    AdjncyArray adjncy;
-
-    VertexWeights vertex_weights;
-    EdgeWeights   edge_weights;
-
-    Coordinates2D coordinates_2d;
-    Coordinates3D coordinates_3d;
+    std::tuple<VertexRange, EdgeList, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> tuple() && {
+        return std::make_tuple(
+            vertex_range, std::move(edges), std::move(xadj), std::move(adjncy), std::move(vertex_weights),
+            std::move(edge_weights), std::move(coordinates));
+    }
 
 private:
     template <typename To, typename From, std::enable_if_t<std::is_same_v<typename From::value_type, To>, bool> = true>
@@ -327,70 +320,68 @@ public:
      * @type options Options string with key=value pairs.
      * @return The generated graph.
      */
-    KaGenResult GenerateFromOptionString(const std::string& options);
+    Graph GenerateFromOptionString(const std::string& options);
 
-    KaGenResult GenerateDirectedGNM(SInt n, SInt m, bool self_loops = false);
+    Graph GenerateDirectedGNM(SInt n, SInt m, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);
+    Graph GenerateUndirectedGNM(SInt n, SInt m, bool self_loops = false);
 
-    KaGenResult GenerateDirectedGNP(SInt n, LPFloat p, bool self_loops = false);
+    Graph GenerateDirectedGNP(SInt n, LPFloat p, bool self_loops = false);
 
-    KaGenResult GenerateUndirectedGNP(SInt n, LPFloat p, bool self_loops = false);
+    Graph GenerateUndirectedGNP(SInt n, LPFloat p, bool self_loops = false);
 
-    KaGenResult GenerateRGG2D(SInt n, LPFloat r, bool coordinates = false);
+    Graph GenerateRGG2D(SInt n, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRGG2D_NM(SInt n, SInt m, bool coordinates = false);
+    Graph GenerateRGG2D_NM(SInt n, SInt m, bool coordinates = false);
 
-    KaGenResult GenerateRGG2D_MR(SInt m, LPFloat r, bool coordinates = false);
+    Graph GenerateRGG2D_MR(SInt m, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRGG3D(SInt n, LPFloat r, bool coordinates = false);
+    Graph GenerateRGG3D(SInt n, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRGG3D_NM(SInt n, SInt m, bool coordinates = false);
+    Graph GenerateRGG3D_NM(SInt n, SInt m, bool coordinates = false);
 
-    KaGenResult GenerateRGG3D_MR(SInt m, LPFloat r, bool coordinates = false);
+    Graph GenerateRGG3D_MR(SInt m, LPFloat r, bool coordinates = false);
 
-    KaGenResult GenerateRDG2D(SInt n, bool periodic, bool coordinates = false);
+    Graph GenerateRDG2D(SInt n, bool periodic, bool coordinates = false);
 
-    KaGenResult GenerateRDG2D_M(SInt m, bool periodic, bool coordinates = false);
+    Graph GenerateRDG2D_M(SInt m, bool periodic, bool coordinates = false);
 
-    KaGenResult GenerateRDG3D(SInt n, bool coordinates = false);
+    Graph GenerateRDG3D(SInt n, bool coordinates = false);
 
-    KaGenResult GenerateRDG3D_M(SInt m, bool coordinates = false);
+    Graph GenerateRDG3D_M(SInt m, bool coordinates = false);
 
-    KaGenResult GenerateBA(SInt n, SInt d, bool directed = false, bool self_loops = false);
+    Graph GenerateBA(SInt n, SInt d, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateBA_NM(SInt n, SInt m, bool directed = false, bool self_loops = false);
+    Graph GenerateBA_NM(SInt n, SInt m, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateBA_MD(SInt m, SInt d, bool directed = false, bool self_loops = false);
+    Graph GenerateBA_MD(SInt m, SInt d, bool directed = false, bool self_loops = false);
 
-    KaGenResult GenerateRHG(LPFloat gamma, SInt n, LPFloat d, bool coordinates = false);
+    Graph GenerateRHG(LPFloat gamma, SInt n, LPFloat d, bool coordinates = false);
 
-    KaGenResult GenerateRHG_NM(LPFloat gamma, SInt n, SInt m, bool coordinates = false);
+    Graph GenerateRHG_NM(LPFloat gamma, SInt n, SInt m, bool coordinates = false);
 
-    KaGenResult GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d, bool coordinates = false);
+    Graph GenerateRHG_MD(LPFloat gamma, SInt m, LPFloat d, bool coordinates = false);
 
-    KaGenResult GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false, bool coordinates = false);
+    Graph GenerateGrid2D(SInt grid_x, SInt grid_y, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false, bool coordinates = false);
+    Graph GenerateGrid2D_N(SInt n, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid2D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
+    Graph GenerateGrid2D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
 
-    KaGenResult
+    Graph
     GenerateGrid3D(SInt grid_x, SInt grid_y, SInt grid_z, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid3D_N(SInt n, LPFloat p, bool periodic = false, bool coordinates = false);
+    Graph GenerateGrid3D_N(SInt n, LPFloat p, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateGrid3D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
+    Graph GenerateGrid3D_NM(SInt n, SInt m, bool periodic = false, bool coordinates = false);
 
-    KaGenResult GenerateDirectedPath(unsigned long long n, bool permute = false, bool periodic = false);
+    Graph GenerateDirectedPath(unsigned long long n, bool permute = false, bool periodic = false);
 
-    KaGenResult GenerateKronecker(SInt n, SInt m, bool directed = false, bool self_loops = false);
+    Graph GenerateKronecker(SInt n, SInt m, bool directed = false, bool self_loops = false);
 
-    KaGenResult
-    GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
+    Graph GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
 
-    KaGenResult ReadFromFile(
-        std::string const& filename, const InputFormat format, const GraphDistribution distribution);
+    Graph ReadFromFile(std::string const& filename, const InputFormat format, const GraphDistribution distribution);
 
 private:
     void SetDefaults();
@@ -409,11 +400,10 @@ private:
  *
  * @tparam IDX Data type to be used for the entries in A. Must be large enough to represent the global number of nodes
  * in the graph.
- * @tparam Graph Return type of the Generate* function that generated the graph.
  *
  * @return Vertex distribution as described above.
  */
-template <typename IDX, typename Graph>
+template <typename IDX>
 std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
@@ -432,8 +422,8 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
 // C interface
 //
 
-typedef struct kagen_obj    kagen_obj;
-typedef struct kagen_result kagen_result;
+typedef struct kagen_obj   kagen_obj;
+typedef struct kagen_graph kagen_graph;
 
 typedef struct {
     kagen_index source;
@@ -447,13 +437,13 @@ extern "C" {
 kagen_obj* kagen_create(MPI_Comm comm);
 void       kagen_free(kagen_obj* gen);
 
-void          kagen_result_vertex_range(kagen_result* result, kagen_index* begin, kagen_index* end);
-kagen_edge*   kagen_result_edge_list(kagen_result* result, size_t* nedges);
-kagen_index*  kagen_result_csr_xadj(kagen_result* result, size_t* nvertices);
-kagen_index*  kagen_result_csr_adjncy(kagen_result* result, size_t* nedges);
-kagen_weight* kagen_result_vertex_weights(kagen_result* result, size_t* size);
-kagen_weight* kagen_result_edge_weights(kagen_result* result, size_t* size);
-void          kagen_result_free(kagen_result* result);
+void          kagen_graph_vertex_range(kagen_graph* result, kagen_index* begin, kagen_index* end);
+kagen_edge*   kagen_graph_edge_list(kagen_graph* result, size_t* nedges);
+kagen_index*  kagen_graph_csr_xadj(kagen_graph* result, size_t* nvertices);
+kagen_index*  kagen_graph_csr_adjncy(kagen_graph* result, size_t* nedges);
+kagen_weight* kagen_graph_vertex_weights(kagen_graph* result, size_t* size);
+kagen_weight* kagen_graph_edge_weights(kagen_graph* result, size_t* size);
+void          kagen_graph_free(kagen_graph* result);
 
 void kagen_set_seed(kagen_obj* gen, int seed);
 void kagen_enable_undirected_graph_verification(kagen_obj* gen);
@@ -465,56 +455,55 @@ void kagen_set_numer_of_chunks(kagen_obj* gen, unsigned long long k);
 void kagen_use_edge_list_representation(kagen_obj* gen);
 void kagen_use_csr_representation(kagen_obj* gen);
 
-kagen_result* kagen_generate_from_option_string(kagen_obj* gen, const char* options);
+kagen_graph* kagen_generate_from_option_string(kagen_obj* gen, const char* options);
 
-kagen_result* kagen_generate_directed_gnm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool self_loops);
-kagen_result*
-kagen_generate_undirected_gnm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool self_loops);
-kagen_result* kagen_generate_directed_gnp(kagen_obj* gen, unsigned long long n, double p, bool self_loops);
-kagen_result* kagen_generate_undirected_gnp(kagen_obj* gen, unsigned long long n, double p, bool self_loops);
+kagen_graph* kagen_generate_directed_gnm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool self_loops);
+kagen_graph* kagen_generate_undirected_gnm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool self_loops);
+kagen_graph* kagen_generate_directed_gnp(kagen_obj* gen, unsigned long long n, double p, bool self_loops);
+kagen_graph* kagen_generate_undirected_gnp(kagen_obj* gen, unsigned long long n, double p, bool self_loops);
 
-kagen_result* kagen_generate_rgg2d(kagen_obj* gen, unsigned long long n, double r);
-kagen_result* kagen_generate_rgg2d_nm(kagen_obj* gen, unsigned long long n, unsigned long long m);
-kagen_result* kagen_generate_rgg2d_mr(kagen_obj* gen, unsigned long long m, double r);
+kagen_graph* kagen_generate_rgg2d(kagen_obj* gen, unsigned long long n, double r);
+kagen_graph* kagen_generate_rgg2d_nm(kagen_obj* gen, unsigned long long n, unsigned long long m);
+kagen_graph* kagen_generate_rgg2d_mr(kagen_obj* gen, unsigned long long m, double r);
 
-kagen_result* kagen_generate_rgg3d(kagen_obj* gen, unsigned long long n, double r);
-kagen_result* kagen_generate_rgg3d_nm(kagen_obj* gen, unsigned long long n, unsigned long long m);
-kagen_result* kagen_generate_rgg3d_mr(kagen_obj* gen, unsigned long long m, double r);
+kagen_graph* kagen_generate_rgg3d(kagen_obj* gen, unsigned long long n, double r);
+kagen_graph* kagen_generate_rgg3d_nm(kagen_obj* gen, unsigned long long n, unsigned long long m);
+kagen_graph* kagen_generate_rgg3d_mr(kagen_obj* gen, unsigned long long m, double r);
 
-kagen_result* kagen_generate_rdg2d(kagen_obj* gen, unsigned long long n, bool periodic);
-kagen_result* kagen_generate_rdg2d_m(kagen_obj* gen, unsigned long long m, bool periodic);
-kagen_result* kagen_generate_rdg3d(kagen_obj* gen, unsigned long long n);
-kagen_result* kagen_generate_rdg3d_m(kagen_obj* gen, unsigned long long m);
+kagen_graph* kagen_generate_rdg2d(kagen_obj* gen, unsigned long long n, bool periodic);
+kagen_graph* kagen_generate_rdg2d_m(kagen_obj* gen, unsigned long long m, bool periodic);
+kagen_graph* kagen_generate_rdg3d(kagen_obj* gen, unsigned long long n);
+kagen_graph* kagen_generate_rdg3d_m(kagen_obj* gen, unsigned long long m);
 
-kagen_result*
+kagen_graph*
 kagen_generate_ba(kagen_obj* gen, unsigned long long n, unsigned long long d, bool directed, bool self_loops);
-kagen_result*
+kagen_graph*
 kagen_generate_ba_nm(kagen_obj* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops);
-kagen_result*
+kagen_graph*
 kagen_generate_ba_md(kagen_obj* gen, unsigned long long m, unsigned long long d, bool directed, bool self_loops);
 
-kagen_result* kagen_generate_rhg(kagen_obj* gen, double gamma, unsigned long long n, double d);
-kagen_result* kagen_generate_rhg_nm(kagen_obj* gen, double gamma, unsigned long long n, unsigned long long m);
-kagen_result* kagen_generate_rhg_md(kagen_obj* gen, double gamma, unsigned long long m, double d);
+kagen_graph* kagen_generate_rhg(kagen_obj* gen, double gamma, unsigned long long n, double d);
+kagen_graph* kagen_generate_rhg_nm(kagen_obj* gen, double gamma, unsigned long long n, unsigned long long m);
+kagen_graph* kagen_generate_rhg_md(kagen_obj* gen, double gamma, unsigned long long m, double d);
 
-kagen_result*
+kagen_graph*
 kagen_generate_grid2d(kagen_obj* gen, unsigned long long grid_x, unsigned long long grid_y, double p, bool periodic);
-kagen_result* kagen_generate_grid2d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
-kagen_result* kagen_generate_grid3d(
+kagen_graph* kagen_generate_grid2d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
+kagen_graph* kagen_generate_grid3d(
     kagen_obj* gen, unsigned long long grid_x, unsigned long long grid_y, unsigned long long grid_z, double p,
     bool periodic);
-kagen_result* kagen_generate_grid3d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
+kagen_graph* kagen_generate_grid3d_n(kagen_obj* gen, unsigned long long n, double p, bool periodic);
 
-kagen_result* kagen_generate_directed_path(kagen_obj* gen, unsigned long long n, bool permuted, bool periodic);
+kagen_graph* kagen_generate_directed_path(kagen_obj* gen, unsigned long long n, bool permuted, bool periodic);
 
-kagen_result*
+kagen_graph*
 kagen_generate_kronecker(kagen_obj* gen, unsigned long long n, unsigned long long m, bool directed, bool self_loops);
 
-kagen_result* kagen_generate_rmat(
+kagen_graph* kagen_generate_rmat(
     kagen_obj* gen, unsigned long long n, unsigned long long m, double a, double b, double c, bool directed,
     bool self_loops);
 
-void kagen_build_vertex_distribution(kagen_result* result, kagen_index* dist, MPI_Comm comm);
+void kagen_build_vertex_distribution(kagen_graph* result, kagen_index* dist, MPI_Comm comm);
 
 #ifdef __cplusplus
 }

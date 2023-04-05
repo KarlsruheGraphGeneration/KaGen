@@ -15,9 +15,9 @@ int main(int argc, char* argv[]) {
     kagen_obj* gen = kagen_create(MPI_COMM_WORLD);
     kagen_use_csr_representation(gen);
 
-    kagen_result*      graph = kagen_generate_rgg2d(gen, 16, 0.125);
+    kagen_graph*       graph = kagen_generate_rgg2d(gen, 16, 0.125);
     unsigned long long from, to;
-    kagen_result_vertex_range(graph, &from, &to);
+    kagen_graph_vertex_range(graph, &from, &to);
     printf("Vertices on PE %d: [%lld, %lld)\n", rank, from, to);
 
     // Get vertex distribution
@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
     size_t local_num_nodes;
     size_t local_num_edges;
 
-    kagen_index* xadj   = kagen_result_csr_xadj(graph, &local_num_nodes);
-    kagen_index* adjncy = kagen_result_csr_adjncy(graph, &local_num_edges);
+    kagen_index* xadj   = kagen_graph_csr_xadj(graph, &local_num_nodes);
+    kagen_index* adjncy = kagen_graph_csr_adjncy(graph, &local_num_edges);
 
     printf("[PE%d] Xadj: ", rank);
     for (size_t i = 0; i < local_num_nodes + 1; i++) {
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
 
-    kagen_result_free(graph);
+    kagen_graph_free(graph);
     kagen_free(gen);
     return MPI_Finalize();
 }

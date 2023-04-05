@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
     kagen::KaGen generator(MPI_COMM_WORLD);
 
     // Generate a RGG2D graph with 16 nodes and 32 edges
-    const kagen::KaGenResult  graph = generator.GenerateFromOptionString("rgg2d;n=16;m=32");
+    const kagen::Graph        graph = generator.GenerateFromOptionString("rgg2d;n=16;m=32");
     const kagen::EdgeList&    edges = graph.edges;
     const kagen::VertexRange& range = graph.vertex_range;
 
