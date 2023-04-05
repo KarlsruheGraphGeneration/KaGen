@@ -30,7 +30,7 @@ public:
 
     virtual GraphSize ReadSize() = 0;
 
-    virtual Graph Read(SInt from, SInt to, GraphRepresentation representation) = 0;
+    virtual Graph Read(SInt from_vertex, SInt to_vertex, SInt to_edge, GraphRepresentation representation) = 0;
 
     virtual SInt FindNodeByEdge(SInt edge) = 0;
 };
@@ -60,6 +60,8 @@ protected:
 
 class FileFormatFactory {
 public:
+    virtual ~FileFormatFactory() = default;
+
     virtual std::string DefaultExtension() const = 0;
 
     virtual std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const = 0;

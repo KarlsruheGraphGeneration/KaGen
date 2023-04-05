@@ -25,14 +25,14 @@ public:
 
     GraphSize ReadSize() final;
 
-    Graph Read(SInt from, SInt to, GraphRepresentation representation) final;
+    Graph Read(SInt from_vertex, SInt to_vertex, SInt to_edge, GraphRepresentation representation) final;
 
     SInt FindNodeByEdge(SInt edge) final;
 
 private:
     MappedFileToker toker_;
 
-    SInt cached_first_node_     = 0;
+    SInt cached_first_vertex_   = 0;
     SInt cached_first_edge_     = 0;
     SInt cached_first_node_pos_ = 0;
 };

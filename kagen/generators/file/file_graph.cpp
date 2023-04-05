@@ -34,23 +34,24 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
     auto reader       = CreateGraphReader(config_.input_graph.format, config_.input_graph);
     const auto [n, m] = reader->ReadSize();
 
-    SInt from = 0;
-    SInt to   = std::numeric_limits<SInt>::max();
+    SInt from    = 0;
+    SInt to_node = std::numeric_limits<SInt>::max();
+    SInt to_edge = std::numeric_limits<SInt>::max();
 
     switch (config_.input_graph.distribution) {
         case GraphDistribution::BALANCE_VERTICES:
-            std::tie(from, to) = ComputeRange(n, size_, rank_);
+            std::tie(from, to_node) = ComputeRange(n, size_, rank_);
             break;
 
         case GraphDistribution::BALANCE_EDGES: {
             const auto edge_range = ComputeRange(m, size_, rank_);
             from                  = reader->FindNodeByEdge(edge_range.first);
-            to                    = reader->FindNodeByEdge(edge_range.second);
+            to_edge               = edge_range.second;
             break;
         }
     }
 
-    auto graph      = reader->Read(from, to, representation);
+    auto graph      = reader->Read(from, to_node, to_edge, representation);
     vertex_range_   = graph.vertex_range;
     xadj_           = std::move(graph.xadj);
     adjncy_         = std::move(graph.adjncy);

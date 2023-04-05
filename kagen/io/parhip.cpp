@@ -163,10 +163,15 @@ std::pair<SInt, SInt> ParhipReader::ReadSize() {
     return {n_, m_};
 }
 
-Graph ParhipReader::Read(const SInt from, SInt to_node, const GraphRepresentation representation) {
+Graph ParhipReader::Read(
+    const SInt from_vertex, SInt to_vertex, SInt to_edge, const GraphRepresentation representation) {
+    if (to_vertex > n_) {
+        to_vertex = FindNodeByEdge(to_edge);
+    }
+
     // Read xadj array of the CSR representation
-    const SInt num_local_nodes = to_node - from;
-    in_.seekg((3 + from) * sizeof(ParhipID));
+    const SInt num_local_nodes = to_vertex - from_vertex;
+    in_.seekg((3 + from_vertex) * sizeof(ParhipID));
     auto xadj = ReadVector<ParhipID>(in_, num_local_nodes + 1);
 
     const SInt first_edge_offset = xadj.front();
@@ -180,7 +185,7 @@ Graph ParhipReader::Read(const SInt from, SInt to_node, const GraphRepresentatio
     auto adjncy = ReadVector<ParhipID>(in_, num_local_edges);
 
     Graph ans;
-    ans.vertex_range   = {from, from + num_local_nodes};
+    ans.vertex_range   = {from_vertex, from_vertex + num_local_nodes};
     ans.representation = representation;
 
     // Build edge list array from xadj and adjncy
@@ -191,7 +196,7 @@ Graph ParhipReader::Read(const SInt from, SInt to_node, const GraphRepresentatio
             const SInt first_invalid_edge = xadj[u + 1];
             for (SInt e = first_edge; e < first_invalid_edge; ++e) {
                 const SInt v = adjncy[e];
-                ans.edges.emplace_back(from + u, v);
+                ans.edges.emplace_back(from_vertex + u, v);
             }
         }
     } else {
@@ -203,7 +208,7 @@ Graph ParhipReader::Read(const SInt from, SInt to_node, const GraphRepresentatio
     if (HasVertexWeights(version_)) {
         ans.vertex_weights.resize(num_local_nodes);
 
-        const SInt offset = (3 + n_ + m_ + 1 + from) * sizeof(ParhipID);
+        const SInt offset = (3 + n_ + m_ + 1 + from_vertex) * sizeof(ParhipID);
         in_.seekg(offset);
         in_.read(reinterpret_cast<char*>(ans.vertex_weights.data()), num_local_nodes * sizeof(ParhipWeight));
     }

@@ -156,14 +156,17 @@ std::pair<SInt, SInt> MetisReader::ReadSize() {
     return {n, m};
 }
 
-Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresentation representation) {
+Graph MetisReader::Read(
+    const SInt from_vertex, const SInt to_vertex, const SInt to_edge, const GraphRepresentation representation) {
     SInt current_node = 0;
+    SInt current_edge = 0;
 
     toker_.Reset();
     const auto [global_n, global_m, has_node_weights, has_edge_weights] = ParseHeader(toker_);
 
-    if (cached_first_node_pos_ > 0 && cached_first_node_ == from) {
-        current_node = cached_first_node_;
+    if (cached_first_node_pos_ > 0 && cached_first_vertex_ == from_vertex) {
+        current_node = cached_first_vertex_;
+        current_edge = cached_first_edge_;
         toker_.Seek(cached_first_node_pos_);
     }
 
@@ -172,11 +175,11 @@ Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresen
         ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
-                if (current_node >= to_node) {
+                if (current_node >= to_vertex || current_edge >= to_edge) {
                     return false;
                 }
 
-                if (has_node_weights && current_node >= from) {
+                if (has_node_weights && current_node >= from_vertex) {
                     graph.vertex_weights.push_back(weight);
                 }
 
@@ -184,7 +187,8 @@ Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresen
                 return true;
             },
             [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
-                if (current_node >= from + 1) {
+                ++current_edge;
+                if (current_node >= from_vertex + 1) {
                     if (has_edge_weights) {
                         graph.edge_weights.push_back(weight);
                     }
@@ -196,11 +200,11 @@ Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresen
         ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
-                if (current_node >= to_node) {
+                if (current_node >= to_vertex || current_edge >= to_edge) {
                     return false;
                 }
 
-                if (current_node >= from) {
+                if (current_node >= from_vertex) {
                     graph.xadj.push_back(graph.adjncy.size());
                     if (has_node_weights) {
                         graph.vertex_weights.push_back(weight);
@@ -211,7 +215,8 @@ Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresen
                 return true;
             },
             [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
-                if (current_node >= from + 1) {
+                ++current_edge;
+                if (current_node >= from_vertex + 1) {
                     if (has_edge_weights) {
                         graph.edge_weights.push_back(weight);
                     }
@@ -224,7 +229,7 @@ Graph MetisReader::Read(const SInt from, const SInt to_node, const GraphRepresen
         __builtin_unreachable();
     }
 
-    graph.vertex_range   = {from, current_node};
+    graph.vertex_range   = {from_vertex, current_node};
     graph.representation = representation;
     return graph;
 }
@@ -245,7 +250,7 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
         },
         [&](SInt, SInt) { ++current_edge; });
 
-    cached_first_node_     = current_node;
+    cached_first_vertex_   = current_node;
     cached_first_edge_     = current_edge;
     cached_first_node_pos_ = toker_.Marked();
 
