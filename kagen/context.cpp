@@ -8,27 +8,31 @@
 namespace kagen {
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
     return {
+        {"noop", FileFormat::NOOP},
         {"edgelist", FileFormat::EDGE_LIST},
-        {"edge-list", FileFormat::EDGE_LIST}, // @deprecated
         {"edgelist-undirected", FileFormat::EDGE_LIST_UNDIRECTED},
-        {"edge-list-undirected", FileFormat::EDGE_LIST_UNDIRECTED}, // @deprecated
         {"binary-edgelist", FileFormat::BINARY_EDGE_LIST},
-        {"binary-edge-list", FileFormat::BINARY_EDGE_LIST}, // @deprecated
         {"binary-edgelist-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED},
-        {"binary-edge-list-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED}, // @deprecated
         {"metis", FileFormat::METIS},
         {"hmetis", FileFormat::HMETIS},
         {"dot", FileFormat::DOT},
         {"dot-directed", FileFormat::DOT_DIRECTED},
         {"coordinates", FileFormat::COORDINATES},
-        {"binary-parhip", FileFormat::PARHIP}, // @deprecated
         {"parhip", FileFormat::PARHIP},
         {"xtrapulp", FileFormat::XTRAPULP},
+
+        {"none", FileFormat::NOOP},                                               // @deprecated
+        {"edge-list", FileFormat::EDGE_LIST},                                     // @deprecated
+        {"binary-parhip", FileFormat::PARHIP},                                    // @deprecated
+        {"edge-list-undirected", FileFormat::EDGE_LIST_UNDIRECTED},               // @deprecated
+        {"binary-edge-list", FileFormat::BINARY_EDGE_LIST},                       // @deprecated
+        {"binary-edge-list-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED}, // @deprecated
     };
 }
 
 std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
     return {
+        {"extension", FileFormat::EXTENSION},
         {"metis", FileFormat::METIS},
         {"parhip", FileFormat::PARHIP},
     };
@@ -36,6 +40,9 @@ std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
 
 std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
     switch (output_format) {
+        case FileFormat::NOOP:
+            return out << "noop";
+
         case FileFormat::EXTENSION:
             return out << "extension";
 
@@ -384,7 +391,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         case GeneratorType::IMAGE_MESH:
             out << "  Input image:                        " << config.image_mesh.filename << "\n";
             out << "  Weight model:                       " << config.image_mesh.weight_model << " (x "
-                << config.image_mesh.weight_multiplier << ")\n";
+                << config.image_mesh.weight_multiplier << ", + " << config.image_mesh.weight_offset << ")\n";
             out << "  Weight threshold:                   " << config.image_mesh.weight_min_threshold
                 << " <= <weight> <= " << config.image_mesh.weight_max_threshold << "\n";
             out << "  Grid size:                          "
@@ -550,22 +557,25 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         }
         config.image_mesh.filename = filename;
 
-        config.image_mesh.weight_multiplier    = get_hpfloat_or_default("weight_multiplier", 1.0);
-        config.image_mesh.weight_offset        = get_hpfloat_or_default("weight_offset", 0.0);
-        config.image_mesh.weight_min_threshold = get_hpfloat_or_default("min_weight_threshold", 1.0);
+        config.image_mesh.weight_multiplier =
+            get_hpfloat_or_default("weight_multiplier", config.image_mesh.weight_multiplier);
+        config.image_mesh.weight_offset = get_hpfloat_or_default("weight_offset", config.image_mesh.weight_offset);
+        config.image_mesh.weight_min_threshold =
+            get_hpfloat_or_default("min_weight_threshold", config.image_mesh.weight_min_threshold);
         config.image_mesh.weight_max_threshold =
-            get_hpfloat_or_default("max_weight_threshold", std::numeric_limits<double>::max());
-        config.image_mesh.neighborhood = get_sint_or_default("neighborhood", 4);
-        config.image_mesh.max_grid_x   = get_sint_or_default("max_grid_x");
-        config.image_mesh.max_grid_y   = get_sint_or_default("max_grid_y");
-        config.image_mesh.grid_x       = get_sint_or_default("grid_x");
-        config.image_mesh.grid_y       = get_sint_or_default("grid_y");
-        config.image_mesh.cols_per_pe  = get_sint_or_default("cols_per_pe");
-        config.image_mesh.rows_per_pe  = get_sint_or_default("rows_per_pe");
+            get_hpfloat_or_default("max_weight_threshold", config.image_mesh.weight_max_threshold);
+        config.image_mesh.neighborhood = get_sint_or_default("neighborhood", config.image_mesh.neighborhood);
+        config.image_mesh.max_grid_x   = get_sint_or_default("max_grid_x", config.image_mesh.max_grid_x);
+        config.image_mesh.max_grid_y   = get_sint_or_default("max_grid_y", config.image_mesh.max_grid_y);
+        config.image_mesh.grid_x       = get_sint_or_default("grid_x", config.image_mesh.grid_x);
+        config.image_mesh.grid_y       = get_sint_or_default("grid_y", config.image_mesh.grid_y);
+        config.image_mesh.cols_per_pe  = get_sint_or_default("cols_per_pe", config.image_mesh.cols_per_pe);
+        config.image_mesh.rows_per_pe  = get_sint_or_default("rows_per_pe", config.image_mesh.rows_per_pe);
 
-        const auto        weight_models     = GetImageMeshWeightModelMap();
-        const std::string weight_model_name = get_string_or_default("weight_model", "l2");
-        const auto        weight_model_it   = weight_models.find(weight_model_name);
+        const auto        weight_models = GetImageMeshWeightModelMap();
+        const std::string weight_model_name =
+            get_string_or_default("weight_model", StringifyEnum(config.image_mesh.weight_model));
+        const auto weight_model_it = weight_models.find(weight_model_name);
         if (weight_model_it == weight_models.end()) {
             throw std::runtime_error("invalid weight model name");
         }
@@ -577,16 +587,17 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         }
         config.input_graph.filename = filename;
 
-        const auto        distributions     = GetGraphDistributionMap();
-        const std::string distribution_name = get_string_or_default("distribution", "balance-vertices");
-        const auto        distribution_it   = distributions.find(distribution_name);
+        const auto        distributions = GetGraphDistributionMap();
+        const std::string distribution_name =
+            get_string_or_default("distribution", StringifyEnum(config.input_graph.distribution));
+        const auto distribution_it = distributions.find(distribution_name);
         if (distribution_it == distributions.end()) {
             throw std::runtime_error("invalid graph distribution");
         }
         config.input_graph.distribution = distribution_it->second;
 
         const auto        formats     = GetInputFormatMap();
-        const std::string format_name = get_string_or_default("input_format", "metis");
+        const std::string format_name = get_string_or_default("input_format", StringifyEnum(config.input_graph.format));
         const auto        format_it   = formats.find(format_name);
         if (format_it == formats.end()) {
             throw std::runtime_error("invalid graph input format");

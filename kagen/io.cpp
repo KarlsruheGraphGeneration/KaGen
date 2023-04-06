@@ -22,6 +22,7 @@ namespace kagen {
 const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGraphFormatFactories() {
     static std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>> factories;
     if (factories.empty()) {
+        factories[FileFormat::NOOP]                        = std::make_unique<NoopFactory>();
         factories[FileFormat::EDGE_LIST]                   = std::make_unique<EdgelistFactory>();
         factories[FileFormat::EDGE_LIST_UNDIRECTED]        = std::make_unique<UndirectedEdgelistFactory>();
         factories[FileFormat::BINARY_EDGE_LIST]            = std::make_unique<BinaryEdgelistFactory>();

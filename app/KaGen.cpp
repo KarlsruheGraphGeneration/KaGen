@@ -373,9 +373,10 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--weight-model", config.image_mesh.weight_model)
             ->transform(CLI::CheckedTransformer(GetImageMeshWeightModelMap()).description(""))
             ->description(R"(The following weight models are available:
-  - l2:        use the L2 distance between the color vectors of adjacent pixels as weights
-  - inv-l2:    same as l2, but use \sqrt{3} * 255 + 1 - <l2> as weights
-  - inv-ratio: use 1 / (Rmax / Rmin * Gmax / Gmin * Bmax / Bmin) as weights)");
+  - l2:        sqrt(dR^2 + dG^2 + dB^2)
+  - inv-l2:    \sqrt{3} * 255 + 1 - <l2>
+  - ratio:     (Rmax / Rmin * Gmax / Gmin * Bmax / Bmin)
+  - inv-ratio: 1 / <ratio>))");
         cmd->add_option("--weight-multiplier", config.image_mesh.weight_multiplier, "Multiplier for edge weights");
         cmd->add_option("--weight-offset", config.image_mesh.weight_offset, "Static offset for edge weights");
         cmd->add_option(
@@ -410,8 +411,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--input-format", config.input_graph.format)
             ->transform(CLI::CheckedTransformer(GetInputFormatMap()).description(""))
             ->description(R"(The following file formats are supported:
-  - metis:         Text format used by METIS
-  - binary-parhip: Binary format used by ParHIP)");
+  - metis:  text format used by METIS
+  - parhip: binary format used by ParHIP)");
     }
 
     // IO options
@@ -419,15 +420,15 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     app.add_option("-f,--output-format", config.output_graph.formats)
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()).description(""))
         ->description(R"(File formats for the generated graph, available formats are:
-  - none:             do not save the generated graph
-  - edge-list:        text file containing the generated edges
-  - binary-edge-list: binary file containing the generated edges
-  - metis:            format used by METIS
-  - hmetis:           format used by hMETIS
-  - binary-parhip:    binary format used by ParHIP
-  - dot:              GraphViz format
-  - xtrapulp:         format used by XtraPuLP
-  - coordinates:      text file containing x y z coordinates)");
+  - noop:            do not save the generated graph
+  - edgelist:        text file containing the generated edges
+  - binary-edgelist: binary file containing the generated edges
+  - metis:           format used by METIS
+  - hmetis:          format used by hMETIS
+  - parhip:          binary format used by ParHIP
+  - dot:             GraphViz format
+  - xtrapulp:        format used by XtraPuLP
+  - coordinates:     text file containing x y z coordinates)");
     app.add_option("--output-header", config.output_graph.header)
         ->transform(CLI::CheckedTransformer(GetOutputHeaderMap()).description(""))
         ->description(

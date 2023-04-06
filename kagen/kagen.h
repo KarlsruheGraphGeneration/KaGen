@@ -68,6 +68,7 @@ typedef long long          kagen_weight;
 #ifdef __cplusplus
 namespace kagen {
 enum class FileFormat {
+    NOOP,
     EXTENSION,
     EDGE_LIST,
     EDGE_LIST_UNDIRECTED,

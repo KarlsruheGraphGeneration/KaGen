@@ -10,6 +10,7 @@
 #include <iostream>
 #include <limits>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -143,4 +144,9 @@ struct PGeneratorConfig {
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);
 
 PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGeneratorConfig config = {});
+
+template <typename Enum>
+std::string StringifyEnum(Enum value) {
+    return (std::stringstream{} << value).str();
+}
 } // namespace kagen

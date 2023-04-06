@@ -69,4 +69,31 @@ public:
     virtual std::unique_ptr<GraphWriter>
     CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const = 0;
 };
+
+//
+// Noop format = empty output, no input
+//
+class NoopWriter : public GraphWriter {
+public:
+    NoopWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) : GraphWriter(config, graph, comm) {}
+
+    void Write(bool) final {}
+};
+
+class NoopFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig&) const final {
+        return nullptr;
+    }
+
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final {
+        return std::make_unique<NoopWriter>(config, graph, comm);
+    }
+};
+
 } // namespace kagen
