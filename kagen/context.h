@@ -76,6 +76,7 @@ struct InputGraphConfig {
     std::string       filename     = "";
     FileFormat        format       = FileFormat::EXTENSION;
     GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
+    int               width        = 0;
 };
 
 struct OutputGraphConfig {

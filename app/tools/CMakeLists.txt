@@ -26,3 +26,8 @@ add_executable(chkmetis chkmetis.cpp)
 target_link_libraries(chkmetis PRIVATE kagen)
 target_include_directories(chkmetis PRIVATE ${PROJECT_SOURCE_DIR})
 install(TARGETS chkmetis DESTINATION bin)
+
+add_executable(graphstats graphstats.cpp)
+target_link_libraries(graphstats PRIVATE kagen)
+target_include_directories(graphstats PRIVATE ${PROJECT_SOURCE_DIR})
+

@@ -440,11 +440,19 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "--distributed-output", [&config](auto) { config.output_graph.distributed = true; },
         "Output one file for each PE");
     app.add_flag(
-        "--64", [&config](auto) { config.output_graph.width = 64; },
-        "Use 64 bit data types for the {binary-edge-list, xtrapulp} output formats.");
+        "--64",
+        [&config](auto) {
+            config.output_graph.width = 64;
+            config.input_graph.width  = 64;
+        },
+        "Use 64 bit data types for the {binary-edge-list, xtrapulp} formats.");
     app.add_flag(
-        "--32", [&config](auto) { config.output_graph.width = 32; },
-        "Use 32 bit data types for the {binary-edge-list, xtrapulp} output formats.");
+        "--32",
+        [&config](auto) {
+            config.output_graph.width = 32;
+            config.input_graph.width  = 32;
+        },
+        "Use 32 bit data types for the {binary-edge-list, xtrapulp} formats.");
     app.add_flag(
         "--extension", config.output_graph.extension, "Always append a default extension to the output filename.");
 }
