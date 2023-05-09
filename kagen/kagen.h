@@ -156,6 +156,14 @@ struct Graph {
         return TakeVector<std::pair<T, T>>(edges);
     }
 
+    SInt NumberOfLocalVertices() const {
+        return vertex_range.second - vertex_range.first;
+    }
+
+    SInt NumberOfLocalEdges() const {
+        return edges.size();
+    }
+
     template <typename T = SInt>
     std::vector<T> TakeXadj() {
         return TakeVector<T>(xadj);
