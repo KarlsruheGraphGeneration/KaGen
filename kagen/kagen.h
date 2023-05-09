@@ -161,7 +161,12 @@ struct Graph {
     }
 
     SInt NumberOfLocalEdges() const {
-        return edges.size();
+        switch (representation) {
+            case GraphRepresentation::EDGE_LIST:
+                return edges.size();
+            case GraphRepresentation::CSR:
+                return adjncy.size();
+        }
     }
 
     template <typename T = SInt>
