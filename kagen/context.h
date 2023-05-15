@@ -148,6 +148,8 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
 
 template <typename Enum>
 std::string StringifyEnum(Enum value) {
-    return (std::stringstream{} << value).str();
+    std::stringstream ss;
+    ss << value;
+    return ss.str();
 }
 } // namespace kagen
