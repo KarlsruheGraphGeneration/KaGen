@@ -150,6 +150,6 @@ template <typename Enum>
 std::string StringifyEnum(Enum value) {
     std::stringstream ss;
     ss << value;
-    return ss.str();
+    return ss.str(); 
 }
 } // namespace kagen
