@@ -10,6 +10,7 @@
     #include <type_traits>
     #include <utility>
     #include <vector>
+    #include <cstdint>
 #endif
 
 #include <mpi.h>
