@@ -42,5 +42,9 @@ kagen_add_test(test_generic_file_generator
     FILES file/generic_file_generator_test.cpp
     CORES 1 2 3 4 8 16)
 
+kagen_add_test(geometric_2d
+        FILES geometric/geometric_2d.cpp
+        CORES 1 2 3 4 8 16)
+
 
 
