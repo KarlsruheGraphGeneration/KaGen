@@ -6,27 +6,21 @@
 #include "kagen/definitions.h"
 #include "kagen/generators/geometric/geometric_2d.h"
 #include "kagen/generators/geometric/rgg.h"
+#include "tests/util/utils.h"
 
 using namespace kagen;
 
-bool sortByFirstElement(const std::pair<SInt, SInt>& lhs, const std::pair<SInt, SInt>& rhs) {
-    if (lhs.first == rhs.first) {
-        return lhs.second < rhs.second;
-    }
-    return lhs.first < rhs.first;
-}
-
-TEST(KARGB, generates_graph_on_one_PE) {
+TEST(GEOMETRIC, generates_graph_on_one_PE) {
     PGeneratorConfig config;
-    config.n = 16;
-    config.r = 0.5;
+    config.n           = 16;
+    config.r           = 0.5;
     config.coordinates = true;
 
     RGG2DFactory factory;
-    config = factory.NormalizeParameters(config, 0, 1, false);
+    config         = factory.NormalizeParameters(config, 0, 1, false);
     auto generator = factory.Create(config, 0, 1);
     generator->Generate(GraphRepresentation::EDGE_LIST);
-    const auto result = generator->Take();
+    auto result = generator->Take();
 
     // Creating the correct edge list as a test instance
     std::vector<std::pair<SInt, SInt>> edgeList;
@@ -35,14 +29,87 @@ TEST(KARGB, generates_graph_on_one_PE) {
             auto [x1, y1] = result.coordinates.first[i];
             auto [x2, y2] = result.coordinates.first[j];
             // Comparing all coordinates
-            if(i != j && std::hypot( x1- x2, y1 - y2) <= config.r) {
-                edgeList.push_back(std::pair(i, j));
+            if (i != j && std::hypot(x1 - x2, y1 - y2) <= config.r) {
+                edgeList.emplace_back(i, j);
             }
         }
     }
     // Sorting both lists before comparing them
-    std::vector<std::pair<SInt, SInt>> resultList = result.edges;
-    std::sort(resultList.begin(), resultList.end(), sortByFirstElement);
-    std::sort(edgeList.begin(), edgeList.end(), sortByFirstElement);
-    ASSERT_EQ(resultList, edgeList);
+    std::sort(result.edges.begin(), result.edges.end());
+    std::sort(edgeList.begin(), edgeList.end());
+    ASSERT_EQ(result.edges, edgeList);
+}
+
+TEST(GEOMETRIC, generates_graph_on_np_PE) {
+    PGeneratorConfig config;
+    config.n           = 16;
+    config.r           = 0.5;
+    config.coordinates = true;
+
+    RGG2DFactory factory;
+    PEID         size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    config         = factory.NormalizeParameters(config, rank, size, false);
+    auto generator = factory.Create(config, rank, size);
+    generator->Generate(GraphRepresentation::EDGE_LIST);
+    const auto result = generator->Take();
+
+    auto global_graph = kagen::testing::GatherEdgeLists(result);
+
+    if (rank == 0) {
+        // Creating the correct edge list as a test instance
+        std::vector<std::pair<SInt, SInt>> edgeList;
+        for (SInt i = 0; i < config.n; i++) {
+            for (SInt j = 0; j < config.n; j++) {
+                auto [x1, y1] = result.coordinates.first[i];
+                auto [x2, y2] = result.coordinates.first[j];
+                // Comparing all coordinates
+                if (i != j && std::hypot(x1 - x2, y1 - y2) < config.r) {
+                    edgeList.emplace_back(i, j);
+                }
+            }
+        }
+        // Sorting both lists before comparing them
+        std::sort(global_graph.edges.begin(), global_graph.edges.end());
+        std::sort(edgeList.begin(), edgeList.end());
+        ASSERT_EQ(global_graph.edges, edgeList);
+    }
+}
+
+TEST(GEOMETRIC, generates_graph_on_np_PE_n32) {
+    PGeneratorConfig config;
+    config.n           = 32;
+    config.r           = 0.3;
+    config.coordinates = true;
+
+    RGG2DFactory factory;
+    PEID         size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    config         = factory.NormalizeParameters(config, rank, size, false);
+    auto generator = factory.Create(config, rank, size);
+    generator->Generate(GraphRepresentation::EDGE_LIST);
+    const auto result = generator->Take();
+
+    auto global_graph = kagen::testing::GatherEdgeLists(result);
+
+    if (rank == 0) {
+        // Creating the correct edge list as a test instance
+        std::vector<std::pair<SInt, SInt>> edgeList;
+        for (SInt i = 0; i < config.n; i++) {
+            for (SInt j = 0; j < config.n; j++) {
+                auto [x1, y1] = result.coordinates.first[i];
+                auto [x2, y2] = result.coordinates.first[j];
+                // Comparing all coordinates
+                if (i != j && std::hypot(x1 - x2, y1 - y2) < config.r) {
+                    edgeList.emplace_back(i, j);
+                }
+            }
+        }
+        // Sorting both lists before comparing them
+        std::sort(global_graph.edges.begin(), global_graph.edges.end());
+        std::sort(edgeList.begin(), edgeList.end());
+        ASSERT_EQ(global_graph.edges, edgeList);
+    }
 }
