@@ -10,13 +10,13 @@
 
 using namespace kagen;
 
-TEST(GEOMETRIC, generates_graph_on_one_PE) {
+TEST(GEOMETRIC3D, generates_graph_on_one_PE) {
     PGeneratorConfig config;
     config.n           = 8;
     config.r           = 0.5;
     config.coordinates = true;
 
-    RGG2DFactory factory;
+    RGG3DFactory factory;
     config         = factory.NormalizeParameters(config, 0, 1, false);
     auto generator = factory.Create(config, 0, 1);
     generator->Generate(GraphRepresentation::EDGE_LIST);
@@ -25,11 +25,11 @@ TEST(GEOMETRIC, generates_graph_on_one_PE) {
     // Creating the correct edge list as a test instance
     std::vector<std::pair<SInt, SInt>> edgeList;
     for (SInt i = 0; i < config.n; i++) {
-        auto [x1, y1] = result.coordinates.first[i];
+        auto [x1, y1, z1] = result.coordinates.second[i];
         for (SInt j = 0; j < config.n; j++) {
-            auto [x2, y2] = result.coordinates.first[j];
+            auto [x2, y2, z2] = result.coordinates.second[j];
             // Comparing all coordinates
-            if (i != j && std::hypot(x1 - x2, y1 - y2) <= config.r) {
+            if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) <= config.r) {
                 edgeList.emplace_back(i, j);
             }
         }
@@ -41,13 +41,13 @@ TEST(GEOMETRIC, generates_graph_on_one_PE) {
     ASSERT_EQ(result.edges, edgeList);
 }
 
-TEST(GEOMETRIC, generates_graph_on_np_PE_n8_r50) {
+TEST(GEOMETRIC3D, generates_graph_on_np_PE_n8_r50) {
     PGeneratorConfig config;
     config.n           = 8;
     config.r           = 0.5;
     config.coordinates = true;
 
-    RGG2DFactory factory;
+    RGG3DFactory factory;
     PEID         size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -57,18 +57,18 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_n8_r50) {
     auto result = generator->Take();
 
     Graph complete_graph = kagen::testing::GatherEdgeLists(result);
-    auto global_graph = kagen::testing::GatherCoordinates2D(result);
+    auto global_graph = kagen::testing::GatherCoordinates3D(result);
 
     if (rank == 0) {
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> edgeList;
         for (SInt i = 0; i < config.n; i++) {
-            auto [x1, y1] = global_graph.coordinates.first[i];
+            auto [x1, y1, z1] = global_graph.coordinates.second[i];
             for (SInt j = 0; j < config.n; j++) {
-                auto [x2, y2] = global_graph.coordinates.first[j];
+                auto [x2, y2, z2] = global_graph.coordinates.second[j];
 
                 // Comparing all coordinates
-                if (i != j && std::hypot(x1 - x2, y1 - y2) < config.r) {
+                if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
                     edgeList.emplace_back(i, j);
                 }
             }
@@ -81,13 +81,13 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_n8_r50) {
     }
 }
 
-TEST(GEOMETRIC, generates_graph_on_np_PE_n16_r20) {
+TEST(GEOMETRIC3D, generates_graph_on_np_PE_n16_r20) {
     PGeneratorConfig config;
     config.n           = 16;
     config.r           = 0.2;
     config.coordinates = true;
 
-    RGG2DFactory factory;
+    RGG3DFactory factory;
     PEID         size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -97,18 +97,18 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_n16_r20) {
     auto result = generator->Take();
 
     Graph complete_graph = kagen::testing::GatherEdgeLists(result);
-    auto global_graph = kagen::testing::GatherCoordinates2D(result);
+    auto global_graph = kagen::testing::GatherCoordinates3D(result);
 
     if (rank == 0) {
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> edgeList;
         for (SInt i = 0; i < config.n; i++) {
-            auto [x1, y1] = global_graph.coordinates.first[i];
+            auto [x1, y1, z1] = global_graph.coordinates.second[i];
             for (SInt j = 0; j < config.n; j++) {
-                auto [x2, y2] = global_graph.coordinates.first[j];
+                auto [x2, y2, z2] = global_graph.coordinates.second[j];
 
                 // Comparing all coordinates
-                if (i != j && std::hypot(x1 - x2, y1 - y2) < config.r) {
+                if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
                     edgeList.emplace_back(i, j);
                 }
             }
@@ -121,13 +121,13 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_n16_r20) {
     }
 }
 
-TEST(GEOMETRIC, generates_graph_on_np_PE_n16_m50) {
+TEST(GEOMETRIC3D, generates_graph_on_np_PE_n16_m50) {
     PGeneratorConfig config;
     config.n           = 16;
     config.m           = 50;
     config.coordinates = true;
 
-    RGG2DFactory factory;
+    RGG3DFactory factory;
     PEID         size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -137,18 +137,18 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_n16_m50) {
     auto result = generator->Take();
 
     Graph complete_graph = kagen::testing::GatherEdgeLists(result);
-    auto global_graph = kagen::testing::GatherCoordinates2D(result);
+    auto global_graph = kagen::testing::GatherCoordinates3D(result);
 
     if (rank == 0) {
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> edgeList;
         for (SInt i = 0; i < config.n; i++) {
-            auto [x1, y1] = global_graph.coordinates.first[i];
+            auto [x1, y1, z1] = global_graph.coordinates.second[i];
             for (SInt j = 0; j < config.n; j++) {
-                auto [x2, y2] = global_graph.coordinates.first[j];
+                auto [x2, y2, z2] = global_graph.coordinates.second[j];
 
                 // Comparing all coordinates
-                if (i != j && std::hypot(x1 - x2, y1 - y2) < config.r) {
+                if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
                     edgeList.emplace_back(i, j);
                 }
             }
@@ -161,13 +161,13 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_n16_m50) {
     }
 }
 
-TEST(GEOMETRIC, generates_graph_on_np_PE_m16_r50) {
+TEST(GEOMETRIC3D, generates_graph_on_np_PE_m16_r50) {
     PGeneratorConfig config;
     config.m           = 16;
     config.r           = 0.5;
     config.coordinates = true;
 
-    RGG2DFactory factory;
+    RGG3DFactory factory;
     PEID         size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -177,18 +177,18 @@ TEST(GEOMETRIC, generates_graph_on_np_PE_m16_r50) {
     auto result = generator->Take();
 
     Graph complete_graph = kagen::testing::GatherEdgeLists(result);
-    auto global_graph = kagen::testing::GatherCoordinates2D(result);
+    auto global_graph = kagen::testing::GatherCoordinates3D(result);
 
     if (rank == 0) {
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> edgeList;
         for (SInt i = 0; i < config.n; i++) {
-            auto [x1, y1] = global_graph.coordinates.first[i];
+            auto [x1, y1, z1] = global_graph.coordinates.second[i];
             for (SInt j = 0; j < config.n; j++) {
-                auto [x2, y2] = global_graph.coordinates.first[j];
+                auto [x2, y2, z2] = global_graph.coordinates.second[j];
 
                 // Comparing all coordinates
-                if (i != j && std::hypot(x1 - x2, y1 - y2) < config.r) {
+                if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
                     edgeList.emplace_back(i, j);
                 }
             }
