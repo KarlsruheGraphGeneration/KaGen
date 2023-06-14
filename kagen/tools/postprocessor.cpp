@@ -183,4 +183,5 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
     // Set original edge list to new edge list
     std::swap(local_edges, edge_list);
 }
+
 } // namespace kagen
