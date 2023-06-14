@@ -49,17 +49,9 @@ void DotWriter::AppendFooterTo(const std::string& filename) {
     out.WriteString("}\n").Flush();
 }
 
-std::unique_ptr<GraphReader> DotFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
 std::unique_ptr<GraphWriter>
 DotFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
     return std::make_unique<DotWriter>(false, config, graph, comm);
-}
-
-std::unique_ptr<GraphReader> DirectedDotFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
 }
 
 std::unique_ptr<GraphWriter>

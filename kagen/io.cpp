@@ -61,13 +61,14 @@ std::string GetExtension(const std::string& filename) {
 }
 } // namespace
 
-std::unique_ptr<GraphReader> CreateGraphReader(const std::string& filename, const InputGraphConfig& config) {
+std::unique_ptr<GraphReader>
+CreateGraphReader(const std::string& filename, const InputGraphConfig& config, const PEID rank, const PEID size) {
     const std::string extension = GetExtension(filename);
 
     const auto& factories = GetGraphFormatFactories();
     for (const auto& [format, factory]: factories) {
         if (factory->DefaultExtension() == extension) {
-            auto reader = factory->CreateReader(config);
+            auto reader = factory->CreateReader(config, rank, size);
             if (reader != nullptr) {
                 return reader;
             }
@@ -79,15 +80,16 @@ std::unique_ptr<GraphReader> CreateGraphReader(const std::string& filename, cons
     throw IOError(error_msg.str());
 }
 
-std::unique_ptr<GraphReader> CreateGraphReader(const FileFormat format, const InputGraphConfig& config) {
+std::unique_ptr<GraphReader>
+CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const PEID rank, const PEID size) {
     if (format == FileFormat::EXTENSION) {
-        return CreateGraphReader(config.filename, config);
+        return CreateGraphReader(config.filename, config, rank, size);
     }
 
     const auto& factories = GetGraphFormatFactories();
     const auto  it        = factories.find(format);
     if (it != factories.end()) {
-        auto reader = (*it).second->CreateReader(config);
+        auto reader = (*it).second->CreateReader(config, rank, size);
         if (reader != nullptr) {
             return reader;
         }

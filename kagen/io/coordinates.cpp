@@ -24,10 +24,6 @@ int CoordinatesWriter::Requirements() const {
     return SequentialGraphWriter::Requirement::COORDINATES;
 }
 
-std::unique_ptr<GraphReader> CoordinatesFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
 std::unique_ptr<GraphWriter>
 CoordinatesFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
     return std::make_unique<CoordinatesWriter>(config, graph, comm);

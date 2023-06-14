@@ -34,17 +34,9 @@ void EdgelistWriter::AppendTo(const std::string& filename) {
     }
 }
 
-std::unique_ptr<GraphReader> EdgelistFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
 std::unique_ptr<GraphWriter>
 EdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
     return std::make_unique<EdgelistWriter>(true, true, config, graph, comm);
-}
-
-std::unique_ptr<GraphReader> UndirectedEdgelistFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
 }
 
 std::unique_ptr<GraphWriter>
@@ -92,17 +84,9 @@ void BinaryEdgelistWriter::AppendTo(const std::string& filename) {
     fclose(fout);
 }
 
-std::unique_ptr<GraphReader> BinaryEdgelistFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
 std::unique_ptr<GraphWriter>
 BinaryEdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
     return std::make_unique<BinaryEdgelistWriter>(true, true, config.width, config, graph, comm);
-}
-
-std::unique_ptr<GraphReader> UndirectedBinaryEdgelistFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
 }
 
 std::unique_ptr<GraphWriter>
@@ -110,12 +94,61 @@ UndirectedBinaryEdgelistFactory::CreateWriter(const OutputGraphConfig& config, G
     return std::make_unique<BinaryEdgelistWriter>(true, false, config.width, config, graph, comm);
 }
 
-std::unique_ptr<GraphReader> XtrapulpFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
+//
+// Xtrapulp
+//
 
 std::unique_ptr<GraphWriter>
 XtrapulpFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
     return std::make_unique<BinaryEdgelistWriter>(false, false, config.width, config, graph, comm);
+}
+
+//
+// PlainEdgeList
+//
+
+PlainEdgeListWriter::PlainEdgeListWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+    : SequentialGraphWriter(config, graph, comm) {}
+
+void PlainEdgeListWriter::AppendHeaderTo(const std::string&, SInt, SInt) {}
+
+void PlainEdgeListWriter::AppendTo(const std::string& filename) {
+    BufferedTextOutput<> out(tag::append, filename);
+    for (const auto& [from, to]: edges_) {
+        out.WriteInt(from).WriteChar('\t').WriteInt(to).WriteChar('\n').Flush();
+    }
+}
+
+PlainEdgeListReader::PlainEdgeListReader(const std::string& filename, PEID rank, PEID size)
+    : toker_(filename),
+      rank_(rank),
+      size_(size) {}
+
+std::pair<SInt, SInt> PlainEdgeListReader::ReadSize() {
+    // We don't know the graph size yet; using size_ as a fake graph size will assign one vertex to each PE, which we
+    // can then ignore
+    return {static_cast<SInt>(size_), static_cast<SInt>(size_)};
+}
+
+Graph PlainEdgeListReader::Read(SInt, SInt, SInt, GraphRepresentation) {
+    return {};
+}
+
+SInt PlainEdgeListReader::FindNodeByEdge(SInt) {
+    return 0;
+}
+
+ReaderDeficits PlainEdgeListReader::Deficits() const {
+    return ReaderDeficits::REQUIRES_REDISTRIBUTION | ReaderDeficits::EDGE_LIST_ONLY;
+}
+
+std::unique_ptr<GraphReader>
+PlainEdgeListFactory::CreateReader(const InputGraphConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<PlainEdgeListReader>(config.filename, rank, size);
+}
+
+std::unique_ptr<GraphWriter>
+PlainEdgeListFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<PlainEdgeListWriter>(config, graph, comm);
 }
 } // namespace kagen

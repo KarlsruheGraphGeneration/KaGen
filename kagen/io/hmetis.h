@@ -29,8 +29,6 @@ public:
         return "hmetis";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 
@@ -39,8 +37,6 @@ public:
     std::string DefaultExtension() const final {
         return "hmetis";
     }
-
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
 
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };

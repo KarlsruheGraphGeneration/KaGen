@@ -481,6 +481,11 @@ int main(int argc, char* argv[]) {
     auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
 
     const std::string base_filename = config.output_graph.filename;
+
+    PEID rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const bool is_root = rank == 0;
+
     for (const FileFormat& format: config.output_graph.formats) {
         const auto& factory = GetGraphFormatFactory(format);
 
@@ -490,7 +495,11 @@ int main(int argc, char* argv[]) {
         config.output_graph.filename = filename;
 
         auto writer = factory->CreateWriter(config.output_graph, graph, MPI_COMM_WORLD);
-        writer->Write(!config.quiet);
+        if (writer != nullptr) {
+            writer->Write(!config.quiet);
+        } else if (!config.quiet && is_root) {
+            std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
+        }
     }
 
     return MPI_Finalize();

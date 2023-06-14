@@ -14,7 +14,9 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
 
 const std::unique_ptr<FileFormatFactory>& GetGraphFormatFactory(FileFormat format);
 
-std::unique_ptr<GraphReader> CreateGraphReader(const std::string& filename, const InputGraphConfig& config);
+std::unique_ptr<GraphReader>
+CreateGraphReader(const std::string& filename, const InputGraphConfig& config, PEID rank, PEID size);
 
-std::unique_ptr<GraphReader> CreateGraphReader(const FileFormat format, const InputGraphConfig& config);
+std::unique_ptr<GraphReader>
+CreateGraphReader(const FileFormat format, const InputGraphConfig& config, PEID rank, PEID size);
 } // namespace kagen

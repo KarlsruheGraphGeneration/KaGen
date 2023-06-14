@@ -1,6 +1,8 @@
 #include "kagen/generators/file/file_graph.h"
 
 #include "kagen/io.h"
+#include "kagen/tools/converter.h"
+#include "kagen/tools/postprocessor.h"
 
 namespace kagen {
 std::unique_ptr<Generator> FileGraphFactory::Create(const PGeneratorConfig& config, PEID rank, PEID size) const {
@@ -30,9 +32,20 @@ void FileGraphGenerator::GenerateCSR() {
     GenerateImpl(GraphRepresentation::CSR);
 }
 
+bool FileGraphGenerator::CheckDeficit(const ReaderDeficits deficit) const {
+    return (deficits_ & deficit) == 1;
+}
+
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
-    auto reader       = CreateGraphReader(config_.input_graph.format, config_.input_graph);
+    auto reader       = CreateGraphReader(config_.input_graph.format, config_.input_graph, rank_, size_);
     const auto [n, m] = reader->ReadSize();
+
+    deficits_ = reader->Deficits();
+    if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
+        && config_.input_graph.distribution == GraphDistribution::BALANCE_EDGES) {
+        throw std::invalid_argument(
+            "edge balanced IO is currently not implemented for graph readers requiring redistribution");
+    }
 
     SInt from    = 0;
     SInt to_node = std::numeric_limits<SInt>::max();
@@ -59,5 +72,48 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
     edge_weights_   = std::move(graph.edge_weights);
     vertex_weights_ = std::move(graph.vertex_weights);
     coordinates_    = std::move(graph.coordinates);
+}
+
+void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
+    if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)) {
+        if (CheckDeficit(ReaderDeficits::CSR_ONLY)) {
+            throw std::invalid_argument("unsupported");
+        }
+
+        // Find the number of vertices in the graph
+        SInt n = 0;
+        for (const auto& [u, v]: edges_) {
+            n = std::max(n, std::max(u, v));
+        }
+        MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
+        ++n;
+
+        // Redistribute the graph by assigning the same number of vertices to each PE
+        vertex_range_ = RedistributeEdges(edges_, edges_, true, true, n, comm);
+    }
+
+    if (CheckDeficit(ReaderDeficits::CSR_ONLY)) {
+        FinalizeCSR(comm);
+        edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
+        {
+            XadjArray tmp;
+            std::swap(xadj_, tmp);
+        }
+        {
+            AdjncyArray tmp;
+            std::swap(adjncy_, tmp);
+        }
+    }
+}
+
+void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
+    if (CheckDeficit(ReaderDeficits::EDGE_LIST_ONLY)) {
+        FinalizeEdgeList(comm);
+        std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
+        {
+            EdgeList tmp;
+            std::swap(edges_, tmp);
+        }
+    }
 }
 } // namespace kagen

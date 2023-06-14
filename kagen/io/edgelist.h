@@ -4,6 +4,7 @@
 
 #include "kagen/definitions.h"
 #include "kagen/io/graph_format.h"
+#include "kagen/io/mmap_toker.h"
 #include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
@@ -29,8 +30,6 @@ public:
         return "edgelist";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 
@@ -39,8 +38,6 @@ public:
     std::string DefaultExtension() const final {
         return "edgelist";
     }
-
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
 
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
@@ -69,8 +66,6 @@ public:
         return "binary-edgelist";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 
@@ -79,8 +74,6 @@ public:
     std::string DefaultExtension() const final {
         return "undirected-binary-edgelist";
     }
-
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
 
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
@@ -91,7 +84,44 @@ public:
         return "xtrapulp";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+};
+
+class PlainEdgeListReader : public GraphReader {
+public:
+    PlainEdgeListReader(const std::string& filename, PEID rank, PEID size);
+
+    GraphSize ReadSize() final;
+
+    Graph Read(SInt from_vertex, SInt to_vertex, SInt to_edge, GraphRepresentation representation) final;
+
+    SInt FindNodeByEdge(SInt edge) final;
+
+    int Deficits() const final;
+
+private:
+    MappedFileToker toker_;
+    PEID rank_;
+    PEID size_;
+};
+
+class PlainEdgeListWriter : public SequentialGraphWriter {
+public:
+    PlainEdgeListWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+
+protected:
+    void AppendHeaderTo(const std::string& filename, SInt n, SInt m) final;
+
+    void AppendTo(const std::string& filename) final;
+};
+
+class PlainEdgeListFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "plain-edgelist";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;
 
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };

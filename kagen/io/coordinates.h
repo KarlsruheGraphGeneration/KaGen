@@ -26,8 +26,6 @@ public:
         return "xyz";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 } // namespace kagen

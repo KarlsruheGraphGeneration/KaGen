@@ -257,7 +257,7 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
     return current_node;
 }
 
-std::unique_ptr<GraphReader> MetisFactory::CreateReader(const InputGraphConfig& config) const {
+std::unique_ptr<GraphReader> MetisFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
     return std::make_unique<MetisReader>(config.filename);
 }
 

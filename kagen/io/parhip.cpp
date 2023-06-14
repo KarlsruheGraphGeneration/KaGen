@@ -248,7 +248,7 @@ SInt ParhipReader::FindNodeByEdge(const SInt edge) {
     return high.first;
 }
 
-std::unique_ptr<GraphReader> ParhipFactory::CreateReader(const InputGraphConfig& config) const {
+std::unique_ptr<GraphReader> ParhipFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
     return std::make_unique<ParhipReader>(config.filename);
 }
 

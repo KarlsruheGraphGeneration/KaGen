@@ -53,17 +53,9 @@ void HmetisWriter::AppendFooterTo(const std::string& filename) {
     }
 }
 
-std::unique_ptr<GraphReader> HmetisFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
 std::unique_ptr<GraphWriter>
 HmetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
     return std::make_unique<HmetisWriter>(false, config, graph, comm);
-}
-
-std::unique_ptr<GraphReader> DirectedHmetisFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
 }
 
 std::unique_ptr<GraphWriter>
