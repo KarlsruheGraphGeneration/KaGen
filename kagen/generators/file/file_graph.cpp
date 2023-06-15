@@ -79,6 +79,10 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
 
 void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
     if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)) {
+        if (Output(comm)) {
+            std::cout << "redistributing edges ... " << std::flush;
+        }
+
         if (CheckDeficit(ReaderDeficits::CSR_ONLY)) {
             throw std::invalid_argument("unsupported");
         }
@@ -96,12 +100,19 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
     }
 
     if (config_.input_graph.add_reverse_edges) {
-        std::cout << "adding reverse edges ..." << std::flush;
-        AddReverseEdges(edges_, vertex_range_, comm);
+        if (Output(comm)) {
+            std::cout << "adding reverse edges ... " << std::flush;
+        }
+        AddReverseEdgesAndRedistribute(edges_, vertex_range_, comm);
     }
 
     if (CheckDeficit(ReaderDeficits::CSR_ONLY)) {
         FinalizeCSR(comm);
+
+        if (Output(comm)) {
+            std::cout << "converting to edge list ... " << std::flush;
+        }
+
         edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
         {
             XadjArray tmp;
@@ -117,6 +128,11 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
 void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
     if (CheckDeficit(ReaderDeficits::EDGE_LIST_ONLY) || RequiresPostprocessing()) {
         FinalizeEdgeList(comm);
+
+        if (Output(comm)) {
+            std::cout << "converting to CSR ... " << std::flush;
+        }
+
         std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
         {
             EdgeList tmp;
@@ -127,5 +143,11 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
 
 bool FileGraphGenerator::RequiresPostprocessing() const {
     return config_.input_graph.add_reverse_edges;
+}
+
+bool FileGraphGenerator::Output(MPI_Comm comm) const {
+    PEID rank;
+    MPI_Comm_rank(comm, &rank);
+    return !config_.quiet && rank == 0;
 }
 } // namespace kagen

@@ -194,7 +194,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
             if (output_error) {
-                std::cerr << "Error: simple graph validation failed\n";
+                std::cerr << "Error: graph validation failed\n";
             }
             MPI_Abort(comm, 1);
         } else if (output_info) {

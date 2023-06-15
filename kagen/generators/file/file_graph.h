@@ -29,6 +29,8 @@ private:
 
     bool RequiresPostprocessing() const;
 
+    bool Output(MPI_Comm comm) const;
+
     const PGeneratorConfig& config_;
 
     PEID rank_;

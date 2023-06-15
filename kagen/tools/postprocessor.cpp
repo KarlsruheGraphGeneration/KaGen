@@ -35,7 +35,7 @@ std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MP
 } // namespace
 
 void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
-    int rank, size;
+    PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
