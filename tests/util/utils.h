@@ -131,17 +131,19 @@ inline Graph GatherCoordinates2D(const Graph& local_graph) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Count the amount of coordinates per PE
-    std::vector<std::tuple<HPFloat, HPFloat>> filteredCoordinates;
+    std::vector<HPFloat> x_values;
+    std::vector<HPFloat> y_values;
     for (const auto& coord : local_graph.coordinates.first) {
         long double x = std::get<0>(coord);
         long double y = std::get<1>(coord);
         if (x >= 0.00 && x <= 1.00 && y >= 0.00 && y <= 1.00) {
-            filteredCoordinates.push_back(coord);
+            x_values.push_back(x);
+            y_values.push_back(y);
         }
     }
 
     // Exchange amount of coordinates between PEs
-    int localSize = filteredCoordinates.size();
+    int localSize = x_values.size();
     std::vector<int> sizes(size);
     MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -161,9 +163,20 @@ inline Graph GatherCoordinates2D(const Graph& local_graph) {
     Graph global_graph;
     global_graph.representation = local_graph.representation;
     global_graph.coordinates.first.resize(totalSize);
+
+    std::vector<HPFloat> recv_x_values(totalSize);
+    std::vector<HPFloat> recv_y_values(totalSize);
+
     MPI_Allgatherv(
-        filteredCoordinates.data(), localSize, MPI_CXX_LONG_DOUBLE_COMPLEX, global_graph.coordinates.first.data(), sizes.data(),
-        displacements.data(), MPI_CXX_LONG_DOUBLE_COMPLEX, MPI_COMM_WORLD);
+        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(),
+        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+    MPI_Allgatherv(
+        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(),
+        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+
+    for(int i = 0; i < totalSize; i++) {
+        global_graph.coordinates.first[i] = {recv_x_values[i], recv_y_values[i]};
+    }
 
     return global_graph;
 }
@@ -174,18 +187,22 @@ inline Graph GatherCoordinates3D(const Graph& local_graph) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Count the amount of coordinates per PE
-    std::vector<std::tuple<HPFloat, HPFloat, HPFloat>> filteredCoordinates;
+    std::vector<HPFloat> x_values;
+    std::vector<HPFloat> y_values;
+    std::vector<HPFloat> z_values;
     for (const auto& coord : local_graph.coordinates.second) {
         long double x = std::get<0>(coord);
         long double y = std::get<1>(coord);
         long double z = std::get<2>(coord);
-        if (x >= 0.00 && x <= 1.00 && y >= 0.00 && y <= 1.00 && z >= 0.00 && z <= 1.00) {
-            filteredCoordinates.push_back(coord);
+        if (x >= 0.00 && x <= 1.00 && y >= 0.00 && y <= 1.00) {
+            x_values.push_back(x);
+            y_values.push_back(y);
+            z_values.push_back(z);
         }
     }
 
     // Exchange amount of coordinates between PEs
-    int localSize = filteredCoordinates.size();
+    int localSize = x_values.size();
     std::vector<int> sizes(size);
     MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -205,9 +222,24 @@ inline Graph GatherCoordinates3D(const Graph& local_graph) {
     Graph global_graph;
     global_graph.representation = local_graph.representation;
     global_graph.coordinates.second.resize(totalSize);
+
+    std::vector<HPFloat> recv_x_values(totalSize);
+    std::vector<HPFloat> recv_y_values(totalSize);
+    std::vector<HPFloat> recv_z_values(totalSize);
+
     MPI_Allgatherv(
-        filteredCoordinates.data(), localSize, MPI_CXX_LONG_DOUBLE_COMPLEX, global_graph.coordinates.second.data(), sizes.data(),
-        displacements.data(), MPI_CXX_LONG_DOUBLE_COMPLEX, MPI_COMM_WORLD);
+        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(),
+        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+    MPI_Allgatherv(
+        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(),
+        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+    MPI_Allgatherv(
+        z_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_z_values.data(), sizes.data(),
+        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+
+    for(int i = 0; i < totalSize; i++) {
+        global_graph.coordinates.second[i] = {recv_x_values[i], recv_y_values[i], recv_z_values[i]};
+    }
 
     return global_graph;
 }
