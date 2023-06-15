@@ -96,6 +96,7 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
     }
 
     if (config_.input_graph.add_reverse_edges) {
+        std::cout << "adding reverse edges ..." << std::flush;
         AddReverseEdges(edges_, vertex_range_, comm);
     }
 
