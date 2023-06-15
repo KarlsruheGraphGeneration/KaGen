@@ -471,6 +471,13 @@ int main(int argc, char* argv[]) {
     SetupCommandLineArguments(app, config);
     CLI11_PARSE(app, argc, argv);
 
+    // When loading a graph from disk, set these flags depending on the input graph to ensure that --validate works
+    // correctly
+    if (config.generator == GeneratorType::FILE) {
+        config.self_loops = !config.input_graph.skip_self_loops;
+        config.directed   = !config.input_graph.add_reverse_edges;
+    }
+
     // Coordinates output format implies --coordinates
     if (std::find(config.output_graph.formats.begin(), config.output_graph.formats.end(), FileFormat::COORDINATES)
         != config.output_graph.formats.end()) {

@@ -7,7 +7,7 @@
 namespace kagen {
 void AddReverseEdges(EdgeList& edge_list, VertexRange vertex_range, MPI_Comm comm);
 
-void AddReverseEdgesAndRedistribute(EdgeList& edge_list, VertexRange vertex_range, MPI_Comm comm);
+void AddReverseEdgesAndRedistribute(EdgeList& edge_list, VertexRange vertex_range, bool add_reverse_edges, MPI_Comm comm);
 
 template <typename FromEdgeList, typename ToEdgeList>
 std::pair<SInt, SInt> RedistributeEdges(
@@ -63,6 +63,10 @@ std::pair<SInt, SInt> RedistributeEdges(
         sendbuf[index]   = (static_cast<long long>(u_prime) << 32) | static_cast<long long>(v_prime);
         ++sendbuf_pos[u_owner];
     }
+
+    // Free the old edge list before allocating the new one
+    { [[maybe_unused]] auto tmp = std::move(from_edge_list); }
+    to_edge_list.clear();
 
     // Exchange send_counts + send_displs
     std::vector<int> recv_counts(size);

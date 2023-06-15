@@ -29,7 +29,7 @@ private:
 
     bool RequiresPostprocessing() const;
 
-    bool Output(MPI_Comm comm) const;
+    bool Output() const;
 
     const PGeneratorConfig& config_;
 

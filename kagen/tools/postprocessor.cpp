@@ -94,7 +94,8 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Co
     edge_list.erase(it, edge_list.end());
 }
 
-void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
+void AddReverseEdgesAndRedistribute(
+    EdgeList& edge_list, const VertexRange vertex_range, bool add_reverse_edges, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -118,11 +119,13 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
             remote_edges[owner].emplace_back(u, v);
         }
 
-        if (from <= v && v < to) {
-            local_edges.emplace_back(v, u);
-        } else {
-            const PEID owner = FindPEInRange(v, ranges);
-            remote_edges[owner].emplace_back(v, u);
+        if (add_reverse_edges) {
+            if (from <= v && v < to) {
+                local_edges.emplace_back(v, u);
+            } else {
+                const PEID owner = FindPEInRange(v, ranges);
+                remote_edges[owner].emplace_back(v, u);
+            }
         }
     }
 

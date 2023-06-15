@@ -78,8 +78,10 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
 }
 
 void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
+    bool reverse_edges_added = false;
+
     if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)) {
-        if (Output(comm)) {
+        if (Output()) {
             std::cout << "redistributing edges ... " << std::flush;
         }
 
@@ -95,21 +97,28 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
         MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
         ++n;
 
-        // Redistribute the graph by assigning the same number of vertices to each PE
-        vertex_range_ = RedistributeEdges(edges_, edges_, true, true, n, comm);
+        // Create desired vertex distribution
+        vertex_range_.first  = n / size_ * rank_ + std::min<SInt>(rank_, n % size_);
+        vertex_range_.second = n / size_ * (rank_ + 1) + std::min<SInt>(rank_ + 1, n % size_);
+        if (rank_ + 1 == size_) {
+            vertex_range_.second = n;
+        }
+
+        AddReverseEdgesAndRedistribute(edges_, vertex_range_, config_.input_graph.add_reverse_edges, comm);
+        reverse_edges_added = true;
     }
 
-    if (config_.input_graph.add_reverse_edges) {
-        if (Output(comm)) {
+    if (!reverse_edges_added && config_.input_graph.add_reverse_edges) {
+        if (Output()) {
             std::cout << "adding reverse edges ... " << std::flush;
         }
-        AddReverseEdgesAndRedistribute(edges_, vertex_range_, comm);
+        AddReverseEdgesAndRedistribute(edges_, vertex_range_, true, comm);
     }
 
     if (CheckDeficit(ReaderDeficits::CSR_ONLY)) {
         FinalizeCSR(comm);
 
-        if (Output(comm)) {
+        if (Output()) {
             std::cout << "converting to edge list ... " << std::flush;
         }
 
@@ -129,7 +138,7 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
     if (CheckDeficit(ReaderDeficits::EDGE_LIST_ONLY) || RequiresPostprocessing()) {
         FinalizeEdgeList(comm);
 
-        if (Output(comm)) {
+        if (Output()) {
             std::cout << "converting to CSR ... " << std::flush;
         }
 
@@ -145,9 +154,7 @@ bool FileGraphGenerator::RequiresPostprocessing() const {
     return config_.input_graph.add_reverse_edges;
 }
 
-bool FileGraphGenerator::Output(MPI_Comm comm) const {
-    PEID rank;
-    MPI_Comm_rank(comm, &rank);
-    return !config_.quiet && rank == 0;
+bool FileGraphGenerator::Output() const {
+    return !config_.quiet && rank_ == 0;
 }
 } // namespace kagen
