@@ -87,9 +87,9 @@ public:
     std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
 };
 
-class PlainEdgeListReader : public GraphReader {
+class PlainEdgelistReader : public GraphReader {
 public:
-    PlainEdgeListReader(const std::string& filename, PEID rank, PEID size);
+    PlainEdgelistReader(const std::string& filename, bool skip_self_loops, PEID rank, PEID size);
 
     GraphSize ReadSize() final;
 
@@ -101,13 +101,14 @@ public:
 
 private:
     MappedFileToker toker_;
+    bool skip_self_loops_;
     PEID rank_;
     PEID size_;
 };
 
-class PlainEdgeListWriter : public SequentialGraphWriter {
+class PlainEdgelistWriter : public SequentialGraphWriter {
 public:
-    PlainEdgeListWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+    PlainEdgelistWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
 
 protected:
     void AppendHeaderTo(const std::string& filename, SInt n, SInt m) final;
@@ -115,7 +116,7 @@ protected:
     void AppendTo(const std::string& filename) final;
 };
 
-class PlainEdgeListFactory : public FileFormatFactory {
+class PlainEdgelistFactory : public FileFormatFactory {
 public:
     std::string DefaultExtension() const final {
         return "plain-edgelist";

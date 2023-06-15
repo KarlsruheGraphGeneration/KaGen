@@ -41,8 +41,6 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Co
 
     const auto ranges = AllgatherVertexRange(vertex_range, comm);
 
-    const SInt edge_list_size_before = edge_list.size();
-
     const auto& [local_from, local_to] = ranges[rank];
     std::unordered_map<PEID, std::vector<SInt>> message_buffers;
 
@@ -90,19 +88,10 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Co
     recv_buf.clear();
     recv_buf.resize(0);
 
-    std::sort(edge_list.begin(), edge_list.end());
-
     // KaGen sometimes produces duplicate edges
+    std::sort(edge_list.begin(), edge_list.end());
     auto it = std::unique(edge_list.begin(), edge_list.end());
     edge_list.erase(it, edge_list.end());
-
-    const SInt edge_list_size_after = edge_list.size();
-
-    // Generate some statistics
-    SInt edge_list_global_size_before = 0;
-    MPI_Reduce(&edge_list_size_before, &edge_list_global_size_before, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
-    SInt edge_list_global_size_after = 0;
-    MPI_Reduce(&edge_list_size_after, &edge_list_global_size_after, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 }
 
 void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
@@ -183,5 +172,4 @@ void AddReverseEdgesAndRedistribute(EdgeList& edge_list, const VertexRange verte
     // Set original edge list to new edge list
     std::swap(local_edges, edge_list);
 }
-
 } // namespace kagen

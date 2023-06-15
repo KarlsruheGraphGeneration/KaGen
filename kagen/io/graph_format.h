@@ -23,10 +23,10 @@ private:
 };
 
 enum ReaderDeficits {
-    NONE                    = 0,
-    REQUIRES_REDISTRIBUTION = 1,
-    EDGE_LIST_ONLY          = 2,
-    CSR_ONLY                = 4,
+    NONE                     = 0,
+    REQUIRES_REDISTRIBUTION  = 1,
+    EDGE_LIST_ONLY           = 2,
+    CSR_ONLY                 = 4,
 };
 
 class GraphReader {

@@ -107,48 +107,77 @@ XtrapulpFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI
 // PlainEdgeList
 //
 
-PlainEdgeListWriter::PlainEdgeListWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+PlainEdgelistWriter::PlainEdgelistWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
     : SequentialGraphWriter(config, graph, comm) {}
 
-void PlainEdgeListWriter::AppendHeaderTo(const std::string&, SInt, SInt) {}
+void PlainEdgelistWriter::AppendHeaderTo(const std::string&, SInt, SInt) {}
 
-void PlainEdgeListWriter::AppendTo(const std::string& filename) {
+void PlainEdgelistWriter::AppendTo(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
     for (const auto& [from, to]: edges_) {
         out.WriteInt(from).WriteChar('\t').WriteInt(to).WriteChar('\n').Flush();
     }
 }
 
-PlainEdgeListReader::PlainEdgeListReader(const std::string& filename, PEID rank, PEID size)
+PlainEdgelistReader::PlainEdgelistReader(const std::string& filename, const bool skip_self_loops, PEID rank, PEID size)
     : toker_(filename),
+      skip_self_loops_(skip_self_loops),
       rank_(rank),
       size_(size) {}
 
-std::pair<SInt, SInt> PlainEdgeListReader::ReadSize() {
+std::pair<SInt, SInt> PlainEdgelistReader::ReadSize() {
     // We don't know the graph size yet; using size_ as a fake graph size will assign one vertex to each PE, which we
     // can then ignore
     return {static_cast<SInt>(size_), static_cast<SInt>(size_)};
 }
 
-Graph PlainEdgeListReader::Read(SInt, SInt, SInt, GraphRepresentation) {
-    return {};
+Graph PlainEdgelistReader::Read(SInt, SInt, SInt, GraphRepresentation) {
+    // Start reading in the next line after from, read until the next line end after to
+    const std::size_t length = toker_.Length();
+    const std::size_t from   = length / size_ * rank_;
+    std::size_t       to     = length / size_ * (rank_ + 1);
+    if (rank_ + 1 == size_) {
+        to = length;
+    }
+
+    if (from > 0) {
+        toker_.Seek(from - 1);
+        while (toker_.ValidPosition() && toker_.Current() != '\n') {
+            toker_.Advance();
+        }
+        toker_.Advance();
+    }
+
+    Graph graph;
+    while (toker_.ValidPosition() && toker_.Position() < to) {
+        const SInt u = toker_.ScanUnsigned();
+        const SInt v = toker_.ScanUnsigned();
+        if (!skip_self_loops_ || u != v) {
+            graph.edges.emplace_back(u, v);
+        }
+
+        if (toker_.ValidPosition() && !toker_.ConsumeChar('\n')) {
+            throw IOError("unexpected char in edge list");
+        }
+    }
+    return graph;
 }
 
-SInt PlainEdgeListReader::FindNodeByEdge(SInt) {
+SInt PlainEdgelistReader::FindNodeByEdge(SInt) {
     return 0;
 }
 
-ReaderDeficits PlainEdgeListReader::Deficits() const {
+int PlainEdgelistReader::Deficits() const {
     return ReaderDeficits::REQUIRES_REDISTRIBUTION | ReaderDeficits::EDGE_LIST_ONLY;
 }
 
 std::unique_ptr<GraphReader>
-PlainEdgeListFactory::CreateReader(const InputGraphConfig& config, const PEID rank, const PEID size) const {
-    return std::make_unique<PlainEdgeListReader>(config.filename, rank, size);
+PlainEdgelistFactory::CreateReader(const InputGraphConfig& config, const PEID rank, const PEID size) const {
+    return std::make_unique<PlainEdgelistReader>(config.filename, config.skip_self_loops, rank, size);
 }
 
 std::unique_ptr<GraphWriter>
-PlainEdgeListFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<PlainEdgeListWriter>(config, graph, comm);
+PlainEdgelistFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
+    return std::make_unique<PlainEdgelistWriter>(config, graph, comm);
 }
 } // namespace kagen

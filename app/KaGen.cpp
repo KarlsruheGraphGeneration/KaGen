@@ -411,8 +411,13 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--input-format", config.input_graph.format)
             ->transform(CLI::CheckedTransformer(GetInputFormatMap()).description(""))
             ->description(R"(The following file formats are supported:
-  - metis:  text format used by METIS
-  - parhip: binary format used by ParHIP)");
+  - metis:          text format used by METIS
+  - parhip:         binary format used by ParHIP
+  - plain-edgelist: text file containing one edge per line, separated by spaces or tabs, starting at 0)");
+        cmd->add_flag("--skip-self-loops", config.input_graph.skip_self_loops, "Skip self loops");
+        cmd->add_flag(
+            "--add-reverse-edges", config.input_graph.add_reverse_edges,
+            "Turn any directed graph into an undirected one by adding missing reverse edges");
     }
 
     // IO options

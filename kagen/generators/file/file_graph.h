@@ -18,14 +18,16 @@ protected:
 
     void GenerateCSR() final;
 
-    void FinalizeEdgeList(MPI_Comm comm);
+    void FinalizeEdgeList(MPI_Comm comm) final;
 
-    void FinalizeCSR(MPI_Comm comm);
+    void FinalizeCSR(MPI_Comm comm) final;
 
 private:
     void GenerateImpl(GraphRepresentation representation);
 
     bool CheckDeficit(ReaderDeficits deficit) const;
+
+    bool RequiresPostprocessing() const;
 
     const PGeneratorConfig& config_;
 

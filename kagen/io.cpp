@@ -27,6 +27,7 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
         factories[FileFormat::EDGE_LIST_UNDIRECTED]        = std::make_unique<UndirectedEdgelistFactory>();
         factories[FileFormat::BINARY_EDGE_LIST]            = std::make_unique<BinaryEdgelistFactory>();
         factories[FileFormat::BINARY_EDGE_LIST_UNDIRECTED] = std::make_unique<UndirectedBinaryEdgelistFactory>();
+        factories[FileFormat::PLAIN_EDGE_LIST]             = std::make_unique<PlainEdgelistFactory>();
         factories[FileFormat::XTRAPULP]                    = std::make_unique<XtrapulpFactory>();
         factories[FileFormat::METIS]                       = std::make_unique<MetisFactory>();
         factories[FileFormat::HMETIS]                      = std::make_unique<HmetisFactory>();

@@ -73,10 +73,12 @@ struct ImageMeshConfig {
 };
 
 struct InputGraphConfig {
-    std::string       filename     = "";
-    FileFormat        format       = FileFormat::EXTENSION;
-    GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
-    int               width        = 0;
+    std::string       filename          = "";
+    FileFormat        format            = FileFormat::EXTENSION;
+    GraphDistribution distribution      = GraphDistribution::BALANCE_VERTICES;
+    int               width             = 0;
+    bool              skip_self_loops = false;
+    bool              add_reverse_edges = false;
 };
 
 struct OutputGraphConfig {
@@ -150,6 +152,6 @@ template <typename Enum>
 std::string StringifyEnum(Enum value) {
     std::stringstream ss;
     ss << value;
-    return ss.str(); 
+    return ss.str();
 }
 } // namespace kagen

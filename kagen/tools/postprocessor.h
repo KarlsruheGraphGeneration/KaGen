@@ -9,9 +9,9 @@ void AddReverseEdges(EdgeList& edge_list, VertexRange vertex_range, MPI_Comm com
 
 void AddReverseEdgesAndRedistribute(EdgeList& edge_list, VertexRange vertex_range, MPI_Comm comm);
 
-template<typename FromEdgeList, typename ToEdgeList>
+template <typename FromEdgeList, typename ToEdgeList>
 std::pair<SInt, SInt> RedistributeEdges(
-    const FromEdgeList& from_edge_list, ToEdgeList &to_edge_list, const bool remove_duplicates_before_redistribution,
+    FromEdgeList& from_edge_list, ToEdgeList& to_edge_list, const bool remove_duplicates_before_redistribution,
     const bool remove_duplicates_after_redistribution, const SInt n, MPI_Comm comm) {
     if (remove_duplicates_before_redistribution) {
         std::sort(from_edge_list.begin(), from_edge_list.end());
