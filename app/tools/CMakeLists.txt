@@ -8,7 +8,10 @@ if (ImageMagick_FOUND AND ImageMagick_ImageMagick_VERSION VERSION_GREATER_EQUAL 
 
     add_executable(part2img part2img.cpp)
     target_link_libraries(part2img PRIVATE PkgConfig::ImageMagick)
-    install(TARGETS part2img DESTINATION bin)
+    install(TARGETS part2img 
+        COMPONENT tools
+        EXCLUDE_FROM_ALL
+        DESTINATION bin)
 else ()
     if (NOT ImageMagick_FOUND) 
         set(REASON "could not find ImageMagick on your system")
@@ -20,14 +23,16 @@ else ()
 endif ()
 
 add_executable(upsb2kargb upsb2kargb.cpp)
-install(TARGETS upsb2kargb DESTINATION bin)
 
-add_executable(chkmetis chkmetis.cpp)
-target_link_libraries(chkmetis PRIVATE kagen)
-target_include_directories(chkmetis PRIVATE ${PROJECT_SOURCE_DIR})
-install(TARGETS chkmetis DESTINATION bin)
+add_executable(chkgraph chkgraph.cpp)
+target_link_libraries(chkgraph PRIVATE kagen)
+target_include_directories(chkgraph PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(graphstats graphstats.cpp)
 target_link_libraries(graphstats PRIVATE kagen)
 target_include_directories(graphstats PRIVATE ${PROJECT_SOURCE_DIR})
 
+install(TARGETS upsb2kargb graphstats chkgraph 
+    COMPONENT tools
+    EXCLUDE_FROM_ALL
+    DESTINATION bin)
