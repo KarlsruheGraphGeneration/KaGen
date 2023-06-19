@@ -23,10 +23,10 @@ private:
 };
 
 enum ReaderDeficits {
-    NONE                     = 0,
-    REQUIRES_REDISTRIBUTION  = 1,
-    EDGE_LIST_ONLY           = 2,
-    CSR_ONLY                 = 4,
+    NONE                    = 0,
+    REQUIRES_REDISTRIBUTION = 1,
+    EDGE_LIST_ONLY          = 2,
+    CSR_ONLY                = 4,
 };
 
 class GraphReader {
@@ -46,27 +46,28 @@ public:
     }
 };
 
+struct GraphInfo {
+    SInt global_n;
+    SInt global_m;
+    bool has_vertex_weights;
+    bool has_edge_weights;
+};
+
 class GraphWriter {
 public:
-    GraphWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+    GraphWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
 
     virtual ~GraphWriter() = default;
 
-    virtual void Write(bool report_progress) = 0;
+    virtual bool Write(int pass) = 0;
 
 protected:
-    bool HasVertexWeights() const;
-    bool HasEdgeWeights() const;
-
     const OutputGraphConfig& config_;
 
-    EdgeList&      edges_;
-    VertexRange&   vertex_range_;
-    Coordinates&   coordinates_;
-    VertexWeights& vertex_weights_;
-    EdgeWeights&   edge_weights_;
-
-    MPI_Comm comm_;
+    GraphInfo info_;
+    Graph&    graph_;
+    PEID      rank_;
+    PEID      size_;
 };
 
 class FileFormatFactory {
@@ -82,7 +83,7 @@ public:
 
     virtual std::unique_ptr<GraphWriter> CreateWriter(
         [[maybe_unused]] const OutputGraphConfig& config, [[maybe_unused]] Graph& graph,
-        [[maybe_unused]] MPI_Comm comm) const {
+        [[maybe_unused]] GraphInfo info, [[maybe_unused]] PEID rank, [[maybe_unused]] PEID size) const {
         return nullptr;
     }
 };
@@ -92,9 +93,12 @@ public:
 //
 class NoopWriter : public GraphWriter {
 public:
-    NoopWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) : GraphWriter(config, graph, comm) {}
+    NoopWriter(const OutputGraphConfig& config, Graph& graph, const GraphInfo info, PEID rank, PEID size)
+        : GraphWriter(config, graph, info, rank, size) {}
 
-    void Write(bool) final {}
+    bool Write(int) final {
+        return false;
+    }
 };
 
 class NoopFactory : public FileFormatFactory {
@@ -103,9 +107,10 @@ public:
         return "";
     }
 
-    std::unique_ptr<GraphWriter>
-    CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final {
-        return std::make_unique<NoopWriter>(config, graph, comm);
+    std::unique_ptr<GraphWriter> CreateWriter(
+        const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank,
+        const PEID size) const final {
+        return std::make_unique<NoopWriter>(config, graph, info, rank, size);
     }
 };
 } // namespace kagen

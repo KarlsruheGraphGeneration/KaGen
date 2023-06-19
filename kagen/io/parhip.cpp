@@ -13,107 +13,122 @@ namespace kagen {
 using ParhipID     = unsigned long long;
 using ParhipWeight = SSInt;
 
-ParhipWriter::ParhipWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
-    : GraphWriter(config, graph, comm) {}
+ParhipWriter::ParhipWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
+    : GraphWriter(config, graph, info, rank, size) {}
 
-void ParhipWriter::Write(const bool report_progress) {
-    PEID rank = 0, size = 0;
-    MPI_Comm_rank(comm_, &rank);
-    MPI_Comm_size(comm_, &size);
+std::string ParhipWriter::GetFilename() const {
+    return config_.extension ? config_.filename + ".parhip" : config_.filename;
+}
 
-    const bool        output   = report_progress && rank == ROOT;
-    const std::string filename = config_.extension ? config_.filename + ".parhip" : config_.filename;
-
-    if (config_.distributed && output) {
-        std::cout
-            << "Warning: this file format does not support distributed output; writing the graph to a single file."
-            << std::endl;
-    }
-
+void ParhipWriter::WriteHeader() {
     // Edges must be sorted in order to convert them to the CSR format
-    if (!std::is_sorted(edges_.begin(), edges_.end())) {
-        std::sort(edges_.begin(), edges_.end());
+    if (!std::is_sorted(graph_.edges.begin(), graph_.edges.end())) {
+        std::sort(graph_.edges.begin(), graph_.edges.end());
     }
-
-    const ParhipID num_global_vertices = FindNumberOfGlobalNodes(vertex_range_, comm_);
-    const ParhipID num_global_edges    = FindNumberOfGlobalEdges(edges_, comm_);
 
     // Header
-    if (rank == ROOT && config_.header != OutputHeader::NEVER) {
+    if (rank_ == ROOT && config_.header != OutputHeader::NEVER) {
         // To be compatible with the original format used by ParHiP, we use the following versions:
         // 3 = no vertex or edge weights = compatible with ParHiP
         // 2 = no vertex weights, but edge weights
         // 1 = vertex weights, but no edge weights
         // 0 = vertex weights and edge weights
         // I.e., the negated "format" code used by the Metis format
-        const ParhipID vertex_weights_bit = (static_cast<SInt>(HasVertexWeights()) ^ 1) << 1;
-        const ParhipID edge_weights_bit   = static_cast<SInt>(HasEdgeWeights()) ^ 1;
+        const ParhipID vertex_weights_bit = (static_cast<SInt>(info_.has_vertex_weights) ^ 1) << 1;
+        const ParhipID edge_weights_bit   = static_cast<SInt>(info_.has_edge_weights) ^ 1;
         const ParhipID version            = vertex_weights_bit | edge_weights_bit;
 
-        std::ofstream out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+        std::ofstream  out(GetFilename(), std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+        const ParhipID global_n = info_.global_n;
+        const ParhipID global_m = info_.global_m;
         out.write(reinterpret_cast<const char*>(&version), sizeof(ParhipID));
-        out.write(reinterpret_cast<const char*>(&num_global_vertices), sizeof(ParhipID));
-        out.write(reinterpret_cast<const char*>(&num_global_edges), sizeof(ParhipID));
+        out.write(reinterpret_cast<const char*>(&global_n), sizeof(ParhipID));
+        out.write(reinterpret_cast<const char*>(&global_m), sizeof(ParhipID));
     }
+}
 
-    // Generate the CSR data
-    const SInt            num_local_vertices = vertex_range_.second - vertex_range_.first;
-    std::vector<ParhipID> offset(num_local_vertices + 1);
-    std::vector<ParhipID> edges(edges_.size());
+void ParhipWriter::WriteOffsets() {
+    std::vector<ParhipID> offset(graph_.NumberOfLocalVertices() + 1);
 
-    SInt cur_offset = (3 + num_global_vertices + 1) * sizeof(ParhipID); // 3 = header size
+    SInt cur_offset = (3 + info_.global_n + 1) * sizeof(ParhipID); // 3 = header size
     SInt cur_edge   = 0;
     SInt cur_vertex = 0;
-    for (SInt from = vertex_range_.first; from < vertex_range_.second; ++from) {
-        offset[cur_vertex]         = cur_offset;
-        const SInt cur_edge_before = cur_edge;
 
-        while (cur_edge < edges_.size() && std::get<0>(edges_[cur_edge]) == from) {
-            edges[cur_edge] = std::get<1>(edges_[cur_edge]);
+    for (SInt from = graph_.vertex_range.first; from < graph_.vertex_range.second; ++from) {
+        offset[cur_vertex] = cur_offset;
+
+        const SInt cur_edge_before = cur_edge;
+        while (cur_edge < graph_.edges.size() && std::get<0>(graph_.edges[cur_edge]) == from) {
             ++cur_edge;
         }
-
         const SInt degree = cur_edge - cur_edge_before;
+
         cur_offset += degree * sizeof(ParhipID);
         ++cur_vertex;
     }
     offset[cur_vertex] = cur_offset;
 
-    // Write graph to binary file
-    auto output_loop = [&](auto&& action) {
-        for (PEID pe = 0; pe < size; ++pe) {
-            if (pe == rank) {
-                std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-                action(out);
+    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
+}
+
+void ParhipWriter::WriteEdges() {
+    std::vector<ParhipID> edges(graph_.NumberOfLocalEdges());
+    std::transform(graph_.edges.begin(), graph_.edges.end(), edges.begin(), [&](const auto& edge) {
+        return static_cast<ParhipID>(std::get<1>(edge));
+    });
+
+    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    out.write(reinterpret_cast<const char*>(edges.data()), edges.size() * sizeof(ParhipID));
+}
+
+void ParhipWriter::WriteVertexWeights() {
+    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    out.write(
+        reinterpret_cast<const char*>(graph_.vertex_weights.data()),
+        graph_.vertex_weights.size() * sizeof(ParhipWeight));
+}
+
+void ParhipWriter::WriteEdgeWeights() {
+    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    out.write(
+        reinterpret_cast<const char*>(graph_.edge_weights.data()), graph_.edge_weights.size() * sizeof(ParhipWeight));
+}
+
+bool ParhipWriter::Write(const int pass) {
+    if (config_.distributed) {
+        throw IOError("ParHiP format does not support distributed output");
+    }
+
+    // @todo create copies if data types mismatch
+    static_assert(std::is_same_v<SInt, ParhipID>);
+    static_assert(std::is_same_v<SSInt, ParhipWeight>);
+
+    switch (pass) {
+        case 0:
+            WriteHeader();
+            WriteOffsets();
+            return true;
+
+        case 1:
+            WriteEdges();
+            return info_.has_vertex_weights || info_.has_edge_weights;
+
+        case 2:
+            if (info_.has_vertex_weights) {
+                WriteVertexWeights();
+            } else {
+                WriteEdgeWeights();
             }
-            MPI_Barrier(comm_);
-        }
-    };
+            return info_.has_vertex_weights && info_.has_edge_weights;
 
-    // Write offset array
-    output_loop([&offset](std::ofstream& out) {
-        out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
-    });
-
-    // Write edges array
-    output_loop([&edges](std::ofstream& out) {
-        out.write(reinterpret_cast<const char*>(edges.data()), edges.size() * sizeof(ParhipID));
-    });
-
-    // Write  weights
-    static_assert(std::is_same_v<SSInt, ParhipWeight>); // @todo create copy if the data types do not match
-
-    if (HasVertexWeights()) {
-        output_loop([this](std::ofstream& out) {
-            out.write(
-                reinterpret_cast<const char*>(vertex_weights_.data()), vertex_weights_.size() * sizeof(ParhipWeight));
-        });
+        case 3:
+            WriteEdgeWeights();
+            return false;
     }
-    if (HasEdgeWeights()) {
-        output_loop([this](std::ofstream& out) {
-            out.write(reinterpret_cast<const char*>(edge_weights_.data()), edge_weights_.size() * sizeof(ParhipWeight));
-        });
-    }
+
+    return false;
 }
 
 namespace {
@@ -252,8 +267,8 @@ std::unique_ptr<GraphReader> ParhipFactory::CreateReader(const InputGraphConfig&
     return std::make_unique<ParhipReader>(config.filename);
 }
 
-std::unique_ptr<GraphWriter>
-ParhipFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<ParhipWriter>(config, graph, comm);
+std::unique_ptr<GraphWriter> ParhipFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<ParhipWriter>(config, graph, info, rank, size);
 }
 } // namespace kagen

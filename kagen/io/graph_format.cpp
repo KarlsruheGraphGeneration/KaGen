@@ -1,14 +1,11 @@
 #include "kagen/io/graph_format.h"
 
 namespace kagen {
-GraphWriter::GraphWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
+GraphWriter::GraphWriter(const OutputGraphConfig& config, Graph& graph, const PEID rank, const PEID size)
     : config_(config),
-      edges_(graph.edges),
-      vertex_range_(graph.vertex_range),
-      coordinates_(graph.coordinates),
-      vertex_weights_(graph.vertex_weights),
-      edge_weights_(graph.edge_weights),
-      comm_(comm) {}
+      graph_(graph),
+      rank_(rank),
+      size_(size) {}
 
 bool GraphWriter::HasVertexWeights() const {
     bool has_vertex_weights =

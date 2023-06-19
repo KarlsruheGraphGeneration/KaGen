@@ -481,12 +481,12 @@ int main(int argc, char* argv[]) {
     // Run KaGen
     auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
 
-    const std::string base_filename = config.output_graph.filename;
-
-    PEID rank;
+    // Write resulting graph to disk
+    PEID rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    const bool is_root = rank == 0;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    const std::string base_filename = config.output_graph.filename;
     for (const FileFormat& format: config.output_graph.formats) {
         const auto& factory = GetGraphFormatFactory(format);
 
@@ -495,10 +495,10 @@ int main(int argc, char* argv[]) {
             config.output_graph.extension ? base_filename + "." + factory->DefaultExtension() : base_filename;
         config.output_graph.filename = filename;
 
-        auto writer = factory->CreateWriter(config.output_graph, graph, MPI_COMM_WORLD);
+        auto writer = factory->CreateWriter(config.output_graph, graph, rank, size);
         if (writer != nullptr) {
             writer->Write(!config.quiet);
-        } else if (!config.quiet && is_root) {
+        } else if (!config.quiet && rank == 0) {
             std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
         }
     }

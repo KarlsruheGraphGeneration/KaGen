@@ -3,17 +3,28 @@
 #include <fstream>
 #include <string>
 
-#include <mpi.h>
-
 #include "kagen/context.h"
 #include "kagen/io/graph_format.h"
 
 namespace kagen {
 class ParhipWriter : public GraphWriter {
 public:
-    ParhipWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+    ParhipWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
 
-    void Write(bool report_progress) final;
+    bool Write(const int pass) final;
+
+private:
+    std::string GetFilename() const;
+
+    void WriteHeader();
+
+    void WriteOffsets();
+    
+    void WriteEdges();
+
+    void WriteVertexWeights();
+
+    void WriteEdgeWeights();
 };
 
 class ParhipReader : public GraphReader {
@@ -41,6 +52,8 @@ public:
     }
 
     std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 } // namespace kagen
