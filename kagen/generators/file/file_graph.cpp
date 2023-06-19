@@ -97,13 +97,7 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
         MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
         ++n;
 
-        // Create desired vertex distribution
-        vertex_range_.first  = n / size_ * rank_ + std::min<SInt>(rank_, n % size_);
-        vertex_range_.second = n / size_ * (rank_ + 1) + std::min<SInt>(rank_ + 1, n % size_);
-        if (rank_ + 1 == size_) {
-            vertex_range_.second = n;
-        }
-
+        std::tie(vertex_range_.first, vertex_range_.second) = ComputeRange(n, size_, rank_);
         AddReverseEdgesAndRedistribute(edges_, vertex_range_, config_.input_graph.add_reverse_edges, comm);
         reverse_edges_added = true;
     }
@@ -124,12 +118,8 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
 
         edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
         {
-            XadjArray tmp;
-            std::swap(xadj_, tmp);
-        }
-        {
-            AdjncyArray tmp;
-            std::swap(adjncy_, tmp);
+            [[maybe_unused]] auto free_xadj   = std::move(xadj_);
+            [[maybe_unused]] auto free_adjncy = std::move(adjncy_);
         }
     }
 }
@@ -143,10 +133,7 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
         }
 
         std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
-        {
-            EdgeList tmp;
-            std::swap(edges_, tmp);
-        }
+        { [[maybe_unused]] auto free_edges = std::move(edges_); }
     }
 }
 
