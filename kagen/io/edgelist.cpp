@@ -3,6 +3,7 @@
 #include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/io/graph_format.h"
+#include "kagen/tools/utils.h"
 
 namespace kagen {
 EdgelistWriter::EdgelistWriter(
@@ -119,9 +120,8 @@ void PlainEdgelistWriter::AppendTo(const std::string& filename) {
     }
 }
 
-PlainEdgelistReader::PlainEdgelistReader(const std::string& filename, const bool skip_self_loops, PEID rank, PEID size)
+PlainEdgelistReader::PlainEdgelistReader(const std::string& filename, PEID rank, PEID size)
     : toker_(filename),
-      skip_self_loops_(skip_self_loops),
       rank_(rank),
       size_(size) {}
 
@@ -134,11 +134,7 @@ std::pair<SInt, SInt> PlainEdgelistReader::ReadSize() {
 Graph PlainEdgelistReader::Read(SInt, SInt, SInt, GraphRepresentation) {
     // Start reading in the next line after from, read until the next line end after to
     const std::size_t length = toker_.Length();
-    const std::size_t from   = length / size_ * rank_;
-    std::size_t       to     = length / size_ * (rank_ + 1);
-    if (rank_ + 1 == size_) {
-        to = length;
-    }
+    const auto [from, to]    = ComputeRange(length, size_, rank_);
 
     if (from > 0) {
         toker_.Seek(from - 1);
@@ -152,9 +148,7 @@ Graph PlainEdgelistReader::Read(SInt, SInt, SInt, GraphRepresentation) {
     while (toker_.ValidPosition() && toker_.Position() < to) {
         const SInt u = toker_.ScanUnsigned();
         const SInt v = toker_.ScanUnsigned();
-        if (!skip_self_loops_ || u != v) {
-            graph.edges.emplace_back(u, v);
-        }
+        graph.edges.emplace_back(u, v);
 
         if (toker_.ValidPosition() && !toker_.ConsumeChar('\n')) {
             throw IOError("unexpected char in edge list");
@@ -173,7 +167,7 @@ int PlainEdgelistReader::Deficits() const {
 
 std::unique_ptr<GraphReader>
 PlainEdgelistFactory::CreateReader(const InputGraphConfig& config, const PEID rank, const PEID size) const {
-    return std::make_unique<PlainEdgelistReader>(config.filename, config.skip_self_loops, rank, size);
+    return std::make_unique<PlainEdgelistReader>(config.filename, rank, size);
 }
 
 std::unique_ptr<GraphWriter>

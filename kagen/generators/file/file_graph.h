@@ -27,8 +27,6 @@ private:
 
     bool CheckDeficit(ReaderDeficits deficit) const;
 
-    bool RequiresPostprocessing() const;
-
     bool Output() const;
 
     const PGeneratorConfig& config_;
@@ -36,6 +34,7 @@ private:
     PEID rank_;
     PEID size_;
 
-    int deficits_;
+    int                 deficits_;
+    GraphRepresentation actual_representation_;
 };
 } // namespace kagen

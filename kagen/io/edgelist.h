@@ -89,7 +89,7 @@ public:
 
 class PlainEdgelistReader : public GraphReader {
 public:
-    PlainEdgelistReader(const std::string& filename, bool skip_self_loops, PEID rank, PEID size);
+    PlainEdgelistReader(const std::string& filename, PEID rank, PEID size);
 
     GraphSize ReadSize() final;
 
@@ -101,9 +101,8 @@ public:
 
 private:
     MappedFileToker toker_;
-    bool skip_self_loops_;
-    PEID rank_;
-    PEID size_;
+    PEID            rank_;
+    PEID            size_;
 };
 
 class PlainEdgelistWriter : public SequentialGraphWriter {

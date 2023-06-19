@@ -414,10 +414,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
   - metis:          text format used by METIS
   - parhip:         binary format used by ParHIP
   - plain-edgelist: text file containing one edge per line, separated by spaces or tabs, starting at 0)");
-        cmd->add_flag("--skip-self-loops", config.input_graph.skip_self_loops, "Skip self loops");
-        cmd->add_flag(
-            "--add-reverse-edges", config.input_graph.add_reverse_edges,
-            "Turn any directed graph into an undirected one by adding missing reverse edges");
     }
 
     // IO options
@@ -470,13 +466,6 @@ int main(int argc, char* argv[]) {
     CLI::App         app("KaGen: Karlsruhe Graph Generator");
     SetupCommandLineArguments(app, config);
     CLI11_PARSE(app, argc, argv);
-
-    // When loading a graph from disk, set these flags depending on the input graph to ensure that --validate works
-    // correctly
-    if (config.generator == GeneratorType::FILE) {
-        config.self_loops = !config.input_graph.skip_self_loops;
-        config.directed   = !config.input_graph.add_reverse_edges;
-    }
 
     // Coordinates output format implies --coordinates
     if (std::find(config.output_graph.formats.begin(), config.output_graph.formats.end(), FileFormat::COORDINATES)

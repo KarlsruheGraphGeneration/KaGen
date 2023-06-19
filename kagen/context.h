@@ -77,8 +77,6 @@ struct InputGraphConfig {
     FileFormat        format            = FileFormat::EXTENSION;
     GraphDistribution distribution      = GraphDistribution::BALANCE_VERTICES;
     int               width             = 0;
-    bool              skip_self_loops = false;
-    bool              add_reverse_edges = false;
 };
 
 struct OutputGraphConfig {

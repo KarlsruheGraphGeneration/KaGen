@@ -32,7 +32,11 @@ add_executable(graphstats graphstats.cpp)
 target_link_libraries(graphstats PRIVATE kagen)
 target_include_directories(graphstats PRIVATE ${PROJECT_SOURCE_DIR})
 
-install(TARGETS upsb2kargb graphstats chkgraph 
+add_executable(pangraph pangraph.cpp)
+target_link_libraries(pangraph PRIVATE kagen)
+target_include_directories(pangraph PRIVATE ${PROJECT_SOURCE_DIR})
+
+install(TARGETS upsb2kargb graphstats chkgraph pangraph
     COMPONENT tools
     EXCLUDE_FROM_ALL
     DESTINATION bin)

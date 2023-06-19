@@ -11,19 +11,10 @@
 #include "kagen/definitions.h"
 #include "kagen/io.h"
 #include "kagen/tools/postprocessor.h"
+#include "kagen/tools/utils.h"
 #include "kagen/tools/validator.h"
 
 using namespace kagen;
-
-namespace {
-std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
-    const SInt chunk = n / size;
-    const SInt rem   = n % size;
-    const SInt from  = rank * chunk + std::min<SInt>(rank, rem);
-    const SInt to    = std::min<SInt>(from + ((static_cast<SInt>(rank) < rem) ? chunk + 1 : chunk), n);
-    return {from, to};
-}
-} // namespace
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
