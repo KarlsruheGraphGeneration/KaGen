@@ -40,6 +40,44 @@ std::string BuildDescription() {
     return ss.str();
 }
 
+SInt Graph::NumberOfLocalVertices() const {
+    return vertex_range.second - vertex_range.first;
+}
+
+SInt Graph::NumberOfLocalEdges() const {
+    switch (representation) {
+        case GraphRepresentation::EDGE_LIST:
+            return edges.size();
+
+        case GraphRepresentation::CSR:
+            return adjncy.size();
+    }
+
+    __builtin_unreachable();
+}
+
+void Graph::SortEdgelist() {
+    auto cmp_from = [](const auto& lhs, const auto& rhs) {
+        return std::get<0>(lhs) < std::get<0>(rhs);
+    };
+
+    if (!std::is_sorted(edges.begin(), edges.end(), cmp_from)) {
+        if (!edge_weights.empty()) {
+            std::vector<SSInt> indices(edges.size());
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&](const auto& lhs, const auto& rhs) {
+                return cmp_from(edges[lhs], edges[rhs]);
+            });
+            for (std::size_t e = 0; e < edges.size(); ++e) {
+                indices[e] = edge_weights[indices[e]];
+            }
+            std::swap(edge_weights, indices);
+        }
+
+        std::sort(edges.begin(), edges.end(), cmp_from);
+    }
+}
+
 KaGen::KaGen(MPI_Comm comm)
     : comm_(comm),
       config_(std::make_unique<PGeneratorConfig>()),

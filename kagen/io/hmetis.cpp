@@ -1,7 +1,6 @@
 #include "kagen/io/hmetis.h"
 
 #include "kagen/io/buffered_writer.h"
-#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
 HmetisWriter::HmetisWriter(

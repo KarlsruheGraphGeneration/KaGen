@@ -47,6 +47,8 @@ public:
 };
 
 struct GraphInfo {
+    GraphInfo() = default;
+
     GraphInfo(const Graph &graph, MPI_Comm comm);
 
     SInt global_n;
@@ -64,8 +66,6 @@ public:
     virtual bool Write(int pass, const std::string& filename) = 0;
 
 protected:
-    void SortEdges();
-
     void RequiresCoordinates() const;
 
     void Requires2DCoordinates() const;

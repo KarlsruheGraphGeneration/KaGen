@@ -25,7 +25,7 @@ void MetisWriter::WriteHeader(const std::string& filename, const SInt n, const S
 }
 
 bool MetisWriter::WriteBody(const std::string& filename) {
-    SortEdges();
+    graph_.SortEdgelist();
 
     BufferedTextOutput<> out(tag::append, filename);
 
@@ -258,8 +258,8 @@ std::unique_ptr<GraphReader> MetisFactory::CreateReader(const InputGraphConfig& 
     return std::make_unique<MetisReader>(config.filename);
 }
 
-std::unique_ptr<GraphWriter>
-MetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<MetisWriter>(config, graph, comm);
+std::unique_ptr<GraphWriter> MetisFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<MetisWriter>(config, graph, info, rank, size);
 }
 } // namespace kagen

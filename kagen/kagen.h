@@ -2,6 +2,7 @@
 
 #ifdef __cplusplus
     #include <algorithm>
+    #include <cstdint>
     #include <iterator>
     #include <memory>
     #include <numeric>
@@ -10,7 +11,6 @@
     #include <type_traits>
     #include <utility>
     #include <vector>
-    #include <cstdint>
 #endif
 
 #include <mpi.h>
@@ -153,22 +153,15 @@ struct Graph {
     EdgeWeights   edge_weights;
     Coordinates   coordinates;
 
+    SInt NumberOfLocalVertices() const;
+
+    SInt NumberOfLocalEdges() const;
+
+    void SortEdgelist();
+
     template <typename T = SInt>
     std::vector<std::pair<T, T>> TakeEdges() {
         return TakeVector<std::pair<T, T>>(edges);
-    }
-
-    SInt NumberOfLocalVertices() const {
-        return vertex_range.second - vertex_range.first;
-    }
-
-    SInt NumberOfLocalEdges() const {
-        switch (representation) {
-            case GraphRepresentation::EDGE_LIST:
-                return edges.size();
-            case GraphRepresentation::CSR:
-                return adjncy.size();
-        }
     }
 
     template <typename T = SInt>

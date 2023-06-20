@@ -17,10 +17,6 @@ ParhipWriter::ParhipWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
     : GraphWriter(config, graph, info, rank, size) {}
 
-std::string ParhipWriter::GetFilename() const {
-    return config_.extension ? config_.filename + ".parhip" : config_.filename;
-}
-
 void ParhipWriter::WriteHeader(const std::string &filename) {
     // Edges must be sorted in order to convert them to the CSR format
     if (!std::is_sorted(graph_.edges.begin(), graph_.edges.end())) {

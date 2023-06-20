@@ -2,9 +2,18 @@
 
 #include <fstream>
 
+#include <mpi.h>
+
 namespace kagen {
-GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm) {
-    // @todo
+GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm)
+    : global_n(graph.NumberOfLocalVertices()),
+      global_m(graph.NumberOfLocalEdges()),
+      has_vertex_weights(!graph.vertex_weights.empty()),
+      has_edge_weights(!graph.edge_weights.empty()) {
+    MPI_Allreduce(MPI_IN_PLACE, &global_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &global_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
 }
 
 GraphWriter::GraphWriter(
@@ -14,28 +23,6 @@ GraphWriter::GraphWriter(
       graph_(graph),
       rank_(rank),
       size_(size) {}
-
-void GraphWriter::SortEdges() {
-    auto cmp_from = [](const auto& lhs, const auto& rhs) {
-        return std::get<0>(lhs) < std::get<0>(rhs);
-    };
-
-    if (!std::is_sorted(graph_.edges.begin(), graph_.edges.end(), cmp_from)) {
-        if (!graph_.edge_weights.empty()) {
-            std::vector<SSInt> indices(graph_.edges.size());
-            std::iota(indices.begin(), indices.end(), 0);
-            std::sort(indices.begin(), indices.end(), [&](const auto& lhs, const auto& rhs) {
-                return cmp_from(graph_.edges[lhs], graph_.edges[rhs]);
-            });
-            for (std::size_t e = 0; e < graph_.edges.size(); ++e) {
-                indices[e] = graph_.edge_weights[indices[e]];
-            }
-            std::swap(graph_.edge_weights, indices);
-        }
-
-        std::sort(graph_.edges.begin(), graph_.edges.end(), cmp_from);
-    }
-}
 
 void GraphWriter::RequiresCoordinates() const {
     const SInt local_n = graph_.vertex_range.second - graph_.vertex_range.first;
@@ -89,7 +76,7 @@ void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool
         for (int pass = 0; continue_with_next_pass; ++pass) {
             for (PEID pe = 0; pe < size; ++pe) {
                 if (output) {
-                    std::cout << "  Writing subgraph of PE " << pe << " (" << pass << ") ... " << std::flush;
+                    std::cout << "  Writing subgraph of PE " << pe << " (pass " << pass << ") ... " << std::flush;
                 }
                 if (rank == pe) {
                     continue_with_next_pass = writer.Write(pass, filename);
