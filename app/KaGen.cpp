@@ -495,10 +495,11 @@ int main(int argc, char* argv[]) {
             config.output_graph.extension ? base_filename + "." + factory->DefaultExtension() : base_filename;
         config.output_graph.filename = filename;
 
-        auto writer = factory->CreateWriter(config.output_graph, graph, rank, size);
+        GraphInfo info(graph, MPI_COMM_WORLD);
+        auto      writer = factory->CreateWriter(config.output_graph, graph, info, rank, size);
         if (writer != nullptr) {
-            writer->Write(!config.quiet);
-        } else if (!config.quiet && rank == 0) {
+            WriteGraph(*writer.get(), config.output_graph, rank == ROOT && !config.quiet, MPI_COMM_WORLD);
+        } else if (!config.quiet && rank == ROOT) {
             std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
         }
     }

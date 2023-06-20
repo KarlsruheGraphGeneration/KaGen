@@ -3,6 +3,10 @@
 #include <fstream>
 
 namespace kagen {
+GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm) {
+    // @todo
+}
+
 GraphWriter::GraphWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
     : config_(config),

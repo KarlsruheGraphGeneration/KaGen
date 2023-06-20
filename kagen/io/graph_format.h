@@ -47,6 +47,8 @@ public:
 };
 
 struct GraphInfo {
+    GraphInfo(const Graph &graph, MPI_Comm comm);
+
     SInt global_n;
     SInt global_m;
     bool has_vertex_weights;
