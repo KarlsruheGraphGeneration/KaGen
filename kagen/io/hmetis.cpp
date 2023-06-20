@@ -4,19 +4,21 @@
 #include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-HmetisWriter::HmetisWriter(const bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
-    : SequentialGraphWriter(config, graph, comm),
+HmetisWriter::HmetisWriter(
+    const bool directed, const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank,
+    const PEID size)
+    : StandardGraphWriter(config, graph, info, rank, size),
       directed_(directed) {}
 
-void HmetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
+void HmetisWriter::WriteHeader(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteInt(m / 2).WriteChar(' ').WriteInt(n);
-    if (HasVertexWeights() || HasEdgeWeights()) {
+    if (info_.has_vertex_weights || info_.has_edge_weights) {
         out.WriteChar(' ');
-        if (HasVertexWeights()) {
+        if (info_.has_vertex_weights) {
             out.WriteChar('1');
         }
-        if (HasEdgeWeights()) {
+        if (info_.has_edge_weights) {
             out.WriteChar('1');
         } else {
             out.WriteChar('0');
@@ -25,14 +27,14 @@ void HmetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, con
     out.WriteChar('\n').Flush();
 }
 
-void HmetisWriter::AppendTo(const std::string& filename) {
+bool HmetisWriter::WriteBody(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
 
-    for (SInt e = 0; e < edges_.size(); ++e) {
-        const auto& [from, to] = edges_[e];
+    for (SInt e = 0; e < graph_.edges.size(); ++e) {
+        const auto& [from, to] = graph_.edges[e];
 
-        if (HasEdgeWeights()) {
-            out.WriteInt(static_cast<SInt>(edge_weights_[e])).WriteChar(' ');
+        if (info_.has_edge_weights) {
+            out.WriteInt(static_cast<SInt>(graph_.edge_weights[e])).WriteChar(' ');
         }
 
         // Edges should only occur in one direction
@@ -40,26 +42,25 @@ void HmetisWriter::AppendTo(const std::string& filename) {
             out.WriteInt(from + 1).WriteChar(' ').WriteInt(to + 1).WriteChar('\n').Flush();
         }
     }
+
+    // Only call WriteFooter() if we have vertex weights
+    return info_.has_vertex_weights;
 }
 
-void HmetisWriter::AppendFooterTo(const std::string& filename) {
-    if (!HasVertexWeights()) {
-        return;
-    }
-
+void HmetisWriter::WriteFooter(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
-    for (const SSInt& weight: vertex_weights_) {
+    for (const SSInt& weight: graph_.vertex_weights) {
         out.WriteInt(weight).WriteChar('\n').Flush();
     }
 }
 
-std::unique_ptr<GraphWriter>
-HmetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<HmetisWriter>(false, config, graph, comm);
+std::unique_ptr<GraphWriter> HmetisFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<HmetisWriter>(false, config, graph, info, rank, size);
 }
 
-std::unique_ptr<GraphWriter>
-DirectedHmetisFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<HmetisWriter>(true, config, graph, comm);
+std::unique_ptr<GraphWriter> DirectedHmetisFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<HmetisWriter>(true, config, graph, info, rank, size);
 }
 } // namespace kagen

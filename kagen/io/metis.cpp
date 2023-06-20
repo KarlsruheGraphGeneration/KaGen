@@ -1,22 +1,18 @@
 #include "kagen/io/metis.h"
 
 #include "kagen/io/buffered_writer.h"
-#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-MetisWriter::MetisWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
-    : SequentialGraphWriter(config, graph, comm) {}
+MetisWriter::MetisWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
+    : StandardGraphWriter(config, graph, info, rank, size) {}
 
-int MetisWriter::Requirements() const {
-    return SequentialGraphWriter::Requirement::SORTED_EDGES;
-}
-
-void MetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) {
+void MetisWriter::WriteHeader(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteInt(n).WriteChar(' ').WriteInt(m / 2);
 
-    const bool has_vertex_weights = HasVertexWeights();
-    const bool has_edge_weights   = HasEdgeWeights();
+    const bool has_vertex_weights = info_.has_vertex_weights;
+    const bool has_edge_weights   = info_.has_edge_weights;
     if (has_vertex_weights || has_edge_weights) {
         out.WriteChar(' ');
         if (has_vertex_weights) {
@@ -28,29 +24,30 @@ void MetisWriter::AppendHeaderTo(const std::string& filename, const SInt n, cons
     out.WriteChar('\n').Flush();
 }
 
-void MetisWriter::AppendTo(const std::string& filename) {
+bool MetisWriter::WriteBody(const std::string& filename) {
+    SortEdges();
+
     BufferedTextOutput<> out(tag::append, filename);
 
-    const bool has_vertex_weights = HasVertexWeights();
-    const bool has_edge_weights   = HasEdgeWeights();
-
     SInt cur_edge = 0;
-    for (SInt from = vertex_range_.first; from < vertex_range_.second; ++from) {
-        if (has_vertex_weights) {
-            out.WriteInt(vertex_weights_[from - vertex_range_.first]).WriteChar(' ').Flush();
+    for (SInt from = graph_.vertex_range.first; from < graph_.vertex_range.second; ++from) {
+        if (info_.has_vertex_weights) {
+            out.WriteInt(graph_.vertex_weights[from - graph_.vertex_range.first]).WriteChar(' ').Flush();
         }
 
-        while (cur_edge < edges_.size() && std::get<0>(edges_[cur_edge]) == from) {
-            const SInt to = std::get<1>(edges_[cur_edge]) + 1;
+        while (cur_edge < graph_.edges.size() && std::get<0>(graph_.edges[cur_edge]) == from) {
+            const SInt to = std::get<1>(graph_.edges[cur_edge]) + 1;
             out.WriteInt(to).WriteChar(' ');
-            if (has_edge_weights) {
-                out.WriteInt(edge_weights_[cur_edge]).WriteChar(' ');
+            if (info_.has_edge_weights) {
+                out.WriteInt(graph_.edge_weights[cur_edge]).WriteChar(' ');
             }
             out.Flush();
             ++cur_edge;
         }
         out.WriteChar('\n').Flush();
     }
+
+    return false;
 }
 
 namespace {
