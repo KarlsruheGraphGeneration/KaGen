@@ -21,7 +21,7 @@ std::string ParhipWriter::GetFilename() const {
     return config_.extension ? config_.filename + ".parhip" : config_.filename;
 }
 
-void ParhipWriter::WriteHeader() {
+void ParhipWriter::WriteHeader(const std::string &filename) {
     // Edges must be sorted in order to convert them to the CSR format
     if (!std::is_sorted(graph_.edges.begin(), graph_.edges.end())) {
         std::sort(graph_.edges.begin(), graph_.edges.end());
@@ -39,7 +39,7 @@ void ParhipWriter::WriteHeader() {
         const ParhipID edge_weights_bit   = static_cast<SInt>(info_.has_edge_weights) ^ 1;
         const ParhipID version            = vertex_weights_bit | edge_weights_bit;
 
-        std::ofstream  out(GetFilename(), std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+        std::ofstream  out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
         const ParhipID global_n = info_.global_n;
         const ParhipID global_m = info_.global_m;
         out.write(reinterpret_cast<const char*>(&version), sizeof(ParhipID));
@@ -48,7 +48,7 @@ void ParhipWriter::WriteHeader() {
     }
 }
 
-void ParhipWriter::WriteOffsets() {
+void ParhipWriter::WriteOffsets(const std::string &filename) {
     std::vector<ParhipID> offset(graph_.NumberOfLocalVertices() + 1);
 
     SInt cur_offset = (3 + info_.global_n + 1) * sizeof(ParhipID); // 3 = header size
@@ -69,34 +69,34 @@ void ParhipWriter::WriteOffsets() {
     }
     offset[cur_vertex] = cur_offset;
 
-    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
 }
 
-void ParhipWriter::WriteEdges() {
+void ParhipWriter::WriteEdges(const std::string &filename) {
     std::vector<ParhipID> edges(graph_.NumberOfLocalEdges());
     std::transform(graph_.edges.begin(), graph_.edges.end(), edges.begin(), [&](const auto& edge) {
         return static_cast<ParhipID>(std::get<1>(edge));
     });
 
-    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     out.write(reinterpret_cast<const char*>(edges.data()), edges.size() * sizeof(ParhipID));
 }
 
-void ParhipWriter::WriteVertexWeights() {
-    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+void ParhipWriter::WriteVertexWeights(const std::string &filename) {
+    std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     out.write(
         reinterpret_cast<const char*>(graph_.vertex_weights.data()),
         graph_.vertex_weights.size() * sizeof(ParhipWeight));
 }
 
-void ParhipWriter::WriteEdgeWeights() {
-    std::ofstream out(GetFilename(), std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+void ParhipWriter::WriteEdgeWeights(const std::string &filename) {
+    std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     out.write(
         reinterpret_cast<const char*>(graph_.edge_weights.data()), graph_.edge_weights.size() * sizeof(ParhipWeight));
 }
 
-bool ParhipWriter::Write(const int pass) {
+bool ParhipWriter::Write(const int pass, const std::string& filename) {
     if (config_.distributed) {
         throw IOError("ParHiP format does not support distributed output");
     }
@@ -107,24 +107,24 @@ bool ParhipWriter::Write(const int pass) {
 
     switch (pass) {
         case 0:
-            WriteHeader();
-            WriteOffsets();
+            WriteHeader(filename);
+            WriteOffsets(filename);
             return true;
 
         case 1:
-            WriteEdges();
+            WriteEdges(filename);
             return info_.has_vertex_weights || info_.has_edge_weights;
 
         case 2:
             if (info_.has_vertex_weights) {
-                WriteVertexWeights();
+                WriteVertexWeights(filename);
             } else {
-                WriteEdgeWeights();
+                WriteEdgeWeights(filename);
             }
             return info_.has_vertex_weights && info_.has_edge_weights;
 
         case 3:
-            WriteEdgeWeights();
+            WriteEdgeWeights(filename);
             return false;
     }
 

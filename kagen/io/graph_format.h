@@ -59,15 +59,43 @@ public:
 
     virtual ~GraphWriter() = default;
 
-    virtual bool Write(int pass) = 0;
+    virtual bool Write(int pass, const std::string& filename) = 0;
 
 protected:
+    void SortEdges();
+
+    void RequiresCoordinates() const;
+
+    void Requires2DCoordinates() const;
+
+    void Requires3DCoordinates() const;
+
+    void IgnoresVertexWeights() const;
+
+    void IgnoresEdgeWeights() const;
+
     const OutputGraphConfig& config_;
 
     GraphInfo info_;
     Graph&    graph_;
     PEID      rank_;
     PEID      size_;
+};
+
+void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, bool output, MPI_Comm comm);
+
+class StandardGraphWriter : public GraphWriter {
+public:
+    StandardGraphWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
+
+    bool Write(int pass, const std::string& filename) final;
+
+protected:
+    virtual void WriteHeader(const std::string& filename, SInt n, SInt m) = 0;
+
+    virtual bool WriteBody(const std::string& filename) = 0;
+
+    virtual void WriteFooter(const std::string& filename);
 };
 
 class FileFormatFactory {
@@ -96,7 +124,7 @@ public:
     NoopWriter(const OutputGraphConfig& config, Graph& graph, const GraphInfo info, PEID rank, PEID size)
         : GraphWriter(config, graph, info, rank, size) {}
 
-    bool Write(int) final {
+    inline bool Write(int, const std::string&) final {
         return false;
     }
 };

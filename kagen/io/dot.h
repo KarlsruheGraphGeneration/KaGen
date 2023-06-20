@@ -5,7 +5,6 @@
 #include <mpi.h>
 
 #include "kagen/io/graph_format.h"
-#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
 class DotWriter : public SequentialGraphWriter {

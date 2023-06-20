@@ -11,20 +11,18 @@ class ParhipWriter : public GraphWriter {
 public:
     ParhipWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
 
-    bool Write(const int pass) final;
+    bool Write(const int pass, const std::string& filename) final;
 
 private:
-    std::string GetFilename() const;
+    void WriteHeader(const std::string& filename);
 
-    void WriteHeader();
+    void WriteOffsets(const std::string& filename);
 
-    void WriteOffsets();
-    
-    void WriteEdges();
+    void WriteEdges(const std::string& filename);
 
-    void WriteVertexWeights();
+    void WriteVertexWeights(const std::string& filename);
 
-    void WriteEdgeWeights();
+    void WriteEdgeWeights(const std::string& filename);
 };
 
 class ParhipReader : public GraphReader {

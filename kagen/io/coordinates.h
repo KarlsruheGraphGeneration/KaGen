@@ -5,19 +5,16 @@
 #include <mpi.h>
 
 #include "kagen/io/graph_format.h"
-#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-class CoordinatesWriter : public SequentialGraphWriter {
+class CoordinatesWriter : public StandardGraphWriter {
 public:
-    CoordinatesWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+    CoordinatesWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
 
 protected:
-    int Requirements() const final;
+    void WriteHeader(const std::string& filename, const SInt n, const SInt m) final;
 
-    void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
-
-    void AppendTo(const std::string& filename) final;
+    bool WriteBody(const std::string& filename) final;
 };
 
 class CoordinatesFactory : public FileFormatFactory {
@@ -26,6 +23,7 @@ public:
         return "xyz";
     }
 
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 } // namespace kagen
