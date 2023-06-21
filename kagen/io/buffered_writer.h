@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "kagen/io.h"
+
 namespace kagen {
 struct CreateTag {};
 struct AppendTag {};
@@ -22,15 +24,13 @@ public:
     BufferedTextOutput(CreateTag, const std::string& filename)
         : fd_{open(filename.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR)} {
         if (fd_ < 0) {
-            std::cout << "cannot write to " << filename << std::endl;
-            std::exit(0);
+            throw IOError("cannot write to " + filename);
         }
     }
 
     BufferedTextOutput(AppendTag, const std::string& filename) : fd_{open(filename.c_str(), O_WRONLY | O_APPEND)} {
         if (fd_ < 0) {
-            std::cout << "cannot write to " << filename << std::endl;
-            std::exit(0);
+            throw IOError("cannot write to " + filename + " (this is most likely a bug)");
         }
     }
 

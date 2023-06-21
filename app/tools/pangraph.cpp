@@ -132,17 +132,21 @@ void RedistributeToExternalMemory(
     std::vector<EdgeList> sendbufs(fake_size);
     for (const auto& [from, to]: graph.edges) {
         sendbufs[FindOwner(from, vertex_distribution)].emplace_back(from, to);
-        sendbufs[FindOwner(to, vertex_distribution)].emplace_back(to, from);
     }
 
     for (PEID fake_pe = 0; fake_pe < fake_size; ++fake_pe) {
         std::ofstream out(SendbufFilename(tmp_directory, fake_rank, fake_pe), std::ios::binary);
-
-        const SInt size = sendbufs[fake_pe].size();
+        const SInt    size = sendbufs[fake_pe].size();
         out.write(reinterpret_cast<const char*>(&size), sizeof(size));
         out.write(
             reinterpret_cast<const char*>(sendbufs[fake_pe].data()), sizeof(typename EdgeList::value_type) * size);
     }
+}
+
+inline SInt ReadSInt(std::ifstream& in) {
+    SInt size;
+    in.read(reinterpret_cast<char*>(&size), sizeof(size));
+    return size;
 }
 
 Graph RestoreFromExternalMemory(
@@ -150,15 +154,9 @@ Graph RestoreFromExternalMemory(
     const std::string& tmp_directory) {
     SInt total_size = 0;
 
-    auto read_sint = [](std::ifstream& in) {
-        SInt size;
-        in.read(reinterpret_cast<char*>(&size), sizeof(size));
-        return size;
-    };
-
     for (PEID fake_pe = 0; fake_pe < fake_size; ++fake_pe) {
         std::ifstream in(SendbufFilename(tmp_directory, fake_pe, fake_rank), std::ios::binary);
-        total_size += read_sint(in);
+        total_size += ReadSInt(in);
     }
 
     Graph graph;
@@ -168,9 +166,11 @@ Graph RestoreFromExternalMemory(
 
     SInt position = 0;
     for (PEID fake_pe = 0; fake_pe < fake_size; ++fake_pe) {
+        std::cout << "Reading " << SendbufFilename(tmp_directory, fake_pe, fake_rank) << std::endl;
         std::ifstream in(SendbufFilename(tmp_directory, fake_pe, fake_rank), std::ios::binary);
-        const SInt    size = read_sint(in);
+        const SInt    size = ReadSInt(in);
         in.read(reinterpret_cast<char*>(graph.edges.data() + position), sizeof(typename EdgeList::value_type) * size);
+        position += size;
     }
 
     return graph;
@@ -180,6 +180,9 @@ void WriteExternallyRedistributedGraph(
     const FileFormatFactory& factory, const OutputGraphConfig& config, const GraphInfo info,
     const std::vector<SInt>& vertex_distribution, const int num_chunks, const bool add_reverse_edges,
     const std::string& tmp_directory) {
+    // Create output file that the GraphWriter can append to
+    { std::ofstream out(config.filename); }
+
     PEID rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -192,13 +195,17 @@ void WriteExternallyRedistributedGraph(
                 for (int chunk = 0; chunk < num_chunks; ++chunk) {
                     const PEID fake_rank = rank * num_chunks + chunk;
 
+                    std::cout << "Writing " << fake_rank << std::endl;
+
                     Graph graph = RestoreFromExternalMemory(vertex_distribution, fake_rank, fake_size, tmp_directory);
                     ProcessEdges(graph, false, add_reverse_edges);
+                    std::sort(graph.edges.begin(), graph.edges.end());
 
                     auto writer             = factory.CreateWriter(config, graph, info, fake_rank, fake_size);
                     continue_with_next_pass = writer->Write(pass, config.filename);
                 }
             }
+
             MPI_Barrier(MPI_COMM_WORLD);
         }
     }
@@ -207,6 +214,9 @@ void WriteExternallyRedistributedGraph(
 void WriteExternalGraph(
     const FileFormatFactory& factory, const OutputGraphConfig& config, const GraphInfo info,
     const std::string& tmp_directory) {
+    // Create output file that the GraphWriter can append to
+    { std::ofstream out(config.filename); }
+
     PEID rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -220,6 +230,7 @@ void WriteExternalGraph(
                 auto writer             = factory.CreateWriter(config, graph, info, rank, size);
                 continue_with_next_pass = writer->Write(pass, config.filename);
             }
+
             MPI_Barrier(MPI_COMM_WORLD);
         }
     }
@@ -299,7 +310,6 @@ int main(int argc, char* argv[]) {
         for (const auto& [from, to]: graph.edges) {
             info.global_n = std::max(info.global_n, std::max(from, to) + 1);
         }
-        info.global_n += graph.NumberOfLocalVertices();
         info.global_m += graph.NumberOfLocalEdges();
         info.has_vertex_weights |= !graph.vertex_weights.empty();
         info.has_edge_weights |= !graph.edge_weights.empty();
@@ -317,17 +327,23 @@ int main(int argc, char* argv[]) {
     MPI_Allreduce(MPI_IN_PLACE, &info.has_edge_weights, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
 
     std::vector<SInt> vertex_distribution(fake_size + 1);
-    for (int fake_rank = 0; fake_rank < fake_size; ++fake_rank) {
-        vertex_distribution[fake_rank + 1] = ComputeRange(info.global_n, fake_size, fake_rank).second;
-    }
 
     // @todo optimize the second case
     if (requires_redistribution || (num_chunks > 1 && add_reverse_edges)) {
+        for (int fake_rank = 0; fake_rank < fake_size; ++fake_rank) {
+            vertex_distribution[fake_rank + 1] = ComputeRange(info.global_n, fake_size, fake_rank).second;
+        }
+
         if (num_chunks == 1) {
             if (output) {
                 std::cout << "Redistributing in internal memory ... " << std::flush;
             }
-            AddReverseEdgesAndRedistribute(graph.edges, graph.vertex_range, add_reverse_edges, MPI_COMM_WORLD);
+
+            graph.vertex_range.first  = vertex_distribution[rank];
+            graph.vertex_range.second = vertex_distribution[rank + 1];
+            AddReverseEdgesAndRedistribute(
+                graph.edges, graph.vertex_range, remove_self_loops, add_reverse_edges, MPI_COMM_WORLD);
+
             if (output) {
                 std::cout << "OK" << std::endl;
             }
@@ -335,12 +351,14 @@ int main(int argc, char* argv[]) {
             if (output) {
                 std::cout << "Redistributing in external memory ... " << std::flush;
             }
+
             for (int chunk = 0; chunk < num_chunks; ++chunk) {
                 const PEID fake_rank = rank * num_chunks + chunk;
 
                 graph = ReadGraphChunk(CreateGraphChunkFilename(tmp_directory, fake_rank));
                 RedistributeToExternalMemory(graph, vertex_distribution, fake_rank, fake_size, tmp_directory);
             }
+
             if (output) {
                 std::cout << "OK" << std::endl;
             }

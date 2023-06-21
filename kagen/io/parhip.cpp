@@ -6,6 +6,7 @@
 
 #include <mpi.h>
 
+#include "kagen/io.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/tools/statistics.h"
 
@@ -17,7 +18,7 @@ ParhipWriter::ParhipWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
     : GraphWriter(config, graph, info, rank, size) {}
 
-void ParhipWriter::WriteHeader(const std::string &filename) {
+void ParhipWriter::WriteHeader(const std::string& filename) {
     // Edges must be sorted in order to convert them to the CSR format
     if (!std::is_sorted(graph_.edges.begin(), graph_.edges.end())) {
         std::sort(graph_.edges.begin(), graph_.edges.end());
@@ -44,7 +45,7 @@ void ParhipWriter::WriteHeader(const std::string &filename) {
     }
 }
 
-void ParhipWriter::WriteOffsets(const std::string &filename) {
+void ParhipWriter::WriteOffsets(const std::string& filename) {
     std::vector<ParhipID> offset(graph_.NumberOfLocalVertices() + 1);
 
     SInt cur_offset = (3 + info_.global_n + 1) * sizeof(ParhipID); // 3 = header size
@@ -69,7 +70,7 @@ void ParhipWriter::WriteOffsets(const std::string &filename) {
     out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
 }
 
-void ParhipWriter::WriteEdges(const std::string &filename) {
+void ParhipWriter::WriteEdges(const std::string& filename) {
     std::vector<ParhipID> edges(graph_.NumberOfLocalEdges());
     std::transform(graph_.edges.begin(), graph_.edges.end(), edges.begin(), [&](const auto& edge) {
         return static_cast<ParhipID>(std::get<1>(edge));
@@ -79,14 +80,14 @@ void ParhipWriter::WriteEdges(const std::string &filename) {
     out.write(reinterpret_cast<const char*>(edges.data()), edges.size() * sizeof(ParhipID));
 }
 
-void ParhipWriter::WriteVertexWeights(const std::string &filename) {
+void ParhipWriter::WriteVertexWeights(const std::string& filename) {
     std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     out.write(
         reinterpret_cast<const char*>(graph_.vertex_weights.data()),
         graph_.vertex_weights.size() * sizeof(ParhipWeight));
 }
 
-void ParhipWriter::WriteEdgeWeights(const std::string &filename) {
+void ParhipWriter::WriteEdgeWeights(const std::string& filename) {
     std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     out.write(
         reinterpret_cast<const char*>(graph_.edge_weights.data()), graph_.edge_weights.size() * sizeof(ParhipWeight));

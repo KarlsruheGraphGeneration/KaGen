@@ -1,6 +1,7 @@
 #include "kagen/io/edgelist.h"
 
 #include "kagen/definitions.h"
+#include "kagen/io.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/io/graph_format.h"
 #include "kagen/tools/utils.h"

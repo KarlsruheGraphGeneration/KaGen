@@ -100,4 +100,56 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
     error_msg << "file format " << format << " not available for reading";
     throw IOError(error_msg.str());
 }
+
+void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, MPI_Comm comm) {
+    PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    const std::string filename = config.distributed ? config.filename + "." + std::to_string(rank) : config.filename;
+    { std::ofstream out(filename); }
+
+    if (!config.distributed) {
+        if (output) {
+            std::cout << "Writing graph to " << filename << " ..." << std::endl;
+        }
+
+        bool continue_with_next_pass = true;
+        for (int pass = 0; continue_with_next_pass; ++pass) {
+            for (PEID pe = 0; pe < size; ++pe) {
+                if (output) {
+                    std::cout << "  Writing subgraph of PE " << pe << " (pass " << pass << ") ... " << std::flush;
+                }
+                if (rank == pe) {
+                    continue_with_next_pass = writer.Write(pass, filename);
+                }
+                MPI_Barrier(comm);
+                if (output) {
+                    std::cout << "OK" << std::endl;
+                }
+            }
+        }
+    } else {
+        if (output) {
+            std::cout << "Writing graph to [" << filename << ".0";
+            if (size > 2) {
+                std::cout << ", ...";
+            }
+            if (size > 1) {
+                std::cout << ", " << filename << "." << size - 1;
+            }
+            std::cout << "] ... " << std::flush;
+        }
+
+        bool continue_with_next_pass = true;
+        for (int pass = 0; continue_with_next_pass; ++pass) {
+            continue_with_next_pass = writer.Write(pass, filename);
+        }
+
+        if (output) {
+            std::cout << "OK" << std::endl;
+        }
+    }
+}
+
 } // namespace kagen

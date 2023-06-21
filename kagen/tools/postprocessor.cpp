@@ -95,7 +95,7 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Co
 }
 
 void AddReverseEdgesAndRedistribute(
-    EdgeList& edge_list, const VertexRange vertex_range, bool add_reverse_edges, MPI_Comm comm) {
+    EdgeList& edge_list, const VertexRange vertex_range, bool skip_self_loops, bool add_reverse_edges, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -108,7 +108,7 @@ void AddReverseEdgesAndRedistribute(
     std::vector<std::pair<SInt, SInt>>              local_edges;
     std::vector<std::vector<std::pair<SInt, SInt>>> remote_edges(size);
     for (const auto& [u, v]: edge_list) {
-        if (u == v) { // Ignore self loops
+        if (skip_self_loops && u == v) { // Ignore self loops
             continue;
         }
 

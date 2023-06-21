@@ -10,18 +10,6 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
-class IOError : public std::exception {
-public:
-    IOError(std::string what) : _what(std::move(what)) {}
-
-    const char* what() const noexcept override {
-        return _what.c_str();
-    }
-
-private:
-    std::string _what;
-};
-
 enum ReaderDeficits {
     NONE                    = 0,
     REQUIRES_REDISTRIBUTION = 1,
@@ -49,12 +37,12 @@ public:
 struct GraphInfo {
     GraphInfo() = default;
 
-    GraphInfo(const Graph &graph, MPI_Comm comm);
+    GraphInfo(const Graph& graph, MPI_Comm comm);
 
-    SInt global_n;
-    SInt global_m;
-    bool has_vertex_weights;
-    bool has_edge_weights;
+    SInt global_n           = 0;
+    SInt global_m           = 0;
+    bool has_vertex_weights = false;
+    bool has_edge_weights   = false;
 };
 
 class GraphWriter {
@@ -63,17 +51,14 @@ public:
 
     virtual ~GraphWriter() = default;
 
+    // Note: may not  assume that previous passes were called on the same GraphWriter object
     virtual bool Write(int pass, const std::string& filename) = 0;
 
 protected:
     void RequiresCoordinates() const;
-
     void Requires2DCoordinates() const;
-
     void Requires3DCoordinates() const;
-
     void IgnoresVertexWeights() const;
-
     void IgnoresEdgeWeights() const;
 
     const OutputGraphConfig& config_;
@@ -83,8 +68,6 @@ protected:
     PEID      rank_;
     PEID      size_;
 };
-
-void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, bool output, MPI_Comm comm);
 
 class StandardGraphWriter : public GraphWriter {
 public:

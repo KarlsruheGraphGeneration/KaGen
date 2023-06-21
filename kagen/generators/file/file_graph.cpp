@@ -97,7 +97,7 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
         ++n;
 
         std::tie(vertex_range_.first, vertex_range_.second) = ComputeRange(n, size_, rank_);
-        AddReverseEdgesAndRedistribute(edges_, vertex_range_, false, comm);
+        AddReverseEdgesAndRedistribute(edges_, vertex_range_, false, false, comm);
     }
 }
 
