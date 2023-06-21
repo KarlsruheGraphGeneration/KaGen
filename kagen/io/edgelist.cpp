@@ -168,7 +168,8 @@ SInt PlainEdgelistReader::FindNodeByEdge(SInt) {
 }
 
 int PlainEdgelistReader::Deficits() const {
-    return ReaderDeficits::REQUIRES_REDISTRIBUTION | ReaderDeficits::EDGE_LIST_ONLY;
+    return ReaderDeficits::REQUIRES_REDISTRIBUTION | ReaderDeficits::EDGE_LIST_ONLY
+           | ReaderDeficits::UNKNOWN_NUM_VERTICES | ReaderDeficits::UNKNOWN_NUM_EDGES;
 }
 
 std::unique_ptr<GraphReader>

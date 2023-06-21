@@ -76,7 +76,7 @@ struct InputGraphConfig {
     std::string       filename          = "";
     FileFormat        format            = FileFormat::EXTENSION;
     GraphDistribution distribution      = GraphDistribution::BALANCE_VERTICES;
-    int               width             = 0;
+    int               width             = 64;
 };
 
 struct OutputGraphConfig {
@@ -85,7 +85,7 @@ struct OutputGraphConfig {
     std::vector<FileFormat> formats     = {FileFormat::EDGE_LIST};
     OutputHeader            header      = OutputHeader::ROOT;
     bool                    distributed = false;
-    int                     width       = 0;
+    int                     width       = 64;
 };
 
 // Configuration for the generator.

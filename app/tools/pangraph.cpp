@@ -1,5 +1,3 @@
-#include <mpi.h>
-
 #include "../CLI11.h"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
@@ -13,102 +11,30 @@
 
 using namespace kagen;
 
-std::string CreateGraphChunkFilename(const std::string& tmp_directory, const PEID fake_rank) {
-    return tmp_directory + "/" + std::to_string(fake_rank) + ".buf";
-}
-
-void WriteGraphChunk(const std::string& filename, const Graph& graph) {
-    std::ofstream out(filename, std::ios::binary | std::ios::trunc);
-
-    const SInt from = graph.vertex_range.first;
-    const SInt to   = graph.vertex_range.second;
-    out.write(reinterpret_cast<const char*>(&from), sizeof(from));
-    out.write(reinterpret_cast<const char*>(&to), sizeof(to));
-
-    const std::size_t edges_size          = graph.edges.size();
-    const std::size_t vertex_weights_size = graph.vertex_weights.size();
-    const std::size_t edge_weights_size   = graph.edge_weights.size();
-    out.write(reinterpret_cast<const char*>(&edges_size), sizeof(edges_size));
-    out.write(reinterpret_cast<const char*>(&vertex_weights_size), sizeof(vertex_weights_size));
-    out.write(reinterpret_cast<const char*>(&edge_weights_size), sizeof(edge_weights_size));
-
-    out.write(reinterpret_cast<const char*>(graph.edges.data()), sizeof(typename EdgeList::value_type) * edges_size);
-    out.write(
-        reinterpret_cast<const char*>(graph.vertex_weights.data()),
-        sizeof(typename VertexWeights::value_type) * vertex_weights_size);
-    out.write(
-        reinterpret_cast<const char*>(graph.edge_weights.data()),
-        sizeof(typename EdgeWeights::value_type) * edge_weights_size);
-}
-
-Graph ReadGraphChunk(const std::string& filename) {
-    std::ifstream in(filename, std::ios::binary);
-
-    auto read_sint = [&in] {
-        SInt size;
-        in.read(reinterpret_cast<char*>(&size), sizeof(size));
-        return size;
-    };
-
-    Graph graph;
-    graph.vertex_range.first  = read_sint();
-    graph.vertex_range.second = read_sint();
-    graph.edges.resize(read_sint());
-    graph.vertex_weights.resize(read_sint());
-    graph.edge_weights.resize(read_sint());
-
-    in.read(reinterpret_cast<char*>(graph.edges.data()), sizeof(typename EdgeList::value_type) * graph.edges.size());
-    in.read(
-        reinterpret_cast<char*>(graph.vertex_weights.data()),
-        sizeof(typename VertexWeights::value_type) * graph.vertex_weights.size());
-    in.read(
-        reinterpret_cast<char*>(graph.edge_weights.data()),
-        sizeof(typename EdgeWeights::value_type) * graph.edge_weights.size());
-    return graph;
-}
-
-void RemoveSelfLoops(Graph& graph) {
-    if (!graph.edge_weights.empty()) {
-        throw std::runtime_error("not implemented");
-    }
-
-    auto it = std::remove_if(graph.edges.begin(), graph.edges.end(), [](const auto& e) { return e.first == e.second; });
-    graph.edges.erase(it, graph.edges.end());
-}
-
 void RemoveMultiEdges(Graph& graph) {
-    if (!graph.edge_weights.empty()) {
-        throw std::runtime_error("not implemented");
-    }
-
-    graph.SortEdgelist();
+    std::sort(graph.edges.begin(), graph.edges.end());
     auto it = std::unique(graph.edges.begin(), graph.edges.end());
     graph.edges.erase(it, graph.edges.end());
 }
 
-void ProcessEdges(Graph& graph, const bool remove_self_loops, const bool add_reverse_edges) {
-    if (remove_self_loops) {
-        RemoveSelfLoops(graph);
+void AddReverseEdges(Graph& graph) {
+    if (!graph.edge_weights.empty()) {
+        throw std::runtime_error("not implemented");
     }
-    if (add_reverse_edges) {
-        if (!graph.edge_weights.empty()) {
-            throw std::runtime_error("not implemented");
+
+    for (auto& [from, to]: graph.edges) {
+        if (from > to) {
+            std::swap(from, to);
         }
+    }
 
-        for (auto& [from, to]: graph.edges) {
-            if (from > to) {
-                std::swap(from, to);
-            }
-        }
+    RemoveMultiEdges(graph);
 
-        RemoveMultiEdges(graph);
-
-        const std::size_t old_size = graph.edges.size();
-        for (std::size_t i = 0; i < old_size; ++i) {
-            const auto& [from, to] = graph.edges[i];
-            if (from != to) {
-                graph.edges.emplace_back(to, from);
-            }
+    const std::size_t old_size = graph.edges.size();
+    for (std::size_t i = 0; i < old_size; ++i) {
+        const auto& [from, to] = graph.edges[i];
+        if (from != to) {
+            graph.edges.emplace_back(to, from);
         }
     }
 }
@@ -118,28 +44,45 @@ PEID FindOwner(const SInt node, const std::vector<SInt>& vertex_distribution) {
     return static_cast<PEID>(std::distance(vertex_distribution.begin(), it)) - 1;
 }
 
-std::string SendbufFilename(const std::string& tmp_directory, const PEID fake_rank, const PEID fake_size) {
-    return tmp_directory + "/sendbuf_from" + std::to_string(fake_rank) + "_to" + std::to_string(fake_size) + ".edges";
+std::string BufferFilename(const std::string& tmp_directory, const PEID fake_rank, const PEID fake_size) {
+    return tmp_directory + "/pangraph_" + std::to_string(fake_rank) + "_" + std::to_string(fake_size) + ".buf";
 }
 
-void RedistributeToExternalMemory(
-    const Graph& graph, const std::vector<SInt>& vertex_distribution, const PEID fake_rank, const PEID fake_size,
-    const std::string& tmp_directory) {
+struct Config {
+    int         num_chunks    = 1;
+    std::string tmp_directory = std::filesystem::temp_directory_path();
+
+    bool quiet = false;
+
+    bool remove_self_loops = false;
+    bool add_reverse_edges = false;
+
+    SInt num_vertices = 0;
+
+    bool sort_edges = false;
+};
+
+void DistributeToExternalBuffers(
+    const Graph& graph, const std::vector<SInt>& vertex_distribution, const int from_chunk, const Config& config) {
     if (!graph.edge_weights.empty()) {
         throw std::runtime_error("not implemented");
     }
 
-    std::vector<EdgeList> sendbufs(fake_size);
+    std::vector<EdgeList> sendbufs(config.num_chunks);
     for (const auto& [from, to]: graph.edges) {
+        if (config.remove_self_loops && from == to) {
+            continue;
+        }
+
         sendbufs[FindOwner(from, vertex_distribution)].emplace_back(from, to);
     }
 
-    for (PEID fake_pe = 0; fake_pe < fake_size; ++fake_pe) {
-        std::ofstream out(SendbufFilename(tmp_directory, fake_rank, fake_pe), std::ios::binary);
-        const SInt    size = sendbufs[fake_pe].size();
+    for (int to_chunk = 0; to_chunk < config.num_chunks; ++to_chunk) {
+        std::ofstream out(BufferFilename(config.tmp_directory, from_chunk, to_chunk), std::ios::binary);
+        const SInt    size = sendbufs[to_chunk].size();
         out.write(reinterpret_cast<const char*>(&size), sizeof(size));
         out.write(
-            reinterpret_cast<const char*>(sendbufs[fake_pe].data()), sizeof(typename EdgeList::value_type) * size);
+            reinterpret_cast<const char*>(sendbufs[to_chunk].data()), sizeof(typename EdgeList::value_type) * size);
     }
 }
 
@@ -149,25 +92,23 @@ inline SInt ReadSInt(std::ifstream& in) {
     return size;
 }
 
-Graph RestoreFromExternalMemory(
-    const std::vector<SInt>& vertex_distribution, const PEID fake_rank, const PEID fake_size,
-    const std::string& tmp_directory) {
+Graph RestoreFromExternalBuffers(
+    const std::vector<SInt>& vertex_distribution, const int to_chunk, const Config& config) {
     SInt total_size = 0;
 
-    for (PEID fake_pe = 0; fake_pe < fake_size; ++fake_pe) {
-        std::ifstream in(SendbufFilename(tmp_directory, fake_pe, fake_rank), std::ios::binary);
+    for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
+        std::ifstream in(BufferFilename(config.tmp_directory, from_chunk, to_chunk), std::ios::binary);
         total_size += ReadSInt(in);
     }
 
     Graph graph;
-    graph.vertex_range.first  = vertex_distribution[fake_rank];
-    graph.vertex_range.second = vertex_distribution[fake_rank + 1];
+    graph.vertex_range.first  = vertex_distribution[to_chunk];
+    graph.vertex_range.second = vertex_distribution[to_chunk + 1];
     graph.edges.resize(total_size);
 
     SInt position = 0;
-    for (PEID fake_pe = 0; fake_pe < fake_size; ++fake_pe) {
-        std::cout << "Reading " << SendbufFilename(tmp_directory, fake_pe, fake_rank) << std::endl;
-        std::ifstream in(SendbufFilename(tmp_directory, fake_pe, fake_rank), std::ios::binary);
+    for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
+        std::ifstream in(BufferFilename(config.tmp_directory, from_chunk, to_chunk), std::ios::binary);
         const SInt    size = ReadSInt(in);
         in.read(reinterpret_cast<char*>(graph.edges.data() + position), sizeof(typename EdgeList::value_type) * size);
         position += size;
@@ -175,86 +116,26 @@ Graph RestoreFromExternalMemory(
 
     return graph;
 }
-
-void WriteExternallyRedistributedGraph(
-    const FileFormatFactory& factory, const OutputGraphConfig& config, const GraphInfo info,
-    const std::vector<SInt>& vertex_distribution, const int num_chunks, const bool add_reverse_edges,
-    const std::string& tmp_directory) {
-    // Create output file that the GraphWriter can append to
-    { std::ofstream out(config.filename); }
-
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    const PEID fake_size = size * num_chunks;
-
-    bool continue_with_next_pass = true;
-    for (int pass = 0; continue_with_next_pass; ++pass) {
-        for (PEID pe = 0; pe < size; ++pe) {
-            if (pe == rank) {
-                for (int chunk = 0; chunk < num_chunks; ++chunk) {
-                    const PEID fake_rank = rank * num_chunks + chunk;
-
-                    std::cout << "Writing " << fake_rank << std::endl;
-
-                    Graph graph = RestoreFromExternalMemory(vertex_distribution, fake_rank, fake_size, tmp_directory);
-                    ProcessEdges(graph, false, add_reverse_edges);
-                    std::sort(graph.edges.begin(), graph.edges.end());
-
-                    auto writer             = factory.CreateWriter(config, graph, info, fake_rank, fake_size);
-                    continue_with_next_pass = writer->Write(pass, config.filename);
-                }
-            }
-
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
+SInt FindNumberOfVertices(GraphReader& reader, Config config) {
+    if (config.num_vertices > 0) {
+        return config.num_vertices;
     }
-}
-
-void WriteExternalGraph(
-    const FileFormatFactory& factory, const OutputGraphConfig& config, const GraphInfo info,
-    const std::string& tmp_directory) {
-    // Create output file that the GraphWriter can append to
-    { std::ofstream out(config.filename); }
-
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    bool continue_with_next_pass = true;
-    for (int pass = 0; continue_with_next_pass; ++pass) {
-        for (PEID pe = 0; pe < size; ++pe) {
-            if (pe == rank) {
-                Graph graph = ReadGraphChunk(CreateGraphChunkFilename(tmp_directory, rank));
-
-                auto writer             = factory.CreateWriter(config, graph, info, rank, size);
-                continue_with_next_pass = writer->Write(pass, config.filename);
-            }
-
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
+    if ((reader.Deficits() & ReaderDeficits::UNKNOWN_NUM_VERTICES) == 0) {
+        return reader.ReadSize().first;
     }
+
+    std::cerr << "Error: please provide the number of vertices in the graph via the --num-vertices=<n> argument.\n";
+    std::exit(1);
 }
 
 int main(int argc, char* argv[]) {
     OutputGraphConfig out_config;
     InputGraphConfig  in_config;
-    in_config.width = 64;
+    Config            config;
 
-    // General options
-    bool quiet = false;
-
-    // External memory options
-    int         num_chunks    = 1;
-    std::string tmp_directory = std::filesystem::temp_directory_path();
-
-    // Transformation options
-    bool remove_self_loops = false;
-    bool add_reverse_edges = false;
-
-    CLI::App app("pangraph: distributed and/or external graph format converter");
-    app.add_option("-C,--chunks", num_chunks)->capture_default_str();
-    app.add_option("-T,--tmp-directory", tmp_directory, "Directory for external memory buffers.")
+    CLI::App app("pangraph: external graph format converter");
+    app.add_option("-C,--chunks", config.num_chunks)->capture_default_str();
+    app.add_option("-T,--tmp-directory", config.tmp_directory, "Directory for external memory buffers.")
         ->capture_default_str();
 
     app.add_option("--input-filename", in_config.filename, "Input graph")->check(CLI::ExistingFile)->required();
@@ -267,99 +148,91 @@ int main(int argc, char* argv[]) {
         ->required()
         ->capture_default_str();
     app.add_option("--output-filename", out_config.filename, "Output graph")->required();
-    app.add_flag("-q,--quiet", quiet, "Suppress any output to stdout.");
+    app.add_flag("-q,--quiet", config.quiet, "Suppress any output to stdout.");
 
-    app.add_flag("--remove-self-loops", remove_self_loops, "Remove self loops from the input graph.")
+    app.add_flag("--remove-self-loops", config.remove_self_loops, "Remove self loops from the input graph.")
         ->capture_default_str();
     app.add_flag(
-           "--add-reverse-edges", add_reverse_edges,
+           "--add-reverse-edges", config.add_reverse_edges,
            "Add reverse edges to the input graph, such that the output graph is undirected.")
         ->capture_default_str();
+
+    app.add_option(
+        "-n,--num-vertices", config.num_vertices,
+        "Providing the number of vertices can speed up the conversion for some input formats.");
+    app.add_flag("--sort-edges", config.sort_edges, "Sort outgoing edges by target vertex ID.")->capture_default_str();
     CLI11_PARSE(app, argc, argv);
 
-    MPI_Init(&argc, &argv);
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    const PEID fake_size = num_chunks * size;
+    const auto reader0 = CreateGraphReader(in_config.format, in_config, 0, config.num_chunks);
+    GraphInfo  info;
+    info.global_n = FindNumberOfVertices(*reader0, config);
 
-    const bool output                  = !quiet && rank == ROOT;
-    bool       requires_redistribution = false;
+    // Create output file to make sure that we can write there
+    if (std::ofstream out(out_config.filename); !out) {
+        std::cerr << "Error: cannot write to " << out_config.filename << "\n";
+        std::exit(1);
+    }
 
-    Graph     graph;
-    GraphInfo info;
+    std::vector<SInt> vertex_distribution(config.num_chunks + 1);
+    for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
+        vertex_distribution[chunk + 1] = ComputeRange(info.global_n, config.num_chunks, chunk).second;
+    }
 
-    for (int chunk = 0; chunk < num_chunks; ++chunk) {
-        if (output) {
-            std::cout << "Reading " << in_config.filename;
-            if (num_chunks > 1) {
-                std::cout << " (chunk " << chunk << " of " << num_chunks << ")";
-            }
-            std::cout << " ..." << std::endl;
+    for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
+        if (!config.quiet) {
+            std::cout << "Reading " << in_config.filename << " (chunk " << chunk + 1 << " of " << config.num_chunks
+                      << ") ... " << std::flush;
         }
 
-        const PEID fake_rank  = rank * num_chunks + chunk;
-        const auto reader     = CreateGraphReader(in_config.format, in_config, fake_rank, fake_size);
-        const auto [n, m]     = reader->ReadSize();
-        const auto [from, to] = ComputeRange(n, fake_size, fake_rank);
-        graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
-        requires_redistribution |= (reader->Deficits() & ReaderDeficits::REQUIRES_REDISTRIBUTION);
+        const auto reader     = CreateGraphReader(in_config.format, in_config, chunk, config.num_chunks);
+        const auto [from, to] = ComputeRange(info.global_n, config.num_chunks, chunk);
+        Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
 
-        ProcessEdges(graph, remove_self_loops, add_reverse_edges);
+        if (config.add_reverse_edges) {
+            if (!config.quiet) {
+                std::cout << "adding reverse edges ... " << std::flush;
+            }
+            AddReverseEdges(graph);
+        }
 
         for (const auto& [from, to]: graph.edges) {
-            info.global_n = std::max(info.global_n, std::max(from, to) + 1);
+            if (from >= info.global_n || to >= info.global_n) {
+                std::cout << "ERROR" << std::endl;
+                std::cerr << "Error: edge (" << from << ", " << to << ") is out of bounds (expected at most "
+                          << info.global_n << " vertices)\n";
+                std::exit(1);
+            }
         }
-        info.global_m += graph.NumberOfLocalEdges();
+
+        info.global_m += graph.edges.size();
         info.has_vertex_weights |= !graph.vertex_weights.empty();
         info.has_edge_weights |= !graph.edge_weights.empty();
 
-        if (num_chunks > 1) {
-            WriteGraphChunk(CreateGraphChunkFilename(tmp_directory, fake_rank), graph);
-        }
+        DistributeToExternalBuffers(graph, vertex_distribution, chunk, config);
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        if (!config.quiet) {
+            std::cout << "OK" << std::endl;
+        }
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &info.global_n, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &info.global_m, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &info.has_vertex_weights, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &info.has_edge_weights, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
+    if (config.add_reverse_edges) {
+        info.global_m = 0;
 
-    std::vector<SInt> vertex_distribution(fake_size + 1);
-
-    // @todo optimize the second case
-    if (requires_redistribution || (num_chunks > 1 && add_reverse_edges)) {
-        for (int fake_rank = 0; fake_rank < fake_size; ++fake_rank) {
-            vertex_distribution[fake_rank + 1] = ComputeRange(info.global_n, fake_size, fake_rank).second;
-        }
-
-        if (num_chunks == 1) {
-            if (output) {
-                std::cout << "Redistributing in internal memory ... " << std::flush;
+        for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
+            if (!config.quiet) {
+                std::cout << "Counting edges (chunk " << chunk + 1 << " of " << config.num_chunks
+                          << ") ... reading ... " << std::flush;
             }
 
-            graph.vertex_range.first  = vertex_distribution[rank];
-            graph.vertex_range.second = vertex_distribution[rank + 1];
-            AddReverseEdgesAndRedistribute(
-                graph.edges, graph.vertex_range, remove_self_loops, add_reverse_edges, MPI_COMM_WORLD);
-
-            if (output) {
-                std::cout << "OK" << std::endl;
+            Graph graph = RestoreFromExternalBuffers(vertex_distribution, chunk, config);
+            if (!config.quiet) {
+                std::cout << "filtering duplicates ... " << std::flush;
             }
-        } else {
-            if (output) {
-                std::cout << "Redistributing in external memory ... " << std::flush;
-            }
+            RemoveMultiEdges(graph);
 
-            for (int chunk = 0; chunk < num_chunks; ++chunk) {
-                const PEID fake_rank = rank * num_chunks + chunk;
+            info.global_m += graph.edges.size();
 
-                graph = ReadGraphChunk(CreateGraphChunkFilename(tmp_directory, fake_rank));
-                RedistributeToExternalMemory(graph, vertex_distribution, fake_rank, fake_size, tmp_directory);
-            }
-
-            if (output) {
+            if (!config.quiet) {
                 std::cout << "OK" << std::endl;
             }
         }
@@ -375,16 +248,53 @@ int main(int argc, char* argv[]) {
             out_config.filename = base_filename + "." + factory->DefaultExtension();
         }
 
-        if (num_chunks == 1) {
-            auto writer = factory->CreateWriter(out_config, graph, info, rank, size);
-            WriteGraph(*writer, out_config, output, MPI_COMM_WORLD);
-        } else if (requires_redistribution || (num_chunks > 1 && add_reverse_edges)) {
-            WriteExternallyRedistributedGraph(
-                *factory, out_config, info, vertex_distribution, num_chunks, add_reverse_edges, tmp_directory);
-        } else {
-            WriteExternalGraph(*factory, out_config, info, tmp_directory);
+        bool continue_with_next_pass = true;
+        for (int pass = 0; continue_with_next_pass; ++pass) {
+            for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
+                if (!config.quiet) {
+                    std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
+                              << " of " << config.num_chunks << ") ... reading ... " << std::flush;
+                }
+
+                Graph graph = RestoreFromExternalBuffers(vertex_distribution, chunk, config);
+
+                if (config.add_reverse_edges) {
+                    if (!config.quiet) {
+                        std::cout << "filtering duplicates ... " << std::flush;
+                    }
+                    RemoveMultiEdges(graph);
+                }
+                if (config.sort_edges) {
+                    if (!config.quiet) {
+                        std::cout << "sorting ... " << std::flush;
+                    }
+                    std::sort(graph.edges.begin(), graph.edges.end());
+                }
+
+                if (!config.quiet) {
+                    std::cout << "writing ... " << std::flush;
+                }
+                continue_with_next_pass = factory->CreateWriter(out_config, graph, info, chunk, config.num_chunks)
+                                              ->Write(pass, out_config.filename);
+                if (!config.quiet) {
+                    std::cout << "OK" << std::endl;
+                }
+            }
         }
     }
 
-    return MPI_Finalize();
+    if (!config.quiet) {
+        std::cout << "Cleaning up ... " << std::flush;
+    }
+    for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
+        for (int to_chunk = 0; to_chunk < config.num_chunks; ++to_chunk) {
+            const std::string filename = BufferFilename(config.tmp_directory, from_chunk, to_chunk);
+            std::remove(filename.c_str());
+        }
+    }
+    if (!config.quiet) {
+        std::cout << "OK" << std::endl;
+    }
+
+    return 0;
 }

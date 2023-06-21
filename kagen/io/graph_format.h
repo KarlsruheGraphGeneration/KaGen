@@ -15,6 +15,8 @@ enum ReaderDeficits {
     REQUIRES_REDISTRIBUTION = 1,
     EDGE_LIST_ONLY          = 2,
     CSR_ONLY                = 4,
+    UNKNOWN_NUM_VERTICES    = 8,
+    UNKNOWN_NUM_EDGES       = 16,
 };
 
 class GraphReader {
