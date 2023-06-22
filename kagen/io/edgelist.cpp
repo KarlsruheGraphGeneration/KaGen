@@ -132,9 +132,7 @@ PlainEdgelistReader::PlainEdgelistReader(const std::string& filename, PEID rank,
       size_(size) {}
 
 std::pair<SInt, SInt> PlainEdgelistReader::ReadSize() {
-    // We don't know the graph size yet; using size_ as a fake graph size will assign one vertex to each PE, which we
-    // can then ignore
-    return {static_cast<SInt>(size_), static_cast<SInt>(size_)};
+    return {0, 0}; // cannot determine the graph size without reading the whole file
 }
 
 Graph PlainEdgelistReader::Read(SInt, SInt, SInt, GraphRepresentation) {

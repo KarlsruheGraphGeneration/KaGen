@@ -24,7 +24,7 @@ void FileGraphGenerator::GenerateCSR() {
 }
 
 bool FileGraphGenerator::CheckDeficit(const ReaderDeficits deficit) const {
-    return (deficits_ & deficit) == 1;
+    return deficits_ & deficit;
 }
 
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
@@ -72,7 +72,8 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
         }
     }
 
-    auto graph      = reader->Read(from, to_node, to_edge, actual_representation_);
+    auto graph  = reader->Read(from, to_node, to_edge, actual_representation_);
+
     vertex_range_   = graph.vertex_range;
     xadj_           = std::move(graph.xadj);
     adjncy_         = std::move(graph.adjncy);
