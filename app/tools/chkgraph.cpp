@@ -25,32 +25,32 @@ int main(int argc, char* argv[]) {
     InputGraphConfig config;
     config.width = 64;
 
-    bool quiet                           = false;
-    bool warn_64bits                     = false;
-    bool no_warn_self_loops              = false;
-    bool no_warn_directed                = false;
-    bool no_warn_multi_edges             = false;
-    bool no_warn_negative_edge_weights   = false;
-    bool no_warn_negative_vertex_weights = false;
+    bool quiet                         = false;
+    bool allow_64bits                  = false;
+    bool allow_self_loops              = false;
+    bool allow_directed                = false;
+    bool allow_multi_edges             = false;
+    bool allow_negative_edge_weights   = false;
+    bool allow_negative_vertex_weights = false;
 
     CLI::App app("chkgraph");
     app.add_option("format", config.format)->transform(CLI::CheckedTransformer(GetInputFormatMap()))->required();
     app.add_option("input graph", config.filename, "Input graph")->check(CLI::ExistingFile)->required();
     app.add_flag("-q,--quiet", quiet, "Suppress any output to stdout.");
-    app.add_flag("--W64bit", warn_64bits, "Warn if the graph requires 64 bit ID or weight types.")
+    app.add_flag("--64bits", allow_64bits, "Warn if the graph requires 64 bit ID or weight types.")
         ->capture_default_str();
-    app.add_flag("--Wno-self-loops", no_warn_self_loops, "Do not warn if the graph contains self loops.")
+    app.add_flag("--self-loops", allow_self_loops, "Do not warn if the graph contains self loops.")
         ->capture_default_str();
-    app.add_flag("--Wno-directed", no_warn_directed, "Do not warn if the graph misses some reverse edges.")
+    app.add_flag("--directed", allow_directed, "Do not warn if the graph misses some reverse edges.")
         ->capture_default_str();
-    app.add_flag("--Wno-multi-edges", no_warn_multi_edges, "Do not warn if the graph contains multi edges.")
+    app.add_flag("--multi-edges", allow_multi_edges, "Do not warn if the graph contains multi edges.")
         ->capture_default_str();
     app.add_flag(
-           "--Wno-negative-edge-weights", no_warn_negative_edge_weights,
+           "--negative-edge-weights", allow_negative_edge_weights,
            "Do not warn if the graph contains negative edge weights.")
         ->capture_default_str();
     app.add_flag(
-           "--Wno-negative-vertex-weights", no_warn_negative_vertex_weights,
+           "--negative-vertex-weights", allow_negative_vertex_weights,
            "Do not warn if the graph contains negative vertex weights.")
         ->capture_default_str();
     CLI11_PARSE(app, argc, argv);
@@ -67,21 +67,20 @@ int main(int argc, char* argv[]) {
         std::tie(n, m)        = reader->ReadSize();
         const auto [from, to] = ComputeRange(n, size, rank);
         graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
+        if (reader->Deficits() & ReaderDeficits::UNKNOWN_NUM_VERTICES) {
+            n = FindNumberOfVerticesInEdgelist(graph.edges, MPI_COMM_WORLD);
+        }
+        if (reader->Deficits() & ReaderDeficits::UNKNOWN_NUM_EDGES) {
+            m = graph.edges.size();
+            MPI_Allreduce(MPI_IN_PLACE, &m, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
+        }
 
         if (reader->Deficits() & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
             if (!quiet && rank == 0) {
                 std::cout << "Redistributing graph for parallel processing ..." << std::endl;
             }
 
-            SInt actual_n = 0;
-            for (const auto& [u, v]: graph.edges) {
-                actual_n = std::max(n, std::max(u, v));
-            }
-            MPI_Allreduce(MPI_IN_PLACE, &actual_n, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
-            ++n;
-
-            // Create desired vertex distribution
-            std::tie(graph.vertex_range.first, graph.vertex_range.second) = ComputeRange(actual_n, size, rank);
+            std::tie(graph.vertex_range.first, graph.vertex_range.second) = ComputeRange(n, size, rank);
             RedistributeEdgesByVertexRange(graph.edges, graph.vertex_range, MPI_COMM_WORLD);
         }
     } catch (const IOError& e) {
@@ -107,7 +106,7 @@ int main(int argc, char* argv[]) {
                   << std::endl;
     }
 
-    if (warn_64bits
+    if (allow_64bits
         && (n > std::numeric_limits<std::uint32_t>::max() || m > std::numeric_limits<std::uint32_t>::max())) {
         if (!quiet) {
             std::cerr << "Warning: the graph has too many vertices or edges for 32 bit data types\n";
@@ -117,7 +116,7 @@ int main(int argc, char* argv[]) {
 
     if (has_vertex_weights) {
         for (SInt node = 0; node < graph.vertex_range.second - graph.vertex_range.first; ++node) {
-            if (!no_warn_negative_vertex_weights && graph.vertex_weights[node] < 0) {
+            if (!allow_negative_vertex_weights && graph.vertex_weights[node] < 0) {
                 if (!quiet) {
                     std::cerr << "Warning: weight of vertex " << node + 1
                               << " is negative (skipping remaining vertices)\n";
@@ -127,7 +126,7 @@ int main(int argc, char* argv[]) {
             }
             total_node_weight += graph.vertex_weights[node];
         }
-        if (warn_64bits && total_node_weight > std::numeric_limits<std::int32_t>::max()) {
+        if (allow_64bits && total_node_weight > std::numeric_limits<std::int32_t>::max()) {
             if (!quiet) {
                 std::cerr << "Warning: total weight of all vertices is too large for 32 bit data types\n";
             }
@@ -137,7 +136,7 @@ int main(int argc, char* argv[]) {
 
     if (has_edge_weights) {
         for (SInt edge = 0; edge < graph.edges.size(); ++edge) {
-            if (!no_warn_negative_edge_weights && graph.edge_weights[edge] < 0) {
+            if (!allow_negative_edge_weights && graph.edge_weights[edge] < 0) {
                 if (!quiet) {
                     std::cerr << "Warning: weight of edge " << graph.edges[edge].first << " -> "
                               << graph.edges[edge].second << " is negative (skipping remaining edges)\n";
@@ -145,10 +144,17 @@ int main(int argc, char* argv[]) {
                 has_warned = true;
                 break;
             }
+            total_edge_weight += graph.edge_weights[edge];
+        }
+        if (allow_64bits && total_edge_weight > std::numeric_limits<std::int32_t>::max()) {
+            if (!quiet) {
+                std::cerr << "Warning: total weight of all edges is too large for 32 bit data types\n";
+            }
+            has_warned = true;
         }
     }
 
-    has_warned |= !ValidateGraph(graph, no_warn_self_loops, no_warn_directed, no_warn_multi_edges, MPI_COMM_WORLD);
+    has_warned |= !ValidateGraph(graph, allow_self_loops, allow_directed, allow_multi_edges, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &has_warned, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
 
     if (!has_warned && !quiet && rank == 0) {

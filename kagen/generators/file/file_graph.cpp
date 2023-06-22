@@ -72,7 +72,7 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
         }
     }
 
-    auto graph  = reader->Read(from, to_node, to_edge, actual_representation_);
+    auto graph = reader->Read(from, to_node, to_edge, actual_representation_);
 
     vertex_range_   = graph.vertex_range;
     xadj_           = std::move(graph.xadj);
@@ -103,15 +103,10 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
             std::cout << "redistributing edges ... " << std::flush;
         }
 
-        // Find the number of vertices in the graph
         const SInt n = [&] {
             SInt n = 0;
             if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
-                for (const auto& [u, v]: edges_) {
-                    n = std::max(n, std::max(u, v));
-                }
-                MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
-                ++n;
+                n = FindNumberOfVerticesInEdgelist(edges_, comm);
             } else {
                 n = vertex_range_.second;
                 MPI_Bcast(&n, 1, KAGEN_MPI_SINT, size_ - 1, comm);

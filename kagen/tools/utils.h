@@ -10,4 +10,13 @@ inline std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const P
     const SInt to    = std::min<SInt>(from + ((static_cast<SInt>(rank) < rem) ? chunk + 1 : chunk), n);
     return {from, to};
 }
+
+inline SInt FindNumberOfVerticesInEdgelist(const Edgelist& edges, MPI_Comm comm) {
+    SInt n = 0;
+    for (const auto& [u, v]: edges) {
+        n = std::max(n, std::max(u, v));
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
+    return n + 1;
+}
 } // namespace kagen
