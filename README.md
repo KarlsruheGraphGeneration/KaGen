@@ -488,6 +488,30 @@ KaGen gen(MPI_COMM_WORLD);
 Graph graph = gen.GenerateFromOptionString("file;filename=<...>;input_format=<...>;distribution=<...>");
 ```
 
+## Tools
+
+Tools can be installed via `cmake --install build --component tools`. The following tools are included: 
+
+```shell
+# chkgraph: validate a graph file in any supported input format
+mpirun -n <nproc> ./app/tools/chkgraph <format, e.g. metis, parhip, plain-edgelist> <path to graph>
+  [--64bits]                  # allow 64 bit weights and IDs
+  [--self-loops]              # allow self loops
+  [--directed]                # allow directed graphs (i.e., not all reverse edges are present)
+  [--multi-edges]             # allow multi edges
+  [--negative-edge-weights]   # allow negative edge weights
+  [--negative-vertex-weights] # allow negative vertex weights
+  
+# pangraph: convert a graph file between supported formats in external memory
+./app/tools/pangraph --input-format=<...> --input-filename=<...> --output-format=<...> --output-filename=<...>
+  [-C <num chunks = 1>]       # split the graph into <num chunks> chunks; only one chunk has to fit into internal memory at a time
+  [-T <tmp directory = /tmp>] # directory to be used for temporary files (requires free space roughly the size of the input graph)
+  [--remove-self-loops]       # remove any self-loops during convertion
+  [--add-reverse-edges]       # make all edges undirected by adding potentially missing reverse edges
+  [--sort-edges]              # sort the outgoing edges by destination vertex ID
+  [-n <num vertices>]         # provide the number of vertices in the graph -- currently only used for the plain-edgelist input format
+```
+
 ---
 
 **[License](/LICENSE):** 2-clause BS
