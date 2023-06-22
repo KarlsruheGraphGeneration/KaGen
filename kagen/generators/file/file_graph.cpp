@@ -28,10 +28,24 @@ bool FileGraphGenerator::CheckDeficit(const ReaderDeficits deficit) const {
 }
 
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
-    auto reader       = CreateGraphReader(config_.input_graph.format, config_.input_graph, rank_, size_);
-    const auto [n, m] = reader->ReadSize();
+    auto reader = CreateGraphReader(config_.input_graph.format, config_.input_graph, rank_, size_);
+    deficits_   = reader->Deficits();
 
-    deficits_ = reader->Deficits();
+    const auto [n, m] = [&] {
+        if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES) && CheckDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+            return std::pair<SInt, SInt>{size_, size_};
+        }
+
+        auto [n, m] = reader->ReadSize();
+        if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
+            n = size_;
+        }
+        if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+            m = size_;
+        }
+        return std::pair<SInt, SInt>{n, m};
+    }();
+
     if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
         && config_.input_graph.distribution == GraphDistribution::BALANCE_EDGES) {
         throw std::invalid_argument("not implemented");
@@ -89,15 +103,23 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
         }
 
         // Find the number of vertices in the graph
-        SInt n = 0;
-        for (const auto& [u, v]: edges_) {
-            n = std::max(n, std::max(u, v));
-        }
-        MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
-        ++n;
+        const SInt n = [&] {
+            SInt n = 0;
+            if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
+                for (const auto& [u, v]: edges_) {
+                    n = std::max(n, std::max(u, v));
+                }
+                MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
+                ++n;
+            } else {
+                n = vertex_range_.second;
+                MPI_Bcast(&n, 1, KAGEN_MPI_SINT, size_ - 1, comm);
+            }
+            return n;
+        }();
 
         std::tie(vertex_range_.first, vertex_range_.second) = ComputeRange(n, size_, rank_);
-        AddReverseEdgesAndRedistribute(edges_, vertex_range_, false, false, comm);
+        RedistributeEdgesByVertexRange(edges_, vertex_range_, comm);
     }
 }
 

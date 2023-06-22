@@ -80,7 +80,7 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     FinalizeEdgeList(comm);
     std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
     {
-        EdgeList tmp;
+        Edgelist tmp;
         std::swap(edges_, tmp);
     }
 }

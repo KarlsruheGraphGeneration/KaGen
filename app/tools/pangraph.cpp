@@ -68,7 +68,7 @@ void DistributeToExternalBuffers(
         throw std::runtime_error("not implemented");
     }
 
-    std::vector<EdgeList> sendbufs(config.num_chunks);
+    std::vector<Edgelist> sendbufs(config.num_chunks);
     for (const auto& [from, to]: graph.edges) {
         if (config.remove_self_loops && from == to) {
             continue;
@@ -82,7 +82,7 @@ void DistributeToExternalBuffers(
         const SInt    size = sendbufs[to_chunk].size();
         out.write(reinterpret_cast<const char*>(&size), sizeof(size));
         out.write(
-            reinterpret_cast<const char*>(sendbufs[to_chunk].data()), sizeof(typename EdgeList::value_type) * size);
+            reinterpret_cast<const char*>(sendbufs[to_chunk].data()), sizeof(typename Edgelist::value_type) * size);
     }
 }
 
@@ -110,7 +110,7 @@ Graph RestoreFromExternalBuffers(
     for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
         std::ifstream in(BufferFilename(config.tmp_directory, from_chunk, to_chunk), std::ios::binary);
         const SInt    size = ReadSInt(in);
-        in.read(reinterpret_cast<char*>(graph.edges.data() + position), sizeof(typename EdgeList::value_type) * size);
+        in.read(reinterpret_cast<char*>(graph.edges.data() + position), sizeof(typename Edgelist::value_type) * size);
         position += size;
     }
 
@@ -276,24 +276,20 @@ int main(int argc, char* argv[]) {
                 }
                 continue_with_next_pass = factory->CreateWriter(out_config, graph, info, chunk, config.num_chunks)
                                               ->Write(pass, out_config.filename);
+
+                if (!config.quiet) {
+                    std::cout << "cleanup ... " << std::flush;
+                }
+                for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
+                    const std::string filename = BufferFilename(config.tmp_directory, from_chunk, chunk);
+                    std::remove(filename.c_str());
+                }
+
                 if (!config.quiet) {
                     std::cout << "OK" << std::endl;
                 }
             }
         }
-    }
-
-    if (!config.quiet) {
-        std::cout << "Cleaning up ... " << std::flush;
-    }
-    for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
-        for (int to_chunk = 0; to_chunk < config.num_chunks; ++to_chunk) {
-            const std::string filename = BufferFilename(config.tmp_directory, from_chunk, to_chunk);
-            std::remove(filename.c_str());
-        }
-    }
-    if (!config.quiet) {
-        std::cout << "OK" << std::endl;
     }
 
     return 0;

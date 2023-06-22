@@ -34,7 +34,7 @@ std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MP
 }
 } // namespace
 
-void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
+void AddNonlocalReverseEdges(Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -94,8 +94,7 @@ void AddReverseEdges(EdgeList& edge_list, const VertexRange vertex_range, MPI_Co
     edge_list.erase(it, edge_list.end());
 }
 
-void AddReverseEdgesAndRedistribute(
-    EdgeList& edge_list, const VertexRange vertex_range, bool skip_self_loops, bool add_reverse_edges, MPI_Comm comm) {
+void RedistributeEdgesByVertexRange(Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -108,24 +107,11 @@ void AddReverseEdgesAndRedistribute(
     std::vector<std::pair<SInt, SInt>>              local_edges;
     std::vector<std::vector<std::pair<SInt, SInt>>> remote_edges(size);
     for (const auto& [u, v]: edge_list) {
-        if (skip_self_loops && u == v) { // Ignore self loops
-            continue;
-        }
-
         if (from <= u && u < to) { // Edge starts from local vertex
             local_edges.emplace_back(u, v);
         } else { // Edge starts from remote vertex
             const PEID owner = FindPEInRange(u, ranges);
             remote_edges[owner].emplace_back(u, v);
-        }
-
-        if (add_reverse_edges) {
-            if (from <= v && v < to) {
-                local_edges.emplace_back(v, u);
-            } else {
-                const PEID owner = FindPEInRange(v, ranges);
-                remote_edges[owner].emplace_back(v, u);
-            }
         }
     }
 
@@ -174,5 +160,88 @@ void AddReverseEdgesAndRedistribute(
 
     // Set original edge list to new edge list
     std::swap(local_edges, edge_list);
+}
+
+VertexRange RedistributeEdgesRoundRobin(Edgelist32& source, Edgelist& destination, const SInt n, MPI_Comm comm) {
+    {
+        std::sort(source.begin(), source.end());
+        auto it = std::unique(source.begin(), source.end());
+        source.erase(it, source.end());
+    }
+
+    PEID size;
+    PEID rank;
+    MPI_Comm_size(comm, &size);
+    MPI_Comm_rank(comm, &rank);
+
+    // Remove vertex distribution (round-robin)
+    const int num_vertices_per_pe = n / size;
+    const int remaining_vertices  = n % size;
+
+    std::vector<int> distribution(size + 1);
+    for (PEID pe = 0; pe < size; ++pe) {
+        distribution[pe] = num_vertices_per_pe + (pe < remaining_vertices);
+    }
+    std::exclusive_scan(distribution.begin(), distribution.end(), distribution.begin(), 0);
+    distribution.back() = n;
+
+    // Find number of edges for each PE
+    auto compute_owner = [&](const int id) {
+        return id % size;
+    };
+    auto compute_remap = [&](const int id) {
+        return distribution[compute_owner(id)] + id / size;
+    };
+
+    // Compute send_counts and send_displs
+    std::vector<int> send_counts(size);
+    for (const auto& [u, v]: source) {
+        ++send_counts[compute_owner(u)];
+    }
+    std::vector<int> send_displs(size);
+    std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
+
+    // Remap edges and build send buffer
+    std::vector<long long> sendbuf(source.size());
+    std::vector<int>       sendbuf_pos(size);
+    for (const auto& [u, v]: source) {
+        const PEID u_owner = compute_owner(u);
+        const int  u_prime = compute_remap(u);
+        const int  v_prime = compute_remap(v);
+
+        const auto index = send_displs[u_owner] + sendbuf_pos[u_owner];
+        sendbuf[index]   = (static_cast<long long>(u_prime) << 32) | static_cast<long long>(v_prime);
+        ++sendbuf_pos[u_owner];
+    }
+
+    // Free the old edge list before allocating the new one
+    { [[maybe_unused]] auto tmp = std::move(source); }
+    destination.clear();
+
+    // Exchange send_counts + send_displs
+    std::vector<int> recv_counts(size);
+    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+    std::vector<int> recv_displs(size);
+    std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
+
+    // Exchange edges
+    std::vector<long long> recvbuf(recv_counts.back() + recv_displs.back());
+    MPI_Alltoallv(
+        sendbuf.data(), send_counts.data(), send_displs.data(), MPI_LONG_LONG, recvbuf.data(), recv_counts.data(),
+        recv_displs.data(), MPI_LONG_LONG, comm);
+
+    for (const auto& edge: recvbuf) {
+        const int u = edge >> 32;
+        const int v = edge & 0xFFFFFFFF;
+        destination.emplace_back(u, v);
+    }
+
+    {
+        std::sort(destination.begin(), destination.end());
+        auto it = std::unique(destination.begin(), destination.end());
+        destination.erase(it, destination.end());
+    }
+
+    return {distribution[rank], distribution[rank + 1]};
 }
 } // namespace kagen

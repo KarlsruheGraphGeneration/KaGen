@@ -43,7 +43,8 @@ std::string BuildDescription();
 namespace kagen {
 using SInt          = unsigned long long;
 using SSInt         = long long;
-using EdgeList      = std::vector<std::pair<SInt, SInt>>;
+using Edgelist      = std::vector<std::pair<SInt, SInt>>;
+using Edgelist32    = std::vector<std::pair<int, int>>;
 using VertexRange   = std::pair<SInt, SInt>;
 using PEID          = int;
 using HPFloat       = long double;
@@ -143,7 +144,7 @@ struct Graph {
     GraphRepresentation representation;
 
     // Edge list representation only
-    EdgeList edges;
+    Edgelist edges;
 
     // CSR representation only
     XadjArray   xadj;
@@ -184,7 +185,7 @@ struct Graph {
         return TakeVector<T>(edge_weights);
     }
 
-    std::tuple<VertexRange, EdgeList, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> tuple() && {
+    std::tuple<VertexRange, Edgelist, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> tuple() && {
         return std::make_tuple(
             vertex_range, std::move(edges), std::move(xadj), std::move(adjncy), std::move(vertex_weights),
             std::move(edge_weights), std::move(coordinates));

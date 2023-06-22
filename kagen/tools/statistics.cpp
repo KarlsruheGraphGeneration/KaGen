@@ -23,7 +23,7 @@ SInt FindNumberOfGlobalNodes(const VertexRange vertex_range, MPI_Comm comm) {
 }
 
 // Length of all edge lists is the number of edges in the graph
-SInt FindNumberOfGlobalEdges(const EdgeList& edges, MPI_Comm comm) {
+SInt FindNumberOfGlobalEdges(const Edgelist& edges, MPI_Comm comm) {
     SInt local_num_edges = edges.size();
     SInt global_num_edges;
     MPI_Allreduce(&local_num_edges, &global_num_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
@@ -40,7 +40,7 @@ std::vector<SInt> GatherValue(const SInt value, MPI_Comm comm) {
 }
 } // namespace
 
-std::vector<SInt> GatherNumberOfEdges(const EdgeList& edges, MPI_Comm comm) {
+std::vector<SInt> GatherNumberOfEdges(const Edgelist& edges, MPI_Comm comm) {
     return GatherValue(edges.size(), comm);
 }
 
@@ -87,7 +87,7 @@ LPFloat ReduceSD(const SInt value, MPI_Comm comm) {
     return 0.0; // non-root
 }
 
-DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global_num_nodes, MPI_Comm comm) {
+DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, const SInt global_num_nodes, MPI_Comm comm) {
     assert(std::is_sorted(edges.begin(), edges.end()));
 
     SInt min = std::numeric_limits<SInt>::max();
@@ -128,7 +128,7 @@ DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, const SInt global
     return {global_min, 1.0 * global_sum / global_num_nodes, global_max};
 }
 
-std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
+std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
     assert(std::is_sorted(edges.begin(), edges.end()));
 
     std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
@@ -164,7 +164,7 @@ std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, const VertexRange ver
     return global_bins;
 }
 
-double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
+double ComputeEdgeLocalicty(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
     const SInt num_local_cut_edges = std::count_if(edges.begin(), edges.end(), [&vertex_range](const auto& edge) {
         return std::get<0>(edge) < vertex_range.first || std::get<1>(edge) >= vertex_range.second;
     });
@@ -179,7 +179,7 @@ double ComputeEdgeLocalicty(const EdgeList& edges, const VertexRange vertex_rang
     return 1.0 - 1.0 * num_global_cut_edges / num_global_edges;
 }
 
-SInt ComputeNumberOfGhostNodes(const EdgeList& edges, const VertexRange vertex_range, MPI_Comm comm) {
+SInt ComputeNumberOfGhostNodes(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
     std::unordered_set<SInt> ghost_nodes;
 
     for (const auto& [from, to]: edges) {
@@ -263,11 +263,11 @@ void PrintBasicStatistics(
     PrintBasicStatistics(xadj.size() - 1, adjncy.size(), root, comm);
 }
 
-void PrintBasicStatistics(const EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
+void PrintBasicStatistics(const Edgelist& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
     PrintBasicStatistics(vertex_range.second - vertex_range.first, edges.size(), root, comm);
 }
 
-void PrintAdvancedStatistics(EdgeList& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
+void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
     // Sort edges for degree computation
     if (!std::is_sorted(edges.begin(), edges.end())) {
         std::sort(edges.begin(), edges.end());

@@ -5,7 +5,7 @@
 
 namespace kagen {
 inline std::pair<std::vector<SInt>, std::vector<SInt>>
-BuildCSRFromEdgeList(VertexRange vertex_range, EdgeList& edges, EdgeWeights& edge_weights) {
+BuildCSRFromEdgeList(VertexRange vertex_range, Edgelist& edges, EdgeWeights& edge_weights) {
     const SInt num_local_nodes = vertex_range.second - vertex_range.first;
     const SInt num_local_edges = edges.size();
 
@@ -52,8 +52,8 @@ BuildCSRFromEdgeList(VertexRange vertex_range, EdgeList& edges, EdgeWeights& edg
     return {std::move(xadj), std::move(adjncy)};
 }
 
-inline EdgeList BuildEdgeListFromCSR(VertexRange vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy) {
-    EdgeList edge_list;
+inline Edgelist BuildEdgeListFromCSR(VertexRange vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy) {
+    Edgelist edge_list;
     edge_list.reserve(adjncy.size());
 
     for (SInt u = 0; u + 1 < xadj.size(); ++u) {

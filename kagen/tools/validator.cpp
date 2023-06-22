@@ -35,7 +35,7 @@ std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MP
 }
 } // namespace
 
-bool ValidateVertexRanges(const EdgeList& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
+bool ValidateVertexRanges(const Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);

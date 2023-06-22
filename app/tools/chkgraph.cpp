@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
 
             // Create desired vertex distribution
             std::tie(graph.vertex_range.first, graph.vertex_range.second) = ComputeRange(actual_n, size, rank);
-            AddReverseEdgesAndRedistribute(graph.edges, graph.vertex_range, false, false, MPI_COMM_WORLD);
+            RedistributeEdgesByVertexRange(graph.edges, graph.vertex_range, MPI_COMM_WORLD);
         }
     } catch (const IOError& e) {
         if (!quiet) {
