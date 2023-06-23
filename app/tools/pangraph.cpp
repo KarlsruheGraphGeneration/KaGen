@@ -178,13 +178,14 @@ int main(int argc, char* argv[]) {
         vertex_distribution[chunk + 1] = ComputeRange(info.global_n, config.num_chunks, chunk).second;
     }
 
+    const auto reader = CreateGraphReader(in_config.format, in_config, 0, 1);
+
     for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
         if (!config.quiet) {
             std::cout << "Reading " << in_config.filename << " (chunk " << chunk + 1 << " of " << config.num_chunks
                       << ") ... " << std::flush;
         }
 
-        const auto reader     = CreateGraphReader(in_config.format, in_config, chunk, config.num_chunks);
         const auto [from, to] = ComputeRange(info.global_n, config.num_chunks, chunk);
         Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
 

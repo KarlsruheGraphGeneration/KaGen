@@ -135,11 +135,7 @@ std::pair<SInt, SInt> PlainEdgelistReader::ReadSize() {
     return {size_, size_}; // cannot determine the graph size without reading the whole file
 }
 
-Graph PlainEdgelistReader::Read(SInt, SInt, SInt, GraphRepresentation) {
-    // Start reading in the next line after from, read until the next line end after to
-    const std::size_t length = toker_.Length();
-    const auto [from, to]    = ComputeRange(length, size_, rank_);
-
+Graph PlainEdgelistReader::Read(const SInt from, const SInt to, SInt, GraphRepresentation) {
     if (from > 0) {
         toker_.Seek(from - 1);
         while (toker_.ValidPosition() && toker_.Current() != '\n') {

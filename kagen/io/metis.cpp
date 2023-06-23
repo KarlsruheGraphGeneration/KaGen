@@ -84,7 +84,7 @@ inline Format ParseHeader(MappedFileToker& toker) {
 }
 
 template <typename NodeCB, typename EdgeCB>
-void ParseBody(
+std::size_t ParseBody(
     MappedFileToker& toker, NodeCB&& node_cb, EdgeCB&& edge_cb, const SInt num_nodes, const bool has_node_weights,
     const bool has_edge_weights) {
     static_assert(std::is_invocable_v<NodeCB, std::uint64_t>);
@@ -131,15 +131,17 @@ void ParseBody(
             std::cerr << "Warning: ignoring extra lines at the end of the input file\n";
         }
     }
+
+    return toker.Marked();
 }
 
 template <typename FormatCB, typename NodeCB, typename EdgeCB>
-void Parse(MappedFileToker& toker, FormatCB&& format_cb, NodeCB&& node_cb, EdgeCB&& edge_cb) {
+std::size_t Parse(MappedFileToker& toker, FormatCB&& format_cb, NodeCB&& node_cb, EdgeCB&& edge_cb) {
     static_assert(std::is_invocable_v<FormatCB, Format>);
 
     const Format format = ParseHeader(toker);
     format_cb(format);
-    ParseBody<NodeCB, EdgeCB>(
+    return ParseBody<NodeCB, EdgeCB>(
         toker, std::forward<NodeCB>(node_cb), std::forward<EdgeCB>(edge_cb), format.number_of_nodes,
         format.has_node_weights, format.has_edge_weights);
 }
@@ -161,15 +163,16 @@ Graph MetisReader::Read(
     toker_.Reset();
     const auto [global_n, global_m, has_node_weights, has_edge_weights] = ParseHeader(toker_);
 
-    if (cached_first_node_pos_ > 0 && cached_first_vertex_ == from_vertex) {
+    if (cached_first_vertex_pos_ > 0 && cached_first_vertex_ <= from_vertex) {
         current_node = cached_first_vertex_;
         current_edge = cached_first_edge_;
-        toker_.Seek(cached_first_node_pos_);
+        toker_.Seek(cached_first_vertex_pos_);
     }
 
-    Graph graph;
+    Graph       graph;
+    std::size_t end_position = 0;
     if (representation == GraphRepresentation::EDGE_LIST) {
-        ParseBody(
+        end_position = ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
                 if (current_node >= to_vertex || current_edge >= to_edge) {
@@ -194,7 +197,7 @@ Graph MetisReader::Read(
             },
             global_n, has_node_weights, has_edge_weights);
     } else if (representation == GraphRepresentation::CSR) {
-        ParseBody(
+        end_position = ParseBody(
             toker_,
             [&, has_node_weights = has_node_weights](const SInt weight) {
                 if (current_node >= to_vertex || current_edge >= to_edge) {
@@ -226,6 +229,11 @@ Graph MetisReader::Read(
         __builtin_unreachable();
     }
 
+    // Cache current position for chunked IO
+    cached_first_vertex_     = current_node;
+    cached_first_edge_       = current_edge;
+    cached_first_vertex_pos_ = end_position;
+
     graph.vertex_range   = {from_vertex, current_node};
     graph.representation = representation;
     return graph;
@@ -236,7 +244,7 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
     SInt current_edge = 0;
 
     toker_.Reset();
-    Parse(
+    const std::size_t end_position = Parse(
         toker_, [](auto) {},
         [&](SInt) {
             if (current_edge < edge) {
@@ -247,9 +255,9 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
         },
         [&](SInt, SInt) { ++current_edge; });
 
-    cached_first_vertex_   = current_node;
-    cached_first_edge_     = current_edge;
-    cached_first_node_pos_ = toker_.Marked();
+    cached_first_vertex_     = current_node;
+    cached_first_edge_       = current_edge;
+    cached_first_vertex_pos_ = end_position;
 
     return current_node;
 }

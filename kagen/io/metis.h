@@ -31,7 +31,7 @@ private:
 
     SInt cached_first_vertex_   = 0;
     SInt cached_first_edge_     = 0;
-    SInt cached_first_node_pos_ = 0;
+    SInt cached_first_vertex_pos_ = 0;
 };
 
 class MetisFactory : public FileFormatFactory {
