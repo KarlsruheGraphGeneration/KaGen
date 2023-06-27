@@ -244,18 +244,20 @@ Graph ParhipReader::Read(
 
     // Read xadj array of the CSR representation
     const SInt num_local_nodes = to_vertex - from_vertex;
-    in_.seekg((3 + from_vertex) * sizeof(ParhipID));
+    in_.seekg(3 * sizeof(ParhipID) + from_vertex * edge_id_width);
     auto xadj = Has32BitEdgeIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_nodes + 1)
                                           : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
 
+    const SInt first_global_edge = OffsetToEdge(version_, n_, xadj.front());
     const SInt offset_by = xadj.front();
     for (auto& entry: xadj) { // Transform file offsets to edge offsets
         entry = (entry - offset_by) / sizeof(ParhipID);
     }
 
     // Read adjncy array
-    const SInt num_local_edges = xadj.back();
-    in_.seekg(3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + xadj.front() * vertex_id_width);
+    const SInt num_local_edges = xadj.back() - xadj.front();
+    in_.seekg(3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + first_global_edge * vertex_id_width);
+
     auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
                                               : ReadVector<ParhipID, ParhipID>(in_, num_local_edges);
 
@@ -290,7 +292,7 @@ Graph ParhipReader::Read(
     }
     if (HasEdgeWeights(version_)) {
         SInt offset =
-            3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width + xadj.front() * edge_weight_width;
+            3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width + first_global_edge * edge_weight_width;
         if (HasVertexWeights(version_)) {
             offset += n_ * vertex_weight_width;
         }
