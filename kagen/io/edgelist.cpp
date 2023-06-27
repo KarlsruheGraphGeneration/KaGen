@@ -126,10 +126,7 @@ bool PlainEdgelistWriter::WriteBody(const std::string& filename) {
     return false;
 }
 
-PlainEdgelistReader::PlainEdgelistReader(const std::string& filename, PEID rank, PEID size)
-    : toker_(filename),
-      rank_(rank),
-      size_(size) {}
+PlainEdgelistReader::PlainEdgelistReader(const std::string& filename) : toker_(filename) {}
 
 std::pair<SInt, SInt> PlainEdgelistReader::ReadSize() {
     return {toker_.Length(), toker_.Length()};
@@ -166,9 +163,8 @@ int PlainEdgelistReader::Deficits() const {
            | ReaderDeficits::UNKNOWN_NUM_VERTICES | ReaderDeficits::UNKNOWN_NUM_EDGES;
 }
 
-std::unique_ptr<GraphReader>
-PlainEdgelistFactory::CreateReader(const InputGraphConfig& config, const PEID rank, const PEID size) const {
-    return std::make_unique<PlainEdgelistReader>(config.filename, rank, size);
+std::unique_ptr<GraphReader> PlainEdgelistFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
+    return std::make_unique<PlainEdgelistReader>(config.filename);
 }
 
 std::unique_ptr<GraphWriter> PlainEdgelistFactory::CreateWriter(
