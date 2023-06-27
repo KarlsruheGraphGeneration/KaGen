@@ -185,14 +185,18 @@ int main(int argc, char* argv[]) {
     }
 
     const auto reader = CreateGraphReader(in_config.format, in_config, 0, 1);
+    auto reported_size = reader->ReadSize();
 
     for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
         if (!config.quiet) {
             std::cout << "Reading " << in_config.filename << " (chunk " << chunk + 1 << " of " << config.num_chunks
-                      << ") ... " << std::flush;
+                      << "): " << std::flush;
         }
 
-        const auto [from, to] = ComputeRange(info.global_n, config.num_chunks, chunk);
+        const auto [from, to] = ComputeRange(reported_size.first, config.num_chunks, chunk);
+        if (!config.quiet) {
+            std::cout << " [" << from << ", " << to << ") ... " << std::flush;
+        }
         Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
 
         if (config.add_reverse_edges) {
