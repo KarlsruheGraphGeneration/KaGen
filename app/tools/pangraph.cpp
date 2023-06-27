@@ -143,11 +143,13 @@ int main(int argc, char* argv[]) {
         ->transform(CLI::CheckedTransformer(GetInputFormatMap()))
         ->required()
         ->capture_default_str();
+    app.add_option("--input-width", in_config.width, "Input width in bits.")->capture_default_str();
     app.add_option("--output-format", out_config.formats, "Output graph format")
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()))
         ->required()
         ->capture_default_str();
     app.add_option("--output-filename", out_config.filename, "Output graph")->required();
+    app.add_option("--output-width", out_config.width, "Output width in bits.")->capture_default_str();
     app.add_flag("-q,--quiet", config.quiet, "Suppress any output to stdout.");
 
     app.add_flag("--remove-self-loops", config.remove_self_loops, "Remove self loops from the input graph.")
