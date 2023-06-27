@@ -98,6 +98,10 @@ Graph RestoreFromExternalBuffers(
 
     for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
         std::ifstream in(BufferFilename(config.tmp_directory, from_chunk, to_chunk), std::ios::binary);
+        if (!in) {
+            std::cerr << "Error: buffer file does not exist\n";
+            std::exit(1);
+        }
         total_size += ReadSInt(in);
     }
 
@@ -260,7 +264,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 Graph graph = RestoreFromExternalBuffers(vertex_distribution, chunk, config);
- 
+
                 if (config.add_reverse_edges) {
                     if (!config.quiet) {
                         std::cout << "filtering duplicates ... " << std::flush;

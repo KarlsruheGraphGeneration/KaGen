@@ -181,18 +181,21 @@ bool ParhipWriter::Write(const int pass, const std::string& filename) {
 }
 
 namespace {
-SInt OffsetToEdge(const SInt n, const SInt offset) {
-    return (offset / sizeof(ParhipID)) - 3 - (n + 1);
+SInt OffsetToEdge(const SInt version, const SInt n, const SInt offset) {
+    const int edge_id_width   = Has32BitVertexIDs(version) ? 4 : 8;
+    const int vertex_id_width = Has32BitVertexIDs(version) ? 4 : 8;
+    return (offset - 3 * sizeof(ParhipID) - (n + 1) * edge_id_width) / vertex_id_width;
 }
 
-SInt ReadFirstEdge(std::ifstream& in, const SInt n, const SInt u) {
-    const SInt offset = (3 + u) * sizeof(ParhipID);
+SInt ReadFirstEdge(std::ifstream& in, const SInt version, const SInt n, const SInt u) {
+    const int  edge_id_width = Has32BitVertexIDs(version) ? 4 : 8;
+    const SInt offset        = 3 * sizeof(ParhipID) + u * edge_id_width;
     in.seekg(static_cast<std::streamsize>(offset));
 
     ParhipID entry = 0;
     in.read(reinterpret_cast<char*>(&entry), sizeof(ParhipID));
 
-    return OffsetToEdge(n, entry);
+    return OffsetToEdge(version, n, entry);
 }
 
 template <typename T, typename F, SInt buf_size = 1024 * 1024>
@@ -203,7 +206,7 @@ std::vector<T> ReadVector(std::ifstream& in, const SInt length) {
     } else {
         std::vector<F> buf(buf_size);
         for (SInt pos = 0; pos < length; pos += buf_size) {
-            const SInt count = std::min(length - pos, pos + buf_size);
+            const SInt count = std::min(length - pos, buf_size);
             in.read(reinterpret_cast<char*>(buf.data()), count * sizeof(F));
             std::copy(buf.begin(), buf.begin() + count, ans.begin() + pos);
         }
@@ -234,20 +237,25 @@ Graph ParhipReader::Read(
         to_vertex = FindNodeByEdge(to_edge);
     }
 
+    const int edge_id_width       = Has32BitEdgeIDs(version_) ? 4 : 8;
+    const int vertex_id_width     = Has32BitVertexIDs(version_) ? 4 : 8;
+    const int vertex_weight_width = Has32BitVertexWeights(version_) ? 4 : 8;
+    const int edge_weight_width   = Has32BitEdgeWeights(version_) ? 4 : 8;
+
     // Read xadj array of the CSR representation
     const SInt num_local_nodes = to_vertex - from_vertex;
     in_.seekg((3 + from_vertex) * sizeof(ParhipID));
     auto xadj = Has32BitEdgeIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_nodes + 1)
                                           : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
 
-    const SInt first_edge_offset = xadj.front();
+    const SInt offset_by = xadj.front();
     for (auto& entry: xadj) { // Transform file offsets to edge offsets
-        entry = (entry - first_edge_offset) / sizeof(ParhipID);
+        entry = (entry - offset_by) / sizeof(ParhipID);
     }
 
     // Read adjncy array
     const SInt num_local_edges = xadj.back();
-    in_.seekg(first_edge_offset);
+    in_.seekg(3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + xadj.front() * vertex_id_width);
     auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
                                               : ReadVector<ParhipID, ParhipID>(in_, num_local_edges);
 
@@ -273,16 +281,18 @@ Graph ParhipReader::Read(
 
     // Load weights if the graph is weighted
     if (HasVertexWeights(version_)) {
-        const SInt offset = (3 + n_ + m_ + 1 + from_vertex) * sizeof(ParhipID);
+        const SInt offset =
+            3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width + from_vertex * vertex_weight_width;
         in_.seekg(offset);
         ans.vertex_weights = Has32BitVertexWeights(version_)
                                  ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_nodes)
                                  : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_nodes);
     }
     if (HasEdgeWeights(version_)) {
-        SInt offset = first_edge_offset + m_ * sizeof(ParhipID);
+        SInt offset =
+            3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width + xadj.front() * edge_weight_width;
         if (HasVertexWeights(version_)) {
-            offset += n_ * sizeof(ParhipID);
+            offset += n_ * vertex_weight_width;
         }
         in_.seekg(offset);
         ans.edge_weights = Has32BitEdgeWeights(version_) ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_edges)
@@ -302,7 +312,7 @@ SInt ParhipReader::FindNodeByEdge(const SInt edge) {
     while (high.first - low.first > 1) {
         std::pair<SInt, SInt> mid;
         mid.first  = (low.first + high.first) / 2;
-        mid.second = ReadFirstEdge(in_, n_, mid.first);
+        mid.second = ReadFirstEdge(in_, version_, n_, mid.first);
 
         if (mid.second < edge) {
             low = mid;
