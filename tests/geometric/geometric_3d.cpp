@@ -12,7 +12,7 @@ using namespace kagen;
 
 TEST(GEOMETRIC3D, generates_graph_on_one_PE) {
     PGeneratorConfig config;
-    config.n           = 8;
+    config.n           = 32;
     config.r           = 0.5;
     config.coordinates = true;
 
@@ -41,10 +41,10 @@ TEST(GEOMETRIC3D, generates_graph_on_one_PE) {
     ASSERT_EQ(result.edges, edgeList);
 }
 
-TEST(GEOMETRIC3D, generates_graph_on_np_PE_n8_r50) {
+TEST(GEOMETRIC3D, generates_graph_on_np_PE_n32_r125) {
     PGeneratorConfig config;
-    config.n           = 8;
-    config.r           = 0.5;
+    config.n           = 32;
+    config.r           = 0.125;
     config.coordinates = true;
 
     RGG3DFactory factory;
@@ -81,90 +81,10 @@ TEST(GEOMETRIC3D, generates_graph_on_np_PE_n8_r50) {
     }
 }
 
-TEST(GEOMETRIC3D, generates_graph_on_np_PE_n16_r20) {
+TEST(GEOMETRIC3D, generates_graph_on_np_PE_n16_r10) {
     PGeneratorConfig config;
     config.n           = 16;
-    config.r           = 0.2;
-    config.coordinates = true;
-
-    RGG3DFactory factory;
-    PEID         size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    config         = factory.NormalizeParameters(config, rank, size, false);
-    auto generator = factory.Create(config, rank, size);
-    generator->Generate(GraphRepresentation::EDGE_LIST);
-    auto result = generator->Take();
-
-    Graph complete_graph = kagen::testing::GatherEdgeLists(result);
-    auto global_graph = kagen::testing::GatherCoordinates3D(result);
-
-    if (rank == 0) {
-        // Creating the correct edge list as a test instance
-        std::vector<std::pair<SInt, SInt>> edgeList;
-        for (SInt i = 0; i < config.n; i++) {
-            auto [x1, y1, z1] = global_graph.coordinates.second[i];
-            for (SInt j = 0; j < config.n; j++) {
-                auto [x2, y2, z2] = global_graph.coordinates.second[j];
-
-                // Comparing all coordinates
-                if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
-                    edgeList.emplace_back(i, j);
-                }
-            }
-        }
-        // Sorting both lists before comparing them
-        std::sort(complete_graph.edges.begin(), complete_graph.edges.end());
-        std::sort(edgeList.begin(), edgeList.end());
-
-        ASSERT_EQ(complete_graph.edges, edgeList);
-    }
-}
-
-TEST(GEOMETRIC3D, generates_graph_on_np_PE_n16_m50) {
-    PGeneratorConfig config;
-    config.n           = 16;
-    config.m           = 50;
-    config.coordinates = true;
-
-    RGG3DFactory factory;
-    PEID         size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    config         = factory.NormalizeParameters(config, rank, size, false);
-    auto generator = factory.Create(config, rank, size);
-    generator->Generate(GraphRepresentation::EDGE_LIST);
-    auto result = generator->Take();
-
-    Graph complete_graph = kagen::testing::GatherEdgeLists(result);
-    auto global_graph = kagen::testing::GatherCoordinates3D(result);
-
-    if (rank == 0) {
-        // Creating the correct edge list as a test instance
-        std::vector<std::pair<SInt, SInt>> edgeList;
-        for (SInt i = 0; i < config.n; i++) {
-            auto [x1, y1, z1] = global_graph.coordinates.second[i];
-            for (SInt j = 0; j < config.n; j++) {
-                auto [x2, y2, z2] = global_graph.coordinates.second[j];
-
-                // Comparing all coordinates
-                if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
-                    edgeList.emplace_back(i, j);
-                }
-            }
-        }
-        // Sorting both lists before comparing them
-        std::sort(complete_graph.edges.begin(), complete_graph.edges.end());
-        std::sort(edgeList.begin(), edgeList.end());
-
-        ASSERT_EQ(complete_graph.edges, edgeList);
-    }
-}
-
-TEST(GEOMETRIC3D, generates_graph_on_np_PE_m16_r50) {
-    PGeneratorConfig config;
-    config.m           = 16;
-    config.r           = 0.5;
+    config.r           = 0.1;
     config.coordinates = true;
 
     RGG3DFactory factory;

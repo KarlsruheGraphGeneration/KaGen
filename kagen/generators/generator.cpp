@@ -161,7 +161,8 @@ void GeneratorFactory::EnsureSquarePowerOfTwoChunkSize(
             if (!IsSquare(config.k)) {
                 config.k *= 2;
             }
-
+            // k has to be gradually increased to decrees load imbalance, but it cannot be set higher then n
+//            while (config.k * 4 <= config.n && std::ceil(1.0 * config.k / size) > (1.0 + config.max_vertex_imbalance) * config.k / size) {
             while (std::ceil(1.0 * config.k / size) > (1.0 + config.max_vertex_imbalance) * config.k / size) {
                 config.k <<= 2;
             }
