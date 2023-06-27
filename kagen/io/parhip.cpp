@@ -108,14 +108,28 @@ void ParhipWriter::WriteOffsets(const std::string& filename) {
     out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
 }
 
-void ParhipWriter::WriteEdges(const std::string& filename) {
-    std::vector<ParhipID> edges(graph_.NumberOfLocalEdges());
-    std::transform(graph_.edges.begin(), graph_.edges.end(), edges.begin(), [&](const auto& edge) {
-        return static_cast<ParhipID>(std::get<1>(edge));
-    });
+namespace {
+template <typename T, SInt buf_size = 1024 * 1024>
+void WriteEdgesImpl(std::ofstream& out, const Edgelist& edges) {
+    std::vector<T> buf(buf_size);
 
+    for (SInt pos = 0; pos < edges.size(); pos += buf_size) {
+        const SInt count = std::min(edges.size() - pos, buf_size);
+        std::transform(edges.begin() + pos, edges.begin() + pos + count, buf.begin(), [&](const auto& edge) {
+            return static_cast<T>(std::get<1>(edge));
+        });
+        out.write(reinterpret_cast<const char*>(buf.data()), count * sizeof(T));
+    }
+}
+} // namespace
+
+void ParhipWriter::WriteEdges(const std::string& filename) {
     std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-    out.write(reinterpret_cast<const char*>(edges.data()), edges.size() * sizeof(ParhipID));
+    if (config_.width == 32) {
+        WriteEdgesImpl<std::uint32_t>(out, graph_.edges);
+    } else {
+        WriteEdgesImpl<ParhipID>(out, graph_.edges);
+    }
 }
 
 void ParhipWriter::WriteVertexWeights(const std::string& filename) {

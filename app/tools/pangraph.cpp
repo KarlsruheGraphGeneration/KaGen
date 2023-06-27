@@ -260,7 +260,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 Graph graph = RestoreFromExternalBuffers(vertex_distribution, chunk, config);
-
+ 
                 if (config.add_reverse_edges) {
                     if (!config.quiet) {
                         std::cout << "filtering duplicates ... " << std::flush;
@@ -280,12 +280,14 @@ int main(int argc, char* argv[]) {
                 continue_with_next_pass = factory->CreateWriter(out_config, graph, info, chunk, config.num_chunks)
                                               ->Write(pass, out_config.filename);
 
-                if (!config.quiet) {
-                    std::cout << "cleanup ... " << std::flush;
-                }
-                for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
-                    const std::string filename = BufferFilename(config.tmp_directory, from_chunk, chunk);
-                    std::remove(filename.c_str());
+                if (!continue_with_next_pass) {
+                    if (!config.quiet) {
+                        std::cout << "cleanup ... " << std::flush;
+                    }
+                    for (int from_chunk = 0; from_chunk < config.num_chunks; ++from_chunk) {
+                        const std::string filename = BufferFilename(config.tmp_directory, from_chunk, chunk);
+                        std::remove(filename.c_str());
+                    }
                 }
 
                 if (!config.quiet) {
