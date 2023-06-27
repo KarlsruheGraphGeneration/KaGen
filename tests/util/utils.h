@@ -4,6 +4,7 @@
 
 #include <mpi.h>
 
+#include <cmath>
 #include <numeric>
 #include <utility>
 
@@ -133,32 +134,23 @@ inline Graph GatherCoordinates2D(const Graph& local_graph) {
     // Count the amount of coordinates per PE
     std::vector<HPFloat> x_values;
     std::vector<HPFloat> y_values;
-    for (const auto& coord : local_graph.coordinates.first) {
-        long double x = std::get<0>(coord);
-        long double y = std::get<1>(coord);
-        if (x >= 0.00 && x <= 1.00 && y >= 0.00 && y <= 1.00) {
-            x_values.push_back(x);
-            y_values.push_back(y);
-        }
+    for (const auto& coord: local_graph.coordinates.first) {
+        auto [x, y] = coord;
+        x_values.push_back(x);
+        y_values.push_back(y);
     }
 
     // Exchange amount of coordinates between PEs
-    int localSize = x_values.size();
+    int              localSize = x_values.size();
     std::vector<int> sizes(size);
     MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
     // Gather amount of vertices
-    int totalSize = 0;
-    for(int i = 0; i < size; i++) {
-        totalSize += sizes[i];
-    }
+    int totalSize = std::accumulate(sizes.begin(), sizes.end(), 0);
 
     // Exchange coordinates
     std::vector<int> displacements(size);
-    displacements[0] = 0;
-    for (int i = 1; i < size; ++i) {
-        displacements[i] = displacements[i - 1] + sizes[i - 1];
-    }
+    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0, std::plus<int>());
 
     Graph global_graph;
     global_graph.representation = local_graph.representation;
@@ -168,13 +160,13 @@ inline Graph GatherCoordinates2D(const Graph& local_graph) {
     std::vector<HPFloat> recv_y_values(totalSize);
 
     MPI_Allgatherv(
-        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(),
-        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
     MPI_Allgatherv(
-        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(),
-        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
 
-    for(int i = 0; i < totalSize; i++) {
+    for (int i = 0; i < totalSize; i++) {
         global_graph.coordinates.first[i] = {recv_x_values[i], recv_y_values[i]};
     }
 
@@ -190,34 +182,24 @@ inline Graph GatherCoordinates3D(const Graph& local_graph) {
     std::vector<HPFloat> x_values;
     std::vector<HPFloat> y_values;
     std::vector<HPFloat> z_values;
-    for (const auto& coord : local_graph.coordinates.second) {
-        long double x = std::get<0>(coord);
-        long double y = std::get<1>(coord);
-        long double z = std::get<2>(coord);
-        if (x >= 0.00 && x <= 1.00 && y >= 0.00 && y <= 1.00) {
-            x_values.push_back(x);
-            y_values.push_back(y);
-            z_values.push_back(z);
-        }
+    for (const auto& coord: local_graph.coordinates.second) {
+        auto [x, y, z] = coord;
+        x_values.push_back(x);
+        y_values.push_back(y);
+        z_values.push_back(z);
     }
 
     // Exchange amount of coordinates between PEs
-    int localSize = x_values.size();
+    int              localSize = x_values.size();
     std::vector<int> sizes(size);
     MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
     // Gather amount of vertices
-    int totalSize = 0;
-    for(int i = 0; i < size; i++) {
-        totalSize += sizes[i];
-    }
+    int totalSize = std::accumulate(sizes.begin(), sizes.end(), 0);
 
     // Exchange coordinates
     std::vector<int> displacements(size);
-    displacements[0] = 0;
-    for (int i = 1; i < size; ++i) {
-        displacements[i] = displacements[i - 1] + sizes[i - 1];
-    }
+    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0, std::plus<int>());
 
     Graph global_graph;
     global_graph.representation = local_graph.representation;
@@ -228,20 +210,50 @@ inline Graph GatherCoordinates3D(const Graph& local_graph) {
     std::vector<HPFloat> recv_z_values(totalSize);
 
     MPI_Allgatherv(
-        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(),
-        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
     MPI_Allgatherv(
-        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(),
-        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
     MPI_Allgatherv(
-        z_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_z_values.data(), sizes.data(),
-        displacements.data(), KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+        z_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_z_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
 
-    for(int i = 0; i < totalSize; i++) {
+    for (int i = 0; i < totalSize; i++) {
         global_graph.coordinates.second[i] = {recv_x_values[i], recv_y_values[i], recv_z_values[i]};
     }
 
     return global_graph;
+}
+
+inline EdgeList CreateTestInstanceFromCoordinates2D(PGeneratorConfig config, const Graph& graph) {
+    std::vector<std::pair<SInt, SInt>> edge_List;
+    for (SInt i = 0; i < config.n; i++) {
+        auto [x1, y1] = graph.coordinates.first[i];
+        for (SInt j = 0; j < config.n; j++) {
+            auto [x2, y2] = graph.coordinates.first[j];
+            // Comparing all coordinates
+            if (i != j && std::hypot(x1 - x2, y1 - y2) <= config.r) {
+                edge_List.emplace_back(i, j);
+            }
+        }
+    }
+    return edge_List;
+}
+
+inline EdgeList CreateTestInstanceFromCoordinates3D(PGeneratorConfig config, const Graph& graph) {
+    std::vector<std::pair<SInt, SInt>> edge_List;
+    for (SInt i = 0; i < config.n; i++) {
+        auto [x1, y1, z1] = graph.coordinates.second[i];
+        for (SInt j = 0; j < config.n; j++) {
+            auto [x2, y2, z2] = graph.coordinates.second[j];
+            // Comparing all coordinates
+            if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
+                edge_List.emplace_back(i, j);
+            }
+        }
+    }
+    return edge_List;
 }
 
 } // namespace kagen::testing

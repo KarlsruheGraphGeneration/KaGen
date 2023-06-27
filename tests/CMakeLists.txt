@@ -43,12 +43,16 @@ kagen_add_test(test_generic_file_generator
     CORES 1 2 3 4 8 16)
 
 # Geometric Generator
-kagen_add_test(geometric_2d
-        FILES geometric/geometric_2d.cpp
+kagen_add_test(geometric_one_PE_test
+        FILES geometric/geometric_one_PE_test.cpp
+        CORES 1)
+        
+kagen_add_test(geometric_2d_test
+        FILES geometric/geometric_2d_test.cpp
         CORES 1 2 4)
 
-kagen_add_test(geometric_3d
-        FILES geometric/geometric_3d.cpp
+kagen_add_test(geometric_3d_test
+        FILES geometric/geometric_3d_test.cpp
         CORES 1 2 4)
 
 
