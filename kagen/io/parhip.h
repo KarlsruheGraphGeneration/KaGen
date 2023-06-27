@@ -7,6 +7,27 @@
 #include "kagen/io/graph_format.h"
 
 namespace kagen {
+namespace parhip {
+using ParhipID     = unsigned long long;
+using ParhipWeight = SSInt;
+
+ParhipID BuildVersion(
+    bool has_vertex_weights, bool has_edge_weights, bool has_32bit_edge_ids, bool has_32bit_vertex_ids,
+    bool has_32bit_vertex_weights, bool has_32bit_edge_weights);
+
+bool HasVertexWeights(SInt version);
+
+bool HasEdgeWeights(SInt version);
+
+bool Has32BitEdgeIDs(SInt version);
+
+bool Has32BitVertexIDs(SInt version);
+
+bool Has32BitVertexWeights(SInt version);
+
+bool Has32BitEdgeWeights(SInt version);
+} // namespace parhip
+
 class ParhipWriter : public GraphWriter {
 public:
     ParhipWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
@@ -27,7 +48,7 @@ private:
 
 class ParhipReader : public GraphReader {
 public:
-    ParhipReader(const std::string& filename);
+    ParhipReader(const InputGraphConfig& config);
 
     GraphSize ReadSize() final;
 

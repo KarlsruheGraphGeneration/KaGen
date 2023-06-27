@@ -11,8 +11,54 @@
 #include "kagen/tools/statistics.h"
 
 namespace kagen {
-using ParhipID     = unsigned long long;
-using ParhipWeight = SSInt;
+using namespace parhip;
+
+namespace parhip {
+ParhipID BuildVersion(
+    const bool has_vertex_weights, const bool has_edge_weights, const bool has_32bit_edge_ids,
+    const bool has_32bit_vertex_ids, const bool has_32bit_vertex_weights, const bool has_32bit_edge_weights) {
+    // To be compatible with the original format used by ParHiP, we use the following versions:
+    // 3 = no vertex or edge weights = compatible with ParHiP
+    // 2 = no vertex weights, but edge weights
+    // 1 = vertex weights, but no edge weights
+    // 0 = vertex weights and edge weights
+    // I.e., the negated "format" code used by the Metis format
+    // Higher bits are used to encode the data types used to store the graph; if set to 0, we use 64 bits
+    const ParhipID edge_weights_bit        = static_cast<SInt>(has_edge_weights) ^ 1;
+    const ParhipID vertex_weights_bit      = (static_cast<SInt>(has_vertex_weights) ^ 1) << 1;
+    const ParhipID edge_id_width_bit       = static_cast<SInt>(has_32bit_edge_ids) << 2;
+    const ParhipID vertex_id_width_bit     = static_cast<SInt>(has_32bit_vertex_ids) << 3;
+    const ParhipID vertex_weight_width_bit = static_cast<SInt>(has_32bit_vertex_weights) << 3;
+    const ParhipID edge_weight_width_bit   = static_cast<SInt>(has_32bit_edge_weights) << 4;
+
+    return vertex_weights_bit | edge_weights_bit | edge_id_width_bit | vertex_id_width_bit | vertex_weight_width_bit
+           | edge_weight_width_bit;
+}
+
+bool HasVertexWeights(const SInt version) {
+    return (version & 2) == 0;
+}
+
+bool HasEdgeWeights(const SInt version) {
+    return (version & 1) == 0;
+}
+
+bool Has32BitEdgeIDs(const SInt version) {
+    return version & 4;
+}
+
+bool Has32BitVertexIDs(const SInt version) {
+    return version & 8;
+}
+
+bool Has32BitVertexWeights(const SInt version) {
+    return version & 16;
+}
+
+bool Has32BitEdgeWeights(const SInt version) {
+    return version & 32;
+}
+} // namespace parhip
 
 ParhipWriter::ParhipWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
@@ -26,17 +72,9 @@ void ParhipWriter::WriteHeader(const std::string& filename) {
 
     // Header
     if (rank_ == ROOT && config_.header != OutputHeader::NEVER) {
-        // To be compatible with the original format used by ParHiP, we use the following versions:
-        // 3 = no vertex or edge weights = compatible with ParHiP
-        // 2 = no vertex weights, but edge weights
-        // 1 = vertex weights, but no edge weights
-        // 0 = vertex weights and edge weights
-        // I.e., the negated "format" code used by the Metis format
-        const ParhipID vertex_weights_bit = (static_cast<SInt>(info_.has_vertex_weights) ^ 1) << 1;
-        const ParhipID edge_weights_bit   = static_cast<SInt>(info_.has_edge_weights) ^ 1;
-        const ParhipID version            = vertex_weights_bit | edge_weights_bit;
-
         std::ofstream  out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+        const ParhipID version =
+            BuildVersion(info_.has_vertex_weights, info_.has_edge_weights, false, config_.width == 32, false, false);
         const ParhipID global_n = info_.global_n;
         const ParhipID global_m = info_.global_m;
         out.write(reinterpret_cast<const char*>(&version), sizeof(ParhipID));
@@ -143,23 +181,24 @@ SInt ReadFirstEdge(std::ifstream& in, const SInt n, const SInt u) {
     return OffsetToEdge(n, entry);
 }
 
-bool HasVertexWeights(const SInt version) {
-    return (version & 2) == 0;
-}
-
-bool HasEdgeWeights(const SInt version) {
-    return (version & 1) == 0;
-}
-
-template <typename T>
+template <typename T, typename F, SInt buf_size = 1024 * 1024>
 std::vector<T> ReadVector(std::ifstream& in, const SInt length) {
     std::vector<T> ans(length);
-    in.read(reinterpret_cast<char*>(ans.data()), length * sizeof(T));
+    if constexpr (std::is_same_v<T, F>) {
+        in.read(reinterpret_cast<char*>(ans.data()), length * sizeof(T));
+    } else {
+        std::vector<F> buf(buf_size);
+        for (SInt pos = 0; pos < length; pos += buf_size) {
+            const SInt count = std::min(length - pos, pos + buf_size);
+            in.read(reinterpret_cast<char*>(buf.data()), count * sizeof(F));
+            std::copy(buf.begin(), buf.begin() + count, ans.begin() + pos);
+        }
+    }
     return ans;
 }
 } // namespace
 
-ParhipReader::ParhipReader(const std::string& filename) : in_(filename) {
+ParhipReader::ParhipReader(const InputGraphConfig& config) : in_(config.filename) {
     if (!in_) {
         throw IOError("input file cannot be read");
     }
@@ -184,7 +223,8 @@ Graph ParhipReader::Read(
     // Read xadj array of the CSR representation
     const SInt num_local_nodes = to_vertex - from_vertex;
     in_.seekg((3 + from_vertex) * sizeof(ParhipID));
-    auto xadj = ReadVector<ParhipID>(in_, num_local_nodes + 1);
+    auto xadj = Has32BitEdgeIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_nodes + 1)
+                                          : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
 
     const SInt first_edge_offset = xadj.front();
     for (auto& entry: xadj) { // Transform file offsets to edge offsets
@@ -194,7 +234,8 @@ Graph ParhipReader::Read(
     // Read adjncy array
     const SInt num_local_edges = xadj.back();
     in_.seekg(first_edge_offset);
-    auto adjncy = ReadVector<ParhipID>(in_, num_local_edges);
+    auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
+                                              : ReadVector<ParhipID, ParhipID>(in_, num_local_edges);
 
     Graph ans;
     ans.vertex_range   = {from_vertex, from_vertex + num_local_nodes};
@@ -218,21 +259,20 @@ Graph ParhipReader::Read(
 
     // Load weights if the graph is weighted
     if (HasVertexWeights(version_)) {
-        ans.vertex_weights.resize(num_local_nodes);
-
         const SInt offset = (3 + n_ + m_ + 1 + from_vertex) * sizeof(ParhipID);
         in_.seekg(offset);
-        in_.read(reinterpret_cast<char*>(ans.vertex_weights.data()), num_local_nodes * sizeof(ParhipWeight));
+        ans.vertex_weights = Has32BitVertexWeights(version_)
+                                 ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_nodes)
+                                 : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_nodes);
     }
     if (HasEdgeWeights(version_)) {
-        ans.edge_weights.resize(num_local_edges);
-
         SInt offset = first_edge_offset + m_ * sizeof(ParhipID);
         if (HasVertexWeights(version_)) {
             offset += n_ * sizeof(ParhipID);
         }
         in_.seekg(offset);
-        in_.read(reinterpret_cast<char*>(ans.edge_weights.data()), num_local_edges * sizeof(ParhipWeight));
+        ans.edge_weights = Has32BitEdgeWeights(version_) ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_edges)
+                                                         : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_edges);
     }
 
     return ans;
@@ -261,7 +301,7 @@ SInt ParhipReader::FindNodeByEdge(const SInt edge) {
 }
 
 std::unique_ptr<GraphReader> ParhipFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
-    return std::make_unique<ParhipReader>(config.filename);
+    return std::make_unique<ParhipReader>(config);
 }
 
 std::unique_ptr<GraphWriter> ParhipFactory::CreateWriter(
