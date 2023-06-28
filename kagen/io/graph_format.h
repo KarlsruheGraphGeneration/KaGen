@@ -81,8 +81,12 @@ struct GraphInfo {
 
     GraphInfo(const Graph& graph, MPI_Comm comm);
 
+    SInt local_n            = 0;
+    SInt local_m            = 0;
     SInt global_n           = 0;
     SInt global_m           = 0;
+    SInt offset_n           = 0;
+    SInt offset_m           = 0;
     bool has_vertex_weights = false;
     bool has_edge_weights   = false;
 };

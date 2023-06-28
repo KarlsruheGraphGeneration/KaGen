@@ -86,7 +86,8 @@ void ParhipWriter::WriteHeader(const std::string& filename) {
 void ParhipWriter::WriteOffsets(const std::string& filename) {
     std::vector<ParhipID> offset(graph_.NumberOfLocalVertices() + 1);
 
-    SInt cur_offset = (3 + info_.global_n + 1) * sizeof(ParhipID); // 3 = header size
+    const int vertex_id_width = config_.width == 32 ? 4 : 8;
+    SInt cur_offset = 3 * sizeof(ParhipID) + (info_.global_n + 1) * sizeof(ParhipID) + info_.offset_m * vertex_id_width;
     SInt cur_edge   = 0;
     SInt cur_vertex = 0;
 
@@ -99,13 +100,19 @@ void ParhipWriter::WriteOffsets(const std::string& filename) {
         }
         const SInt degree = cur_edge - cur_edge_before;
 
-        cur_offset += degree * sizeof(ParhipID);
+        cur_offset += degree * vertex_id_width;
         ++cur_vertex;
     }
     offset[cur_vertex] = cur_offset;
 
     std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-    out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
+
+    // Case distinction: the last offset acts as a guardian and should only be written by the last PE
+    if (rank_ + 1 == size_) {
+        out.write(reinterpret_cast<const char*>(offset.data()), offset.size() * sizeof(ParhipID));
+    } else {
+        out.write(reinterpret_cast<const char*>(offset.data()), (offset.size() - 1) * sizeof(ParhipID));
+    }
 }
 
 namespace {
@@ -149,6 +156,8 @@ bool ParhipWriter::Write(const int pass, const std::string& filename) {
     if (config_.distributed) {
         throw IOError("ParHiP format does not support distributed output");
     }
+
+    graph_.SortEdgelist();
 
     // @todo create copies if data types mismatch
     static_assert(std::is_same_v<SInt, ParhipID>);
@@ -249,9 +258,9 @@ Graph ParhipReader::Read(
                                           : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
 
     const SInt first_global_edge = OffsetToEdge(version_, n_, xadj.front());
-    const SInt offset_by = xadj.front();
+    const SInt offset_by         = xadj.front();
     for (auto& entry: xadj) { // Transform file offsets to edge offsets
-        entry = (entry - offset_by) / sizeof(ParhipID);
+        entry = (entry - offset_by) / vertex_id_width;
     }
 
     // Read adjncy array
@@ -291,8 +300,8 @@ Graph ParhipReader::Read(
                                  : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_nodes);
     }
     if (HasEdgeWeights(version_)) {
-        SInt offset =
-            3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width + first_global_edge * edge_weight_width;
+        SInt offset = 3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width
+                      + first_global_edge * edge_weight_width;
         if (HasVertexWeights(version_)) {
             offset += n_ * vertex_weight_width;
         }

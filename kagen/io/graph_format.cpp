@@ -8,12 +8,16 @@
 
 namespace kagen {
 GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm)
-    : global_n(graph.NumberOfLocalVertices()),
+    : local_n(graph.NumberOfLocalVertices()),
+      local_m(graph.NumberOfLocalEdges()),
+      global_n(graph.NumberOfLocalVertices()),
       global_m(graph.NumberOfLocalEdges()),
       has_vertex_weights(!graph.vertex_weights.empty()),
       has_edge_weights(!graph.edge_weights.empty()) {
     MPI_Allreduce(MPI_IN_PLACE, &global_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &global_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    MPI_Exscan(&local_n, &offset_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    MPI_Exscan(&local_m, &offset_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
     MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
 }

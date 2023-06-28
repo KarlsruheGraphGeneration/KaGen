@@ -184,8 +184,8 @@ int main(int argc, char* argv[]) {
         vertex_distribution[chunk + 1] = ComputeRange(info.global_n, config.num_chunks, chunk).second;
     }
 
-    const auto reader = CreateGraphReader(in_config.format, in_config, 0, 1);
-    auto reported_size = reader->ReadSize();
+    const auto reader        = CreateGraphReader(in_config.format, in_config, 0, 1);
+    auto       reported_size = reader->ReadSize();
 
     for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
         if (!config.quiet) {
@@ -261,6 +261,9 @@ int main(int argc, char* argv[]) {
 
         bool continue_with_next_pass = true;
         for (int pass = 0; continue_with_next_pass; ++pass) {
+            SInt offset_n = 0;
+            SInt offset_m = 0;
+
             for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
                 if (!config.quiet) {
                     std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
@@ -285,7 +288,16 @@ int main(int argc, char* argv[]) {
                 if (!config.quiet) {
                     std::cout << "writing ... " << std::flush;
                 }
-                continue_with_next_pass = factory->CreateWriter(out_config, graph, info, chunk, config.num_chunks)
+
+                GraphInfo pass_info = info;
+                pass_info.local_n   = graph.NumberOfLocalVertices();
+                pass_info.local_m   = graph.NumberOfLocalEdges();
+                pass_info.offset_n  = offset_n;
+                pass_info.offset_m  = offset_m;
+                offset_n += pass_info.local_n;
+                offset_m += pass_info.local_m;
+
+                continue_with_next_pass = factory->CreateWriter(out_config, graph, pass_info, chunk, config.num_chunks)
                                               ->Write(pass, out_config.filename);
 
                 if (!continue_with_next_pass) {
