@@ -17,6 +17,7 @@
 #include "kagen/io/metis.h"
 #include "kagen/io/parhip.h"
 #include "kagen/tools/statistics.h"
+#include "kagen/tools/utils.h"
 
 namespace kagen {
 const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGraphFormatFactories() {
@@ -48,7 +49,7 @@ const std::unique_ptr<FileFormatFactory>& GetGraphFormatFactory(const FileFormat
     }
 
     std::stringstream error_msg;
-    error_msg << "file format " << format << " not available for writing";
+    error_msg << "there is no file format with name " << format;
     throw IOError(error_msg.str());
 }
 
@@ -102,34 +103,18 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
 }
 
 void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    const PEID size = GetCommSize(comm);
+    const PEID rank = GetCommRank(comm);
 
     const std::string filename = config.distributed ? config.filename + "." + std::to_string(rank) : config.filename;
+
+    // Overwrite file if it already exists
     { std::ofstream out(filename); }
 
-    if (!config.distributed) {
-        if (output) {
-            std::cout << "Writing graph to " << filename << " ..." << std::endl;
-        }
+    if (config.distributed) {
+        // Distributed output: each PE writes its part of the graph to its own file
+        // This allows parallel writes to parallel file systems
 
-        bool continue_with_next_pass = true;
-        for (int pass = 0; continue_with_next_pass; ++pass) {
-            for (PEID pe = 0; pe < size; ++pe) {
-                if (output) {
-                    std::cout << "  Writing subgraph of PE " << pe << " (pass " << pass << ") ... " << std::flush;
-                }
-                if (rank == pe) {
-                    continue_with_next_pass = writer.Write(pass, filename);
-                }
-                MPI_Barrier(comm);
-                if (output) {
-                    std::cout << "OK" << std::endl;
-                }
-            }
-        }
-    } else {
         if (output) {
             std::cout << "Writing graph to [" << filename << ".0";
             if (size > 2) {
@@ -149,7 +134,29 @@ void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool
         if (output) {
             std::cout << "OK" << std::endl;
         }
+    } else {
+        // Sequential output (default): all PEs write the the same file, sequentially
+
+        if (output) {
+            std::cout << "Writing graph to " << filename << " ..." << std::endl;
+        }
+
+        bool continue_with_next_pass = true;
+        for (int pass = 0; continue_with_next_pass; ++pass) {
+            for (PEID pe = 0; pe < size; ++pe) {
+                if (output) {
+                    std::cout << "  Writing subgraph of PE " << pe + 1 << " / " << size << " (pass " << pass << ") ... "
+                              << std::flush;
+                }
+                if (rank == pe) {
+                    continue_with_next_pass = writer.Write(pass, filename);
+                }
+                MPI_Barrier(comm);
+                if (output) {
+                    std::cout << "OK" << std::endl;
+                }
+            }
+        }
     }
 }
-
 } // namespace kagen

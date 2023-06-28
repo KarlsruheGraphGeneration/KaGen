@@ -2,6 +2,8 @@
 
 #include "kagen/definitions.h"
 
+#include <mpi.h>
+
 namespace kagen {
 inline std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
     const SInt chunk = n / size;
@@ -18,5 +20,17 @@ inline SInt FindNumberOfVerticesInEdgelist(const Edgelist& edges, MPI_Comm comm)
     }
     MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
     return n + 1;
+}
+
+inline PEID GetCommRank(MPI_Comm comm) {
+    PEID rank;
+    MPI_Comm_rank(comm, &rank);
+    return rank;
+}
+
+inline PEID GetCommSize(MPI_Comm comm) {
+    PEID size;
+    MPI_Comm_size(comm, &size);
+    return size;
 }
 } // namespace kagen
