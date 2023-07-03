@@ -200,9 +200,16 @@ SInt ReadFirstEdge(std::ifstream& in, const SInt version, const SInt n, const SI
     const int  edge_id_width = Has32BitVertexIDs(version) ? 4 : 8;
     const SInt offset        = 3 * sizeof(ParhipID) + u * edge_id_width;
     in.seekg(static_cast<std::streamsize>(offset));
+    if (in.rdstate()) {
+        throw IOError("seeking to offset " + std::to_string(offset) + " failed");
+    }
 
     ParhipID entry = 0;
     in.read(reinterpret_cast<char*>(&entry), sizeof(ParhipID));
+    if (in.rdstate()) {
+        throw IOError(
+            "reading " + std::to_string(sizeof(ParhipID)) + " bytes at offset " + std::to_string(offset) + " failed");
+    }
 
     return OffsetToEdge(version, n, entry);
 }
@@ -211,12 +218,20 @@ template <typename T, typename F, SInt buf_size = 1024 * 1024>
 std::vector<T> ReadVector(std::ifstream& in, const SInt length) {
     std::vector<T> ans(length);
     if constexpr (std::is_same_v<T, F>) {
-        in.read(reinterpret_cast<char*>(ans.data()), length * sizeof(T));
+        const SInt size = length * sizeof(T);
+        in.read(reinterpret_cast<char*>(ans.data()), size);
+        if (in.rdstate()) {
+            throw IOError("reading " + std::to_string(size) + " bytes failed");
+        }
     } else {
         std::vector<F> buf(buf_size);
         for (SInt pos = 0; pos < length; pos += buf_size) {
             const SInt count = std::min(length - pos, buf_size);
-            in.read(reinterpret_cast<char*>(buf.data()), count * sizeof(F));
+            const SInt size  = count * sizeof(F);
+            in.read(reinterpret_cast<char*>(buf.data()), size);
+            if (in.rdstate()) {
+                throw IOError("reading " + std::to_string(size) + " bytes failed");
+            }
             std::copy(buf.begin(), buf.begin() + count, ans.begin() + pos);
         }
     }
@@ -253,7 +268,11 @@ Graph ParhipReader::Read(
 
     // Read xadj array of the CSR representation
     const SInt num_local_nodes = to_vertex - from_vertex;
-    in_.seekg(3 * sizeof(ParhipID) + from_vertex * edge_id_width);
+    const SInt xadj_offset     = 3 * sizeof(ParhipID) + from_vertex * edge_id_width;
+    in_.seekg(xadj_offset);
+    if (in_.rdstate()) {
+        throw IOError("seeking to offset " + std::to_string(xadj_offset) + " failed");
+    }
     auto xadj = Has32BitEdgeIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_nodes + 1)
                                           : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
 
@@ -265,7 +284,11 @@ Graph ParhipReader::Read(
 
     // Read adjncy array
     const SInt num_local_edges = xadj.back() - xadj.front();
-    in_.seekg(3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + first_global_edge * vertex_id_width);
+    const SInt adjncy_offset   = 3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + first_global_edge * vertex_id_width;
+    in_.seekg(adjncy_offset);
+    if (in_.rdstate()) {
+        throw IOError("seeking to offset " + std::to_string(adjncy_offset) + " failed");
+    }
 
     auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
                                               : ReadVector<ParhipID, ParhipID>(in_, num_local_edges);
@@ -292,22 +315,38 @@ Graph ParhipReader::Read(
 
     // Load weights if the graph is weighted
     if (HasVertexWeights(version_)) {
-        const SInt offset =
+        const SInt vwgt_offset =
             3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width + from_vertex * vertex_weight_width;
-        in_.seekg(offset);
+        in_.seekg(vwgt_offset);
+        if (in_.rdstate()) {
+            throw IOError("seeking to offset " + std::to_string(vwgt_offset) + " failed");
+        }
         ans.vertex_weights = Has32BitVertexWeights(version_)
                                  ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_nodes)
                                  : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_nodes);
     }
     if (HasEdgeWeights(version_)) {
-        SInt offset = 3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width
-                      + first_global_edge * edge_weight_width;
+        SInt adjwgt_offset = 3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width
+                             + first_global_edge * edge_weight_width;
         if (HasVertexWeights(version_)) {
-            offset += n_ * vertex_weight_width;
+            adjwgt_offset += n_ * vertex_weight_width;
         }
-        in_.seekg(offset);
+        in_.seekg(adjwgt_offset);
+        if (in_.rdstate()) {
+            throw IOError("seeking to offset " + std::to_string(adjwgt_offset) + " failed");
+        }
         ans.edge_weights = Has32BitEdgeWeights(version_) ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_edges)
                                                          : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_edges);
+    }
+
+    if (to_vertex >= n_ && to_edge >= m_) {
+        const SInt end_pos = in_.tellg();
+        in_.seekg(0, in_.end);
+        const SInt real_end_pos = in_.tellg();
+        if (end_pos != real_end_pos) {
+            std::cerr << "Warning: " << (real_end_pos - end_pos) << " unexpected bytes at the end of the file"
+                      << std::endl;
+        }
     }
 
     return ans;
