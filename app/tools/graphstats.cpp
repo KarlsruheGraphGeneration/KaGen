@@ -2,8 +2,10 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
+#include "kagen/io.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/statistics.h"
+#include "kagen/tools/utils.h"
 
 #include "../CLI11.h"
 
@@ -30,7 +32,6 @@ Graph load_graph(const PGeneratorConfig& config) {
     FileGraphFactory factory;
     const auto       normalized_config = factory.NormalizeParameters(config, rank, size, false);
     auto             loader            = factory.Create(normalized_config, rank, size);
-
     loader->Generate(GraphRepresentation::EDGE_LIST);
     loader->Finalize(MPI_COMM_WORLD);
     return loader->Take();
@@ -81,6 +82,58 @@ std::string strip_extension(const std::string& filename) {
     return filename.substr(0, pos);
 }
 
+Statistics generate_internal(const PGeneratorConfig& config) {
+    Graph graph = load_graph(config);
+
+    Statistics stats;
+    stats.n = FindNumberOfGlobalNodes(graph.vertex_range, MPI_COMM_WORLD);
+    stats.m = FindNumberOfGlobalEdges(graph.edges, MPI_COMM_WORLD);
+
+    const auto degree_stats = ReduceDegreeStatistics(graph.edges, stats.n, MPI_COMM_WORLD);
+    stats.min_deg           = degree_stats.min;
+    stats.avg_deg           = degree_stats.mean;
+    stats.max_deg           = degree_stats.max;
+
+    return stats;
+}
+
+Statistics generate_external(const PGeneratorConfig& config, const int num_chunks) {
+    if (get_size() > 1) {
+        std::cerr << "Error: external statistics generation is only supported for a single MPI process\n";
+        std::exit(1);
+    }
+
+    Statistics stats;
+
+    const auto reader        = CreateGraphReader(config.input_graph.format, config.input_graph, 0, 1);
+    auto       reported_size = reader->ReadSize();
+
+    std::vector<SInt> degrees;
+
+    for (int chunk = 0; chunk < num_chunks; ++chunk) {
+        const auto [from, to] = ComputeRange(reported_size.first, num_chunks, chunk);
+        Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
+
+        for (const auto& [from, to]: graph.edges) {
+            while (degrees.size() <= from) {
+                degrees.push_back(0);
+            }
+            ++degrees[from];
+        }
+
+        stats.m += graph.edges.size();
+    }
+
+    const auto [min_it, max_it] = std::minmax_element(degrees.begin(), degrees.end());
+
+    stats.n = degrees.size();
+    stats.min_deg = *min_it;
+    stats.avg_deg = 1.0 * stats.m / stats.n;
+    stats.max_deg = *max_it;
+
+    return stats;
+}
+
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 
@@ -88,6 +141,7 @@ int main(int argc, char* argv[]) {
     bool                     do_strip_extension = false;
     bool                     do_no_header       = false;
     bool                     do_header_only     = false;
+    int                      num_chunks         = 1;
     PGeneratorConfig         config;
 
     CLI::App app("graphstats: compute some basic statistics on a graph");
@@ -97,9 +151,16 @@ int main(int argc, char* argv[]) {
     group->add_option("input filenames", input_filenames)->check(CLI::ExistingFile);
     group->add_flag("--header-only", do_header_only);
 
-    app.add_option("-f,--format", config.input_graph.format)->transform(CLI::CheckedTransformer(GetInputFormatMap()));
-    app.add_flag("--strip-extension", do_strip_extension);
-    app.add_flag("-H,--no-header", do_no_header);
+    app.add_option("-f,--format", config.input_graph.format, "File format of the input file(s).")
+        ->transform(CLI::CheckedTransformer(GetInputFormatMap()));
+    app.add_flag(
+        "--strip-extension", do_strip_extension,
+        "If set, print the filename in the Graph column without file extension.");
+    app.add_flag("-H,--no-header", do_no_header, "If set, do not print the CSV header line.");
+    app.add_option(
+        "-C,--num-chunks", num_chunks,
+        "If set, compute the statistics externally by splitting the graph into this many chunks; some statistics might "
+        "not be available in this mode. Still requires O(n) memory.");
     CLI11_PARSE(app, argc, argv);
 
     // Catch special case: only print CSV header line
@@ -112,20 +173,18 @@ int main(int argc, char* argv[]) {
 
     for (const auto& filename: input_filenames) {
         config.input_graph.filename = filename;
-        Graph graph                 = load_graph(config);
 
         Statistics stats;
+        if (num_chunks == 1) {
+            stats = generate_internal(config);
+        } else {
+            stats = generate_external(config, num_chunks);
+        }
+
         stats.name = extract_filename(config.input_graph.filename);
         if (do_strip_extension) {
             stats.name = strip_extension(stats.name);
         }
-        stats.n = FindNumberOfGlobalNodes(graph.vertex_range, MPI_COMM_WORLD);
-        stats.m = FindNumberOfGlobalEdges(graph.edges, MPI_COMM_WORLD);
-
-        const auto degree_stats = ReduceDegreeStatistics(graph.edges, stats.n, MPI_COMM_WORLD);
-        stats.min_deg           = degree_stats.min;
-        stats.avg_deg           = degree_stats.mean;
-        stats.max_deg           = degree_stats.max;
 
         if (get_rank() == ROOT) {
             print_csv_row(stats);
