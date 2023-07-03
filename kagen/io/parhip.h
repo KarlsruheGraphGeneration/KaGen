@@ -1,3 +1,47 @@
+/*******************************************************************************
+ * Implements an extension to the binary graph format used by the ParHiP graph
+ * partitioner.
+ *
+ * The format is structured as follows:
+ *
+ * +------------------------------------+
+ * | Header (24 bytes)                  |
+ * +------------------------------------+
+ * | Offsets ([n + 1] * EID bytes)      |
+ * +------------------------------------+
+ * | Neighborhood lists (m * VID bytes) |
+ * +------------------------------------+
+ * | Vertex weights (n * VWGT bytes)    |
+ * +------------------------------------+
+ * | Edge weights (m * EWGT bytes)      |
+ * +------------------------------------+
+ *
+ * Header:
+ * - 8 bytes: VERSION
+ * - 8 bytes: n (number of vertices)
+ * - 8 bytes: m (number of directed edges = 2x the number of undirected edges)
+ *
+ * VERSION is a bitfield that encodes the following information:
+ * LSB -> [!ewgt|!vwgt|32bit_eid|32bit_vid|32bit_vwgt|32bit_ewgt] -> MSB
+ *
+ * - !ewgt: 1 = no edge weights, 0 = edge weights
+ * - !vwgt: 1 = no vertex weights, 0 = vertex weights
+ * - 32bit_eid: 1 = EID is 32 bit, 0 = EID is 64 bit
+ * - 32bit_vid: 1 = VID is 32 bit, 0 = VID is 64 bit
+ * - 32bit_vwgt: 1 = VWGT is 32 bit, 0 = VWGT is 64 bit
+ * - 32bit_ewgt: 1 = EWGT is 32 bit, 0 = EWGT is 64 bit
+ *
+ * The entries of "Offsets" should be addresses relative to the start of the
+ * file, such that Offsets[v] points to the first neighbor of vertex v in
+ * "Neighborhood lists".
+ * Note that this offset changes when using 32 vs 64 bit edge- or vertex IDs.
+ *
+ * ParHiP only supports graphs with 64 bit IDs and weights, no edge weights and 
+ * no vertex weights (i.e., VERSION must be 3).
+ *
+ * @file   parhip.h
+ * @author Daniel Seemaier
+ ******************************************************************************/
 #pragma once
 
 #include <fstream>
