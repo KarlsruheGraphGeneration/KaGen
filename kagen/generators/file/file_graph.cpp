@@ -1,21 +1,14 @@
 #include "kagen/generators/file/file_graph.h"
 
 #include "kagen/io.h"
+#include "kagen/tools/converter.h"
+#include "kagen/tools/postprocessor.h"
+#include "kagen/tools/utils.h"
 
 namespace kagen {
 std::unique_ptr<Generator> FileGraphFactory::Create(const PGeneratorConfig& config, PEID rank, PEID size) const {
     return std::make_unique<FileGraphGenerator>(config, rank, size);
 }
-
-namespace {
-std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
-    const SInt chunk = n / size;
-    const SInt rem   = n % size;
-    const SInt from  = rank * chunk + std::min<SInt>(rank, rem);
-    const SInt to    = std::min<SInt>(from + ((static_cast<SInt>(rank) < rem) ? chunk + 1 : chunk), n);
-    return {from, to};
-}
-} // namespace
 
 FileGraphGenerator::FileGraphGenerator(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
@@ -30,9 +23,37 @@ void FileGraphGenerator::GenerateCSR() {
     GenerateImpl(GraphRepresentation::CSR);
 }
 
+bool FileGraphGenerator::CheckDeficit(const ReaderDeficits deficit) const {
+    return deficits_ & deficit;
+}
+
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
-    auto reader       = CreateGraphReader(config_.input_graph.format, config_.input_graph);
-    const auto [n, m] = reader->ReadSize();
+    auto reader = CreateGraphReader(config_.input_graph.format, config_.input_graph, rank_, size_);
+    deficits_   = reader->Deficits();
+
+    const auto [n, m] = [&] {
+        if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES) && CheckDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+            return std::pair<SInt, SInt>{size_, size_};
+        }
+
+        auto [n, m] = reader->ReadSize();
+        if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
+            n = size_;
+        }
+        if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+            m = size_;
+        }
+        return std::pair<SInt, SInt>{n, m};
+    }();
+
+    if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
+        && config_.input_graph.distribution == GraphDistribution::BALANCE_EDGES) {
+        throw std::invalid_argument("not implemented");
+    }
+
+    // If we need postprocessing, always generate an edge list because postprocessing is not implemented for CSR
+    actual_representation_ =
+        CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION) ? GraphRepresentation::EDGE_LIST : representation;
 
     SInt from    = 0;
     SInt to_node = std::numeric_limits<SInt>::max();
@@ -51,7 +72,8 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
         }
     }
 
-    auto graph      = reader->Read(from, to_node, to_edge, representation);
+    auto graph = reader->Read(from, to_node, to_edge, actual_representation_);
+
     vertex_range_   = graph.vertex_range;
     xadj_           = std::move(graph.xadj);
     adjncy_         = std::move(graph.adjncy);
@@ -59,5 +81,58 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
     edge_weights_   = std::move(graph.edge_weights);
     vertex_weights_ = std::move(graph.vertex_weights);
     coordinates_    = std::move(graph.coordinates);
+}
+
+void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
+    if (actual_representation_ == GraphRepresentation::CSR) {
+        FinalizeCSR(comm);
+
+        if (Output()) {
+            std::cout << "converting to edge list ... " << std::flush;
+        }
+
+        edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
+        {
+            [[maybe_unused]] auto free_xadj   = std::move(xadj_);
+            [[maybe_unused]] auto free_adjncy = std::move(adjncy_);
+        }
+    }
+
+    if (CheckDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)) {
+        if (Output()) {
+            std::cout << "redistributing edges ... " << std::flush;
+        }
+
+        const SInt n = [&] {
+            SInt n = 0;
+            if (CheckDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
+                n = FindNumberOfVerticesInEdgelist(edges_, comm);
+            } else {
+                n = vertex_range_.second;
+                MPI_Bcast(&n, 1, KAGEN_MPI_SINT, size_ - 1, comm);
+            }
+            return n;
+        }();
+
+        std::tie(vertex_range_.first, vertex_range_.second) = ComputeRange(n, size_, rank_);
+        RedistributeEdgesByVertexRange(edges_, vertex_range_, comm);
+    }
+}
+
+void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
+    if (actual_representation_ == GraphRepresentation::EDGE_LIST) {
+        FinalizeEdgeList(comm);
+
+        if (Output()) {
+            std::cout << "converting to CSR ... " << std::flush;
+        }
+
+        std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
+        { [[maybe_unused]] auto free_edges = std::move(edges_); }
+    }
+}
+
+bool FileGraphGenerator::Output() const {
+    return !config_.quiet && rank_ == 0;
 }
 } // namespace kagen

@@ -9,9 +9,9 @@
 namespace kagen {
 SInt FindNumberOfGlobalNodes(VertexRange vertex_range, MPI_Comm comm);
 
-SInt FindNumberOfGlobalEdges(const EdgeList& edges, MPI_Comm comm);
+SInt FindNumberOfGlobalEdges(const Edgelist& edges, MPI_Comm comm);
 
-std::vector<SInt> GatherNumberOfEdges(const EdgeList& edges, MPI_Comm comm);
+std::vector<SInt> GatherNumberOfEdges(const Edgelist& edges, MPI_Comm comm);
 
 SInt    ReduceSum(SInt value, MPI_Comm comm);
 SInt    ReduceMin(SInt value, MPI_Comm comm);
@@ -25,18 +25,18 @@ struct DegreeStatistics {
     SInt    max;
 };
 
-DegreeStatistics ReduceDegreeStatistics(const EdgeList& edges, SInt global_num_nodes, MPI_Comm comm);
+DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, SInt global_num_nodes, MPI_Comm comm);
 
-std::vector<SInt> ComputeDegreeBins(const EdgeList& edges, VertexRange vertex_range, MPI_Comm comm);
+std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
 
-double ComputeEdgeLocalicty(const EdgeList& edges, VertexRange vertex_range, MPI_Comm comm);
+double ComputeEdgeLocalicty(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
 
-SInt ComputeNumberOfGhostNodes(const EdgeList& edges, VertexRange vertex_range, MPI_Comm comm);
+SInt ComputeNumberOfGhostNodes(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
 
 void PrintBasicStatistics(
     const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, bool root, MPI_Comm comm);
 
-void PrintBasicStatistics(const EdgeList& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
+void PrintBasicStatistics(const Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
 
-void PrintAdvancedStatistics(EdgeList& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
+void PrintAdvancedStatistics(Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
 } // namespace kagen

@@ -60,7 +60,7 @@ protected:
     void FilterDuplicateEdges();
 
     VertexRange   vertex_range_;
-    EdgeList      edges_;
+    Edgelist      edges_;
     XadjArray     xadj_;
     AdjncyArray   adjncy_;
     Coordinates   coordinates_;

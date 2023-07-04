@@ -4,32 +4,29 @@
 #include "kagen/io/graph_format.h"
 
 namespace kagen {
-CoordinatesWriter::CoordinatesWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
-    : SequentialGraphWriter(config, graph, comm) {}
+CoordinatesWriter::CoordinatesWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
+    : StandardGraphWriter(config, graph, info, rank, size) {}
 
-void CoordinatesWriter::AppendHeaderTo(const std::string&, SInt, SInt) {}
+void CoordinatesWriter::WriteHeader(const std::string&, SInt, SInt) {}
 
-void CoordinatesWriter::AppendTo(const std::string& filename) {
+bool CoordinatesWriter::WriteBody(const std::string& filename) {
+    RequiresCoordinates();
+
     BufferedTextOutput<> out(tag::append, filename);
 
-    for (const auto& [x, y]: coordinates_.first) {
+    for (const auto& [x, y]: graph_.coordinates.first) {
         out.WriteFloat(x).WriteChar(' ').WriteFloat(y).WriteChar(' ').WriteFloat(0.0).WriteChar('\n').Flush();
     }
-    for (const auto& [x, y, z]: coordinates_.second) {
+    for (const auto& [x, y, z]: graph_.coordinates.second) {
         out.WriteFloat(x).WriteChar(' ').WriteFloat(y).WriteChar(' ').WriteFloat(z).WriteChar('\n').Flush();
     }
+
+    return false;
 }
 
-int CoordinatesWriter::Requirements() const {
-    return SequentialGraphWriter::Requirement::COORDINATES;
-}
-
-std::unique_ptr<GraphReader> CoordinatesFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
-std::unique_ptr<GraphWriter>
-CoordinatesFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<CoordinatesWriter>(config, graph, comm);
+std::unique_ptr<GraphWriter> CoordinatesFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<CoordinatesWriter>(config, graph, info, rank, size);
 }
 } // namespace kagen

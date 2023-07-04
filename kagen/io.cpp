@@ -17,6 +17,7 @@
 #include "kagen/io/metis.h"
 #include "kagen/io/parhip.h"
 #include "kagen/tools/statistics.h"
+#include "kagen/tools/utils.h"
 
 namespace kagen {
 const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGraphFormatFactories() {
@@ -27,6 +28,7 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
         factories[FileFormat::EDGE_LIST_UNDIRECTED]        = std::make_unique<UndirectedEdgelistFactory>();
         factories[FileFormat::BINARY_EDGE_LIST]            = std::make_unique<BinaryEdgelistFactory>();
         factories[FileFormat::BINARY_EDGE_LIST_UNDIRECTED] = std::make_unique<UndirectedBinaryEdgelistFactory>();
+        factories[FileFormat::PLAIN_EDGE_LIST]             = std::make_unique<PlainEdgelistFactory>();
         factories[FileFormat::XTRAPULP]                    = std::make_unique<XtrapulpFactory>();
         factories[FileFormat::METIS]                       = std::make_unique<MetisFactory>();
         factories[FileFormat::HMETIS]                      = std::make_unique<HmetisFactory>();
@@ -47,7 +49,7 @@ const std::unique_ptr<FileFormatFactory>& GetGraphFormatFactory(const FileFormat
     }
 
     std::stringstream error_msg;
-    error_msg << "file format " << format << " not available for writing";
+    error_msg << "there is no file format with name " << format;
     throw IOError(error_msg.str());
 }
 
@@ -61,13 +63,14 @@ std::string GetExtension(const std::string& filename) {
 }
 } // namespace
 
-std::unique_ptr<GraphReader> CreateGraphReader(const std::string& filename, const InputGraphConfig& config) {
+std::unique_ptr<GraphReader>
+CreateGraphReader(const std::string& filename, const InputGraphConfig& config, const PEID rank, const PEID size) {
     const std::string extension = GetExtension(filename);
 
     const auto& factories = GetGraphFormatFactories();
     for (const auto& [format, factory]: factories) {
         if (factory->DefaultExtension() == extension) {
-            auto reader = factory->CreateReader(config);
+            auto reader = factory->CreateReader(config, rank, size);
             if (reader != nullptr) {
                 return reader;
             }
@@ -79,15 +82,16 @@ std::unique_ptr<GraphReader> CreateGraphReader(const std::string& filename, cons
     throw IOError(error_msg.str());
 }
 
-std::unique_ptr<GraphReader> CreateGraphReader(const FileFormat format, const InputGraphConfig& config) {
+std::unique_ptr<GraphReader>
+CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const PEID rank, const PEID size) {
     if (format == FileFormat::EXTENSION) {
-        return CreateGraphReader(config.filename, config);
+        return CreateGraphReader(config.filename, config, rank, size);
     }
 
     const auto& factories = GetGraphFormatFactories();
     const auto  it        = factories.find(format);
     if (it != factories.end()) {
-        auto reader = (*it).second->CreateReader(config);
+        auto reader = (*it).second->CreateReader(config, rank, size);
         if (reader != nullptr) {
             return reader;
         }
@@ -96,5 +100,63 @@ std::unique_ptr<GraphReader> CreateGraphReader(const FileFormat format, const In
     std::stringstream error_msg;
     error_msg << "file format " << format << " not available for reading";
     throw IOError(error_msg.str());
+}
+
+void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, MPI_Comm comm) {
+    const PEID size = GetCommSize(comm);
+    const PEID rank = GetCommRank(comm);
+
+    const std::string filename = config.distributed ? config.filename + "." + std::to_string(rank) : config.filename;
+
+    // Overwrite file if it already exists
+    { std::ofstream out(filename); }
+
+    if (config.distributed) {
+        // Distributed output: each PE writes its part of the graph to its own file
+        // This allows parallel writes to parallel file systems
+
+        if (output) {
+            std::cout << "Writing graph to [" << filename << ".0";
+            if (size > 2) {
+                std::cout << ", ...";
+            }
+            if (size > 1) {
+                std::cout << ", " << filename << "." << size - 1;
+            }
+            std::cout << "] ... " << std::flush;
+        }
+
+        bool continue_with_next_pass = true;
+        for (int pass = 0; continue_with_next_pass; ++pass) {
+            continue_with_next_pass = writer.Write(pass, filename);
+        }
+
+        if (output) {
+            std::cout << "OK" << std::endl;
+        }
+    } else {
+        // Sequential output (default): all PEs write the the same file, sequentially
+
+        if (output) {
+            std::cout << "Writing graph to " << filename << " ..." << std::endl;
+        }
+
+        bool continue_with_next_pass = true;
+        for (int pass = 0; continue_with_next_pass; ++pass) {
+            for (PEID pe = 0; pe < size; ++pe) {
+                if (output) {
+                    std::cout << "  Writing subgraph of PE " << pe + 1 << " / " << size << " (pass " << pass << ") ... "
+                              << std::flush;
+                }
+                if (rank == pe) {
+                    continue_with_next_pass = writer.Write(pass, filename);
+                }
+                MPI_Barrier(comm);
+                if (output) {
+                    std::cout << "OK" << std::endl;
+                }
+            }
+        }
+    }
 }
 } // namespace kagen

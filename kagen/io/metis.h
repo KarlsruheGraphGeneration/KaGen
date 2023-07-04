@@ -4,19 +4,16 @@
 
 #include "kagen/io/graph_format.h"
 #include "kagen/io/mmap_toker.h"
-#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-class MetisWriter : public SequentialGraphWriter {
+class MetisWriter : public StandardGraphWriter {
 public:
-    MetisWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+    MetisWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
 
 protected:
-    void AppendHeaderTo(const std::string& filename, const SInt n, const SInt m) final;
+    void WriteHeader(const std::string& filename, const SInt n, const SInt m) final;
 
-    void AppendTo(const std::string& filename) final;
-
-    int Requirements() const final;
+    bool WriteBody(const std::string& filename) final;
 };
 
 class MetisReader : public GraphReader {
@@ -34,7 +31,7 @@ private:
 
     SInt cached_first_vertex_   = 0;
     SInt cached_first_edge_     = 0;
-    SInt cached_first_node_pos_ = 0;
+    SInt cached_first_vertex_pos_ = 0;
 };
 
 class MetisFactory : public FileFormatFactory {
@@ -43,8 +40,9 @@ public:
         return "metis";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;
 
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 } // namespace kagen

@@ -411,8 +411,9 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--input-format", config.input_graph.format)
             ->transform(CLI::CheckedTransformer(GetInputFormatMap()).description(""))
             ->description(R"(The following file formats are supported:
-  - metis:  text format used by METIS
-  - parhip: binary format used by ParHIP)");
+  - metis:          text format used by METIS
+  - parhip:         binary format used by ParHIP
+  - plain-edgelist: text file containing one edge per line, separated by spaces or tabs, starting at 0)");
     }
 
     // IO options
@@ -480,6 +481,11 @@ int main(int argc, char* argv[]) {
     // Run KaGen
     auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
 
+    // Write resulting graph to disk
+    PEID rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
     const std::string base_filename = config.output_graph.filename;
     for (const FileFormat& format: config.output_graph.formats) {
         const auto& factory = GetGraphFormatFactory(format);
@@ -489,8 +495,13 @@ int main(int argc, char* argv[]) {
             config.output_graph.extension ? base_filename + "." + factory->DefaultExtension() : base_filename;
         config.output_graph.filename = filename;
 
-        auto writer = factory->CreateWriter(config.output_graph, graph, MPI_COMM_WORLD);
-        writer->Write(!config.quiet);
+        GraphInfo info(graph, MPI_COMM_WORLD);
+        auto      writer = factory->CreateWriter(config.output_graph, graph, info, rank, size);
+        if (writer != nullptr) {
+            WriteGraph(*writer.get(), config.output_graph, rank == ROOT && !config.quiet, MPI_COMM_WORLD);
+        } else if (!config.quiet && rank == ROOT) {
+            std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
+        }
     }
 
     return MPI_Finalize();

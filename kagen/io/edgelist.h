@@ -4,19 +4,19 @@
 
 #include "kagen/definitions.h"
 #include "kagen/io/graph_format.h"
-#include "kagen/io/seq_graph_writer.h"
+#include "kagen/io/mmap_toker.h"
 
 namespace kagen {
-class EdgelistWriter : public SequentialGraphWriter {
+class EdgelistWriter : public StandardGraphWriter {
 public:
-    EdgelistWriter(bool header, bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+    EdgelistWriter(
+        bool header, bool directed, const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank,
+        PEID size);
 
 protected:
-    int Requirements() const final;
+    void WriteHeader(const std::string& filename, SInt n, SInt m) final;
 
-    void AppendHeaderTo(const std::string& filename, SInt n, SInt m) final;
-
-    void AppendTo(const std::string& filename) final;
+    bool WriteBody(const std::string& filename) final;
 
 private:
     bool header_;
@@ -29,9 +29,8 @@ public:
         return "edgelist";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 
 class UndirectedEdgelistFactory : public FileFormatFactory {
@@ -40,22 +39,20 @@ public:
         return "edgelist";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 
-class BinaryEdgelistWriter : public SequentialGraphWriter {
+class BinaryEdgelistWriter : public StandardGraphWriter {
 public:
     BinaryEdgelistWriter(
-        bool header, bool directed, int datatype_size, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm);
+        bool header, bool directed, int datatype_size, const OutputGraphConfig& config, Graph& graph, GraphInfo info,
+        PEID rank, PEID size);
 
 protected:
-    int Requirements() const final;
+    void WriteHeader(const std::string& filename, SInt n, SInt m) final;
 
-    void AppendHeaderTo(const std::string& filename, SInt n, SInt m) final;
-
-    void AppendTo(const std::string& filename) final;
+    bool WriteBody(const std::string& filename) final;
 
 private:
     bool header_;
@@ -69,9 +66,8 @@ public:
         return "binary-edgelist";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 
 class UndirectedBinaryEdgelistFactory : public FileFormatFactory {
@@ -80,9 +76,8 @@ public:
         return "undirected-binary-edgelist";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
-
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 
 class XtrapulpFactory : public FileFormatFactory {
@@ -91,8 +86,45 @@ public:
         return "xtrapulp";
     }
 
-    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config) const final;
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
+};
 
-    std::unique_ptr<GraphWriter> CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const final;
+class PlainEdgelistReader : public GraphReader {
+public:
+    PlainEdgelistReader(const std::string& filename);
+
+    GraphSize ReadSize() final;
+
+    Graph Read(SInt from_vertex, SInt to_vertex, SInt to_edge, GraphRepresentation representation) final;
+
+    SInt FindNodeByEdge(SInt edge) final;
+
+    int Deficits() const final;
+
+private:
+    MappedFileToker toker_;
+};
+
+class PlainEdgelistWriter : public StandardGraphWriter {
+public:
+    PlainEdgelistWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
+
+protected:
+    void WriteHeader(const std::string& filename, SInt n, SInt m) final;
+
+    bool WriteBody(const std::string& filename) final;
+};
+
+class PlainEdgelistFactory : public FileFormatFactory {
+public:
+    std::string DefaultExtension() const final {
+        return "plain-edgelist";
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;
+
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 } // namespace kagen

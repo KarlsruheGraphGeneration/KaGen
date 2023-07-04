@@ -2,6 +2,7 @@
 
 #ifdef __cplusplus
     #include <algorithm>
+    #include <cstdint>
     #include <iterator>
     #include <memory>
     #include <numeric>
@@ -17,7 +18,7 @@
 #include <stddef.h>
 
 #define KAGEN_VERSION_MAJOR 0
-#define KAGEN_VERSION_MINOR 2
+#define KAGEN_VERSION_MINOR 3
 #define KAGEN_VERSION_PATCH 0
 
 #ifdef __cplusplus
@@ -42,7 +43,8 @@ std::string BuildDescription();
 namespace kagen {
 using SInt          = unsigned long long;
 using SSInt         = long long;
-using EdgeList      = std::vector<std::pair<SInt, SInt>>;
+using Edgelist      = std::vector<std::pair<SInt, SInt>>;
+using Edgelist32    = std::vector<std::pair<int, int>>;
 using VertexRange   = std::pair<SInt, SInt>;
 using PEID          = int;
 using HPFloat       = long double;
@@ -74,6 +76,7 @@ enum class FileFormat {
     EDGE_LIST_UNDIRECTED,
     BINARY_EDGE_LIST,
     BINARY_EDGE_LIST_UNDIRECTED,
+    PLAIN_EDGE_LIST,
     METIS,
     HMETIS,
     HMETIS_DIRECTED,
@@ -141,7 +144,7 @@ struct Graph {
     GraphRepresentation representation;
 
     // Edge list representation only
-    EdgeList edges;
+    Edgelist edges;
 
     // CSR representation only
     XadjArray   xadj;
@@ -151,22 +154,15 @@ struct Graph {
     EdgeWeights   edge_weights;
     Coordinates   coordinates;
 
+    SInt NumberOfLocalVertices() const;
+
+    SInt NumberOfLocalEdges() const;
+
+    void SortEdgelist();
+
     template <typename T = SInt>
     std::vector<std::pair<T, T>> TakeEdges() {
         return TakeVector<std::pair<T, T>>(edges);
-    }
-
-    SInt NumberOfLocalVertices() const {
-        return vertex_range.second - vertex_range.first;
-    }
-
-    SInt NumberOfLocalEdges() const {
-        switch (representation) {
-            case GraphRepresentation::EDGE_LIST:
-                return edges.size();
-            case GraphRepresentation::CSR:
-                return adjncy.size();
-        }
     }
 
     template <typename T = SInt>
@@ -189,7 +185,7 @@ struct Graph {
         return TakeVector<T>(edge_weights);
     }
 
-    std::tuple<VertexRange, EdgeList, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> tuple() && {
+    std::tuple<VertexRange, Edgelist, XadjArray, AdjncyArray, VertexWeights, EdgeWeights, Coordinates> tuple() && {
         return std::make_tuple(
             vertex_range, std::move(edges), std::move(xadj), std::move(adjncy), std::move(vertex_weights),
             std::move(edge_weights), std::move(coordinates));

@@ -22,7 +22,7 @@ protected:
     }
 
 private:
-    const PGeneratorConfig&           config_;
-    std::vector<std::tuple<int, int>> local_edges_;
+    const PGeneratorConfig& config_;
+    Edgelist32              local_edges_;
 };
 } // namespace kagen

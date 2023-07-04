@@ -190,15 +190,11 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
             std::cout << "Validating graph ... " << std::flush;
         }
 
-        bool success =
-            (representation == GraphRepresentation::EDGE_LIST)
-                ? ValidateSimpleGraph(graph.edges, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm)
-                : ValidateSimpleGraph(
-                    graph.xadj, graph.adjncy, graph.vertex_range, graph.vertex_weights, graph.edge_weights, comm);
+        bool success = ValidateGraph(graph, config.self_loops, config.directed, false, comm);
         MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
         if (!success) {
             if (output_error) {
-                std::cerr << "Error: simple graph validation failed\n";
+                std::cerr << "Error: graph validation failed\n";
             }
             MPI_Abort(comm, 1);
         } else if (output_info) {

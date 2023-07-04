@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 
     // Generate a RGG2D graph with 16 nodes and 32 edges
     const kagen::Graph        graph = generator.GenerateRGG2D_NM(16, 32);
-    const kagen::EdgeList&    edges = graph.edges;
+    const kagen::Edgelist&    edges = graph.edges;
     const kagen::VertexRange& range = graph.vertex_range;
 
     int rank;

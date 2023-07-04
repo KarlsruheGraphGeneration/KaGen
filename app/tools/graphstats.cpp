@@ -2,8 +2,10 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
+#include "kagen/io.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/statistics.h"
+#include "kagen/tools/utils.h"
 
 #include "../CLI11.h"
 
@@ -30,7 +32,6 @@ Graph load_graph(const PGeneratorConfig& config) {
     FileGraphFactory factory;
     const auto       normalized_config = factory.NormalizeParameters(config, rank, size, false);
     auto             loader            = factory.Create(normalized_config, rank, size);
-
     loader->Generate(GraphRepresentation::EDGE_LIST);
     loader->Finalize(MPI_COMM_WORLD);
     return loader->Take();
@@ -52,21 +53,17 @@ void print_csv_header() {
     std::cout << "MinDeg,";
     std::cout << "AvgDeg,";
     std::cout << "MaxDeg";
-    std::cout << "\n";
+    std::cout << std::endl;
 }
 
-void print_csv_row(const Statistics& stats, const bool print_header) {
-    if (print_header) {
-        print_csv_header();
-    }
-
+void print_csv_row(const Statistics& stats) {
     std::cout << stats.name << ",";
     std::cout << stats.n << ",";
     std::cout << stats.m << ",";
     std::cout << stats.min_deg << ",";
     std::cout << stats.avg_deg << ",";
     std::cout << stats.max_deg;
-    std::cout << "\n";
+    std::cout << std::endl;
 }
 
 std::string extract_filename(const std::string& filename) {
@@ -85,42 +82,10 @@ std::string strip_extension(const std::string& filename) {
     return filename.substr(0, pos);
 }
 
-int main(int argc, char* argv[]) {
-    MPI_Init(&argc, &argv);
-
-    bool             do_strip_extension = false;
-    bool             do_no_header       = false;
-    bool             do_header_only     = false;
-    PGeneratorConfig config;
-
-    CLI::App app("graphstats: compute some basic statistics on a graph");
-
-    CLI::Option_group* group = app.add_option_group("Options");
-    group->require_option(1);
-    group->add_option("input filename", config.input_graph.filename)->check(CLI::ExistingFile);
-    group->add_flag("--header-only", do_header_only);
-
-    app.add_option("-f,--format", config.input_graph.format)->transform(CLI::CheckedTransformer(GetInputFormatMap()));
-    app.add_flag("--strip-extension", do_strip_extension);
-    app.add_flag("-H,--no-header", do_no_header);
-    CLI11_PARSE(app, argc, argv);
-
-    // Catch special case: only print CSV header line
-    if (do_header_only) {
-        if (get_rank() == ROOT) {
-            print_csv_header();
-        }
-        return MPI_Finalize();
-    }
-
-    // ... otherwise, continue with loading the graph
+Statistics generate_internal(const PGeneratorConfig& config) {
     Graph graph = load_graph(config);
 
     Statistics stats;
-    stats.name = extract_filename(config.input_graph.filename);
-    if (do_strip_extension) {
-        stats.name = strip_extension(stats.name);
-    }
     stats.n = FindNumberOfGlobalNodes(graph.vertex_range, MPI_COMM_WORLD);
     stats.m = FindNumberOfGlobalEdges(graph.edges, MPI_COMM_WORLD);
 
@@ -129,8 +94,101 @@ int main(int argc, char* argv[]) {
     stats.avg_deg           = degree_stats.mean;
     stats.max_deg           = degree_stats.max;
 
-    if (get_rank() == ROOT) {
-        print_csv_row(stats, !do_no_header);
+    return stats;
+}
+
+Statistics generate_external(const PGeneratorConfig& config, const int num_chunks) {
+    if (get_size() > 1) {
+        std::cerr << "Error: external statistics generation is only supported for a single MPI process\n";
+        std::exit(1);
+    }
+
+    Statistics stats;
+
+    const auto reader        = CreateGraphReader(config.input_graph.format, config.input_graph, 0, 1);
+    auto       reported_size = reader->ReadSize();
+
+    std::vector<SInt> degrees;
+
+    for (int chunk = 0; chunk < num_chunks; ++chunk) {
+        const auto [from, to] = ComputeRange(reported_size.first, num_chunks, chunk);
+        Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
+
+        for (const auto& [from, to]: graph.edges) {
+            while (degrees.size() <= from) {
+                degrees.push_back(0);
+            }
+            ++degrees[from];
+        }
+
+        stats.m += graph.edges.size();
+    }
+
+    const auto [min_it, max_it] = std::minmax_element(degrees.begin(), degrees.end());
+
+    stats.n = degrees.size();
+    stats.min_deg = *min_it;
+    stats.avg_deg = 1.0 * stats.m / stats.n;
+    stats.max_deg = *max_it;
+
+    return stats;
+}
+
+int main(int argc, char* argv[]) {
+    MPI_Init(&argc, &argv);
+
+    std::vector<std::string> input_filenames;
+    bool                     do_strip_extension = false;
+    bool                     do_no_header       = false;
+    bool                     do_header_only     = false;
+    int                      num_chunks         = 1;
+    PGeneratorConfig         config;
+
+    CLI::App app("graphstats: compute some basic statistics on a graph");
+
+    CLI::Option_group* group = app.add_option_group("Options");
+    group->require_option(1);
+    group->add_option("input filenames", input_filenames)->check(CLI::ExistingFile);
+    group->add_flag("--header-only", do_header_only);
+
+    app.add_option("-f,--format", config.input_graph.format, "File format of the input file(s).")
+        ->transform(CLI::CheckedTransformer(GetInputFormatMap()));
+    app.add_flag(
+        "--strip-extension", do_strip_extension,
+        "If set, print the filename in the Graph column without file extension.");
+    app.add_flag("-H,--no-header", do_no_header, "If set, do not print the CSV header line.");
+    app.add_option(
+        "-C,--num-chunks", num_chunks,
+        "If set, compute the statistics externally by splitting the graph into this many chunks; some statistics might "
+        "not be available in this mode. Still requires O(n) memory.");
+    CLI11_PARSE(app, argc, argv);
+
+    // Catch special case: only print CSV header line
+    if ((do_header_only || !do_no_header) && get_rank() == ROOT) {
+        print_csv_header();
+    }
+    if (do_header_only) {
+        return MPI_Finalize();
+    }
+
+    for (const auto& filename: input_filenames) {
+        config.input_graph.filename = filename;
+
+        Statistics stats;
+        if (num_chunks == 1) {
+            stats = generate_internal(config);
+        } else {
+            stats = generate_external(config, num_chunks);
+        }
+
+        stats.name = extract_filename(config.input_graph.filename);
+        if (do_strip_extension) {
+            stats.name = strip_extension(stats.name);
+        }
+
+        if (get_rank() == ROOT) {
+            print_csv_row(stats);
+        }
     }
 
     return MPI_Finalize();

@@ -13,6 +13,7 @@ std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
         {"edgelist-undirected", FileFormat::EDGE_LIST_UNDIRECTED},
         {"binary-edgelist", FileFormat::BINARY_EDGE_LIST},
         {"binary-edgelist-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED},
+        {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
         {"metis", FileFormat::METIS},
         {"hmetis", FileFormat::HMETIS},
         {"dot", FileFormat::DOT},
@@ -35,6 +36,7 @@ std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
         {"extension", FileFormat::EXTENSION},
         {"metis", FileFormat::METIS},
         {"parhip", FileFormat::PARHIP},
+        {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
     };
 }
 
@@ -57,6 +59,9 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
 
         case FileFormat::BINARY_EDGE_LIST_UNDIRECTED:
             return out << "binary-edgelist-undirected";
+
+        case FileFormat::PLAIN_EDGE_LIST:
+            return out << "plain-edgelist";
 
         case FileFormat::METIS:
             return out << "metis";

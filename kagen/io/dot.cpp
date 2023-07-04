@@ -1,30 +1,30 @@
 #include "kagen/io/dot.h"
 
 #include "kagen/io/buffered_writer.h"
-#include "kagen/io/seq_graph_writer.h"
 
 namespace kagen {
-DotWriter::DotWriter(const bool directed, const OutputGraphConfig& config, Graph& graph, MPI_Comm comm)
-    : SequentialGraphWriter(config, graph, comm),
+DotWriter::DotWriter(
+    const bool directed, const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank,
+    const PEID size)
+    : StandardGraphWriter(config, graph, info, rank, size),
       directed_(directed) {}
 
-int DotWriter::Requirements() const {
-    return Requirement::NO_VERTEX_WEIGHTS | Requirement::NO_EDGE_WEIGHTS;
-}
+void DotWriter::WriteHeader(const std::string& filename, SInt, SInt) {
+    IgnoresVertexWeights();
+    IgnoresEdgeWeights();
 
-void DotWriter::AppendHeaderTo(const std::string& filename, SInt, SInt) {
     BufferedTextOutput<> out(tag::append, filename);
     const char*          type = directed_ ? "digraph" : "graph";
     out.WriteString(type).WriteString(" G{\n").Flush();
 }
 
-void DotWriter::AppendTo(const std::string& filename) {
+bool DotWriter::WriteBody(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
 
-    if (!coordinates_.first.empty()) {
-        auto& coordinates = coordinates_.first; // 2D
-        for (SInt node = vertex_range_.first; node < vertex_range_.second; ++node) {
-            const auto& [x, y] = coordinates[node - vertex_range_.first];
+    if (!graph_.coordinates.first.empty()) {
+        auto& coordinates = graph_.coordinates.first; // 2D
+        for (SInt node = graph_.vertex_range.first; node < graph_.vertex_range.second; ++node) {
+            const auto& [x, y] = coordinates[node - graph_.vertex_range.first];
             out.WriteInt(node + 1)
                 .WriteString("[pos=\"")
                 .WriteFloat(x * 10)
@@ -36,34 +36,27 @@ void DotWriter::AppendTo(const std::string& filename) {
     }
 
     const char* arrow = directed_ ? "->" : "--";
-
-    for (const auto& [from, to]: edges_) {
+    for (const auto& [from, to]: graph_.edges) {
         if (directed_ || from < to) { // need edges only once
             out.WriteInt(from + 1).WriteString(arrow).WriteInt(to + 1).WriteChar('\n').Flush();
         }
     }
+
+    return true;
 }
 
-void DotWriter::AppendFooterTo(const std::string& filename) {
+void DotWriter::WriteFooter(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteString("}\n").Flush();
 }
 
-std::unique_ptr<GraphReader> DotFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
+std::unique_ptr<GraphWriter> DotFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<DotWriter>(false, config, graph, info, rank, size);
 }
 
-std::unique_ptr<GraphWriter>
-DotFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<DotWriter>(false, config, graph, comm);
-}
-
-std::unique_ptr<GraphReader> DirectedDotFactory::CreateReader(const InputGraphConfig&) const {
-    return nullptr;
-}
-
-std::unique_ptr<GraphWriter>
-DirectedDotFactory::CreateWriter(const OutputGraphConfig& config, Graph& graph, MPI_Comm comm) const {
-    return std::make_unique<DotWriter>(true, config, graph, comm);
+std::unique_ptr<GraphWriter> DirectedDotFactory::CreateWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<DotWriter>(true, config, graph, info, rank, size);
 }
 } // namespace kagen
