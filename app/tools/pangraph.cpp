@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
 
         const auto [from, to] = ComputeRange(reported_size.first, config.num_chunks, chunk);
         if (!config.quiet) {
-            std::cout << " [" << from << ", " << to << ") ... " << std::flush;
+            std::cout << "[" << from << ", " << to << ") ... " << std::flush;
         }
         Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
 
