@@ -7,6 +7,7 @@
 #include "kagen/generators/geometric/geometric_2d.h"
 #include "kagen/generators/geometric/rgg.h"
 #include "tests/util/utils.h"
+#include "geometric/rgg_utils.h"
 
 using namespace kagen;
 
@@ -26,7 +27,7 @@ TEST(Geometric1PETest, generates_2D_graph) {
     ASSERT_EQ(config.n, result.coordinates.first.size());
 
     // Creating the correct edge list as a test instance
-    std::vector<std::pair<SInt, SInt>> edge_List = kagen::testing::CreateTestInstanceFromCoordinates2D(config, result);
+    std::vector<std::pair<SInt, SInt>> edge_List = kagen::testing::CreateExpectedRGG2DEdges(config, result);
 
     // Sorting both lists before comparing them
     std::sort(result.edges.begin(), result.edges.end());
@@ -51,7 +52,7 @@ TEST(Geometric1PETest, generates_3D_graph) {
     ASSERT_EQ(config.n, result.coordinates.second.size());
 
     // Creating the correct edge list as a test instance
-    std::vector<std::pair<SInt, SInt>> edge_List = kagen::testing::CreateTestInstanceFromCoordinates3D(config, result);
+    std::vector<std::pair<SInt, SInt>> edge_List = kagen::testing::CreateExpectedRGG3DEdges(config, result);
 
     // Sorting both lists before comparing them
     std::sort(result.edges.begin(), result.edges.end());

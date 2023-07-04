@@ -150,7 +150,7 @@ inline Graph GatherCoordinates2D(const Graph& local_graph) {
 
     // Exchange coordinates
     std::vector<int> displacements(size);
-    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0, std::plus<int>());
+    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0);
 
     Graph global_graph;
     global_graph.representation = local_graph.representation;
@@ -199,7 +199,7 @@ inline Graph GatherCoordinates3D(const Graph& local_graph) {
 
     // Exchange coordinates
     std::vector<int> displacements(size);
-    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0, std::plus<int>());
+    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0);
 
     Graph global_graph;
     global_graph.representation = local_graph.representation;
@@ -224,36 +224,6 @@ inline Graph GatherCoordinates3D(const Graph& local_graph) {
     }
 
     return global_graph;
-}
-
-inline EdgeList CreateTestInstanceFromCoordinates2D(PGeneratorConfig config, const Graph& graph) {
-    std::vector<std::pair<SInt, SInt>> edge_List;
-    for (SInt i = 0; i < config.n; i++) {
-        auto [x1, y1] = graph.coordinates.first[i];
-        for (SInt j = 0; j < config.n; j++) {
-            auto [x2, y2] = graph.coordinates.first[j];
-            // Comparing all coordinates
-            if (i != j && std::hypot(x1 - x2, y1 - y2) <= config.r) {
-                edge_List.emplace_back(i, j);
-            }
-        }
-    }
-    return edge_List;
-}
-
-inline EdgeList CreateTestInstanceFromCoordinates3D(PGeneratorConfig config, const Graph& graph) {
-    std::vector<std::pair<SInt, SInt>> edge_List;
-    for (SInt i = 0; i < config.n; i++) {
-        auto [x1, y1, z1] = graph.coordinates.second[i];
-        for (SInt j = 0; j < config.n; j++) {
-            auto [x2, y2, z2] = graph.coordinates.second[j];
-            // Comparing all coordinates
-            if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
-                edge_List.emplace_back(i, j);
-            }
-        }
-    }
-    return edge_List;
 }
 
 } // namespace kagen::testing
