@@ -161,7 +161,6 @@ void GeneratorFactory::EnsureSquarePowerOfTwoChunkSize(
             if (!IsSquare(config.k)) {
                 config.k *= 2;
             }
-
             while (std::ceil(1.0 * config.k / size) > (1.0 + config.max_vertex_imbalance) * config.k / size) {
                 config.k <<= 2;
             }
