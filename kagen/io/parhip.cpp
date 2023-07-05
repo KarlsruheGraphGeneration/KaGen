@@ -13,6 +13,8 @@
 namespace kagen {
 using namespace parhip;
 
+constexpr static bool kDebug = false;
+
 namespace parhip {
 ParhipID BuildVersion(
     const bool has_vertex_weights, const bool has_edge_weights, const bool has_32bit_edge_ids,
@@ -191,7 +193,7 @@ bool ParhipWriter::Write(const int pass, const std::string& filename) {
 
 namespace {
 SInt OffsetToEdge(const SInt version, const SInt n, const SInt offset) {
-    const int edge_id_width   = Has32BitVertexIDs(version) ? 4 : 8;
+    const int edge_id_width   = Has32BitEdgeIDs(version) ? 4 : 8;
     const int vertex_id_width = Has32BitVertexIDs(version) ? 4 : 8;
     return (offset - 3 * sizeof(ParhipID) - (n + 1) * edge_id_width) / vertex_id_width;
 }
@@ -230,11 +232,12 @@ std::vector<T> ReadVector(std::ifstream& in, const SInt length) {
         for (SInt pos = 0; pos < length; pos += buf_size) {
             const SInt count = std::min(length - pos, buf_size);
             const SInt size  = count * sizeof(F);
+            const SInt at    = in.tellg();
             in.read(reinterpret_cast<char*>(buf.data()), size);
             if (in.rdstate()) {
                 throw IOError(
                     "reading " + std::to_string(size) + " bytes failed: only read " + std::to_string(in.gcount())
-                    + " bytes");
+                    + " bytes, at " + std::to_string(at));
             }
             std::copy(buf.begin(), buf.begin() + count, ans.begin() + pos);
         }
@@ -268,12 +271,19 @@ ParhipReader::ParhipReader(const InputGraphConfig& config) : in_(config.filename
         expected_length += m_ * (Has32BitEdgeWeights(version_) ? 4 : 8);
     }
 
+    if constexpr (kDebug) {
+        std::cout << "[Dbg] ParHiP file version: " << version_ << ", number of vertices: " << n_
+                  << ", number of edges: " << m_ << "\n";
+        std::cout << "[Dbg] Expected file length: " << expected_length << "\n";
+        std::cout << "[Dbg] Actual file length: " << actual_length << "\n";
+    }
+
     if (actual_length < expected_length) {
         throw IOError(
             "file is too short: expected " + std::to_string(expected_length) + " bytes, but file only contains "
             + std::to_string(actual_length) + " bytes");
     } else if (actual_length > expected_length) {
-        std::cerr << "Warning: parhip inpout file is longer than expected: expected " << expected_length
+        std::cerr << "Warning: parhip input file is longer than expected: expected " << expected_length
                   << " bytes, but file contains " << actual_length << " bytes\n";
     }
 }
@@ -286,6 +296,11 @@ Graph ParhipReader::Read(
     const SInt from_vertex, SInt to_vertex, SInt to_edge, const GraphRepresentation representation) {
     if (to_vertex > n_) {
         to_vertex = FindNodeByEdge(to_edge);
+    }
+
+    if constexpr (kDebug) {
+        std::cout << "[Dbg] Reading from vertex " << from_vertex << " to vertex " << to_vertex << "; or to edge "
+                  << to_edge << ", whichever is reached first\n";
     }
 
     const int edge_id_width       = Has32BitEdgeIDs(version_) ? 4 : 8;
@@ -304,7 +319,13 @@ Graph ParhipReader::Read(
                                           : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
 
     const SInt first_global_edge = OffsetToEdge(version_, n_, xadj.front());
-    const SInt offset_by         = xadj.front();
+    if constexpr (kDebug) {
+        std::cout << "[Dbg] First global edge to be read: " << first_global_edge
+                  << ", computed from xadj.front()=" << xadj.front() << ", n=" << n_ << ", version_=" << version_
+                  << std::endl;
+    }
+
+    const SInt offset_by = xadj.front();
     for (auto& entry: xadj) { // Transform file offsets to edge offsets
         entry = (entry - offset_by) / vertex_id_width;
     }
@@ -315,6 +336,9 @@ Graph ParhipReader::Read(
     in_.seekg(adjncy_offset);
     if (in_.rdstate()) {
         throw IOError("seeking to offset " + std::to_string(adjncy_offset) + " failed");
+    }
+    if constexpr (kDebug) {
+        std::cout << "[Dbg] Reading " << num_local_edges << " edges from file position " << adjncy_offset << std::endl;
     }
 
     auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
