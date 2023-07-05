@@ -221,7 +221,9 @@ std::vector<T> ReadVector(std::ifstream& in, const SInt length) {
         const SInt size = length * sizeof(T);
         in.read(reinterpret_cast<char*>(ans.data()), size);
         if (in.rdstate()) {
-            throw IOError("reading " + std::to_string(size) + " bytes failed");
+            throw IOError(
+                "reading " + std::to_string(size) + " bytes failed: only read " + std::to_string(in.gcount())
+                + " bytes");
         }
     } else {
         std::vector<F> buf(buf_size);
@@ -230,7 +232,9 @@ std::vector<T> ReadVector(std::ifstream& in, const SInt length) {
             const SInt size  = count * sizeof(F);
             in.read(reinterpret_cast<char*>(buf.data()), size);
             if (in.rdstate()) {
-                throw IOError("reading " + std::to_string(size) + " bytes failed");
+                throw IOError(
+                    "reading " + std::to_string(size) + " bytes failed: only read " + std::to_string(in.gcount())
+                    + " bytes");
             }
             std::copy(buf.begin(), buf.begin() + count, ans.begin() + pos);
         }
