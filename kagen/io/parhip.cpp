@@ -253,6 +253,29 @@ ParhipReader::ParhipReader(const InputGraphConfig& config) : in_(config.filename
     version_ = size[0];
     n_       = size[1];
     m_       = size[2];
+
+    // Check file length
+    in_.seekg(0, std::ios_base::end);
+    const SInt actual_length = in_.tellg();
+
+    SInt expected_length = 3 * sizeof(ParhipID);
+    expected_length += (n_ + 1) * (Has32BitEdgeIDs(version_) ? 4 : 8);
+    expected_length += m_ * (Has32BitVertexIDs(version_) ? 4 : 8);
+    if (HasVertexWeights(version_)) {
+        expected_length += n_ * (Has32BitVertexWeights(version_) ? 4 : 8);
+    }
+    if (HasEdgeWeights(version_)) {
+        expected_length += m_ * (Has32BitEdgeWeights(version_) ? 4 : 8);
+    }
+
+    if (actual_length < expected_length) {
+        throw IOError(
+            "file is too short: expected " + std::to_string(expected_length) + " bytes, but file only contains "
+            + std::to_string(actual_length) + " bytes");
+    } else if (actual_length > expected_length) {
+        std::cerr << "Warning: parhip inpout file is longer than expected: expected " << expected_length
+                  << " bytes, but file contains " << actual_length << " bytes\n";
+    }
 }
 
 std::pair<SInt, SInt> ParhipReader::ReadSize() {
