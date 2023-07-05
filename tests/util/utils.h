@@ -4,6 +4,7 @@
 
 #include <mpi.h>
 
+#include <cmath>
 #include <numeric>
 #include <utility>
 
@@ -124,4 +125,105 @@ inline Graph GatherGraph(const Graph& local_graph) {
 
     __builtin_unreachable();
 }
+
+inline Graph GatherCoordinates2D(const Graph& local_graph) {
+    PEID size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Count the amount of coordinates per PE
+    std::vector<HPFloat> x_values;
+    std::vector<HPFloat> y_values;
+    for (const auto& coord: local_graph.coordinates.first) {
+        auto [x, y] = coord;
+        x_values.push_back(x);
+        y_values.push_back(y);
+    }
+
+    // Exchange amount of coordinates between PEs
+    int              localSize = x_values.size();
+    std::vector<int> sizes(size);
+    MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+    // Gather amount of vertices
+    int totalSize = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    // Exchange coordinates
+    std::vector<int> displacements(size);
+    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0);
+
+    Graph global_graph;
+    global_graph.representation = local_graph.representation;
+    global_graph.coordinates.first.resize(totalSize);
+
+    std::vector<HPFloat> recv_x_values(totalSize);
+    std::vector<HPFloat> recv_y_values(totalSize);
+
+    MPI_Allgatherv(
+        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+    MPI_Allgatherv(
+        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+
+    for (int i = 0; i < totalSize; i++) {
+        global_graph.coordinates.first[i] = {recv_x_values[i], recv_y_values[i]};
+    }
+
+    return global_graph;
+}
+
+inline Graph GatherCoordinates3D(const Graph& local_graph) {
+    PEID size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Count the amount of coordinates per PE
+    std::vector<HPFloat> x_values;
+    std::vector<HPFloat> y_values;
+    std::vector<HPFloat> z_values;
+    for (const auto& coord: local_graph.coordinates.second) {
+        auto [x, y, z] = coord;
+        x_values.push_back(x);
+        y_values.push_back(y);
+        z_values.push_back(z);
+    }
+
+    // Exchange amount of coordinates between PEs
+    int              localSize = x_values.size();
+    std::vector<int> sizes(size);
+    MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+    // Gather amount of vertices
+    int totalSize = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    // Exchange coordinates
+    std::vector<int> displacements(size);
+    std::exclusive_scan(sizes.begin(), sizes.end(), displacements.begin(), 0);
+
+    Graph global_graph;
+    global_graph.representation = local_graph.representation;
+    global_graph.coordinates.second.resize(totalSize);
+
+    std::vector<HPFloat> recv_x_values(totalSize);
+    std::vector<HPFloat> recv_y_values(totalSize);
+    std::vector<HPFloat> recv_z_values(totalSize);
+
+    MPI_Allgatherv(
+        x_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_x_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+    MPI_Allgatherv(
+        y_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_y_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+    MPI_Allgatherv(
+        z_values.data(), localSize, KAGEN_MPI_HPFLOAT, recv_z_values.data(), sizes.data(), displacements.data(),
+        KAGEN_MPI_HPFLOAT, MPI_COMM_WORLD);
+
+    for (int i = 0; i < totalSize; i++) {
+        global_graph.coordinates.second[i] = {recv_x_values[i], recv_y_values[i], recv_z_values[i]};
+    }
+
+    return global_graph;
+}
+
 } // namespace kagen::testing
