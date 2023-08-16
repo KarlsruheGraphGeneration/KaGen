@@ -8,6 +8,7 @@
 
 #include "kagen/context.h"
 #include "kagen/definitions.h"
+#include "edgeweights/edge_weight_generator.h"
 
 namespace kagen {
 class Generator {
@@ -15,6 +16,8 @@ public:
     virtual ~Generator();
 
     void Generate(GraphRepresentation representation);
+
+    void GenerateEdgeWeights(EdgeWeightType type, MPI_Comm comm);
 
     void Finalize(MPI_Comm comm);
 
@@ -30,6 +33,8 @@ protected:
     virtual void FinalizeEdgeList(MPI_Comm comm);
 
     virtual void FinalizeCSR(MPI_Comm comm);
+
+    void ValidateEdgeWeight(MPI_Comm comm);
 
     void SetVertexRange(VertexRange vetrex_range);
 
@@ -71,6 +76,8 @@ private:
     void Reset();
 
     GraphRepresentation representation_;
+    EdgeWeightType edge_weight_type_;
+
 };
 
 class ConfigurationError : public std::exception {

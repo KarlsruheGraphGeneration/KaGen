@@ -125,6 +125,9 @@ struct PGeneratorConfig {
 
     bool coordinates = false; // Store vertex coordinates
 
+    bool edge_weights = false;
+    EdgeWeightType edge_weight_type = EdgeWeightType::CONSTANT;
+
     // Image mesh generator settings
     ImageMeshConfig image_mesh{};
 

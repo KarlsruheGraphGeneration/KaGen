@@ -51,13 +51,22 @@ inline Graph GatherEdgeLists(const Graph& local_graph) {
     PEID size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    std::cout << "GatherEdgeLists " << local_graph.edges.size() << " size " << size << std::endl;
+
     const int        num_local_edges = local_graph.edges.size() * 2;
     std::vector<int> recvcounts(size);
+
+    std::cout << "test " << std::endl;
+
     MPI_Allgather(&num_local_edges, 1, MPI_INT, recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+    std::cout << "GatherEdgeLists " << std::endl;
 
     std::vector<int> displs(size);
     std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displs.begin(), 0u);
     const SInt num_global_edges = displs.back() + recvcounts.back();
+
+    std::cout << "GatherEdgeLists " << std::endl;
 
     Graph global_graph;
     global_graph.representation = local_graph.representation;
@@ -65,6 +74,8 @@ inline Graph GatherEdgeLists(const Graph& local_graph) {
     MPI_Allgatherv(
         local_graph.edges.data(), num_local_edges, KAGEN_MPI_SINT, global_graph.edges.data(), recvcounts.data(),
         displs.data(), KAGEN_MPI_SINT, MPI_COMM_WORLD);
+
+    std::cout << "GatherEdgeLists " << std::endl;
 
     GatherWeights(local_graph, global_graph);
     return global_graph;

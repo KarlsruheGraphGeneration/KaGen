@@ -100,6 +100,10 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     auto add_option_avg_deg = [&](CLI::App* cmd) {
         return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
     };
+    // ToDo: Add option for edge weight
+    auto add_option_edge_weight = [&](CLI::App* cmd) {
+//        return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
+    };
 
     // Use 40 characters width for help
     auto formatter = std::make_shared<CLI::Formatter>();

@@ -130,6 +130,13 @@ enum class GraphDistribution {
     BALANCE_VERTICES,
     BALANCE_EDGES,
 };
+
+enum class EdgeWeightType {
+    HASHED,
+    DISTANCE,
+    CONSTANT,
+    RANDOM,
+};
 } // namespace kagen
 #endif
 

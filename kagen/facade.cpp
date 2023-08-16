@@ -166,6 +166,10 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
     }
     const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
 
+    if(config.edge_weights) {
+        generator->GenerateEdgeWeights(config.edge_weight_type, comm);
+    }
+
     const auto end_graphgen = MPI_Wtime();
 
     if (!config.skip_postprocessing && !config.quiet) {

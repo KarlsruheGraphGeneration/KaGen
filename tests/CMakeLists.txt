@@ -54,6 +54,11 @@ kagen_add_test(geometric_2d_test
 kagen_add_test(geometric_3d_test
         FILES geometric/geometric_3d_test.cpp
         CORES 1 2 4)
+        
+# Edge Weights 
+kagen_add_test(test_edge_weights
+    FILES edgeweight/edgeweight_test.cpp
+    CORES 1 2 3 4 8 16)
 
 
 
