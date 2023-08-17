@@ -14,8 +14,10 @@ namespace kagen {
 
             for (const auto &[u, v]: edgelist) {
                 SSInt weight;
-                if(!coordinates.first.empty()) {
-                    weight = _GenerateEdgeWeight(u, coordinates.first[u], v, coordinates.first[v]);
+                if(coordinates.first.empty() && coordinates.second.empty()) {
+                    weight = _GenerateEdgeWeight(u, v);
+                } else if (!coordinates.first.empty()) {
+                    weight = _GenerateEdgeWeight2D(u, coordinates.first[u], v, coordinates.first[v]);
                 } else {
                     weight = _GenerateEdgeWeight3D(u, coordinates.second[u], v, coordinates.second[v]);
                 }
@@ -34,8 +36,10 @@ namespace kagen {
                 for (int e = xadj[u]; e < xadj[u + 1]; ++e) {
                     int v = adjncy[e];
                     SSInt weight;
-                    if(!coordinates.first.empty()) {
-                        weight = _GenerateEdgeWeight(u, coordinates.first[u], v, coordinates.first[v]);
+                    if(coordinates.first.empty() && coordinates.second.empty()) {
+                        weight = _GenerateEdgeWeight(u, v);
+                    } else if (!coordinates.first.empty()) {
+                        weight = _GenerateEdgeWeight2D(u, coordinates.first[u], v, coordinates.first[v]);
                     } else {
                         weight = _GenerateEdgeWeight3D(u, coordinates.second[u], v, coordinates.second[v]);
                     }
@@ -47,8 +51,12 @@ namespace kagen {
         }
 
     private:
-        SSInt _GenerateEdgeWeight(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
-            return static_cast<Derived *>(this)->GenerateEdgeWeight(u, cu, v, cv);
+        SSInt _GenerateEdgeWeight(SInt u, SInt v) {
+            return static_cast<Derived *>(this)->GenerateEdgeWeight(u, v);
+        }
+
+        SSInt _GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
+            return static_cast<Derived *>(this)->GenerateEdgeWeight2D(u, cu, v, cv);
         }
 
         SSInt _GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat, HPFloat> cv) {

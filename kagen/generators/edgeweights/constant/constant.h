@@ -8,7 +8,8 @@
 namespace kagen {
     class ConstantEdgeWeightGenerator : public PerEdgeWeightGenerator<ConstantEdgeWeightGenerator> {
     public:
-        SSInt GenerateEdgeWeight(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv);
+        SSInt GenerateEdgeWeight(SInt u, SInt v);
+        SSInt GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv);
         SSInt GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat, HPFloat> cv);
     };
 

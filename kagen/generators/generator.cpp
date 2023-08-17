@@ -109,13 +109,10 @@ namespace kagen {
         std::unique_ptr<kagen::EdgeWeightGeneratorFactory> factory = CreateEdgeWeightGeneratorFactory(type);
         std::unique_ptr<kagen::EdgeWeightGenerator> generator = factory->Create();
         if (xadj_.empty()) {
+
             edge_weights_ = generator->GenerateEdgeWeights(edges_, coordinates_);
-            std::cout << "Edgelist: edge weight size " << edge_weights_.size() << " edge weight first element "
-                      << edge_weights_[0] << std::endl;
         } else {
             edge_weights_ = generator->GenerateEdgeWeights(xadj_, adjncy_, coordinates_);
-            std::cout << "CSR: edge weight size " << edge_weights_.size() << " edge weight first element "
-                      << edge_weights_[0] << std::endl;
         }
 
 //        if(type == EdgeWeightType::RANDOM) {

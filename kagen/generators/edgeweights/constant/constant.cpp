@@ -2,7 +2,11 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
-    SSInt ConstantEdgeWeightGenerator::GenerateEdgeWeight(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v,
+    SSInt ConstantEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
+        return 1;
+    }
+
+    SSInt ConstantEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v,
                                                           std::tuple<HPFloat, HPFloat> cv) {
         return 1;
     }

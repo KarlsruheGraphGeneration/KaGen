@@ -3,23 +3,27 @@
 #include "xxhash.h"
 
 namespace kagen {
-    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
-        std::cout << "Hashed " << std::endl;
+    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
+        SSInt hash1, hash2;
+
+        hash1 = XXH64(&u, 1, 0);
+        hash2 = XXH64(&v, 1, 0);
+        return hash1 ^ hash2; // XOR combination
+    }
+
+    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
         SSInt hash1, hash2;
 
             hash1 = XXH64(&u, 1, 0);
             hash2 = XXH64(&v, 1, 0);
-//            std::cout << "Edge (" << &pair.first << ", " << &pair.second << ") " << hash1 << "Hash2" << hash2 << std::endl;
             return hash1 ^ hash2; // XOR combination
     }
 
     SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat, HPFloat> cv) {
-        std::cout << "Hashed " << std::endl;
         SSInt hash1, hash2;
 
             hash1 = XXH64(&u, 1, 0);
             hash2 = XXH64(&v, 1, 0);
-//            std::cout << "Edge (" << &pair.first << ", " << &pair.second << ") " << hash1 << "Hash2" << hash2 << std::endl;
             return hash1 ^ hash2; // XOR combination
     }
 

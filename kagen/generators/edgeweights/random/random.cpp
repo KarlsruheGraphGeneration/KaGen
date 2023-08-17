@@ -3,7 +3,15 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
-    SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
+    SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(0, 100); // ToDo: What range
+
+        return dist(gen);
+    }
+
+    SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<int> dist(0, 100); // ToDo: What range

@@ -4,7 +4,12 @@
 #include <cmath>
 
 namespace kagen {
-    SSInt DistanceEdgeWeightGenerator::GenerateEdgeWeight(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v,
+    SSInt DistanceEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
+        // ToDo: Throw Error
+        return 100;
+    }
+
+    SSInt DistanceEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v,
                                                           std::tuple<HPFloat, HPFloat> cv) {
         auto [x1, y1] = cu;
         auto [x2, y2] = cv;

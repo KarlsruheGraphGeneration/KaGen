@@ -16,7 +16,7 @@ TEST(EdgeWeightTest, edgeWeight) {
     config.r = 0.125;
     config.coordinates = true;
     config.edge_weights = true;
-    config.edge_weight_type = EdgeWeightType::CONSTANT;
+    config.edge_weight_type = EdgeWeightType::RANDOM;
 
     RGG2DFactory factory;
     PEID size, rank;

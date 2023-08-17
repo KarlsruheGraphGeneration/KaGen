@@ -59,6 +59,14 @@ kagen_add_test(geometric_3d_test
 kagen_add_test(test_edge_weights
     FILES edgeweight/edgeweight_test.cpp
     CORES 1 2 3 4 8 16)
+    
+kagen_add_test(barabassi_edge_weight_test
+    FILES edgeweight/barabassi_edge_weight_test.cpp
+    CORES 1 2 3 4 8 16)
+    
+kagen_add_test(geometric_edge_weight_test
+    FILES edgeweight/geometric_edge_weight_test.cpp
+    CORES 1 2 3 4 8 16)
 
 
 
