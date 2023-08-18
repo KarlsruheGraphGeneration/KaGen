@@ -121,36 +121,87 @@ namespace kagen {
     }
 
     void Generator::ValidateEdgeWeight(MPI_Comm comm) {
-//        PEID size;
-//        MPI_Comm_size(MPI_COMM_WORLD, &size);
-//
-//        const int num_local_vertices = vertex_range_.second - vertex_range_.first;
-//        std::vector<int> recvcounts(size);
-//        MPI_Allgather(&num_local_vertices, 1, MPI_INT, recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
-//        std::vector<int> displs(size);
-//        std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displs.begin(), 0);
-//
-//        global_graph.vertex_weights.resize(recvcounts.back() + displs.back());
-//        MPI_Allgatherv(
-//                local_graph.vertex_weights.data(), num_local_vertices, KAGEN_MPI_SSINT,
-//                global_graph.vertex_weights.data(),
-//                recvcounts.data(), displs.data(), KAGEN_MPI_SSINT, MPI_COMM_WORLD);
-//
-//
-//        int has_edge_weights = !local_graph.edge_weights.empty();
-//        MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-//        if (has_edge_weights) {
-//            const int num_local_edges = std::max<int>(local_graph.edges.size(), local_graph.adjncy.size());
-//            std::vector<int> recvcounts(size);
-//            MPI_Allgather(&num_local_edges, 1, MPI_INT, recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
-//            std::vector<int> displs(size);
-//            std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displs.begin(), 0);
-//
-//            global_graph.edge_weights.resize(recvcounts.back() + displs.back());
-//            MPI_Allgatherv(
-//                    local_graph.edge_weights.data(), num_local_edges, KAGEN_MPI_SSINT, global_graph.edge_weights.data(),
-//                    recvcounts.data(), displs.data(), KAGEN_MPI_SSINT, MPI_COMM_WORLD);
-//        }
+        // Gathering all weights
+        PEID size;
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+        const int num_local_edges = std::max<int>(edges_.size(), adjncy_.size());
+        std::vector<int> recvcounts(size);
+        MPI_Allgather(&num_local_edges, 1, MPI_INT, recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+        std::vector<int> displs(size);
+        std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displs.begin(), 0);
+
+        EdgeWeights all_weights;
+        all_weights.resize(recvcounts.back() + displs.back());
+        MPI_Allgatherv(
+                edge_weights_.data(), num_local_edges, KAGEN_MPI_SSINT, all_weights.data(),
+                recvcounts.data(), displs.data(), KAGEN_MPI_SSINT, MPI_COMM_WORLD);
+
+        std::cout << "all weights first " << all_weights[0] << " last " << all_weights[all_weights.size() - 1] << std::endl;
+        std::cout << "local weights first " << edge_weights_[0] << " last " << edge_weights_[edge_weights_.size() - 1] << std::endl;
+
+        // Gathering all edges
+        if(representation_ == GraphRepresentation::EDGE_LIST) {
+            // Gathering edge list
+            Edgelist all_edges;
+            const SInt num_global_edges = displs.back() + recvcounts.back();
+            all_edges.resize(num_global_edges / 2);
+            MPI_Allgatherv(
+                    edges_.data(), num_local_edges, KAGEN_MPI_SINT, all_edges.data(), recvcounts.data(),
+                    displs.data(), KAGEN_MPI_SINT, MPI_COMM_WORLD);
+
+            // Validating edgelist
+            SSInt current_weight = edge_weights_[0];
+            SSInt current_x = edges_[0].first;
+            SSInt current_y = edges_[0].second;
+            SSInt next_weight, next_x, next_y;
+            for(int i = 1; i < edge_weights_.size(); i++) {
+                next_weight = edge_weights_[i];
+                next_x = edges_[i].first;
+                next_y = edges_[i].second;
+
+                // Check if the next edge is reverse
+                if(current_x == next_y && current_y == next_x) {
+                    edge_weights_[i] = edge_weights_[i-1];
+                // Otherwise search reverse edge in all edges
+                } else {
+
+                }
+
+
+                // ToDo: Setting current correctly
+                SSInt current_weight = edge_weights_[i];
+                SSInt current_x = edges_[i].first;
+                SSInt current_y = edges_[i].second;
+            }
+        } else {
+            const int        num_local_vertices = xadj_.size() - 1;
+            std::vector<int> degree_recvcounts(size);
+            MPI_Allgather(&num_local_vertices, 1, MPI_INT, degree_recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+            std::vector<int> degree_displs(size);
+            std::exclusive_scan(degree_recvcounts.begin(), degree_recvcounts.end(), degree_displs.begin(), 0);
+
+            std::vector<SInt> local_degrees(num_local_vertices);
+            for (SInt u = 0; u < num_local_vertices; ++u) {
+                local_degrees[u] = xadj_[u + 1] - xadj_[u];
+            }
+
+            XadjArray all_xadj;
+            AdjncyArray all_adjncy;
+            all_xadj.resize(degree_recvcounts.back() + degree_displs.back() + 1);
+            all_adjncy.resize(recvcounts.back() + displs.back());
+
+            MPI_Allgatherv(
+                    local_degrees.data(), num_local_vertices, KAGEN_MPI_SINT, all_xadj.data(), degree_recvcounts.data(),
+                    degree_displs.data(), KAGEN_MPI_SINT, MPI_COMM_WORLD);
+            MPI_Allgatherv(
+                    adjncy_.data(), num_local_edges, KAGEN_MPI_SINT, all_adjncy.data(), recvcounts.data(),
+                    displs.data(), KAGEN_MPI_SINT, MPI_COMM_WORLD);
+
+            // Validating CSR
+        }
+
+
     }
 
     SInt Generator::GetNumberOfEdges() const {

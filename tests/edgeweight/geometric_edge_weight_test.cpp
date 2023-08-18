@@ -29,15 +29,13 @@ TEST(GeometricEdgeWeightTest, geometric_constant) {
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
-    Graph gathered_weights;
-    kagen::testing::GatherWeights(result, gathered_weights);
 
     if (rank == 0) {
-        ASSERT_EQ(gathered_edges.edges.size(), gathered_weights.edge_weights.size());
+        ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
         bool check = true;
-        for (SInt i = 0; i < gathered_weights.edge_weights.size(); i++) {
-            check = check && (gathered_weights.edge_weights.at(i) == 1);
+        for (SInt i = 0; i < gathered_edges.edge_weights.size(); i++) {
+            check = check && (gathered_edges.edge_weights.at(i) == 1);
         }
         ASSERT_TRUE(check);
     }
@@ -64,11 +62,12 @@ TEST(GeometricEdgeWeightTest, geometric_random) {
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
 
-    Graph gathered_weights;
-    kagen::testing::GatherWeights(result, gathered_weights);
-
     if (rank == 0) {
-        ASSERT_EQ(gathered_edges.edges.size(), gathered_weights.edge_weights.size());
+        ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << std::endl;
+        }
     }
 }
 
@@ -92,11 +91,9 @@ TEST(GeometricEdgeWeightTest, geometric_distance) {
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
-    Graph gathered_weights;
-    kagen::testing::GatherWeights(result, gathered_weights);
 
     if (rank == 0) {
-        ASSERT_EQ(gathered_edges.edges.size(), gathered_weights.edge_weights.size());
+        ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
     }
 }
 
@@ -120,10 +117,7 @@ TEST(GeometricEdgeWeightTest, geometric_hashed) {
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
 
-    Graph gathered_weights;
-    kagen::testing::GatherWeights(result, gathered_weights);
-
     if (rank == 0) {
-        ASSERT_EQ(gathered_edges.edges.size(), gathered_weights.edge_weights.size());
+        ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
     }
 }
