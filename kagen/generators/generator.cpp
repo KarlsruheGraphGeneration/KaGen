@@ -115,15 +115,16 @@ namespace kagen {
             edge_weights_ = generator->GenerateEdgeWeights(xadj_, adjncy_, coordinates_);
         }
 
-//        if(type == EdgeWeightType::RANDOM) {
-//            ValidateEdgeWeight(comm);
-//        }
+        if (type == EdgeWeightType::RANDOM) {
+            ValidateEdgeWeight(comm);
+        }
     }
 
     void Generator::ValidateEdgeWeight(MPI_Comm comm) {
         // Gathering all weights
-        PEID size;
+        PEID size, rank;
         MPI_Comm_size(MPI_COMM_WORLD, &size);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
         const int num_local_edges = std::max<int>(edges_.size(), adjncy_.size());
         std::vector<int> recvcounts(size);
@@ -137,11 +138,11 @@ namespace kagen {
                 edge_weights_.data(), num_local_edges, KAGEN_MPI_SSINT, all_weights.data(),
                 recvcounts.data(), displs.data(), KAGEN_MPI_SSINT, MPI_COMM_WORLD);
 
-        std::cout << "all weights first " << all_weights[0] << " last " << all_weights[all_weights.size() - 1] << std::endl;
-        std::cout << "local weights first " << edge_weights_[0] << " last " << edge_weights_[edge_weights_.size() - 1] << std::endl;
+//        std::cout << "all weights first " << all_weights[0] << " last " << all_weights[all_weights.size() - 1] << std::endl;
+//        std::cout << "local weights first " << edge_weights_[0] << " last " << edge_weights_[edge_weights_.size() - 1] << std::endl;
 
         // Gathering all edges
-        if(representation_ == GraphRepresentation::EDGE_LIST) {
+        if (representation_ == GraphRepresentation::EDGE_LIST) {
             // Gathering edge list
             Edgelist all_edges;
             const SInt num_global_edges = displs.back() + recvcounts.back();
@@ -150,32 +151,56 @@ namespace kagen {
                     edges_.data(), num_local_edges, KAGEN_MPI_SINT, all_edges.data(), recvcounts.data(),
                     displs.data(), KAGEN_MPI_SINT, MPI_COMM_WORLD);
 
+            if (rank == 0) {
+                for (int i = 0; i < all_edges.size(); i++) {
+                    std::cout << "Edge " << i << " (" << all_edges[i].first << ", " << all_edges[i].second << ") "
+                              << all_weights[i] << std::endl;
+                }
+            }
+
             // Validating edgelist
-            SSInt current_weight = edge_weights_[0];
-            SSInt current_x = edges_[0].first;
-            SSInt current_y = edges_[0].second;
-            SSInt next_weight, next_x, next_y;
-            for(int i = 1; i < edge_weights_.size(); i++) {
-                next_weight = edge_weights_[i];
-                next_x = edges_[i].first;
-                next_y = edges_[i].second;
+            SSInt current_x, current_y, index_current, index_corresponding;
+            std::pair<SInt, SInt> correspondingPair;
+            for (int i = 0; i < edge_weights_.size(); i++) {
+                // Just always search for corresponding
+                current_x = edges_[i].first;
+                current_y = edges_[i].second;
+                correspondingPair = {current_y, current_x};
 
-                // Check if the next edge is reverse
-                if(current_x == next_y && current_y == next_x) {
-                    edge_weights_[i] = edge_weights_[i-1];
-                // Otherwise search reverse edge in all edges
-                } else {
 
+
+                // Find index of corresponding edge
+                auto it = std::find_if(all_edges.begin(), all_edges.end(),
+                                       [correspondingPair](const std::pair<SInt, SInt> &pair) {
+                                           return pair.first == correspondingPair.first &&
+                                                  pair.second == correspondingPair.second;
+                                       });
+                if (it != all_edges.end()) {
+                    index_corresponding = static_cast<SInt>(std::distance(all_edges.begin(), it));
                 }
 
 
-                // ToDo: Setting current correctly
-                SSInt current_weight = edge_weights_[i];
-                SSInt current_x = edges_[i].first;
-                SSInt current_y = edges_[i].second;
+
+                // Calculate index of current edge
+                index_current = displs[rank] + i;
+
+                if (rank == 0) {
+                    std::cout << "index current " << index_current << std::endl;
+                    std::cout << "index corresponding " << index_corresponding << std::endl;
+                    std::cout << "Edge " << i << " (" << current_x << ", " << current_y << ") " << std::endl;
+                    std::cout << "Corresponding Edge " << " (" << all_edges[index_corresponding].first << ", "
+                              << all_edges[index_corresponding].second << ") " << std::endl;
+                    std::cout << "Current Edge " << " (" << all_edges[index_current].first << ", "
+                              << all_edges[index_current].second << ") " << std::endl;
+                }
+
+
+                if (index_corresponding < index_current) {
+                    edge_weights_[i] = all_weights[index_corresponding];
+                }
             }
         } else {
-            const int        num_local_vertices = xadj_.size() - 1;
+            const int num_local_vertices = xadj_.size() - 1;
             std::vector<int> degree_recvcounts(size);
             MPI_Allgather(&num_local_vertices, 1, MPI_INT, degree_recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
             std::vector<int> degree_displs(size);

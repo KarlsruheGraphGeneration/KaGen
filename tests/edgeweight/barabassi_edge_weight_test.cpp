@@ -94,7 +94,7 @@ TEST(BarabassiEdgeWeightTest, barabassi_random) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
         for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << std::endl;
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
         }
         // ToDo: Check if edges are the same for both directions
     }
