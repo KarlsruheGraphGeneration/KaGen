@@ -14,8 +14,8 @@ TEST(BarabassiEdgeWeightTest, barabassi_constant) {
     PGeneratorConfig config;
     config.n = 32;
     config.m = 32;
-    config.edge_weights = true;
-    config.edge_weight_type = EdgeWeightType::CONSTANT;
+    config.generating_edge_weights = true;
+    config.edge_weights.edge_weight_type = EdgeWeightType::CONSTANT;
 
     BarabassiFactory factory;
     PEID size, rank;
@@ -25,7 +25,7 @@ TEST(BarabassiEdgeWeightTest, barabassi_constant) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
@@ -37,6 +37,10 @@ TEST(BarabassiEdgeWeightTest, barabassi_constant) {
         for (SInt i = 0; i < gathered_edges.edge_weights.size(); i++) {
             check = check && (gathered_edges.edge_weights.at(i) == 1);
         }
+
+        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
         ASSERT_TRUE(check);
     }
 }
@@ -45,9 +49,9 @@ TEST(BarabassiEdgeWeightTest, barabassi_hashed) {
     PGeneratorConfig config;
     config.n = 32;
     config.m = 32;
-    config.edge_weights = true;
+    config.generating_edge_weights = true;
     config.coordinates = true;
-    config.edge_weight_type = EdgeWeightType::HASHED;
+    config.edge_weights.edge_weight_type = EdgeWeightType::HASHED;
 
     BarabassiFactory factory;
     PEID size, rank;
@@ -57,13 +61,17 @@ TEST(BarabassiEdgeWeightTest, barabassi_hashed) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
 
         // ToDo: Check if edges are the same for both directions
     }
@@ -73,9 +81,9 @@ TEST(BarabassiEdgeWeightTest, barabassi_random) {
     PGeneratorConfig config;
     config.n = 32;
     config.m = 32;
-    config.edge_weights = true;
+    config.generating_edge_weights = true;
     config.coordinates = true;
-    config.edge_weight_type = EdgeWeightType::RANDOM;
+    config.edge_weights.edge_weight_type = EdgeWeightType::RANDOM;
 
     BarabassiFactory factory;
     PEID size, rank;
@@ -85,7 +93,7 @@ TEST(BarabassiEdgeWeightTest, barabassi_random) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);

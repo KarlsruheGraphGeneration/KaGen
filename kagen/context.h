@@ -30,6 +30,8 @@ enum class OutputHeader {
     NEVER,
 };
 
+std::unordered_map<std::string, EdgeWeightType> GetEdgeWeightMap();
+
 std::unordered_map<std::string, OutputHeader> GetOutputHeaderMap();
 
 std::ostream& operator<<(std::ostream& out, OutputHeader output_header);
@@ -88,6 +90,14 @@ struct OutputGraphConfig {
     int                     width       = 64;
 };
 
+struct EdgeWeightConfig {
+    EdgeWeightType edge_weight_type = EdgeWeightType::CONSTANT;
+    SInt weight_constant = 1;
+    SInt weight_minimum = 0;
+    SInt weight_maximum = 100;
+    SInt weight_distance_scaling = 100;
+};
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     // General settings
@@ -125,14 +135,16 @@ struct PGeneratorConfig {
 
     bool coordinates = false; // Store vertex coordinates
 
-    bool edge_weights = false;
-    EdgeWeightType edge_weight_type = EdgeWeightType::CONSTANT;
+    bool generating_edge_weights = false;
 
     // Image mesh generator settings
     ImageMeshConfig image_mesh{};
 
     // Settings for the static graph pseudo-generator
     InputGraphConfig input_graph{};
+
+    // Settings for edge weight generation
+    EdgeWeightConfig edge_weights{};
 
     // Hashing / sampling settings
     int  seed        = 1;      // Seed for PRNG

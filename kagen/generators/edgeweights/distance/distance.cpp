@@ -4,6 +4,9 @@
 #include <cmath>
 
 namespace kagen {
+    DistanceEdgeWeightGenerator::DistanceEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {
+    }
+
     SSInt DistanceEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
         // ToDo: Throw Error
         return 100;
@@ -24,7 +27,7 @@ namespace kagen {
     }
 
 
-    std::unique_ptr<EdgeWeightGenerator> DistanceEdgeWeightGeneratorFactory::Create() const {
-        return std::make_unique<DistanceEdgeWeightGenerator>();
+    std::unique_ptr<EdgeWeightGenerator> DistanceEdgeWeightGeneratorFactory::Create(EdgeWeightConfig config) const {
+        return std::make_unique<DistanceEdgeWeightGenerator>(config);
     }
 }

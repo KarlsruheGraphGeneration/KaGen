@@ -14,8 +14,8 @@ TEST(GeometricEdgeWeightTest, geometric_constant) {
     PGeneratorConfig config;
     config.n = 32;
     config.m = 32;
-    config.edge_weights = true;
-    config.edge_weight_type = EdgeWeightType::CONSTANT;
+    config.generating_edge_weights = true;
+    config.edge_weights.edge_weight_type = EdgeWeightType::CONSTANT;
 
     RGG2DFactory factory;
     PEID size, rank;
@@ -25,13 +25,17 @@ TEST(GeometricEdgeWeightTest, geometric_constant) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
 
         bool check = true;
         for (SInt i = 0; i < gathered_edges.edge_weights.size(); i++) {
@@ -46,8 +50,8 @@ TEST(GeometricEdgeWeightTest, geometric_random) {
     config.n = 32;
     config.m = 32;
     config.coordinates = true;
-    config.edge_weights = true;
-    config.edge_weight_type = EdgeWeightType::RANDOM;
+    config.generating_edge_weights = true;
+    config.edge_weights.edge_weight_type = EdgeWeightType::RANDOM;
 
     RGG2DFactory factory;
     PEID size, rank;
@@ -57,7 +61,7 @@ TEST(GeometricEdgeWeightTest, geometric_random) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
@@ -76,8 +80,8 @@ TEST(GeometricEdgeWeightTest, geometric_distance) {
     config.n = 32;
     config.m = 32;
     config.coordinates = true;
-    config.edge_weights = true;
-    config.edge_weight_type = EdgeWeightType::DISTANCE;
+    config.generating_edge_weights = true;
+    config.edge_weights.edge_weight_type = EdgeWeightType::DISTANCE;
 
     RGG2DFactory factory;
     PEID size, rank;
@@ -87,13 +91,17 @@ TEST(GeometricEdgeWeightTest, geometric_distance) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
     }
 }
 
@@ -101,8 +109,8 @@ TEST(GeometricEdgeWeightTest, geometric_hashed) {
     PGeneratorConfig config;
     config.n = 32;
     config.m = 32;
-    config.edge_weights = true;
-    config.edge_weight_type = EdgeWeightType::HASHED;
+    config.generating_edge_weights = true;
+    config.edge_weights.edge_weight_type = EdgeWeightType::HASHED;
 
     RGG2DFactory factory;
     PEID size, rank;
@@ -112,7 +120,7 @@ TEST(GeometricEdgeWeightTest, geometric_hashed) {
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    generator->GenerateEdgeWeights(config.edge_weight_type, MPI_COMM_WORLD);
+    generator->GenerateEdgeWeights(config.edge_weights, MPI_COMM_WORLD);
     auto result = generator->Take();
 
     Graph gathered_edges = kagen::testing::GatherEdgeLists(result);

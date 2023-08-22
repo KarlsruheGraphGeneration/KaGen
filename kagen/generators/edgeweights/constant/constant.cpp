@@ -1,7 +1,11 @@
 #include "constant.h"
 #include "kagen/kagen.h"
+#include "kagen/context.h"
 
 namespace kagen {
+    ConstantEdgeWeightGenerator::ConstantEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {
+    }
+
     SSInt ConstantEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
         return 1;
     }
@@ -17,7 +21,8 @@ namespace kagen {
     }
 
 
-    std::unique_ptr<EdgeWeightGenerator> ConstantEdgeWeightGeneratorFactory::Create() const {
-        return std::make_unique<ConstantEdgeWeightGenerator>();
+    std::unique_ptr<EdgeWeightGenerator>
+    ConstantEdgeWeightGeneratorFactory::Create(EdgeWeightConfig config) const {
+        return std::make_unique<ConstantEdgeWeightGenerator>(config);
     }
 }

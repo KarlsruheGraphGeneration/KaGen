@@ -17,7 +17,7 @@ public:
 
     void Generate(GraphRepresentation representation);
 
-    void GenerateEdgeWeights(EdgeWeightType type, MPI_Comm comm);
+    void GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm);
 
     void Finalize(MPI_Comm comm);
 
@@ -76,7 +76,6 @@ private:
     void Reset();
 
     GraphRepresentation representation_;
-    EdgeWeightType edge_weight_type_;
 
 };
 

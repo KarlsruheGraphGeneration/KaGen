@@ -3,6 +3,9 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
+    RandomEdgeWeightGenerator::RandomEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {
+    }
+
     SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -27,7 +30,7 @@ namespace kagen {
         return dist(gen);
     }
 
-    std::unique_ptr<EdgeWeightGenerator> RandomEdgeWeightGeneratorFactory::Create() const {
-        return std::make_unique<RandomEdgeWeightGenerator>();
+    std::unique_ptr<EdgeWeightGenerator> RandomEdgeWeightGeneratorFactory::Create(EdgeWeightConfig config) const {
+        return std::make_unique<RandomEdgeWeightGenerator>(config);
     }
 }

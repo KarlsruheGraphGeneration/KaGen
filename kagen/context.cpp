@@ -6,6 +6,15 @@
 #include <mpi.h>
 
 namespace kagen {
+    std::unordered_map<std::string, EdgeWeightType> GetEdgeWeightMap() {
+        return {
+            {"constant", EdgeWeightType::CONSTANT},
+            {"distance", EdgeWeightType::DISTANCE},
+            {"hashed", EdgeWeightType::HASHED},
+            {"random", EdgeWeightType::RANDOM},
+        };
+    }
+
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
     return {
         {"noop", FileFormat::NOOP},

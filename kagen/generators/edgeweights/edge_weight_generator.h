@@ -5,11 +5,12 @@
 #include <vector>
 #include <tuple>
 #include "kagen/definitions.h"
+#include "kagen/context.h"
 
 namespace kagen {
     class EdgeWeightGenerator {
     public:
-        virtual ~EdgeWeightGenerator() {}
+        virtual ~EdgeWeightGenerator() = default;
 
         virtual EdgeWeights GenerateEdgeWeights(const Edgelist &edgelist, const Coordinates &coordinates) = 0;
 
@@ -19,9 +20,9 @@ namespace kagen {
 
     class EdgeWeightGeneratorFactory {
     public:
-        virtual ~EdgeWeightGeneratorFactory() {}
+        virtual ~EdgeWeightGeneratorFactory() = default;
 
-        virtual std::unique_ptr<EdgeWeightGenerator> Create() const = 0;
+        virtual std::unique_ptr<EdgeWeightGenerator> Create(EdgeWeightConfig config) const = 0;
     };
 }
 

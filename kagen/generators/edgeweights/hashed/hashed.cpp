@@ -1,8 +1,12 @@
 #include "hashed.h"
 #include "kagen/kagen.h"
 #include "xxhash.h"
+#include "kagen/context.h"
 
 namespace kagen {
+    HashedEdgeWeightGenerator::HashedEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {
+    }
+
     SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
         SSInt hash1, hash2;
 
@@ -27,8 +31,8 @@ namespace kagen {
             return hash1 ^ hash2; // XOR combination
     }
 
-    std::unique_ptr<EdgeWeightGenerator> HashedEdgeWeightGeneratorFactory::Create() const {
-        return std::make_unique<HashedEdgeWeightGenerator>();
+    std::unique_ptr<EdgeWeightGenerator> HashedEdgeWeightGeneratorFactory::Create(kagen::EdgeWeightConfig config) const {
+        return std::make_unique<HashedEdgeWeightGenerator>(config);
     }
 }
 

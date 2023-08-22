@@ -102,7 +102,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     };
     // ToDo: Add option for edge weight
     auto add_option_edge_weight = [&](CLI::App* cmd) {
-//        return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
+//        return cmd->add_option("-w,--edge-weight", config.generating_edge_weights, "Edge weight");
     };
 
     // Use 40 characters width for help
@@ -420,6 +420,20 @@ This is mostly useful for experimental graph generators or when using KaGen to l
   - plain-edgelist: text file containing one edge per line, separated by spaces or tabs, starting at 0)");
     }
 
+    // Edge weight
+    app.add_flag("-w,--edge-weight", config.generating_edge_weights, "Generate edge weights");
+    app.add_option("-t,--edge-weight-type", config.edge_weights.edge_weight_type)
+            ->transform(CLI::CheckedTransformer(GetEdgeWeightMap()).description(""))
+            ->description(R"(Edge weights can be generated for the graph, available formats are:
+  - constant: edge weights are constant. The default is 1
+  - distance: edge weights are the distance between vertices (geometric generators only)
+  - hashed:   edge weights are generated using a hash function
+  - random:   edge weights are random. The default range is between 0 and 100)");
+    app.add_option("--max-random", config.edge_weights.weight_maximum, "Highest possible random weight for each edge");
+    app.add_option("--min-random", config.edge_weights.weight_minimum, "Lowest possible random weight for each edge");
+    app.add_option("--constant", config.edge_weights.weight_constant, "Constant weight for each edge");
+    app.add_option("--distance-scaling", config.edge_weights.weight_distance_scaling, "Scaling the distance between coordinates to fit integers ");
+
     // IO options
     app.add_option("-o,--output", config.output_graph.filename, "Output filename");
     app.add_option("-f,--output-format", config.output_graph.formats)
@@ -477,7 +491,7 @@ int main(int argc, char* argv[]) {
         config.coordinates = true;
     }
 
-    // If use more than one output format, always make output filenames distinct by appending the default extension
+    // If we use more than one output format, always make output filenames distinct by appending the default extension
     if (config.output_graph.formats.size() > 1) {
         config.output_graph.extension = true;
     }
