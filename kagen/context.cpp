@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <ios>
 #include <sstream>
+#include <unordered_set>
 #include <mpi.h>
 
 namespace kagen {
@@ -486,6 +487,12 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         return value == "1" || value == "true" || value == "yes";
     };
 
+    // store all option keys
+    std::unordered_set<std::string> option_keys;
+    for (const auto& [key, value]: options) {
+        option_keys.insert(key);
+    }
+
     // Select the generator type, throw an exception if the type not specified
     const GeneratorType type = [&] {
         const auto type_map = GetGeneratorTypeMap();
@@ -498,6 +505,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             if (type_it == type_map.end()) {
                 throw std::runtime_error("invalid generator type");
             } else {
+                option_keys.erase("type");
                 return type_it->second;
             }
         }
@@ -512,6 +520,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             // Check if the key names a graph model
             const auto type_it = type_map.find(key);
             if (type_it != type_map.end()) {
+                option_keys.erase(key);
                 return type_it->second;
             }
         }
@@ -519,21 +528,32 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         throw std::runtime_error("no generator type specified");
     }();
 
+    auto generic_get_or_default = [&](const std::string& option, const auto& default_value, auto&& parser) {
+        const auto it = options.find(option);
+        if (it == options.end()) {
+            return default_value;
+        } else {
+            option_keys.erase(option);
+            return parser(it->second);
+        }
+    };
+
     auto get_sint_or_default = [&](const std::string& option, const SInt default_value = 0) {
-        const auto it = options.find(option);
-        return (it == options.end() ? default_value : std::stoll(it->second));
+        return generic_get_or_default(
+            option, default_value, [](const std::string& value) { return std::stoull(value); });
     };
+
     auto get_hpfloat_or_default = [&](const std::string& option, const HPFloat default_value = 0.0) {
-        const auto it = options.find(option);
-        return (it == options.end() ? default_value : std::stod(it->second));
+        return generic_get_or_default(
+            option, default_value, [](const std::string& value) { return std::stold(value); });
     };
+
     auto get_bool_or_default = [&](const std::string& option, const bool default_value = false) {
-        const auto it = options.find(option);
-        return (it == options.end() ? default_value : is_true_value(it->second));
+        return generic_get_or_default(option, default_value, is_true_value);
     };
+
     auto get_string_or_default = [&](const std::string& option, const std::string& default_value = "") {
-        const auto it = options.find(option);
-        return (it == options.end() ? default_value : it->second);
+        return generic_get_or_default(option, default_value, [](const std::string& value) { return value; });
     };
 
     config.generator   = type;
@@ -541,19 +561,9 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.m           = get_sint_or_default("m", 1ull << get_sint_or_default("M"));
     config.k           = get_sint_or_default("k");
     config.p           = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
-    config.r           = get_hpfloat_or_default("radius, get_hpfloat_or_default(r)");
+    config.r           = get_hpfloat_or_default("radius", get_hpfloat_or_default("r"));
     config.plexp       = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
     config.periodic    = get_bool_or_default("periodic");
-<<<<<<< HEAD
-    config.avg_degree  = get_hpfloat_or_default("avg_degree");
-    config.min_degree  = get_sint_or_default("min_degree");
-    config.grid_x      = get_sint_or_default("grid_x");
-    config.grid_y      = get_sint_or_default("grid_y");
-    config.grid_z      = get_sint_or_default("grid_z");
-    config.rmat_a      = get_hpfloat_or_default("rmat_a");
-    config.rmat_b      = get_hpfloat_or_default("rmat_b");
-    config.rmat_c      = get_hpfloat_or_default("rmat_c");
-=======
     config.avg_degree  = get_hpfloat_or_default("avg_degree", get_hpfloat_or_default("d"));
     config.min_degree  = get_sint_or_default("min_degree", get_sint_or_default("d"));
     config.grid_x      = get_sint_or_default("grid_x", get_sint_or_default("x"));
@@ -562,7 +572,6 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a"));
     config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b"));
     config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c"));
->>>>>>> 3105e1f (Add additional parameter aliases to option string parsing.)
     config.coordinates = get_bool_or_default("coordinates");
     config.permute     = get_bool_or_default("permute");
 
@@ -619,6 +628,18 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             throw std::runtime_error("invalid graph input format");
         }
         config.input_graph.format = format_it->second;
+    }
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == ROOT && !option_keys.empty()) {
+        std::stringstream sstr;
+        sstr << "WARNING: unused options: ";
+        for (const auto& key: option_keys) {
+            sstr << key << " ";
+        }
+        sstr << "\n";
+        std::cout << sstr.str();
     }
 
     return config;
