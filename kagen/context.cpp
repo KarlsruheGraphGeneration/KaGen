@@ -540,10 +540,11 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.n           = get_sint_or_default("n", 1ull << get_sint_or_default("N"));
     config.m           = get_sint_or_default("m", 1ull << get_sint_or_default("M"));
     config.k           = get_sint_or_default("k");
-    config.p           = get_hpfloat_or_default("prob");
-    config.r           = get_hpfloat_or_default("radius");
-    config.plexp       = get_hpfloat_or_default("gamma");
+    config.p           = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
+    config.r           = get_hpfloat_or_default("radius, get_hpfloat_or_default(r)");
+    config.plexp       = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
     config.periodic    = get_bool_or_default("periodic");
+<<<<<<< HEAD
     config.avg_degree  = get_hpfloat_or_default("avg_degree");
     config.min_degree  = get_sint_or_default("min_degree");
     config.grid_x      = get_sint_or_default("grid_x");
@@ -552,6 +553,16 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.rmat_a      = get_hpfloat_or_default("rmat_a");
     config.rmat_b      = get_hpfloat_or_default("rmat_b");
     config.rmat_c      = get_hpfloat_or_default("rmat_c");
+=======
+    config.avg_degree  = get_hpfloat_or_default("avg_degree", get_hpfloat_or_default("d"));
+    config.min_degree  = get_sint_or_default("min_degree", get_sint_or_default("d"));
+    config.grid_x      = get_sint_or_default("grid_x", get_sint_or_default("x"));
+    config.grid_y      = get_sint_or_default("grid_y", get_sint_or_default("y"));
+    config.grid_z      = get_sint_or_default("grid_z", get_sint_or_default("z"));
+    config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a"));
+    config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b"));
+    config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c"));
+>>>>>>> 3105e1f (Add additional parameter aliases to option string parsing.)
     config.coordinates = get_bool_or_default("coordinates");
     config.permute     = get_bool_or_default("permute");
 

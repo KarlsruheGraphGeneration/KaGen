@@ -100,7 +100,7 @@ A list of all command line options is available using the `./KaGen --help` optio
 To view the options of a specific graph generator, use:
 
 ```shell 
-./KaGen <gnm_undirected|gnm_directed|gnp_undirected|gnp_directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker|rmat> --help
+./KaGen <gnm-undirected|gnm-directed|gnp-undirected|gnp-directed|rgg2d|rgg3d|grid2d|grid3d|rdg2d|rdg3d|rhg|ba|kronecker|rmat> --help
 ```
 
 By default, the generated graph is written to a single file `out` (`-o` option) in DIMACS edge list format (`-f` option).
@@ -171,7 +171,7 @@ The graph can either be directed or undirected and can contain self-loops.
 
 #### Application
 ```
-mpirun -n <nproc> ./KaGen <gnm_directed|gnm_undirected> 
+mpirun -n <nproc> ./KaGen <gnm-directed|gnm-undirected> 
   -n <number of vertices>
   [-N <number of vertices as a power of two>]
   -m <number of edges>
