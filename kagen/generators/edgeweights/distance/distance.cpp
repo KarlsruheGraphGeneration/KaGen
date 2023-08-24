@@ -16,14 +16,14 @@ namespace kagen {
                                                           std::tuple<HPFloat, HPFloat> cv) {
         auto [x1, y1] = cu;
         auto [x2, y2] = cv;
-        return std::hypot(x1 - x2, y1 - y2) * 100;
+        return std::hypot(x1 - x2, y1 - y2) * config_.weight_distance_scaling;
     }
 
     SSInt DistanceEdgeWeightGenerator::GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v,
                                                             std::tuple<HPFloat, HPFloat, HPFloat> cv) {
         auto [x1, y1, z1] = cu;
         auto [x2, y2, z2] = cv;
-        return std::hypot(x1 - x2, y1 - y2, z1 - z2) * 100;
+        return std::hypot(x1 - x2, y1 - y2, z1 - z2) * config_.weight_distance_scaling;
     }
 
 

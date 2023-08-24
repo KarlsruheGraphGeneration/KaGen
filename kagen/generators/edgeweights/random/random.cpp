@@ -9,7 +9,7 @@ namespace kagen {
     SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> dist(0, 100); // ToDo: What range
+        std::uniform_int_distribution<int> dist(config_.weight_minimum, config_.weight_maximum);
 
         return dist(gen);
     }
@@ -17,7 +17,7 @@ namespace kagen {
     SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> dist(0, 100); // ToDo: What range
+        std::uniform_int_distribution<int> dist(config_.weight_minimum, config_.weight_maximum);
 
         return dist(gen);
     }
@@ -25,7 +25,7 @@ namespace kagen {
     SSInt RandomEdgeWeightGenerator::GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat, HPFloat> cv) {
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> dist(0, 100); // ToDo: What range
+        std::uniform_int_distribution<int> dist(config_.weight_minimum, config_.weight_maximum);
 
         return dist(gen);
     }

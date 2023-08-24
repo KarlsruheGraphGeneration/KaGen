@@ -12,26 +12,29 @@ namespace kagen {
 
         hash1 = XXH64(&u, 1, 0);
         hash2 = XXH64(&v, 1, 0);
-        return hash1 ^ hash2; // XOR combination
+        return (hash1 ^ hash2) % config_.weight_maximum + config_.weight_minimum; // XOR combination
     }
 
-    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat> cv) {
+    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight2D(SInt u, std::tuple<HPFloat, HPFloat> cu, SInt v,
+                                                          std::tuple<HPFloat, HPFloat> cv) {
         SSInt hash1, hash2;
 
-            hash1 = XXH64(&u, 1, 0);
-            hash2 = XXH64(&v, 1, 0);
-            return hash1 ^ hash2; // XOR combination
+        hash1 = XXH64(&u, 1, 0);
+        hash2 = XXH64(&v, 1, 0);
+        return (hash1 ^ hash2) % config_.weight_maximum + config_.weight_minimum; // XOR combination
     }
 
-    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v, std::tuple<HPFloat, HPFloat, HPFloat> cv) {
+    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight3D(SInt u, std::tuple<HPFloat, HPFloat, HPFloat> cu, SInt v,
+                                                          std::tuple<HPFloat, HPFloat, HPFloat> cv) {
         SSInt hash1, hash2;
 
-            hash1 = XXH64(&u, 1, 0);
-            hash2 = XXH64(&v, 1, 0);
-            return hash1 ^ hash2; // XOR combination
+        hash1 = XXH64(&u, 1, 0);
+        hash2 = XXH64(&v, 1, 0);
+        return (hash1 ^ hash2) % config_.weight_maximum + config_.weight_minimum; // XOR combination
     }
 
-    std::unique_ptr<EdgeWeightGenerator> HashedEdgeWeightGeneratorFactory::Create(kagen::EdgeWeightConfig config) const {
+    std::unique_ptr<EdgeWeightGenerator>
+    HashedEdgeWeightGeneratorFactory::Create(kagen::EdgeWeightConfig config) const {
         return std::make_unique<HashedEdgeWeightGenerator>(config);
     }
 }
