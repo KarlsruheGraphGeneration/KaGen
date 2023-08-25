@@ -6,6 +6,13 @@
 
 namespace kagen {
 /**
+ * @brief Gathers all vertex ranges across PEs
+ * @param vertex_range The vertex range assigned to this PE.
+ * @param comm The MPi communicator
+ * @return Vector containing all vertex ranges
+*/
+std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm);
+/**
  * @brief Adds any missing reverse edges that goes between different PEs.
  * More precisely, for any edge `(u, v)` where `u` is assigned to another PE than `v`, this function adds the reverse
  * edge `(v, u)` if it is not already present.
@@ -38,4 +45,10 @@ void RedistributeEdgesByVertexRange(Edgelist& edge_list, VertexRange vertex_rang
  * @return The vertex range assigned to this PE.
  */
 VertexRange RedistributeEdgesRoundRobin(Edgelist32& source, Edgelist& destination, SInt n, MPI_Comm comm);
+
+void
+GatherCorrespondingEdgelist(Edgelist edges, EdgeWeights local_weights, std::vector<VertexRange> vertex_range,
+                            Edgelist &correspondingEdges, EdgeWeights &correspondingWeights, MPI_Comm comm);
+
+//std::vector<SInt> GatherCorrespondingEdgeweights(Edgelist edges, const VertexRange vertex_range, MPI_Comm comm);
 } // namespace kagen

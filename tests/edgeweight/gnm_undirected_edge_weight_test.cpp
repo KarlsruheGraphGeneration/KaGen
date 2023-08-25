@@ -7,6 +7,7 @@
 #include "tests/util/utils.h"
 #include "edgeweight/edgeweight_utils.h"
 #include "generators/geometric/rgg.h"
+#include "tools/converter.h"
 
 using namespace kagen;
 
@@ -95,6 +96,13 @@ TEST(GNMEdgeWeightTest, gnm_random) {
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        for (int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second
+                      << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
+
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }
 
@@ -121,6 +129,16 @@ TEST(GNMEdgeWeightTest, gnm_random_csr) {
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.adjncy.size(), gathered_edges.edge_weights.size());
+
+        gathered_edges.edges = BuildEdgeListFromCSR(gathered_edges.vertex_range, gathered_edges.xadj, gathered_edges.adjncy);
+
+
+        for (int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second
+                      << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
+
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }
 
@@ -198,6 +216,8 @@ TEST(GNMEdgeWeightTest, gnm_hashed) {
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }
 
@@ -223,5 +243,8 @@ TEST(GNMEdgeWeightTest, gnm_hashed_csr) {
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.adjncy.size(), gathered_edges.edge_weights.size());
+
+        gathered_edges.edges = BuildEdgeListFromCSR(gathered_edges.vertex_range, gathered_edges.xadj, gathered_edges.adjncy);
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }

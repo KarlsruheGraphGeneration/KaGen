@@ -33,10 +33,6 @@ TEST(GeometricEdgeWeightTest, geometric_constant) {
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
-        for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
-        }
-
         bool check = true;
         for (SInt i = 0; i < gathered_edges.edge_weights.size(); i++) {
             check = check && (gathered_edges.edge_weights.at(i) == 1);
@@ -69,9 +65,7 @@ TEST(GeometricEdgeWeightTest, geometric_random) {
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
-        for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
-        }
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }
 
@@ -99,9 +93,9 @@ TEST(GeometricEdgeWeightTest, geometric_distance) {
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
-        for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
-        }
+//        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+//            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+//        }
     }
 }
 
@@ -127,5 +121,11 @@ TEST(GeometricEdgeWeightTest, geometric_hashed) {
 
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
+
+        for(int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
+
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }

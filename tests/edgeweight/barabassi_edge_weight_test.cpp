@@ -38,8 +38,9 @@ TEST(BarabassiEdgeWeightTest, barabassi_constant) {
             check = check && (gathered_edges.edge_weights.at(i) == 1);
         }
 
-        for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        for (int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second
+                      << ") " << gathered_edges.edge_weights[i] << std::endl;
         }
         ASSERT_TRUE(check);
     }
@@ -69,11 +70,12 @@ TEST(BarabassiEdgeWeightTest, barabassi_hashed) {
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
-        for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        for (int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second
+                      << ") " << gathered_edges.edge_weights[i] << std::endl;
         }
 
-        // ToDo: Check if edges are the same for both directions
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }
 
@@ -101,9 +103,15 @@ TEST(BarabassiEdgeWeightTest, barabassi_random) {
     if (rank == 0) {
         ASSERT_EQ(gathered_edges.edges.size(), gathered_edges.edge_weights.size());
 
-        for(int i = 0; i < gathered_edges.edges.size(); i++) {
-            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second << ") " << gathered_edges.edge_weights[i] << std::endl;
+        for (int i = 0; i < result.edges.size(); i++) {
+            std::cout << "Result Edge " << i << " (" << result.edges[i].first << ", " << result.edges[i].second
+                      << ") " << result.edge_weights[i] << std::endl;
         }
-        // ToDo: Check if edges are the same for both directions
+
+        for (int i = 0; i < gathered_edges.edges.size(); i++) {
+            std::cout << "Edge " << i << " (" << gathered_edges.edges[i].first << ", " << gathered_edges.edges[i].second
+                      << ") " << gathered_edges.edge_weights[i] << std::endl;
+        }
+        kagen::testing::CheckReverseEdges(gathered_edges.edges, gathered_edges.edge_weights);
     }
 }
