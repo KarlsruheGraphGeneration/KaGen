@@ -131,7 +131,7 @@ RGG2DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID
 
 PGeneratorConfig
 RGG3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
-    EnsureSquarePowerOfTwoChunkSize(config, size, output);
+    EnsureCubicPowerOfTwoChunkSize(config, size, output);
 
     return NormalizeParametersCommon(config, &ApproxRadius3D, &ApproxNumNodes3D, output);
 }
