@@ -49,11 +49,8 @@ kagen_add_test(test_geometric_one_PE
         
 kagen_add_test(geometric_2d_test
         FILES geometric/geometric_2d_test.cpp
-        CORES 1 2 4)
+        CORES 1 2 3 4 5 6)
 
 kagen_add_test(geometric_3d_test
         FILES geometric/geometric_3d_test.cpp
-        CORES 1 2 4)
-
-
-
+        CORES 1 2 3 4 5 6)

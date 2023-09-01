@@ -52,6 +52,9 @@ protected:
             GenerateChunk(i);
 
         SetVertexRange(start_node_, start_node_ + num_nodes_);
+        if (config_.coordinates) {
+            CollectCoordinates();
+        }
     }
 
     // Config
@@ -265,7 +268,7 @@ protected:
         std::get<4>(chunk) = true;
     }
 
-    void GenerateVertices(const SInt chunk_id, const SInt cell_id, const bool push_coordinates) {
+    void GenerateVertices(const SInt chunk_id, const SInt cell_id, const bool /*push_coordinates*/) {
         // Lazily compute chunk
         if (chunks_.find(chunk_id) == end(chunks_)) {
             ComputeChunk(chunk_id);
@@ -304,13 +307,20 @@ protected:
             LPFloat z = mersenne_.Random() * cell_size_ + start_z;
 
             cell_vertices.emplace_back(x, y, z, offset + i);
-            // fprintf(edge_file, "v %f %f\n", x, y);
-
-            if (push_coordinates && config_.coordinates) {
-                PushCoordinate(x, y, z);
-            }
         }
         std::get<4>(cell) = true;
+    }
+
+    inline void CollectCoordinates() {
+        for (SInt chunk_id = local_chunk_start_; chunk_id < local_chunk_end_; chunk_id++) {
+            for (SInt i = 0; i < cells_per_chunk_; ++i) {
+                auto& cell_vertices = vertices_[ComputeGlobalCellId(chunk_id, i)];
+                for (auto& vertex : cell_vertices) {
+                    auto& [x, y, z, id] = vertex;
+                    PushCoordinate(x, y, z);
+                }
+            }
+        }
     }
 
     void GenerateVertices(const SInt chunk_id, const SInt cell_id, std::vector<Vertex>& vertex_buffer) {
