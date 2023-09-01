@@ -31,7 +31,7 @@ TEST(Geometric3DTest, generates_graph_on_np_PE_n32_r125) {
     auto  global_graph   = kagen::testing::GatherCoordinates3D(result);
 
     if (rank == 0) {
-        ASSERT_EQ(config.n, global_graph.coordinates.second.size());
+        EXPECT_EQ(config.n, global_graph.coordinates.second.size());
 
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> edge_List =
@@ -41,7 +41,7 @@ TEST(Geometric3DTest, generates_graph_on_np_PE_n32_r125) {
         std::sort(complete_graph.edges.begin(), complete_graph.edges.end());
         std::sort(edge_List.begin(), edge_List.end());
 
-        ASSERT_EQ(complete_graph.edges, edge_List);
+        EXPECT_EQ(complete_graph.edges, edge_List);
     }
 }
 
@@ -65,7 +65,7 @@ TEST(Geometric3DTest, generates_graph_on_np_PE_n16_r10) {
     auto  global_graph   = kagen::testing::GatherCoordinates3D(result);
 
     if (rank == 0) {
-        ASSERT_EQ(config.n, global_graph.coordinates.second.size());
+        EXPECT_EQ(config.n, global_graph.coordinates.second.size());
 
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> edge_List =
@@ -75,6 +75,6 @@ TEST(Geometric3DTest, generates_graph_on_np_PE_n16_r10) {
         std::sort(complete_graph.edges.begin(), complete_graph.edges.end());
         std::sort(edge_List.begin(), edge_List.end());
 
-        ASSERT_EQ(complete_graph.edges, edge_List);
+        EXPECT_EQ(complete_graph.edges, edge_List);
     }
 }
