@@ -307,7 +307,9 @@ protected:
             // fprintf(edge_file, "v %f %f\n", x, y);
 
             if (push_coordinates && config_.coordinates) {
-                PushCoordinate(x, y, z);
+                if (IsLocalChunk(chunk_id)) {
+                    PushCoordinate(x, y, z);
+                }
             }
         }
         std::get<4>(cell) = true;

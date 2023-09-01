@@ -251,7 +251,9 @@ protected:
             cell_vertices.emplace_back(x, y, offset + i);
             // fprintf(edge_file, "v %f %f\n", x, y);
             if (push_coordinates && config_.coordinates) {
-                PushCoordinate(x, y);
+                if (IsLocalChunk(chunk_id)) {
+                    PushCoordinate(x, y);
+                }
             }
         }
         std::get<3>(cell) = true;
