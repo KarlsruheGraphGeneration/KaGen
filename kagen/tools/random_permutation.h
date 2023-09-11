@@ -5,7 +5,6 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-
 #pragma once
 
 #include <cassert>
@@ -17,7 +16,6 @@
 #include "xxhash.h"
 
 namespace kagen::random_permutation {
-
 // Some bit twiddling helper functions.
 template <typename Data>
 constexpr uint8_t num_bits() {

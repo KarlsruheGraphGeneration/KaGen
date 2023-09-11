@@ -5,14 +5,13 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
+#pragma once
 
-#ifndef _SORTED_MERSENNE_H_
-#define _SORTED_MERSENNE_H_
+#include "kagen/definitions.h"
 
 #include <random>
 
 namespace kagen {
-
 class SortedMersenne {
 public:
     SortedMersenne() : SortedMersenne(0) {}
@@ -56,6 +55,4 @@ private:
     SInt   num_samples_;
     double ln_cur_max_;
 };
-
 } // namespace kagen
-#endif

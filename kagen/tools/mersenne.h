@@ -5,18 +5,17 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
+#pragma once
 
-#ifndef _MERSENNE_H_
-#define _MERSENNE_H_
+#include "kagen/definitions.h"
 
 #include <random>
 
 namespace kagen {
-
 class Mersenne {
 public:
     Mersenne() : Mersenne(0) {}
-    Mersenne(SInt seed) : gen_(seed), dis_(0.0, 1.0) {}
+    Mersenne(const SInt seed) : gen_(seed), dis_(0.0, 1.0) {}
 
     void RandomInit(SInt seed) {
         gen_.seed(seed);
@@ -48,6 +47,4 @@ private:
     std::mt19937_64                        gen_;
     std::uniform_real_distribution<double> dis_;
 };
-
 } // namespace kagen
-#endif

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "kagen/definitions.h"
 
 #include <algorithm>
