@@ -493,8 +493,13 @@ Graph graph = gen.GenerateFromOptionString("file;filename=<...>;input_format=<..
 Tools can be installed via `cmake --install build --component tools`. The following tools are included: 
 
 ```shell
+# graphstats: compute some basic statistics for the given graphs
+mpirun ./app/tools/graphstats <path to graph(s), ...>
+  [-f <format, e.g., metis, parhip, plain-edgelist>]
+
 # chkgraph: validate a graph file in any supported input format
-mpirun -n <nproc> ./app/tools/chkgraph <format, e.g. metis, parhip, plain-edgelist> <path to graph>
+mpirun -n <nproc> ./app/tools/chkgraph <path to graph>
+  [-f <format, e.g., metis, parhip, plain-edgelist>] 
   [--64bits]                  # allow 64 bit weights and IDs
   [--self-loops]              # allow self loops
   [--directed]                # allow directed graphs (i.e., not all reverse edges are present)

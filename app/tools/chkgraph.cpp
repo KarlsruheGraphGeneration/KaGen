@@ -34,8 +34,9 @@ int main(int argc, char* argv[]) {
     bool allow_negative_vertex_weights = false;
 
     CLI::App app("chkgraph");
-    app.add_option("format", config.format)->transform(CLI::CheckedTransformer(GetInputFormatMap()))->required();
     app.add_option("input graph", config.filename, "Input graph")->check(CLI::ExistingFile)->required();
+    app.add_option("-f,--format", config.format, "File format of the input graph.")
+        ->transform(CLI::CheckedTransformer(GetInputFormatMap()));
     app.add_flag("-q,--quiet", quiet, "Suppress any output to stdout.");
     app.add_flag("--64bits", allow_64bits, "Warn if the graph requires 64 bit ID or weight types.")
         ->capture_default_str();
