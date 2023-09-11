@@ -1,11 +1,11 @@
-#include "../CLI11.h"
+#include "app/CLI11.h"
+
+#include <Magick++.h>
 
 #include <array>
 #include <fstream>
 #include <iostream>
 #include <string>
-
-#include <Magick++.h>
 
 int main(int argc, char* argv[]) {
     Magick::InitializeMagick(*argv);

@@ -31,14 +31,16 @@ ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
 ConstructorInitializerIndentWidth: '4'
 ContinuationIndentWidth: '4'
 Cpp11BracedListStyle: 'true'
-IncludeBlocks: Preserve
+IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex: '".*\.(h|hpp)"'
-    Priority: 2
-  - Regex: '<.*\.(h|hpp)>'
+  - Regex: '"kagen/.*\.(h|hpp)"'
     Priority: 1
-  - Regex: '.*'
+  - Regex: '"app/.*\.(h|hpp)"'
     Priority: 0
+  - Regex: '<.*\.(h|hpp)>'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 3
 IndentCaseLabels: 'true'
 IndentPPDirectives: BeforeHash
 IndentWidth: '4'

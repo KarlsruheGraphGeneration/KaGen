@@ -1,4 +1,5 @@
-#include "../CLI11.h"
+#include "app/CLI11.h"
+
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/io.h"

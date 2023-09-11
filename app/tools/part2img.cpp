@@ -1,11 +1,11 @@
-#include "../CLI11.h"
+#include "app/CLI11.h"
+
+#include <Magick++.h>
 
 #include <array>
 #include <fstream>
 #include <iostream>
 #include <string>
-
-#include <Magick++.h>
 
 int main(int argc, char* argv[]) {
     // @todo: support output formats other than TGA
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (is_boundary_vertex) {
-                data[3 * col] = 0;
+                data[3 * col]     = 0;
                 data[3 * col + 1] = 0;
                 data[3 * col + 2] = 255;
             }

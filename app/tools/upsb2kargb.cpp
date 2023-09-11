@@ -1,4 +1,4 @@
-#include "../CLI11.h"
+#include "app/CLI11.h"
 
 #include <array>
 #include <fstream>
@@ -124,13 +124,13 @@ enum class WeightModel {
     IL2,
 };
 
-
 int main(int argc, char* argv[]) {
     std::string input_filename;
     std::string output_filename;
     std::string debug_output_filename;
 
-    CLI::App app("upsb2kargb: convert uncompressed PSB files to plain RGB files compatible with the Image Mesh Generator");
+    CLI::App app(
+        "upsb2kargb: convert uncompressed PSB files to plain RGB files compatible with the Image Mesh Generator");
     app.add_option("input filename", input_filename)->check(CLI::ExistingFile)->required();
     app.add_option("-o,--output", output_filename);
     app.add_option("-d,--debug-output", debug_output_filename);
@@ -145,13 +145,12 @@ int main(int argc, char* argv[]) {
     // Load input image into memory
     std::cout << "Reading " << input_filename << " ... " << std::flush;
 
-    RGB               rgb    = parse_simple_psb(input_filename, false);
-    const std::size_t num_cols  = rgb.width;
+    RGB               rgb      = parse_simple_psb(input_filename, false);
+    const std::size_t num_cols = rgb.width;
     const std::size_t num_rows = rgb.height;
-    const auto&       R      = rgb.R;
-    const auto&       G      = rgb.G;
-    const auto&       B      = rgb.B;
-
+    const auto&       R        = rgb.R;
+    const auto&       G        = rgb.G;
+    const auto&       B        = rgb.B;
 
     std::cout << "OK (" << num_cols << "x" << num_rows << ")\n";
 

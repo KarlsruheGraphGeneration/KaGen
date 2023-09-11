@@ -1,12 +1,5 @@
-#include <algorithm>
-#include <fstream>
-#include <iostream>
-#include <limits>
-#include <sstream>
+#include "app/CLI11.h"
 
-#include <mpi.h>
-
-#include "../CLI11.h"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/io.h"
@@ -14,13 +7,20 @@
 #include "kagen/tools/utils.h"
 #include "kagen/tools/validator.h"
 
+#include <mpi.h>
+
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <sstream>
+
 using namespace kagen;
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    const PEID rank = GetCommRank(MPI_COMM_WORLD);
+    const PEID size = GetCommSize(MPI_COMM_WORLD);
 
     InputGraphConfig config;
     config.width = 64;

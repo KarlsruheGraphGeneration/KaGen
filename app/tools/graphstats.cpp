@@ -1,4 +1,5 @@
-#include <mpi.h>
+#include "app/CLI11.h"
+#include "app/tools/strutils.h"
 
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
@@ -7,7 +8,7 @@
 #include "kagen/tools/statistics.h"
 #include "kagen/tools/utils.h"
 
-#include "../CLI11.h"
+#include <mpi.h>
 
 #include <iostream>
 
@@ -54,22 +55,6 @@ void PrintRow(const Statistics& stats) {
     std::cout << std::endl;
 }
 
-std::string ExtractFilename(const std::string& filename) {
-    const auto pos = filename.find_last_of('/');
-    if (pos == std::string::npos) {
-        return filename;
-    }
-    return filename.substr(pos + 1);
-}
-
-std::string StripExtension(const std::string& filename) {
-    const auto pos = filename.find_last_of('.');
-    if (pos == std::string::npos) {
-        return filename;
-    }
-    return filename.substr(0, pos);
-}
-
 Statistics GenerateInternal(const PGeneratorConfig& config) {
     Graph graph = LoadGraph(config);
 
@@ -114,7 +99,7 @@ Statistics GenerateExternal(const PGeneratorConfig& config, const int num_chunks
 
     const auto [min_it, max_it] = std::minmax_element(degrees.begin(), degrees.end());
 
-    stats.n = degrees.size();
+    stats.n       = degrees.size();
     stats.min_deg = *min_it;
     stats.avg_deg = 1.0 * stats.m / stats.n;
     stats.max_deg = *max_it;
