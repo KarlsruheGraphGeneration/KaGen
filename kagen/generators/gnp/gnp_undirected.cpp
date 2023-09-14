@@ -1,4 +1,5 @@
 #include "kagen/generators/gnp/gnp_undirected.h"
+
 #include "kagen/generators/generator.h"
 #include "kagen/generators/gnp/gnp_directed.h"
 

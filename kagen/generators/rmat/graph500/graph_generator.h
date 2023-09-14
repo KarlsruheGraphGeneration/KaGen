@@ -10,10 +10,11 @@
 #ifndef GRAPH_GENERATOR_H
 #define GRAPH_GENERATOR_H
 
+#include "kagen/generators/rmat/graph500/user_settings.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "kagen/generators/rmat/graph500/user_settings.h"
 
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <mpi.h>
-
 #include "kagen/definitions.h"
+
+#include <mpi.h>
 
 namespace kagen {
 /**

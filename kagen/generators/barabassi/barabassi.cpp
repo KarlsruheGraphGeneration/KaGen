@@ -1,12 +1,13 @@
+#include "kagen/generators/barabassi/barabassi.h"
+
+#include "kagen/generators/generator.h"
+#include "kagen/sampling/hash.hpp"
+#include "kagen/tools/postprocessor.h"
+
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <vector>
-
-#include "kagen/generators/barabassi/barabassi.h"
-#include "kagen/generators/generator.h"
-#include "kagen/sampling/hash.hpp"
-#include "kagen/tools/postprocessor.h"
 
 namespace kagen {
 PGeneratorConfig

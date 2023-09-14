@@ -1,5 +1,7 @@
 #include "kagen/tools/statistics.h"
 
+#include <mpi.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -7,8 +9,6 @@
 #include <iostream>
 #include <limits>
 #include <unordered_set>
-
-#include <mpi.h>
 
 namespace kagen {
 // First invalid node on the last PE is the number of nodes in the graph

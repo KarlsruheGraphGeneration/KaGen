@@ -1,15 +1,15 @@
 #include "kagen/generators/image/image_mesh.h"
 
+#include "kagen/definitions.h"
+#include "kagen/generators/generator.h"
+#include "kagen/generators/image/kargb.h"
+#include "kagen/generators/image/weight_models.h"
+
 #include <array>
 #include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-
-#include "kagen/definitions.h"
-#include "kagen/generators/generator.h"
-#include "kagen/generators/image/kargb.h"
-#include "kagen/generators/image/weight_models.h"
 
 namespace kagen {
 namespace {
@@ -290,8 +290,8 @@ void ImageMesh::GenerateEdgeList() {
 
     const SSInt     border = (config_.image_mesh.neighborhood > 8) ? 2 : 1;
     const ImageRect img    = ReadRect(
-           config_.image_mesh.filename, my.pixel_start_row, my.pixel_start_col, my.pixel_end_row, my.pixel_end_col,
-           border);
+        config_.image_mesh.filename, my.pixel_start_row, my.pixel_start_col, my.pixel_end_row, my.pixel_end_col,
+        border);
     const bool diagonal_edges     = config_.image_mesh.neighborhood == 8;
     const bool second_layer_edges = config_.image_mesh.neighborhood == 24;
 
@@ -397,4 +397,3 @@ void ImageMesh::GenerateEdgeList() {
     }
 }
 } // namespace kagen
-

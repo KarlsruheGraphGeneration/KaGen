@@ -1,7 +1,8 @@
-#include <vector>
-
 #include "kagen/generators/grid/grid_3d.h"
+
 #include "kagen/sampling/hash.hpp"
+
+#include <vector>
 
 namespace kagen {
 std::unique_ptr<Generator>

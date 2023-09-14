@@ -1,8 +1,9 @@
-#include <vector>
+#include "kagen/generators/grid/grid_2d.h"
 
 #include "kagen/generators/generator.h"
-#include "kagen/generators/grid/grid_2d.h"
 #include "kagen/sampling/hash.hpp"
+
+#include <vector>
 
 namespace kagen {
 PGeneratorConfig

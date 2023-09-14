@@ -1,9 +1,9 @@
 #pragma once
 
-#include <mpi.h>
-
 #include "kagen/io/graph_format.h"
 #include "kagen/io/mmap_toker.h"
+
+#include <mpi.h>
 
 namespace kagen {
 class MetisWriter : public StandardGraphWriter {
@@ -29,8 +29,8 @@ public:
 private:
     MappedFileToker toker_;
 
-    SInt cached_first_vertex_   = 0;
-    SInt cached_first_edge_     = 0;
+    SInt cached_first_vertex_     = 0;
+    SInt cached_first_edge_       = 0;
     SInt cached_first_vertex_pos_ = 0;
 };
 

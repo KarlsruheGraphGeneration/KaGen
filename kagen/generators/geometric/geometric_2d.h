@@ -8,10 +8,6 @@
  ******************************************************************************/
 #pragma once
 
-#include <iostream>
-#include <tuple>
-#include <vector>
-
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
@@ -20,7 +16,11 @@
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
+
 #include "libmorton/morton2D.h"
+#include <iostream>
+#include <tuple>
+#include <vector>
 
 namespace kagen {
 class Geometric2D : public virtual Generator, private EdgeListOnlyGenerator {
@@ -260,7 +260,7 @@ protected:
         for (SInt chunk_id = local_chunk_start_; chunk_id < local_chunk_end_; chunk_id++) {
             for (SInt i = 0; i < cells_per_chunk_; ++i) {
                 auto& cell_vertices = vertices_[ComputeGlobalCellId(chunk_id, i)];
-                for (auto& vertex : cell_vertices) {
+                for (auto& vertex: cell_vertices) {
                     auto& [x, y, id] = vertex;
                     PushCoordinate(x, y);
                 }

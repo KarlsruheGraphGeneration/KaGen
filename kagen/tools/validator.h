@@ -1,9 +1,9 @@
 #pragma once
 
-#include <mpi.h>
-
 #include "kagen/definitions.h"
 #include "kagen/kagen.h"
+
+#include <mpi.h>
 
 namespace kagen {
 bool ValidateVertexRanges(const Edgelist& edge_list, VertexRange vertex_range, MPI_Comm comm);

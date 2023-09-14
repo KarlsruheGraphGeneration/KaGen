@@ -94,8 +94,7 @@ void ThreadPool::worker(size_t p) {
         // wait on condition variable until job arrives, frees lock
         if (!terminate_ && jobs_.empty()) {
             ++idle_;
-            cv_jobs_.wait(
-                lock, [this]() { return terminate_ || !jobs_.empty(); });
+            cv_jobs_.wait(lock, [this]() { return terminate_ || !jobs_.empty(); });
             --idle_;
         }
 
@@ -117,8 +116,7 @@ void ThreadPool::worker(size_t p) {
                 // execute job.
                 try {
                     job();
-                }
-                catch (std::exception& e) {
+                } catch (std::exception& e) {
                     std::cerr << "EXCEPTION: " << e.what() << std::endl;
                 }
                 // destroy job by closing scope
@@ -140,4 +138,3 @@ void ThreadPool::worker(size_t p) {
 } // namespace tlx
 
 /******************************************************************************/
-

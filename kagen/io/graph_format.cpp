@@ -2,9 +2,9 @@
 
 #include "kagen/io.h"
 
-#include <fstream>
-
 #include <mpi.h>
+
+#include <fstream>
 
 namespace kagen {
 GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm)

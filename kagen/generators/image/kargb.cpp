@@ -1,5 +1,7 @@
 #include "kagen/generators/image/kargb.h"
 
+#include "kagen/definitions.h"
+
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -7,8 +9,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include "kagen/definitions.h"
 
 namespace kagen {
 constexpr std::size_t kKargbIdentifierLength = 5;

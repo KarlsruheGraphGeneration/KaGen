@@ -447,19 +447,19 @@ inline std::ptrdiff_t find_member(
             name = detail::to_lower(detail::remove_underscore(name));
             it   = std::find_if(std::begin(names), std::end(names), [&name](std::string local_name) {
                 return detail::to_lower(detail::remove_underscore(local_name)) == name;
-              });
+            });
         } else {
             name = detail::to_lower(name);
             it   = std::find_if(std::begin(names), std::end(names), [&name](std::string local_name) {
                 return detail::to_lower(local_name) == name;
-              });
+            });
         }
 
     } else if (ignore_underscore) {
         name = detail::remove_underscore(name);
         it   = std::find_if(std::begin(names), std::end(names), [&name](std::string local_name) {
             return detail::remove_underscore(local_name) == name;
-          });
+        });
     } else {
         it = std::find(std::begin(names), std::end(names), name);
     }
@@ -1069,7 +1069,7 @@ class is_direct_constructible {
 #ifdef __CUDACC__
     #pragma diag_suppress 2361
 #endif
-        TT { std::declval<CC>() }
+        TT{std::declval<CC>()}
 #ifdef __CUDACC__
     #pragma diag_default 2361
 #endif
@@ -3431,7 +3431,7 @@ auto search(const T& set, const V& val) -> std::pair<bool, decltype(std::begin(d
     auto& setref    = detail::smart_deref(set);
     auto  it        = std::find_if(std::begin(setref), std::end(setref), [&val](decltype(*std::begin(setref)) v) {
         return (detail::pair_adaptor<element_t>::first(v) == val);
-            });
+    });
     return {(it != std::end(setref)), it};
 }
 
@@ -3459,7 +3459,7 @@ auto search(const T& set, const V& val, const std::function<V(V)>& filter_functi
         V a{detail::pair_adaptor<element_t>::first(v)};
         a = filter_function(a);
         return (a == val);
-         });
+    });
     return {(it != std::end(setref)), it};
 }
 
@@ -4516,7 +4516,7 @@ public:
     /// @name Basic
     ///@{
 
-    Option(const Option&) = delete;
+    Option(const Option&)            = delete;
     Option& operator=(const Option&) = delete;
 
     /// Count the total number of times an option was passed
@@ -5882,7 +5882,7 @@ public:
         set_help_flag("-h,--help", "Print this help message and exit");
     }
 
-    App(const App&) = delete;
+    App(const App&)            = delete;
     App& operator=(const App&) = delete;
 
     /// virtual destructor

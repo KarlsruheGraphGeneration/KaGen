@@ -47,11 +47,11 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 
+#include "kagen/sampling/rng/dSFMT.hpp"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "kagen/sampling/rng/dSFMT.hpp"
 
 namespace sampling {
 namespace rng {

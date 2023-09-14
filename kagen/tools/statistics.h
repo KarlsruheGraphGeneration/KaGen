@@ -1,10 +1,10 @@
 #pragma once
 
-#include <vector>
+#include "kagen/definitions.h"
 
 #include <mpi.h>
 
-#include "kagen/definitions.h"
+#include <vector>
 
 namespace kagen {
 SInt FindNumberOfGlobalNodes(VertexRange vertex_range, MPI_Comm comm);

@@ -1,12 +1,12 @@
 #include "kagen.h"
 
+#include "kagen/context.h"
+#include "kagen/facade.h"
+
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
-
-#include "kagen/context.h"
-#include "kagen/facade.h"
 
 namespace kagen {
 std::string BuildDescription() {

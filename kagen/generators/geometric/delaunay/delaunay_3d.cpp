@@ -1,12 +1,12 @@
 #include "kagen/generators/geometric/delaunay/delaunay_3d.h"
 
+#include "kagen/generators/generator.h"
+
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/spatial_sort.h>
 #include <sys/stat.h>
-
-#include "kagen/generators/generator.h"
 
 namespace kagen {
 using K_3d  = CGAL::Exact_predicates_inexact_constructions_kernel;

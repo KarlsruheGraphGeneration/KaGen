@@ -7,13 +7,12 @@
  ******************************************************************************/
 #pragma once
 
+#include "xxhash.h"
 #include <cassert>
 #include <cstdint>
 #include <optional>
 #include <random>
 #include <vector>
-
-#include "xxhash.h"
 
 namespace kagen::random_permutation {
 // Some bit twiddling helper functions.

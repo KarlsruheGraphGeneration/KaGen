@@ -7,14 +7,6 @@
  ******************************************************************************/
 #pragma once
 
-#include <iostream>
-#include <limits>
-#include <tuple>
-#include <unordered_map>
-#include <vector>
-
-#include <mpi.h>
-
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
@@ -24,6 +16,14 @@
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 #include "kagen/tools/sorted_mersenne.h"
+
+#include <mpi.h>
+
+#include <iostream>
+#include <limits>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 namespace kagen {
 class HyperbolicFactory : public GeneratorFactory {

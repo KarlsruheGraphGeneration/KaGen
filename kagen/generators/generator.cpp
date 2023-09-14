@@ -1,4 +1,5 @@
 #include "kagen/generators/generator.h"
+
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/tools/converter.h"

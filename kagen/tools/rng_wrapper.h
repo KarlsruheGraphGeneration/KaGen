@@ -7,11 +7,11 @@
  ******************************************************************************/
 #pragma once
 
-#include <random>
-
 #include "kagen/context.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/methodR.hpp"
+
+#include <random>
 
 namespace kagen {
 template <typename int_t = std::int64_t>

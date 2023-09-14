@@ -1,15 +1,15 @@
 #include "kagen/facade.h"
 
+#include "kagen/context.h"
+#include "kagen/generators/generator.h"
+#include "kagen/tools/statistics.h"
+
+#include <mpi.h>
+
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
-
-#include <mpi.h>
-
-#include "kagen/context.h"
-#include "kagen/generators/generator.h"
-#include "kagen/tools/statistics.h"
 
 // Generators
 #include "kagen/generators/barabassi/barabassi.h"

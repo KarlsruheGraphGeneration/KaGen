@@ -1,10 +1,10 @@
 #pragma once
 
+#include "kagen/kagen.h"
+
 #include <ostream>
 #include <tuple>
 #include <vector>
-
-#include "kagen/kagen.h"
 
 namespace kagen {
 constexpr PEID        ROOT             = 0;

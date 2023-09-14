@@ -1,10 +1,10 @@
 #pragma once
 
+#include "kagen/definitions.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include "kagen/definitions.h"
 
 namespace kagen {
 struct RGB {

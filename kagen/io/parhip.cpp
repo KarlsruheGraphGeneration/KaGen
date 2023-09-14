@@ -1,14 +1,14 @@
 #include "kagen/io/parhip.h"
 
-#include <algorithm>
-#include <array>
-#include <fstream>
-
-#include <mpi.h>
-
 #include "kagen/io.h"
 #include "kagen/io/buffered_writer.h"
 #include "kagen/tools/statistics.h"
+
+#include <mpi.h>
+
+#include <algorithm>
+#include <array>
+#include <fstream>
 
 namespace kagen {
 using namespace parhip;

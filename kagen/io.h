@@ -1,13 +1,13 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
-
-#include <mpi.h>
-
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/io/graph_format.h"
+
+#include <mpi.h>
+
+#include <string>
+#include <unordered_map>
 
 namespace kagen {
 class IOError : public std::exception {

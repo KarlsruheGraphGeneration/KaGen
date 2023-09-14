@@ -1,10 +1,10 @@
 #pragma once
 
-#include <mpi.h>
-
 #include "kagen/definitions.h"
 #include "kagen/io/graph_format.h"
 #include "kagen/io/mmap_toker.h"
+
+#include <mpi.h>
 
 namespace kagen {
 class EdgelistWriter : public StandardGraphWriter {

@@ -6,16 +6,15 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
-#include <iostream>
-
-#include <mpi.h>
-
 #include "kagen/context.h"
 #include "kagen/facade.h"
 #include "kagen/io.h"
 #include "kagen/tools/statistics.h"
 
+#include <mpi.h>
+
 #include "CLI11.h"
+#include <iostream>
 
 using namespace kagen;
 

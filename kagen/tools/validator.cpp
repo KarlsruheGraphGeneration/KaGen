@@ -1,12 +1,12 @@
 #include "kagen/tools/validator.h"
 
-#include <algorithm>
-#include <iostream>
-#include <numeric>
+#include "kagen/tools/converter.h"
 
 #include <mpi.h>
 
-#include "kagen/tools/converter.h"
+#include <algorithm>
+#include <iostream>
+#include <numeric>
 
 namespace kagen {
 namespace {

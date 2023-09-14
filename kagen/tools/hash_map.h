@@ -30,13 +30,13 @@ struct HashMap {
     using local_iterator       = typename Underlaying::local_iterator;
     using const_local_iterator = typename Underlaying::const_local_iterator;
 
-    // 
+    //
     // Additional functions
     //
-    
+
     void set_empty_key(Key) {}
 
-    // 
+    //
     // Iterators
     //
 
@@ -65,7 +65,7 @@ struct HashMap {
     }
 
     //
-    // Capacity 
+    // Capacity
     //
 
     inline bool empty() const noexcept {
@@ -80,7 +80,7 @@ struct HashMap {
         return map.max_size();
     }
 
-    // 
+    //
     // Modifiers
     //
 

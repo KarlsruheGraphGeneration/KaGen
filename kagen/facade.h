@@ -1,12 +1,12 @@
 #pragma once
 
-#include <memory>
-
-#include <mpi.h>
-
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
+
+#include <mpi.h>
+
+#include <memory>
 
 namespace kagen {
 std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(GeneratorType type);

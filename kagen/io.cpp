@@ -1,12 +1,5 @@
 #include "kagen/io.h"
 
-#include <algorithm>
-#include <cassert>
-#include <memory>
-#include <sstream>
-
-#include <mpi.h>
-
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
@@ -18,6 +11,13 @@
 #include "kagen/io/parhip.h"
 #include "kagen/tools/statistics.h"
 #include "kagen/tools/utils.h"
+
+#include <mpi.h>
+
+#include <algorithm>
+#include <cassert>
+#include <memory>
+#include <sstream>
 
 namespace kagen {
 const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGraphFormatFactories() {

@@ -7,15 +7,15 @@
  ******************************************************************************/
 #pragma once
 
+#include "kagen/definitions.h"
+#include "kagen/kagen.h"
+
 #include <iostream>
 #include <limits>
 #include <ostream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
-
-#include "kagen/definitions.h"
-#include "kagen/kagen.h"
 
 namespace kagen {
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap();
@@ -73,10 +73,10 @@ struct ImageMeshConfig {
 };
 
 struct InputGraphConfig {
-    std::string       filename          = "";
-    FileFormat        format            = FileFormat::EXTENSION;
-    GraphDistribution distribution      = GraphDistribution::BALANCE_VERTICES;
-    int               width             = 64;
+    std::string       filename     = "";
+    FileFormat        format       = FileFormat::EXTENSION;
+    GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
+    int               width        = 64;
 };
 
 struct OutputGraphConfig {

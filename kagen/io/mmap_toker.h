@@ -1,15 +1,14 @@
 #pragma once
 
-#include <cctype>
-#include <stdexcept>
-#include <string>
-
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 namespace kagen {
 class MappedFileToker {
@@ -155,4 +154,3 @@ private:
     std::size_t mark_;
 };
 } // namespace kagen
-

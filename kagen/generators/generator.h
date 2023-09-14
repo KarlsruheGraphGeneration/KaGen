@@ -1,13 +1,13 @@
 #pragma once
 
-#include <cstdint>
-#include <exception>
-#include <memory>
+#include "kagen/context.h"
+#include "kagen/definitions.h"
 
 #include <mpi.h>
 
-#include "kagen/context.h"
-#include "kagen/definitions.h"
+#include <cstdint>
+#include <exception>
+#include <memory>
 
 namespace kagen {
 class Generator {

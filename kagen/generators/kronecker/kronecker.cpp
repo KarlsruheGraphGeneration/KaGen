@@ -1,15 +1,16 @@
-#include <cmath>
+#include "kagen/generators/kronecker/kronecker.h"
+
+#include "kagen/generators/generator.h"
+#include "kagen/generators/kronecker/splittable_mrg.h"
+#include "kagen/generators/kronecker/user_settings.h"
+#include "kagen/generators/kronecker/utils.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "kagen/generators/generator.h"
-#include "kagen/generators/kronecker/kronecker.h"
-#include "kagen/generators/kronecker/splittable_mrg.h"
-#include "kagen/generators/kronecker/user_settings.h"
-#include "kagen/generators/kronecker/utils.h"
+#include <cmath>
 
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS

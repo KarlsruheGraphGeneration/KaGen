@@ -1,10 +1,11 @@
 #include "kagen/context.h"
 
+#include <mpi.h>
+
 #include <iomanip>
 #include <ios>
 #include <sstream>
 #include <unordered_set>
-#include <mpi.h>
 
 namespace kagen {
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {

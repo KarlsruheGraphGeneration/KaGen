@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
+#include "kagen/io/graph_format.h"
 
 #include <mpi.h>
 
-#include "kagen/io/graph_format.h"
+#include <string>
 
 namespace kagen {
 class DotWriter : public StandardGraphWriter {

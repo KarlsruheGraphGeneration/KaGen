@@ -36,7 +36,7 @@
  * "Neighborhood lists".
  * Note that this offset changes when using 32 vs 64 bit edge- or vertex IDs.
  *
- * ParHiP only supports graphs with 64 bit IDs and weights, no edge weights and 
+ * ParHiP only supports graphs with 64 bit IDs and weights, no edge weights and
  * no vertex weights (i.e., VERSION must be 3).
  *
  * @file   parhip.h
@@ -44,11 +44,11 @@
  ******************************************************************************/
 #pragma once
 
-#include <fstream>
-#include <string>
-
 #include "kagen/context.h"
 #include "kagen/io/graph_format.h"
+
+#include <fstream>
+#include <string>
 
 namespace kagen {
 namespace parhip {

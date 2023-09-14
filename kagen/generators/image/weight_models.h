@@ -1,9 +1,9 @@
 #pragma once
 
+#include "kagen/generators/image/kargb.h"
+
 #include <cmath>
 #include <cstdint>
-
-#include "kagen/generators/image/kargb.h"
 
 namespace kagen {
 inline std::uint8_t Delta(const std::uint8_t lhs, const std::uint8_t rhs) {
