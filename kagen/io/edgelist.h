@@ -25,8 +25,8 @@ private:
 
 class EdgelistFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "edgelist";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"edgelist"};
     }
 
     std::unique_ptr<GraphWriter>
@@ -35,8 +35,8 @@ public:
 
 class UndirectedEdgelistFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "edgelist";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"edgelist"};
     }
 
     std::unique_ptr<GraphWriter>
@@ -62,8 +62,8 @@ private:
 
 class BinaryEdgelistFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "binary-edgelist";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"binary-edgelist"};
     }
 
     std::unique_ptr<GraphWriter>
@@ -72,8 +72,8 @@ public:
 
 class UndirectedBinaryEdgelistFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "undirected-binary-edgelist";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"undirected-binary-edgelist"};
     }
 
     std::unique_ptr<GraphWriter>
@@ -82,8 +82,8 @@ public:
 
 class XtrapulpFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "xtrapulp";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"xtrapulp"};
     }
 
     std::unique_ptr<GraphWriter>
@@ -118,8 +118,8 @@ protected:
 
 class PlainEdgelistFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "plain-edgelist";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"plain-edgelist"};
     }
 
     std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;

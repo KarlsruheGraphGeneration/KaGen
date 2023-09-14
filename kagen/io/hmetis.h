@@ -24,8 +24,8 @@ private:
 
 class HmetisFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "hmetis";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"hmetis"};
     }
 
     std::unique_ptr<GraphWriter> CreateWriter(
@@ -34,8 +34,8 @@ public:
 
 class DirectedHmetisFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "hmetis";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"hmetis"};
     }
 
     std::unique_ptr<GraphWriter> CreateWriter(

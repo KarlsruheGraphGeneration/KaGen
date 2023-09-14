@@ -66,13 +66,27 @@ std::string GetExtension(const std::string& filename) {
 std::unique_ptr<GraphReader>
 CreateGraphReader(const std::string& filename, const InputGraphConfig& config, const PEID rank, const PEID size) {
     const std::string extension = GetExtension(filename);
+    const auto&       factories = GetGraphFormatFactories();
 
-    const auto& factories = GetGraphFormatFactories();
-    for (const auto& [format, factory]: factories) {
-        if (factory->DefaultExtension() == extension) {
-            auto reader = factory->CreateReader(config, rank, size);
-            if (reader != nullptr) {
-                return reader;
+    // Each file format can register itself under multiple extensions, which are sorted by priority.
+    // Thus, after each loop over all formats, increase priority and try again, until there are no more candidates left.
+    std::size_t candidates = factories.size();
+    for (std::size_t priority = 0; candidates > 0; ++priority) {
+        candidates = 0;
+
+        for (const auto& [format, factory]: factories) {
+            const auto& extensions = factory->DefaultExtensions();
+            if (extensions.size() <= priority) {
+                continue;
+            }
+
+            ++candidates;
+
+            if (extensions[priority] == extension) {
+                auto reader = factory->CreateReader(config, rank, size);
+                if (reader != nullptr) {
+                    return reader;
+                }
             }
         }
     }

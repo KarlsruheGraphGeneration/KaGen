@@ -24,8 +24,8 @@ private:
 
 class DotFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "dot";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"dot"};
     }
 
     std::unique_ptr<GraphWriter>
@@ -34,8 +34,8 @@ public:
 
 class DirectedDotFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "dot";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"dot"};
     }
 
     std::unique_ptr<GraphWriter>

@@ -110,8 +110,8 @@ private:
 
 class ParhipFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "parhip";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"parhip", "bgf"}; // Keep *.bgf for legacy reasons
     }
 
     std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;

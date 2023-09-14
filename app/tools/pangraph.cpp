@@ -256,8 +256,8 @@ int main(int argc, char* argv[]) {
 
         // If there are multiple output formats, append the default extension of the each file format to avoid
         // conflicts
-        if (out_config.formats.size() > 1) {
-            out_config.filename = base_filename + "." + factory->DefaultExtension();
+        if (out_config.formats.size() > 1 && !factory->DefaultExtensions().empty()) {
+            out_config.filename = base_filename + "." + factory->DefaultExtensions().front();
         }
 
         bool continue_with_next_pass = true;

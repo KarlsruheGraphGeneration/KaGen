@@ -490,8 +490,9 @@ int main(int argc, char* argv[]) {
         const auto& factory = GetGraphFormatFactory(format);
 
         // Append default filename
-        const std::string filename =
-            config.output_graph.extension ? base_filename + "." + factory->DefaultExtension() : base_filename;
+        const std::string filename   = (config.output_graph.extension && !factory->DefaultExtensions().empty())
+                                           ? base_filename + "." + factory->DefaultExtensions().front()
+                                           : base_filename;
         config.output_graph.filename = filename;
 
         GraphInfo info(graph, MPI_COMM_WORLD);

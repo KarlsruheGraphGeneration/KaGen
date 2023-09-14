@@ -19,8 +19,8 @@ protected:
 
 class CoordinatesFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "xyz";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"xyz"};
     }
 
     std::unique_ptr<GraphWriter>

@@ -36,8 +36,8 @@ private:
 
 class MetisFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "metis";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"metis", "graph"}; // Keep *.graph for legacy reasons
     }
 
     std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;

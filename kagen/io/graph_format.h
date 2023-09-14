@@ -170,7 +170,7 @@ public:
      *
      * @return The default file extension for this file format.
      */
-    virtual std::string DefaultExtension() const = 0;
+    virtual std::vector<std::string> DefaultExtensions() const = 0;
 
     //! May return `nullptr` if reading the file format is not supported.
     virtual std::unique_ptr<GraphReader> CreateReader(
@@ -201,8 +201,8 @@ public:
 
 class NoopFactory : public FileFormatFactory {
 public:
-    std::string DefaultExtension() const final {
-        return "";
+    std::vector<std::string> DefaultExtensions() const final {
+        return {};
     }
 
     std::unique_ptr<GraphWriter> CreateWriter(
