@@ -74,6 +74,10 @@ public:
     virtual int Deficits() const {
         return ReaderDeficits::NONE;
     }
+
+    bool HasDeficit(const ReaderDeficits deficit) const {
+        return Deficits() & deficit;
+    }
 };
 
 struct GraphInfo {

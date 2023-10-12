@@ -34,7 +34,6 @@ private:
     PEID rank_;
     PEID size_;
 
-    int                 deficits_;
-    GraphRepresentation actual_representation_;
+    int deficits_;
 };
 } // namespace kagen

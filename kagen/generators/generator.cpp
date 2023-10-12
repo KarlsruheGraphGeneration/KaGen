@@ -15,9 +15,9 @@ Generator::~Generator() = default;
 void Generator::Generate(const GraphRepresentation representation) {
     Reset();
 
-    representation_ = representation;
+    graph_.representation = representation;
 
-    switch (representation_) {
+    switch (graph_.representation) {
         case GraphRepresentation::EDGE_LIST:
             GenerateEdgeList();
             break;
@@ -29,7 +29,7 @@ void Generator::Generate(const GraphRepresentation representation) {
 }
 
 void Generator::Finalize(MPI_Comm comm) {
-    switch (representation_) {
+    switch (graph_.representation) {
         case GraphRepresentation::EDGE_LIST:
             FinalizeEdgeList(comm);
             break;
@@ -49,21 +49,21 @@ void CSROnlyGenerator::GenerateEdgeList() {
 }
 
 void CSROnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
-    if (xadj_.empty()) {
+    if (graph_.xadj.empty()) {
         return;
     }
 
     // Otherwise, we have generated the graph in CSR representation, but
     // actually want edge list representation -> transform graph
     FinalizeCSR(comm);
-    edges_ = BuildEdgeListFromCSR(vertex_range_, xadj_, adjncy_);
+    graph_.edges = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
     {
         XadjArray tmp;
-        std::swap(xadj_, tmp);
+        std::swap(graph_.xadj, tmp);
     }
     {
         AdjncyArray tmp;
-        std::swap(adjncy_, tmp);
+        std::swap(graph_.adjncy, tmp);
     }
 }
 
@@ -72,54 +72,40 @@ void EdgeListOnlyGenerator::GenerateCSR() {
 }
 
 void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
-    if (!xadj_.empty()) {
+    if (!graph_.xadj.empty()) {
         return;
     }
 
     // Otherwise, we have generated the graph in edge list representation, but
     // actually want CSR format --> transform graph
     FinalizeEdgeList(comm);
-    std::tie(xadj_, adjncy_) = BuildCSRFromEdgeList(vertex_range_, edges_, edge_weights_);
+    std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
     {
         Edgelist tmp;
-        std::swap(edges_, tmp);
+        std::swap(graph_.edges, tmp);
     }
 }
 
 SInt Generator::GetNumberOfEdges() const {
-    return std::max(adjncy_.size(), edges_.size());
+    return std::max(graph_.adjncy.size(), graph_.edges.size());
 }
 
 Graph Generator::Take() {
-    return {
-        vertex_range_,
-        representation_,
-        std::move(edges_),
-        std::move(xadj_),
-        std::move(adjncy_),
-        std::move(vertex_weights_),
-        std::move(edge_weights_),
-        std::move(coordinates_)};
+    return std::move(graph_);
 }
 
 void Generator::SetVertexRange(const VertexRange vertex_range) {
-    vertex_range_ = vertex_range;
+    graph_.vertex_range = vertex_range;
 }
 
 void Generator::FilterDuplicateEdges() {
-    std::sort(edges_.begin(), edges_.end());
-    auto it = std::unique(edges_.begin(), edges_.end());
-    edges_.erase(it, edges_.end());
+    std::sort(graph_.edges.begin(), graph_.edges.end());
+    auto it = std::unique(graph_.edges.begin(), graph_.edges.end());
+    graph_.edges.erase(it, graph_.edges.end());
 }
 
 void Generator::Reset() {
-    edges_.clear();
-    xadj_.clear();
-    adjncy_.clear();
-    vertex_weights_.clear();
-    edge_weights_.clear();
-    coordinates_.first.clear();
-    coordinates_.second.clear();
+    graph_.Clear();
 }
 
 GeneratorFactory::~GeneratorFactory() = default;

@@ -9,6 +9,7 @@
 #include "kagen/io/hmetis.h"
 #include "kagen/io/metis.h"
 #include "kagen/io/parhip.h"
+#include "kagen/tools/postprocessor.h"
 #include "kagen/tools/statistics.h"
 #include "kagen/tools/utils.h"
 
@@ -114,6 +115,85 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
     std::stringstream error_msg;
     error_msg << "file format " << format << " not available for reading";
     throw IOError(error_msg.str());
+}
+
+Graph ReadGraph(
+    GraphReader& reader, const GraphRepresentation representation, const InputGraphConfig& config, const PEID rank,
+    const PEID size) {
+    const auto [n, m] = [&] {
+        if (reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)
+            && reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+            return std::pair<SInt, SInt>{size, size};
+        }
+
+        auto [n, m] = reader.ReadSize();
+        if (reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
+            n = size;
+        }
+        if (reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+            m = size;
+        }
+        return std::pair<SInt, SInt>{n, m};
+    }();
+
+    if (reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
+        && config.distribution == GraphDistribution::BALANCE_EDGES) {
+        throw std::invalid_argument("not implemented");
+    }
+
+    // If we need postprocessing, always generate an edge list because postprocessing is not implemented for CSR
+    GraphRepresentation actual_representation =
+        reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION) ? GraphRepresentation::EDGE_LIST : representation;
+
+    SInt from    = 0;
+    SInt to_node = std::numeric_limits<SInt>::max();
+    SInt to_edge = std::numeric_limits<SInt>::max();
+
+    switch (config.distribution) {
+        case GraphDistribution::BALANCE_VERTICES:
+            std::tie(from, to_node) = ComputeRange(n, size, rank);
+            break;
+
+        case GraphDistribution::BALANCE_EDGES: {
+            const auto edge_range = ComputeRange(m, size, rank);
+            from                  = reader.FindNodeByEdge(edge_range.first);
+            to_edge               = edge_range.second;
+            break;
+        }
+    }
+
+    return reader.Read(from, to_node, to_edge, actual_representation);
+}
+
+Graph FinalizeReadGraph(const int deficits, Graph graph, const bool output, MPI_Comm comm) {
+    if (deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
+        if (graph.representation == GraphRepresentation::CSR) {
+            throw std::invalid_argument("not implemented");
+        }
+
+        const PEID size = GetCommSize(comm);
+        const PEID rank = GetCommRank(comm);
+
+        if (output) {
+            std::cout << "redistributing edges ... " << std::flush;
+        }
+
+        const SInt n = [&] {
+            SInt n = 0;
+            if (deficits & ReaderDeficits::UNKNOWN_NUM_VERTICES) {
+                n = FindNumberOfVerticesInEdgelist(graph.edges, comm);
+            } else {
+                n = graph.vertex_range.second;
+                MPI_Bcast(&n, 1, KAGEN_MPI_SINT, size - 1, comm);
+            }
+            return n;
+        }();
+
+        std::tie(graph.vertex_range.first, graph.vertex_range.second) = ComputeRange(n, size, rank);
+        RedistributeEdgesByVertexRange(graph.edges, graph.vertex_range, comm);
+    }
+
+    return graph;
 }
 
 void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, MPI_Comm comm) {

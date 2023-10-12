@@ -160,6 +160,11 @@ struct Graph {
 
     void SortEdgelist();
 
+    void FreeEdgelist();
+    void FreeCSR();
+
+    void Clear();
+
     template <typename T = SInt>
     std::vector<std::pair<T, T>> TakeEdges() {
         return TakeVector<std::pair<T, T>>(edges);

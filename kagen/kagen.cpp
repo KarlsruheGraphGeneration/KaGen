@@ -56,6 +56,25 @@ SInt Graph::NumberOfLocalEdges() const {
     __builtin_unreachable();
 }
 
+void Graph::Clear() {
+    edges.clear();
+    xadj.clear();
+    adjncy.clear();
+    vertex_weights.clear();
+    edge_weights.clear();
+    coordinates.first.clear();
+    coordinates.second.clear();
+}
+
+void Graph::FreeEdgelist() {
+    [[maybe_unused]] auto free_edgelist = std::move(edges);
+}
+
+void Graph::FreeCSR() {
+    [[maybe_unused]] auto free_xadj   = std::move(xadj);
+    [[maybe_unused]] auto free_adjncy = std::move(adjncy);
+}
+
 void Graph::SortEdgelist() {
     auto cmp_from = [](const auto& lhs, const auto& rhs) {
         return std::get<0>(lhs) < std::get<0>(rhs);
