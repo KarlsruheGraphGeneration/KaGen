@@ -358,11 +358,11 @@ void Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, 
         cell_vertices.emplace_back(angle, radius, x, y, gamma, offset + i);
         // if (rank_ == 2)
         //   printf("p %lld %f %f %d\n", offset + i, radius, angle, rank_);
-        if (pe_min_phi_ <= angle && pe_max_phi_ > angle)
+        if (pe_min_phi_ <= angle && pe_max_phi_ > angle) {
             num_nodes_++;
-
-        if (config_.coordinates) { // @todo only generate coordinates for local vertices
-            PushCoordinate(x, y);
+            if (config_.coordinates) {
+                PushCoordinate(x, y);
+            }
         }
     }
     std::get<3>(cell) = true;
