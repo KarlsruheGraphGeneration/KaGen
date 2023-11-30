@@ -23,14 +23,9 @@ void FileGraphGenerator::GenerateCSR() {
     GenerateImpl(GraphRepresentation::CSR);
 }
 
-bool FileGraphGenerator::CheckDeficit(const ReaderDeficits deficit) const {
-    return deficits_ & deficit;
-}
-
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
     auto reader = CreateGraphReader(config_.input_graph.format, config_.input_graph, rank_, size_);
-    deficits_   = reader->Deficits();
-    graph_      = ReadGraph(*reader, representation, config_.input_graph, rank_, size_);
+    fragment_   = ReadGraphFragment(*reader, representation, config_.input_graph, rank_, size_);
 }
 
 void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
@@ -43,9 +38,9 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
 
         graph_.edges = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
         graph_.FreeCSR();
+    } else {
+        graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
     }
-
-    graph_ = FinalizeReadGraph(deficits_, std::move(graph_), Output(), comm);
 }
 
 void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
@@ -59,9 +54,9 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
         std::tie(graph_.xadj, graph_.adjncy) =
             BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
         graph_.FreeEdgelist();
+    } else {
+        graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
     }
-
-    graph_ = FinalizeReadGraph(deficits_, std::move(graph_), Output(), comm);
 }
 
 bool FileGraphGenerator::Output() const {

@@ -69,10 +69,12 @@ void PrintRow(const Statistics& stats) {
 struct StatisticsComputator {
     StatisticsComputator(const Configuration& config) : config_(config) {}
 
-    void operator()(const Graph& chunk) {
-        stats_.m += chunk.edges.size();
+    void operator()(const GraphFragment& fragment) {
+        const auto& graph = fragment.graph;
 
-        for (const auto& [from, to]: chunk.edges) {
+        stats_.m += graph.edges.size();
+
+        for (const auto& [from, to]: graph.edges) {
             while (degrees_.size() <= from) {
                 degrees_.push_back(0);
             }
@@ -128,18 +130,18 @@ Statistics ComputeStatistics(const Configuration& stats_config, const PGenerator
 
     auto reader = CreateGraphReader(kagen_config.input_graph.format, kagen_config.input_graph, 0, 1);
 
-    Graph graph =
-        ReadGraph(*reader, GraphRepresentation::EDGE_LIST, kagen_config.input_graph, 0, stats_config.num_chunks);
-    computator(graph);
+    GraphFragment first_fragment = ReadGraphFragment(
+        *reader, GraphRepresentation::EDGE_LIST, kagen_config.input_graph, 0, stats_config.num_chunks);
+    computator(first_fragment);
 
     for (int chunk = 1; chunk < stats_config.num_chunks; ++chunk) {
-        const Graph next_graph = ReadGraph(
+        const GraphFragment fragment = ReadGraphFragment(
             *reader, GraphRepresentation::EDGE_LIST, kagen_config.input_graph, chunk, stats_config.num_chunks);
-        computator(next_graph);
+        computator(fragment);
     }
 
     if (stats_config.num_chunks == 1) {
-        graph = FinalizeReadGraph(reader->Deficits(), std::move(graph), false, MPI_COMM_WORLD);
+        const Graph graph = FinalizeGraphFragment(std::move(first_fragment), false, MPI_COMM_WORLD);
         return computator.Finalize(graph);
     } else {
         return computator.Finalize();

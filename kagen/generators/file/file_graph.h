@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kagen/generators/generator.h"
+#include "kagen/io.h"
 #include "kagen/io/graph_format.h"
 
 namespace kagen {
@@ -25,8 +26,6 @@ protected:
 private:
     void GenerateImpl(GraphRepresentation representation);
 
-    bool CheckDeficit(ReaderDeficits deficit) const;
-
     bool Output() const;
 
     const PGeneratorConfig& config_;
@@ -34,6 +33,6 @@ private:
     PEID rank_;
     PEID size_;
 
-    int deficits_;
+    GraphFragment fragment_;
 };
 } // namespace kagen

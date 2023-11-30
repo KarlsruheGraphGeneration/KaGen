@@ -117,7 +117,7 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
     throw IOError(error_msg.str());
 }
 
-Graph ReadGraph(
+GraphFragment ReadGraphFragment(
     GraphReader& reader, const GraphRepresentation representation, const InputGraphConfig& config, const PEID rank,
     const PEID size) {
     const auto [n, m] = [&] {
@@ -162,12 +162,15 @@ Graph ReadGraph(
         }
     }
 
-    return reader.Read(from, to_node, to_edge, actual_representation);
+    return {
+        reader.Read(from, to_node, to_edge, actual_representation),
+        reader.Deficits(),
+    };
 }
 
-Graph FinalizeReadGraph(const int deficits, Graph graph, const bool output, MPI_Comm comm) {
-    if (deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
-        if (graph.representation == GraphRepresentation::CSR) {
+Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, MPI_Comm comm) {
+    if (fragment.deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
+        if (fragment.graph.representation == GraphRepresentation::CSR) {
             throw std::invalid_argument("not implemented");
         }
 
@@ -180,20 +183,20 @@ Graph FinalizeReadGraph(const int deficits, Graph graph, const bool output, MPI_
 
         const SInt n = [&] {
             SInt n = 0;
-            if (deficits & ReaderDeficits::UNKNOWN_NUM_VERTICES) {
-                n = FindNumberOfVerticesInEdgelist(graph.edges, comm);
+            if (fragment.deficits & ReaderDeficits::UNKNOWN_NUM_VERTICES) {
+                n = FindNumberOfVerticesInEdgelist(fragment.graph.edges, comm);
             } else {
-                n = graph.vertex_range.second;
+                n = fragment.graph.vertex_range.second;
                 MPI_Bcast(&n, 1, KAGEN_MPI_SINT, size - 1, comm);
             }
             return n;
         }();
 
-        std::tie(graph.vertex_range.first, graph.vertex_range.second) = ComputeRange(n, size, rank);
-        RedistributeEdgesByVertexRange(graph.edges, graph.vertex_range, comm);
+        std::tie(fragment.graph.vertex_range.first, fragment.graph.vertex_range.second) = ComputeRange(n, size, rank);
+        RedistributeEdgesByVertexRange(fragment.graph.edges, fragment.graph.vertex_range, comm);
     }
 
-    return graph;
+    return std::move(fragment.graph);
 }
 
 void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, MPI_Comm comm) {
