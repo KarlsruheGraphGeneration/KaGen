@@ -1,7 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "kagen/context.h"
 #include "kagen/generators/path/path_directed.h"
+
+#include <gtest/gtest.h>
+
 #include "tests/util/utils.h"
 
 class PathGeneratorTestFixture : public ::testing::TestWithParam<kagen::SInt> {};
@@ -9,7 +10,8 @@ INSTANTIATE_TEST_SUITE_P(PathGenerationTests, PathGeneratorTestFixture, ::testin
 
 namespace {
 constexpr bool debug_output = false;
-auto           ComputeStartEndVertexAndSuccesors(const kagen::Graph& graph, kagen::SInt n) {
+
+auto ComputeStartEndVertexAndSuccesors(const kagen::Graph& graph, kagen::SInt n) {
     using namespace kagen;
     std::vector<SInt> in_degree(n);
     std::vector<SInt> out_degree(n);
@@ -54,7 +56,7 @@ auto           ComputeStartEndVertexAndSuccesors(const kagen::Graph& graph, kage
 void WalkPath(const kagen::Graph& graph, kagen::SInt n) {
     using namespace kagen;
     const auto [first_vertex, last_vertex, successor_array] = ComputeStartEndVertexAndSuccesors(graph, n);
-    SInt cur_vertex                                        = first_vertex;
+    SInt cur_vertex                                         = first_vertex;
     for (SInt i = 0; i + 1 < n; ++i) {
         cur_vertex = successor_array[cur_vertex];
     }
@@ -77,8 +79,9 @@ TEST_P(PathGeneratorTestFixture, path_generation_without_permutation) {
 
     PathDirected generator(config, rank, size);
     generator.Generate(GraphRepresentation::EDGE_LIST);
-    const Graph local_graph = generator.Take();
-    const Graph graph       = kagen::testing::GatherGraph(local_graph);
+    generator.Finalize(MPI_COMM_WORLD);
+    const Graph graph = kagen::testing::GatherGraph(generator.Take());
+
     WalkPath(graph, config.n);
 }
 
@@ -95,7 +98,8 @@ TEST_P(PathGeneratorTestFixture, path_generation_with_permutation) {
 
     PathDirected generator(config, rank, size);
     generator.Generate(GraphRepresentation::EDGE_LIST);
-    const Graph local_graph = generator.Take();
-    const Graph graph       = kagen::testing::GatherGraph(local_graph);
+    generator.Finalize(MPI_COMM_WORLD);
+    const Graph graph = kagen::testing::GatherGraph(generator.Take());
+
     WalkPath(graph, config.n);
 }

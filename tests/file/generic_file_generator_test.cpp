@@ -68,6 +68,7 @@ inline Graph ReadStaticGraph(
 
     FileGraphGenerator generator(config, rank, size);
     generator.Generate(representation);
+    generator.Finalize(MPI_COMM_WORLD);
     return generator.Take();
 }
 
@@ -96,6 +97,7 @@ inline Graph ReadStaticGraphOnRoot(
 
         FileGraphGenerator generator(config, 0, 1);
         generator.Generate(representation);
+        generator.Finalize(MPI_COMM_WORLD);
         return generator.Take();
     } else {
         return {};

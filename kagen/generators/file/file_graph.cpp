@@ -29,14 +29,16 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
 }
 
 void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
-    if (graph_.representation == GraphRepresentation::CSR) {
+    std::cout << "FinalizeEdgeList" << std::endl;
+    if (fragment_.graph.representation == GraphRepresentation::CSR) {
         FinalizeCSR(comm);
 
         if (Output()) {
             std::cout << "converting to edge list ... " << std::flush;
         }
 
-        graph_.edges = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
+        graph_.edges          = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
+        graph_.representation = GraphRepresentation::EDGE_LIST;
         graph_.FreeCSR();
     } else {
         graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
@@ -44,7 +46,8 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
 }
 
 void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
-    if (graph_.representation == GraphRepresentation::EDGE_LIST) {
+    std::cout << "FinalizeCSR" << std::endl;
+    if (fragment_.graph.representation == GraphRepresentation::EDGE_LIST) {
         FinalizeEdgeList(comm);
 
         if (Output()) {
@@ -53,6 +56,7 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
 
         std::tie(graph_.xadj, graph_.adjncy) =
             BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
+        graph_.representation = GraphRepresentation::CSR;
         graph_.FreeEdgelist();
     } else {
         graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);

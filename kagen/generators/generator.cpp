@@ -14,10 +14,9 @@ Generator::~Generator() = default;
 
 void Generator::Generate(const GraphRepresentation representation) {
     Reset();
+    desired_representation_ = representation;
 
-    graph_.representation = representation;
-
-    switch (graph_.representation) {
+    switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:
             GenerateEdgeList();
             break;
@@ -29,7 +28,8 @@ void Generator::Generate(const GraphRepresentation representation) {
 }
 
 void Generator::Finalize(MPI_Comm comm) {
-    switch (graph_.representation) {
+    std::cout << "Finalize" << std::endl;
+    switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:
             FinalizeEdgeList(comm);
             break;
@@ -38,6 +38,8 @@ void Generator::Finalize(MPI_Comm comm) {
             FinalizeCSR(comm);
             break;
     }
+
+    graph_.representation = desired_representation_;
 }
 
 void Generator::FinalizeEdgeList(MPI_Comm) {}

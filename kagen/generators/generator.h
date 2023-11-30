@@ -59,7 +59,8 @@ protected:
 
     void FilterDuplicateEdges();
 
-    Graph graph_;
+    GraphRepresentation desired_representation_;
+    Graph               graph_;
 
 private:
     void Reset();
