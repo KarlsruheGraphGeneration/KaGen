@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "tests/util/utils.h"
+#include "tests/gather.h"
 
 class PathGeneratorTestFixture : public ::testing::TestWithParam<kagen::SInt> {};
 INSTANTIATE_TEST_SUITE_P(PathGenerationTests, PathGeneratorTestFixture, ::testing::Values(10, 500, 16384, 30001));
