@@ -39,7 +39,10 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
         factories[FileFormat::DOT_DIRECTED]                = std::make_unique<DirectedDotFactory>();
         factories[FileFormat::COORDINATES]                 = std::make_unique<CoordinatesFactory>();
         factories[FileFormat::PARHIP]                      = std::make_unique<ParhipFactory>();
-        factories[FileFormat::FREIGHT_NETL_EP]             = std::make_unique<FreightNetlEpFactory>();
+
+        // Experimental formats
+        factories[FileFormat::FREIGHT_NETL_EP] = std::make_unique<FreightNetlEpFactory>();
+        factories[FileFormat::HMETIS_EP]       = std::make_unique<HmetisEpFactory>();
     }
     return factories;
 }

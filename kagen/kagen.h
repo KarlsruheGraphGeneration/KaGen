@@ -80,6 +80,7 @@ enum class FileFormat {
     METIS,
     HMETIS,
     HMETIS_DIRECTED,
+    HMETIS_EP,
     DOT,
     DOT_DIRECTED,
     COORDINATES,
