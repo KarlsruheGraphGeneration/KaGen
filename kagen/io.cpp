@@ -6,6 +6,7 @@
 #include "kagen/io/coordinates.h"
 #include "kagen/io/dot.h"
 #include "kagen/io/edgelist.h"
+#include "kagen/io/freight-netl.h"
 #include "kagen/io/hmetis.h"
 #include "kagen/io/metis.h"
 #include "kagen/io/parhip.h"
@@ -38,6 +39,7 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
         factories[FileFormat::DOT_DIRECTED]                = std::make_unique<DirectedDotFactory>();
         factories[FileFormat::COORDINATES]                 = std::make_unique<CoordinatesFactory>();
         factories[FileFormat::PARHIP]                      = std::make_unique<ParhipFactory>();
+        factories[FileFormat::FREIGHT_NETL_EP]             = std::make_unique<FreightNetlEpFactory>();
     }
     return factories;
 }

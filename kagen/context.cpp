@@ -24,6 +24,8 @@ std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
         {"parhip", FileFormat::PARHIP},
         {"xtrapulp", FileFormat::XTRAPULP},
 
+        {"experimental/freight-netl-ep", FileFormat::FREIGHT_NETL_EP},
+
         {"none", FileFormat::NOOP},                                               // @deprecated
         {"edge-list", FileFormat::EDGE_LIST},                                     // @deprecated
         {"binary-parhip", FileFormat::PARHIP},                                    // @deprecated
@@ -88,6 +90,9 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
 
         case FileFormat::XTRAPULP:
             return out << "xtrapulp";
+
+        case FileFormat::FREIGHT_NETL_EP:
+            return out << "experimental/freight-netl-ep";
     }
 
     return out << "<invalid>";

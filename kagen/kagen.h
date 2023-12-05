@@ -85,6 +85,7 @@ enum class FileFormat {
     COORDINATES,
     PARHIP,
     XTRAPULP,
+    FREIGHT_NETL_EP,
 };
 
 enum class GeneratorType {
