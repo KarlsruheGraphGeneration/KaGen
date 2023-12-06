@@ -42,6 +42,7 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
 
         // Experimental formats
         factories[FileFormat::FREIGHT_NETL_EP] = std::make_unique<FreightNetlEpFactory>();
+        factories[FileFormat::FREIGHT_NETL]    = std::make_unique<FreightNetlFactory>();
         factories[FileFormat::HMETIS_EP]       = std::make_unique<HmetisEpFactory>();
     }
     return factories;

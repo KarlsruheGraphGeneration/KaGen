@@ -86,6 +86,7 @@ enum class FileFormat {
     COORDINATES,
     PARHIP,
     XTRAPULP,
+    FREIGHT_NETL,
     FREIGHT_NETL_EP,
 };
 

@@ -2,6 +2,8 @@
 
 #include "kagen/io/buffered_writer.h"
 
+#include <unordered_map>
+
 namespace kagen {
 HmetisWriter::HmetisWriter(
     const bool directed, const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank,
@@ -67,11 +69,14 @@ HmetisEpWriter::HmetisEpWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
     : StandardGraphWriter(config, graph, info, rank, size) {
     if (size > 1) {
-        throw IOError("HmetisEpWriter does not support distributed output");
+        throw IOError("HmetisEpWriter does not support distributed/chunked output");
     }
 }
 
 void HmetisEpWriter::WriteHeader(const std::string& filename, const SInt n, const SInt m) {
+    IgnoresEdgeWeights();
+    IgnoresVertexWeights();
+
     BufferedTextOutput<> out(tag::append, filename);
     out.WriteInt(n).WriteChar(' ').WriteInt(m / 2).WriteChar('\n').Flush();
 }

@@ -58,7 +58,7 @@ private:
 class HmetisEpFactory : public FileFormatFactory {
 public:
     std::vector<std::string> DefaultExtensions() const final {
-        return {"hmetis.ep"};
+        return {"ep.hmetis"};
     }
 
     std::unique_ptr<GraphWriter> CreateWriter(

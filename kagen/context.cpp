@@ -18,21 +18,15 @@ std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
         {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
         {"metis", FileFormat::METIS},
         {"hmetis", FileFormat::HMETIS},
+        {"hmetis-directed", FileFormat::HMETIS_DIRECTED},
+        {"experimental/hmetis-ep", FileFormat::HMETIS_EP},
         {"dot", FileFormat::DOT},
         {"dot-directed", FileFormat::DOT_DIRECTED},
         {"coordinates", FileFormat::COORDINATES},
         {"parhip", FileFormat::PARHIP},
         {"xtrapulp", FileFormat::XTRAPULP},
-
+        {"experimental/freight-netl", FileFormat::FREIGHT_NETL},
         {"experimental/freight-netl-ep", FileFormat::FREIGHT_NETL_EP},
-        {"experimental/hmetis-ep", FileFormat::HMETIS_EP},
-
-        {"none", FileFormat::NOOP},                                               // @deprecated
-        {"edge-list", FileFormat::EDGE_LIST},                                     // @deprecated
-        {"binary-parhip", FileFormat::PARHIP},                                    // @deprecated
-        {"edge-list-undirected", FileFormat::EDGE_LIST_UNDIRECTED},               // @deprecated
-        {"binary-edge-list", FileFormat::BINARY_EDGE_LIST},                       // @deprecated
-        {"binary-edge-list-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED}, // @deprecated
     };
 }
 
@@ -77,6 +71,9 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
         case FileFormat::HMETIS_DIRECTED:
             return out << "hmetis-directed";
 
+        case FileFormat::HMETIS_EP:
+            return out << "experimental/hmetis-ep";
+
         case FileFormat::DOT:
             return out << "dot";
 
@@ -92,11 +89,11 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
         case FileFormat::XTRAPULP:
             return out << "xtrapulp";
 
+        case FileFormat::FREIGHT_NETL:
+            return out << "experimental/freight-netl";
+
         case FileFormat::FREIGHT_NETL_EP:
             return out << "experimental/freight-netl-ep";
-
-        case FileFormat::HMETIS_EP:
-            return out << "experimental/hmetis-ep";
     }
 
     return out << "<invalid>";
