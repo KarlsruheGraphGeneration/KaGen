@@ -115,6 +115,12 @@ Other output formats include:
 - `-f parhip`: Binary graph format used by [ParHIP](https://github.com/KaHIP/KaHIP)
 - `-f xtrapulp`: Binary graph format used by [XtraPuLP](https://github.com/HPCGraphAnalysis/PuLP), use `--32` to write the file with 32 bit data types
 
+Experimental output formats include:
+
+- `-f experimental/hmetis-ep`: hMetis hypergraph format, but the graph is transformed s.t. a partition of the hypergraph is an edge partition of the generated graph
+- `-f experimental/freight-netl`: hypergraph format used by FREIGHT
+- `-f experimental/freight-netl-ep`: hypergraph format used by FREIGHT, but the graph is transformed s.t. a partition of the hypergraph is an edge partition of the generated graph
+
 One graph can be stored in multiple formats by passing the `-f` repeatedly, e.g., `-o out -f metis -f coordinates` will write two files `out.metis` and `out.xyz`.
 If you want each PE to write its edges to a seperate file, use the `--distributed-output` flag.
 
