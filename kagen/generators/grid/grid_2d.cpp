@@ -9,10 +9,18 @@ namespace kagen {
 PGeneratorConfig
 Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
-
+    if (config.grid_x == 0 && config.grid_y == 0) {
+        if (config.n == 0) {
+            throw ConfigurationError("either (x, y) or n must be nonzero");
+        } else {
+            const SInt sqrt_n = std::sqrt(config.n);
+            config.grid_x     = sqrt_n;
+            config.grid_y     = sqrt_n;
+        }
+    }
     if (config.p == 0) {
-        if (config.grid_x == 0 || config.grid_y == 0 || config.m == 0) {
-            throw ConfigurationError("at least two parameters out of {(x, y), m, p} must be nonzero");
+        if (config.m == 0) {
+            throw ConfigurationError("if p is not given, m must be nonzero");
         }
 
         const SInt num_deg2_vertices = config.periodic ? 0 : 4;

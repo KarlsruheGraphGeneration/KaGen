@@ -336,12 +336,13 @@ Graph KaGen::GenerateRHG_MD(const LPFloat gamma, const SInt m, const LPFloat d, 
 
 namespace {
 Graph GenerateGrid2D_Impl(
-    PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const LPFloat p, const SInt m, const bool periodic,
-    const bool coordinates, const GraphRepresentation representation, MPI_Comm comm) {
+    PGeneratorConfig& config, const SInt n, const SInt grid_x, const SInt grid_y, const LPFloat p, const SInt m,
+    const bool periodic, const bool coordinates, const GraphRepresentation representation, MPI_Comm comm) {
     config.generator   = GeneratorType::GRID_2D;
     config.grid_x      = grid_x;
     config.grid_y      = grid_y;
     config.p           = p;
+    config.n           = n;
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
@@ -351,17 +352,15 @@ Graph GenerateGrid2D_Impl(
 
 Graph KaGen::GenerateGrid2D(
     const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic, const bool coordinates) {
-    return GenerateGrid2D_Impl(*config_, grid_x, grid_y, p, 0, periodic, coordinates, representation_, comm_);
+    return GenerateGrid2D_Impl(*config_, 0, grid_x, grid_y, p, 0, periodic, coordinates, representation_, comm_);
 }
 
 Graph KaGen::GenerateGrid2D_N(const SInt n, const LPFloat p, const bool periodic, const bool coordinates) {
-    const SInt sqrt_n = std::sqrt(n);
-    return GenerateGrid2D(sqrt_n, sqrt_n, p, periodic, coordinates);
+    return GenerateGrid2D_Impl(*config_, n, 0, 0, p, 0, periodic, coordinates, representation_, comm_);
 }
 
 Graph KaGen::GenerateGrid2D_NM(const SInt n, const SInt m, const bool periodic, const bool coordinates) {
-    const SInt sqrt_n = std::sqrt(n);
-    return GenerateGrid2D_Impl(*config_, sqrt_n, sqrt_n, 0.0, m, periodic, coordinates, representation_, comm_);
+    return GenerateGrid2D_Impl(*config_, n, 0, 0, 0.0, m, periodic, coordinates, representation_, comm_);
 }
 
 namespace {
