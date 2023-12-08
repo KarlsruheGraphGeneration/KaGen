@@ -52,7 +52,7 @@ protected:
     bool WriteBody(const std::string& filename) final;
 
 private:
-    bool directed_;
+    [[maybe_unused]] bool directed_;
 };
 
 class HmetisEpFactory : public FileFormatFactory {
