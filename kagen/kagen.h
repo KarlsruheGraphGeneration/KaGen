@@ -80,11 +80,14 @@ enum class FileFormat {
     METIS,
     HMETIS,
     HMETIS_DIRECTED,
+    HMETIS_EP,
     DOT,
     DOT_DIRECTED,
     COORDINATES,
     PARHIP,
     XTRAPULP,
+    FREIGHT_NETL,
+    FREIGHT_NETL_EP,
 };
 
 enum class GeneratorType {
@@ -159,6 +162,11 @@ struct Graph {
     SInt NumberOfLocalEdges() const;
 
     void SortEdgelist();
+
+    void FreeEdgelist();
+    void FreeCSR();
+
+    void Clear();
 
     template <typename T = SInt>
     std::vector<std::pair<T, T>> TakeEdges() {

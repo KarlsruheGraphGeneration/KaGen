@@ -63,13 +63,21 @@ struct Config {
     bool sort_edges = false;
 };
 
+void RemoveSelfLoops(Graph& graph) {
+    graph.edges.erase(
+        std::remove_if(
+            graph.edges.begin(), graph.edges.end(), [](const auto& edge) { return edge.first == edge.second; }),
+        graph.edges.end());
+}
+
 void DistributeToExternalBuffers(
     const Graph& graph, const std::vector<SInt>& vertex_distribution, const int from_chunk, const Config& config) {
     if (!graph.edge_weights.empty()) {
-        throw std::runtime_error("not implemented");
+        throw IOError("edge weight support is not implemented");
     }
 
     std::vector<Edgelist> sendbufs(config.num_chunks);
+
     for (const auto& [from, to]: graph.edges) {
         if (config.remove_self_loops && from == to) {
             continue;
@@ -121,6 +129,7 @@ Graph RestoreFromExternalBuffers(
 
     return graph;
 }
+
 SInt FindNumberOfVertices(GraphReader& reader, Config config) {
     if (config.num_vertices > 0) {
         return config.num_vertices;
@@ -188,6 +197,8 @@ int main(int argc, char* argv[]) {
     const auto reader        = CreateGraphReader(in_config.format, in_config, 0, 1);
     auto       reported_size = reader->ReadSize();
 
+    Graph in_memory_graph;
+
     for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
         if (!config.quiet) {
             std::cout << "Reading " << in_config.filename << " (chunk " << chunk + 1 << " of " << config.num_chunks
@@ -220,7 +231,18 @@ int main(int argc, char* argv[]) {
         info.has_vertex_weights |= !graph.vertex_weights.empty();
         info.has_edge_weights |= !graph.edge_weights.empty();
 
-        DistributeToExternalBuffers(graph, vertex_distribution, chunk, config);
+        if (config.num_chunks > 1) {
+            DistributeToExternalBuffers(graph, vertex_distribution, chunk, config);
+        } else {
+            if (config.remove_self_loops) {
+                if (!config.quiet) {
+                    std::cout << "filtering self loops ... " << std::flush;
+                }
+                RemoveSelfLoops(graph);
+                info.global_m = graph.edges.size();
+            }
+            in_memory_graph = std::move(graph);
+        }
 
         if (!config.quiet) {
             std::cout << "OK" << std::endl;
@@ -236,13 +258,19 @@ int main(int argc, char* argv[]) {
                           << ") ... reading ... " << std::flush;
             }
 
-            Graph graph = RestoreFromExternalBuffers(vertex_distribution, chunk, config);
+            Graph graph = config.num_chunks > 1 ? RestoreFromExternalBuffers(vertex_distribution, chunk, config)
+                                                : std::move(in_memory_graph);
+
             if (!config.quiet) {
                 std::cout << "filtering duplicates ... " << std::flush;
             }
-            RemoveMultiEdges(graph);
 
+            RemoveMultiEdges(graph);
             info.global_m += graph.edges.size();
+
+            if (config.num_chunks == 1) {
+                in_memory_graph = std::move(graph);
+            }
 
             if (!config.quiet) {
                 std::cout << "OK" << std::endl;
@@ -271,7 +299,8 @@ int main(int argc, char* argv[]) {
                               << " of " << config.num_chunks << ") ... reading ... " << std::flush;
                 }
 
-                Graph graph = RestoreFromExternalBuffers(vertex_distribution, chunk, config);
+                Graph graph = config.num_chunks > 1 ? RestoreFromExternalBuffers(vertex_distribution, chunk, config)
+                                                    : std::move(in_memory_graph);
 
                 if (config.add_reverse_edges) {
                     if (!config.quiet) {
@@ -309,6 +338,10 @@ int main(int argc, char* argv[]) {
                         const std::string filename = BufferFilename(config.tmp_directory, from_chunk, chunk);
                         std::remove(filename.c_str());
                     }
+                }
+
+                if (config.num_chunks == 1) {
+                    in_memory_graph = std::move(graph);
                 }
 
                 if (!config.quiet) {

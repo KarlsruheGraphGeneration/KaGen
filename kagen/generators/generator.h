@@ -34,43 +34,36 @@ protected:
     void SetVertexRange(VertexRange vetrex_range);
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y) {
-        coordinates_.first.emplace_back(x, y);
+        graph_.coordinates.first.emplace_back(x, y);
     }
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y, const HPFloat z) {
-        coordinates_.second.emplace_back(x, y, z);
+        graph_.coordinates.second.emplace_back(x, y, z);
     }
 
     inline void PushVertexWeight(const SSInt weight) {
-        vertex_weights_.push_back(weight);
+        graph_.vertex_weights.push_back(weight);
     }
 
     inline void PushEdge(const SInt from, const SInt to) {
-        edges_.emplace_back(from, to);
+        graph_.edges.emplace_back(from, to);
     }
 
     inline void PushEdgeWeight(const SSInt weight) {
-        edge_weights_.push_back(weight);
+        graph_.edge_weights.push_back(weight);
     }
 
     inline void SetVertexRange(const SInt first_vertex, const SInt first_invalid_vertex) {
-        vertex_range_ = std::make_pair(first_vertex, first_invalid_vertex);
+        graph_.vertex_range = std::make_pair(first_vertex, first_invalid_vertex);
     }
 
     void FilterDuplicateEdges();
 
-    VertexRange   vertex_range_;
-    Edgelist      edges_;
-    XadjArray     xadj_;
-    AdjncyArray   adjncy_;
-    Coordinates   coordinates_;
-    VertexWeights vertex_weights_;
-    EdgeWeights   edge_weights_;
+    GraphRepresentation desired_representation_;
+    Graph               graph_;
 
 private:
     void Reset();
-
-    GraphRepresentation representation_;
 };
 
 class ConfigurationError : public std::exception {

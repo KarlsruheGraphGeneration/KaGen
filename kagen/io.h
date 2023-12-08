@@ -32,5 +32,15 @@ CreateGraphReader(const std::string& filename, const InputGraphConfig& config, P
 std::unique_ptr<GraphReader>
 CreateGraphReader(const FileFormat format, const InputGraphConfig& config, PEID rank, PEID size);
 
+struct GraphFragment {
+    Graph graph;
+    int   deficits;
+};
+
+GraphFragment ReadGraphFragment(
+    GraphReader& reader, GraphRepresentation representation, const InputGraphConfig& config, PEID rank, PEID size);
+
+Graph FinalizeGraphFragment(GraphFragment fragment, bool output, MPI_Comm comm);
+
 void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, bool output, MPI_Comm comm);
 } // namespace kagen

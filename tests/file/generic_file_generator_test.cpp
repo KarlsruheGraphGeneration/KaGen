@@ -1,15 +1,13 @@
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include <mpi.h>
-
-#include <numeric>
-#include <utility>
-
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
 
-#include "tests/util/utils.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <mpi.h>
+
+#include "tests/gather.h"
+#include <numeric>
+#include <utility>
 
 const char* EMPTY_GRAPH         = "tests/data/graphs/empty";
 const char* REAL_WORLD_GRAPH    = "tests/data/graphs/144";
@@ -68,6 +66,7 @@ inline Graph ReadStaticGraph(
 
     FileGraphGenerator generator(config, rank, size);
     generator.Generate(representation);
+    generator.Finalize(MPI_COMM_WORLD);
     return generator.Take();
 }
 
@@ -96,6 +95,7 @@ inline Graph ReadStaticGraphOnRoot(
 
         FileGraphGenerator generator(config, 0, 1);
         generator.Generate(representation);
+        generator.Finalize(MPI_COMM_WORLD);
         return generator.Take();
     } else {
         return {};

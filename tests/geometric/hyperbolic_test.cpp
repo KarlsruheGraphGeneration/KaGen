@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include "tests/gather.h"
 #include "tests/geometric/utils.h"
-#include "tests/util/utils.h"
 
 using namespace kagen;
 
