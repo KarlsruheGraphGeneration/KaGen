@@ -28,7 +28,6 @@ void Generator::Generate(const GraphRepresentation representation) {
 }
 
 void Generator::Finalize(MPI_Comm comm) {
-    std::cout << "Finalize" << std::endl;
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:
             FinalizeEdgeList(comm);
