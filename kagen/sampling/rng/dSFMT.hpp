@@ -53,15 +53,16 @@
 
 #pragma once
 
+#include "kagen/sampling/config.hpp"
 #include "kagen/tlx/attribute_always_inline.hpp"
 #include "kagen/tlx/likely.hpp"
+
+#include <inttypes.h>
 
 #include <cassert>
 #include <cmath>
 #include <limits>
 #include <vector>
-
-#include <inttypes.h>
 #if defined(HAVE_ALTIVEC) && !defined(__APPLE__)
     #include <altivec.h>
 #elif defined(SAMPLING_HAVE_SSE2)
@@ -184,7 +185,7 @@ union W128_T {
 typedef union W128_T w128_t;
 
 /** the 128-bit internal state array */
-struct alignas(sizeof(w128_t)) DSFMT_T {
+struct DSFMT_T {
     w128_t status[DSFMT_N + 1];
     int    idx;
 };

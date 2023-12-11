@@ -69,9 +69,9 @@ static void        period_certification(dsfmt_t* dsfmt);
 
 #if defined(SAMPLING_HAVE_SSE2)
 /** 1 in 64bit for sse2 */
-static const union X128I_T sse2_int_one = {{1, 1}};
+[[maybe_unused]] static const union X128I_T sse2_int_one = {{1, 1}};
 /** 2.0 double for sse2 */
-static const union X128D_T sse2_double_two = {{2.0, 2.0}};
+[[maybe_unused]] static const union X128D_T sse2_double_two = {{2.0, 2.0}};
 /** -1.0 double for sse2 */
 static const union X128D_T sse2_double_m_one = {{-1.0, -1.0}};
 #endif
