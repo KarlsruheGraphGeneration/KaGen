@@ -29,7 +29,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig config_;
+    const PGeneratorConfig& config_;
 
     PEID rank_;
     PEID size_;

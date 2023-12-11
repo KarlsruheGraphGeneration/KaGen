@@ -29,7 +29,7 @@ protected:
 
 private:
     // Config
-    PGeneratorConfig config_;
+    const PGeneratorConfig& config_;
 
     // Variates
     RNGWrapper<> rng_;

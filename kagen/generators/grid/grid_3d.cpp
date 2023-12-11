@@ -51,7 +51,6 @@ void Grid3D::GenerateEdgeList() {
     total_x_          = config_.grid_x;
     total_y_          = config_.grid_y;
     total_z_          = config_.grid_z;
-    config_.n         = total_x_ * total_y_ * total_z_;
     edge_probability_ = config_.p;
 
     // Init chunks

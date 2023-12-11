@@ -55,7 +55,6 @@ void Grid2D::GenerateEdgeList() {
     // @todo Only tested for cube PEs and one chunk per PE
     total_rows_       = config_.grid_y;
     total_cols_       = config_.grid_x;
-    config_.n         = total_rows_ * total_cols_;
     edge_probability_ = config_.p;
 
     // Init chunks
