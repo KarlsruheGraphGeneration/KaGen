@@ -50,9 +50,6 @@ protected:
     void WriteHeader(const std::string& filename, SInt n, SInt m) final;
 
     bool WriteBody(const std::string& filename) final;
-
-private:
-    [[maybe_unused]] bool directed_;
 };
 
 class HmetisEpFactory : public FileFormatFactory {
