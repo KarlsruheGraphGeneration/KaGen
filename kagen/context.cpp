@@ -381,7 +381,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << "\n";
             out << "  Average degree:                     "
                 << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
-            out << "  High-resolution floating points:    ";
+            out << "  High-precision floating points:     ";
             if (config.hp_floats == 0) {
                 out << "auto";
             } else if (config.hp_floats == -1) {
