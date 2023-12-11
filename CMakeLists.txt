@@ -109,11 +109,6 @@ endif ()
 string(REGEX REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS}")
 string(REGEX REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS}")
 
-# Enable AddressSanitizer
-if (OFF)
-    list(APPEND CMAKE_CXX_FLAGS "-fsanitize=address")
-endif ()
-
 # Enable UndefinedBehaviorSanitizer
 if (OFF)
     list(APPEND CMAKE_CXX_FLAGS "-fsanitize=undefined")
