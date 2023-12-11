@@ -184,7 +184,7 @@ union W128_T {
 typedef union W128_T w128_t;
 
 /** the 128-bit internal state array */
-struct DSFMT_T {
+struct alignas(sizeof(w128_t)) DSFMT_T {
     w128_t status[DSFMT_N + 1];
     int    idx;
 };
