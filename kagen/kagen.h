@@ -130,6 +130,7 @@ enum class GraphRepresentation {
 };
 
 enum class GraphDistribution {
+    ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
 };

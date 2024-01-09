@@ -260,6 +260,7 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
 
 std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
     return {
+        {"root", GraphDistribution::ROOT},
         {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
         {"balance-edges", GraphDistribution::BALANCE_EDGES},
     };
@@ -267,6 +268,8 @@ std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
     switch (distribution) {
+        case GraphDistribution::ROOT:
+            return out << "root";
         case GraphDistribution::BALANCE_VERTICES:
             return out << "balance-vertices";
         case GraphDistribution::BALANCE_EDGES:

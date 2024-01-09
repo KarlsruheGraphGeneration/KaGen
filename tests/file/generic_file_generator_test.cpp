@@ -36,7 +36,10 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR)));
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::ROOT, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::ROOT, GraphRepresentation::CSR)));
 
 namespace {
 inline Graph ReadStaticGraph(
