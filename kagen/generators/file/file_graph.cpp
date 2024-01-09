@@ -29,7 +29,6 @@ void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) 
 }
 
 void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
-    std::cout << "FinalizeEdgeList" << std::endl;
     if (fragment_.graph.representation == GraphRepresentation::CSR) {
         FinalizeCSR(comm);
 
@@ -46,7 +45,6 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
 }
 
 void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
-    std::cout << "FinalizeCSR" << std::endl;
     if (fragment_.graph.representation == GraphRepresentation::EDGE_LIST) {
         FinalizeEdgeList(comm);
 
