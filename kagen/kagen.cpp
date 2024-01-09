@@ -40,6 +40,272 @@ std::string BuildDescription() {
     return ss.str();
 }
 
+std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
+    return {
+        {"noop", FileFormat::NOOP},
+        {"edgelist", FileFormat::EDGE_LIST},
+        {"edgelist-undirected", FileFormat::EDGE_LIST_UNDIRECTED},
+        {"binary-edgelist", FileFormat::BINARY_EDGE_LIST},
+        {"binary-edgelist-undirected", FileFormat::BINARY_EDGE_LIST_UNDIRECTED},
+        {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
+        {"metis", FileFormat::METIS},
+        {"hmetis", FileFormat::HMETIS},
+        {"hmetis-directed", FileFormat::HMETIS_DIRECTED},
+        {"experimental/hmetis-ep", FileFormat::HMETIS_EP},
+        {"dot", FileFormat::DOT},
+        {"dot-directed", FileFormat::DOT_DIRECTED},
+        {"coordinates", FileFormat::COORDINATES},
+        {"parhip", FileFormat::PARHIP},
+        {"xtrapulp", FileFormat::XTRAPULP},
+        {"experimental/freight-netl", FileFormat::FREIGHT_NETL},
+        {"experimental/freight-netl-ep", FileFormat::FREIGHT_NETL_EP},
+    };
+}
+
+std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
+    return {
+        {"extension", FileFormat::EXTENSION},
+        {"metis", FileFormat::METIS},
+        {"parhip", FileFormat::PARHIP},
+        {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
+    switch (output_format) {
+        case FileFormat::NOOP:
+            return out << "noop";
+
+        case FileFormat::EXTENSION:
+            return out << "extension";
+
+        case FileFormat::EDGE_LIST:
+            return out << "edgelist";
+
+        case FileFormat::EDGE_LIST_UNDIRECTED:
+            return out << "edgelist-undirected";
+
+        case FileFormat::BINARY_EDGE_LIST:
+            return out << "binary-edgelist";
+
+        case FileFormat::BINARY_EDGE_LIST_UNDIRECTED:
+            return out << "binary-edgelist-undirected";
+
+        case FileFormat::PLAIN_EDGE_LIST:
+            return out << "plain-edgelist";
+
+        case FileFormat::METIS:
+            return out << "metis";
+
+        case FileFormat::HMETIS:
+            return out << "hmetis";
+
+        case FileFormat::HMETIS_DIRECTED:
+            return out << "hmetis-directed";
+
+        case FileFormat::HMETIS_EP:
+            return out << "experimental/hmetis-ep";
+
+        case FileFormat::DOT:
+            return out << "dot";
+
+        case FileFormat::DOT_DIRECTED:
+            return out << "dot-directed";
+
+        case FileFormat::COORDINATES:
+            return out << "coordinates";
+
+        case FileFormat::PARHIP:
+            return out << "parhip";
+
+        case FileFormat::XTRAPULP:
+            return out << "xtrapulp";
+
+        case FileFormat::FREIGHT_NETL:
+            return out << "experimental/freight-netl";
+
+        case FileFormat::FREIGHT_NETL_EP:
+            return out << "experimental/freight-netl-ep";
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
+    return {
+        {"gnm-directed", GeneratorType::GNM_DIRECTED},
+        {"gnm-undirected", GeneratorType::GNM_UNDIRECTED},
+        {"gnp-directed", GeneratorType::GNP_DIRECTED},
+        {"gnp-undirected", GeneratorType::GNP_UNDIRECTED},
+        {"rgg2d", GeneratorType::RGG_2D},
+        {"rgg3d", GeneratorType::RGG_3D},
+#ifdef KAGEN_CGAL_FOUND
+        {"rdg2d", GeneratorType::RDG_2D},
+        {"rdg3d", GeneratorType::RDG_3D},
+#endif // KAGEN_CGAL_FOUND
+        {"grid2d", GeneratorType::GRID_2D},
+        {"grid3d", GeneratorType::GRID_3D},
+        {"path", GeneratorType::PATH_DIRECTED},
+        {"ba", GeneratorType::BA},
+        {"kronecker", GeneratorType::KRONECKER},
+        {"rhg", GeneratorType::RHG},
+        {"rmat", GeneratorType::RMAT},
+        {"image", GeneratorType::IMAGE_MESH},
+        {"imagemesh", GeneratorType::IMAGE_MESH},
+        {"image-mesh", GeneratorType::IMAGE_MESH},
+        {"file", GeneratorType::FILE},
+        {"static", GeneratorType::FILE}, // @deprecated
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
+    switch (generator_type) {
+        case GeneratorType::GNM_DIRECTED:
+            return out << "gnm-directed";
+
+        case GeneratorType::GNM_UNDIRECTED:
+            return out << "gnm-undirected";
+
+        case GeneratorType::GNP_DIRECTED:
+            return out << "gnp-directed";
+
+        case GeneratorType::GNP_UNDIRECTED:
+            return out << "gnp-undirected";
+
+        case GeneratorType::RGG_2D:
+            return out << "rgg2d";
+
+        case GeneratorType::RGG_3D:
+            return out << "rgg3d";
+
+        case GeneratorType::RDG_2D:
+            return out << "rdg2d";
+
+        case GeneratorType::RDG_3D:
+            return out << "rdg3d";
+
+        case GeneratorType::GRID_2D:
+            return out << "grid2d";
+
+        case GeneratorType::GRID_3D:
+            return out << "grid3d";
+
+        case GeneratorType::PATH_DIRECTED:
+            return out << "path-directed";
+
+        case GeneratorType::BA:
+            return out << "ba";
+
+        case GeneratorType::KRONECKER:
+            return out << "kronecker";
+
+        case GeneratorType::RHG:
+            return out << "rhg";
+
+        case GeneratorType::RMAT:
+            return out << "rmat";
+
+        case GeneratorType::IMAGE_MESH:
+            return out << "image-mesh";
+
+        case GeneratorType::FILE:
+            return out << "file";
+    }
+
+    return out << "<invalid>";
+}
+
+bool operator<=(StatisticsLevel a, StatisticsLevel b) {
+    return static_cast<std::uint8_t>(a) <= static_cast<std::uint8_t>(b);
+}
+
+std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap() {
+    return {
+        {"none", StatisticsLevel::NONE},
+        {"basic", StatisticsLevel::BASIC},
+        {"advanced", StatisticsLevel::ADVANCED},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level) {
+    switch (statistics_level) {
+        case StatisticsLevel::NONE:
+            return out << "none";
+
+        case StatisticsLevel::BASIC:
+            return out << "basic";
+
+        case StatisticsLevel::ADVANCED:
+            return out << "advanced";
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap() {
+    return {
+        {"l2", ImageMeshWeightModel::L2},          {"inv-l2", ImageMeshWeightModel::INV_L2},
+        {"ratio", ImageMeshWeightModel::RATIO},    {"inv-ratio", ImageMeshWeightModel::INV_RATIO},
+        {"sim", ImageMeshWeightModel::SIMILARITY}, {"similarity", ImageMeshWeightModel::SIMILARITY},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
+    switch (weight_model) {
+        case ImageMeshWeightModel::L2:
+            return out << "l2";
+        case ImageMeshWeightModel::INV_L2:
+            return out << "inv-l2";
+        case ImageMeshWeightModel::RATIO:
+            return out << "ratio";
+        case ImageMeshWeightModel::INV_RATIO:
+            return out << "inv-ratio";
+        case ImageMeshWeightModel::SIMILARITY:
+            return out << "similarity";
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
+    return {
+        {"root", GraphDistribution::ROOT},
+        {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
+        {"balance-edges", GraphDistribution::BALANCE_EDGES},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
+    switch (distribution) {
+        case GraphDistribution::ROOT:
+            return out << "root";
+        case GraphDistribution::BALANCE_VERTICES:
+            return out << "balance-vertices";
+        case GraphDistribution::BALANCE_EDGES:
+            return out << "balance-edges";
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap() {
+    return {
+        {"edge-list", GraphRepresentation::EDGE_LIST},
+        {"csr", GraphRepresentation::CSR},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, const GraphRepresentation representation) {
+    switch (representation) {
+        case GraphRepresentation::EDGE_LIST:
+            return out << "edge-list";
+
+        case GraphRepresentation::CSR:
+            return out << "csr";
+    }
+
+    return out << "<invalid>";
+}
 SInt Graph::NumberOfLocalVertices() const {
     return vertex_range.second - vertex_range.first;
 }

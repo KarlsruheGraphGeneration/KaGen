@@ -90,6 +90,12 @@ enum class FileFormat {
     FREIGHT_NETL_EP,
 };
 
+std::unordered_map<std::string, FileFormat> GetOutputFormatMap();
+
+std::unordered_map<std::string, FileFormat> GetInputFormatMap();
+
+std::ostream& operator<<(std::ostream& out, FileFormat format);
+
 enum class GeneratorType {
     GNM_DIRECTED,
     GNM_UNDIRECTED,
@@ -110,11 +116,21 @@ enum class GeneratorType {
     FILE,
 };
 
+std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
+
+std::ostream& operator<<(std::ostream& out, GeneratorType generator_type);
+
 enum class StatisticsLevel : std::uint8_t {
     NONE     = 0,
     BASIC    = 1,
     ADVANCED = 2,
 };
+
+bool operator<=(StatisticsLevel a, StatisticsLevel b);
+
+std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
+
+std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
 
 enum class ImageMeshWeightModel : std::uint8_t {
     L2         = 0,
@@ -124,16 +140,28 @@ enum class ImageMeshWeightModel : std::uint8_t {
     SIMILARITY = 4,
 };
 
+std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
+
+std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
+
 enum class GraphRepresentation {
     EDGE_LIST,
     CSR,
 };
+
+std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
+
+std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 
 enum class GraphDistribution {
     ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
 };
+
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
+
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 } // namespace kagen
 #endif
 

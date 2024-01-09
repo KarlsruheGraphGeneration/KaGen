@@ -18,12 +18,6 @@
 #include <unordered_map>
 
 namespace kagen {
-std::unordered_map<std::string, FileFormat> GetOutputFormatMap();
-
-std::unordered_map<std::string, FileFormat> GetInputFormatMap();
-
-std::ostream& operator<<(std::ostream& out, FileFormat format);
-
 enum class OutputHeader {
     ALWAYS,
     ROOT,
@@ -33,28 +27,6 @@ enum class OutputHeader {
 std::unordered_map<std::string, OutputHeader> GetOutputHeaderMap();
 
 std::ostream& operator<<(std::ostream& out, OutputHeader output_header);
-
-std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
-
-std::ostream& operator<<(std::ostream& out, GeneratorType generator_type);
-
-bool operator<=(StatisticsLevel a, StatisticsLevel b);
-
-std::unordered_map<std::string, StatisticsLevel> GetStatisticsLevelMap();
-
-std::ostream& operator<<(std::ostream& out, StatisticsLevel statistics_level);
-
-std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
-
-std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
-
-std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
-
-std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
-
-std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
-
-std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 
 struct ImageMeshConfig {
     std::string          filename             = "";
