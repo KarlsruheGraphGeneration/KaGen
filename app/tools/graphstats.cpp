@@ -70,6 +70,10 @@ struct StatisticsComputator {
     StatisticsComputator(const Configuration& config) : config_(config) {}
 
     void operator()(const GraphFragment& fragment) {
+        if (degrees_.size() < fragment.graph.vertex_range.second) {
+            degrees_.resize(fragment.graph.vertex_range.second, 0);
+        }
+
         const auto& graph = fragment.graph;
 
         stats_.m += graph.edges.size();
