@@ -223,7 +223,12 @@ Configuration parse_cli_arguments(int argc, char* argv[]) {
 
     app.add_flag(
         "--degree-buckets", config.compute_degree_buckets,
-        "If set, assign nodes to exponentially spaced degree buckets and report their counts.");
+        "If set, assign nodes to exponentially spaced degree buckets and report their counts.\n"
+        "The degree buckets are numbered 0..64:\n"
+        "  - bucket 0: no. of nodes with degree 0\n"
+        "  - bucket 1: no. of nodes with degree 1\n"
+        "  - bucket 2: no. of nodes with degree 2..3\n"
+        "  ... bucket i: no. of nodes with degree 2^(i-1)..(2^i)-1");
     app.add_flag(
         "--report-degree-buckets-as-columns", config.report_degree_buckets_as_columns,
         "If set, output one column per degree bucket instead of one column for all degree buckets.");
