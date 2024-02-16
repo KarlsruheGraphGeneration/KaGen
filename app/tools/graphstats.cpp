@@ -23,6 +23,9 @@ struct Configuration {
     bool omit_header     = false;
     bool strip_extension = false;
 
+    bool compute_degree_buckets           = false;
+    bool report_degree_buckets_as_columns = false;
+
     std::vector<SInt> count_num_deg_nodes;
 };
 
@@ -35,49 +38,87 @@ struct Statistics {
     LPFloat avg_deg = 0.0;
     SInt    max_deg = 0;
 
+    std::vector<SInt> degree_buckets;
     std::vector<SInt> num_deg_nodes;
+
+    bool has_node_weights = false;
+    bool has_edge_weights = false;
 };
 
 void PrintHeader(const Configuration& config) {
-    ((void)config);
-
     std::cout << "Graph,";
     std::cout << "N,";
     std::cout << "M,";
+    std::cout << "MinDeg,";
+    std::cout << "AvgDeg,";
+    std::cout << "MaxDeg,";
     for (const SInt deg: config.count_num_deg_nodes) {
         std::cout << "NumDeg" << deg << "Nodes,";
     }
-    std::cout << "MinDeg,";
-    std::cout << "AvgDeg,";
-    std::cout << "MaxDeg";
+    if (config.compute_degree_buckets) {
+        if (config.report_degree_buckets_as_columns) {
+            for (int i = 0; i < std::numeric_limits<SInt>::digits + 1; ++i) {
+                std::cout << "DegBucket" << i << ",";
+            }
+        } else {
+            std::cout << "DegreeBuckets,";
+        }
+    }
+    std::cout << "HasNodeWeights,";
+    std::cout << "HasEdgeWeights";
     std::cout << std::endl;
 }
 
-void PrintRow(const Statistics& stats) {
+void PrintRow(const Configuration& config, const Statistics& stats) {
     std::cout << stats.name << ",";
     std::cout << stats.n << ",";
     std::cout << stats.m << ",";
+    std::cout << stats.min_deg << ",";
+    std::cout << stats.avg_deg << ",";
+    std::cout << stats.max_deg << ",";
     for (const SInt num_deg_nodes: stats.num_deg_nodes) {
         std::cout << num_deg_nodes << ",";
     }
-    std::cout << stats.min_deg << ",";
-    std::cout << stats.avg_deg << ",";
-    std::cout << stats.max_deg;
+    if (config.compute_degree_buckets) {
+        if (config.report_degree_buckets_as_columns) {
+            for (const SInt bucket: stats.degree_buckets) {
+                std::cout << bucket << ",";
+            }
+        } else {
+            for (int bucket = 0; bucket < stats.degree_buckets.size(); ++bucket) {
+                if (bucket > 0) {
+                    std::cout << ";";
+                }
+                std::cout << stats.degree_buckets[bucket];
+            }
+            std::cout << ",";
+        }
+    }
+    std::cout << stats.has_node_weights << ",";
+    std::cout << stats.has_edge_weights;
     std::cout << std::endl;
 }
 
 struct StatisticsComputator {
-    StatisticsComputator(const Configuration& config) : config_(config) {}
+    StatisticsComputator(const Configuration& config) : config_(config) {
+        if (config_.compute_degree_buckets) {
+            stats_.degree_buckets.resize(std::numeric_limits<SInt>::digits + 1);
+        }
+    }
 
     void operator()(const GraphFragment& fragment) {
+        const auto& graph = fragment.graph;
+
         if (degrees_.size() < fragment.graph.vertex_range.second) {
             degrees_.resize(fragment.graph.vertex_range.second, 0);
         }
 
-        const auto& graph = fragment.graph;
-
         stats_.m += graph.edges.size();
+        stats_.has_node_weights |= !graph.vertex_weights.empty();
+        stats_.has_edge_weights |= !graph.edge_weights.empty();
 
+        // Count degrees for all nodes; this way, we can compute the statistics even if the edges are read in an
+        // arbitrary order
         for (const auto& [from, to]: graph.edges) {
             while (degrees_.size() <= from) {
                 degrees_.push_back(0);
@@ -87,6 +128,9 @@ struct StatisticsComputator {
     }
 
     Statistics Finalize(const Graph& graph) {
+        // @todo: might want to compute statistics for the full in-memory graph
+        ((void)graph);
+
         FinalizeStreamingStatistics();
         return std::move(stats_);
     }
@@ -116,6 +160,10 @@ private:
 
             for (std::size_t i = 0; i < config_.count_num_deg_nodes.size(); ++i) {
                 stats_.num_deg_nodes[i] += (deg == config_.count_num_deg_nodes[i]);
+            }
+            if (config_.compute_degree_buckets) {
+                const int bucket = (deg == 0 ? 0 : FloorLog2(deg) + 1);
+                ++stats_.degree_buckets[bucket];
             }
         }
 
@@ -173,7 +221,14 @@ Configuration parse_cli_arguments(int argc, char* argv[]) {
         "If set, print the filename in the Graph column without file extension.");
     app.add_flag("-H,--omit-header", config.omit_header, "If set, do not print the CSV header line.");
 
-    app.add_option("--count-degree", config.count_num_deg_nodes, "Count the number of nodes with this degree.");
+    app.add_flag(
+        "--degree-buckets", config.compute_degree_buckets,
+        "If set, assign nodes to exponentially spaced degree buckets and report their counts.");
+    app.add_flag(
+        "--report-degree-buckets-as-columns", config.report_degree_buckets_as_columns,
+        "If set, output one column per degree bucket instead of one column for all degree buckets.");
+
+    app.add_option("--count-degree", config.count_num_deg_nodes, "Count the number of nodes with the given degree.");
 
     try {
         app.parse(argc, argv);
@@ -212,7 +267,7 @@ int main(int argc, char* argv[]) {
             stats.name = StripExtension(stats.name);
         }
 
-        PrintRow(stats);
+        PrintRow(config, stats);
     }
 
     return MPI_Finalize();

@@ -33,4 +33,22 @@ inline PEID GetCommSize(MPI_Comm comm) {
     MPI_Comm_size(comm, &size);
     return size;
 }
+
+template <typename T>
+T FloorLog2(const T arg) {
+    constexpr std::size_t arg_width = std::numeric_limits<T>::digits;
+    static_assert(
+        arg_width == std::numeric_limits<unsigned long>::digits
+            || arg_width == std::numeric_limits<unsigned int>::digits,
+        "unsupported data type width");
+
+    T log2 = static_cast<T>(arg_width);
+    if constexpr (arg_width == std::numeric_limits<unsigned int>::digits) { // 32 bit
+        log2 -= __builtin_clz(arg);
+    } else { // 64 bit
+        log2 -= __builtin_clzl(arg);
+    }
+
+    return log2 - 1;
+}
 } // namespace kagen
