@@ -11,8 +11,6 @@
 #ifndef TLX_MATH_AGGREGATE_HEADER
     #define TLX_MATH_AGGREGATE_HEADER
 
-    #include "kagen/tlx/likely.hpp"
-
     #include <algorithm>
     #include <cmath>
     #include <limits>

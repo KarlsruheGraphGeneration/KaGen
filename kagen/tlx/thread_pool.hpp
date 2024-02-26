@@ -12,7 +12,6 @@
 #define TLX_THREAD_POOL_HEADER
 
 #include <atomic>
-#include <cassert>
 #include <condition_variable>
 #include <deque>
 #include <mutex>

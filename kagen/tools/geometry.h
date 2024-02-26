@@ -7,8 +7,9 @@
  ******************************************************************************/
 #pragma once
 
+#include "kagen/kagen.h"
+
 #include <cmath>
-#include <iostream>
 
 #ifdef KAGEN_CGAL_FOUND
     #include <CGAL/Dimension.h>

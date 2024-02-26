@@ -1,5 +1,7 @@
 #include "kagen/context.h"
 
+#include "kagen/definitions.h"
+
 #include <mpi.h>
 
 #include <iomanip>

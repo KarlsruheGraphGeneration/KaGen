@@ -1,5 +1,7 @@
 #include "kagen/generators/geometric/delaunay/delaunay_2d.h"
 
+#include "kagen/tools/geometry.h"
+
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>

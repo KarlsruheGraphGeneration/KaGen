@@ -3,9 +3,7 @@
 #ifdef __cplusplus
     #include <algorithm>
     #include <cstdint>
-    #include <iterator>
     #include <memory>
-    #include <numeric>
     #include <string>
     #include <tuple>
     #include <type_traits>

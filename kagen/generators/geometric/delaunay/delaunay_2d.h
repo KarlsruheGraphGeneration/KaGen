@@ -7,9 +7,10 @@
  ******************************************************************************/
 #pragma once
 
-#include "kagen/definitions.h"
-#include "kagen/generators/generator.h"
 #include "kagen/generators/geometric/geometric_2d.h"
+#include "kagen/kagen.h"
+
+#include <climits>
 
 namespace kagen {
 class Delaunay2D : public Geometric2D {

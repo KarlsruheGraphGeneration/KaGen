@@ -5,9 +5,7 @@
 #include "kagen/tools/postprocessor.h"
 
 #include <cmath>
-#include <iomanip>
 #include <iostream>
-#include <vector>
 
 namespace kagen {
 PGeneratorConfig

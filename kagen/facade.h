@@ -1,8 +1,8 @@
 #pragma once
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
+#include "kagen/kagen.h"
 
 #include <mpi.h>
 

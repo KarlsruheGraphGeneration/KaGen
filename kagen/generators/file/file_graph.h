@@ -2,7 +2,6 @@
 
 #include "kagen/generators/generator.h"
 #include "kagen/io.h"
-#include "kagen/io/graph_format.h"
 
 namespace kagen {
 class FileGraphFactory : public GeneratorFactory {

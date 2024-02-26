@@ -4,10 +4,7 @@
 
 #include <mpi.h>
 
-#include <algorithm>
 #include <cmath>
-#include <iostream>
-#include <numeric>
 
 namespace kagen {
 Graph500Generator::Graph500Generator(const PGeneratorConfig& config) : config_(config) {}

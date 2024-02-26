@@ -1,6 +1,6 @@
 #include "kagen/generators/image/kargb.h"
 
-#include "kagen/definitions.h"
+#include "kagen/kagen.h"
 
 #include <array>
 #include <cstdint>

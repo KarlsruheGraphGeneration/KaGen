@@ -1,5 +1,7 @@
 #include "kagen/generators/gnp/gnp_directed.h"
 
+#include "kagen/sampling/hash.hpp"
+
 namespace kagen {
 std::unique_ptr<Generator>
 GNPDirectedFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {

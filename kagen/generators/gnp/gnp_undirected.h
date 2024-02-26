@@ -8,9 +8,8 @@
 #pragma once
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
-#include "kagen/sampling/hash.hpp"
+#include "kagen/kagen.h"
 #include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {

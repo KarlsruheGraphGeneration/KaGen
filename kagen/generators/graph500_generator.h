@@ -12,7 +12,7 @@ public:
 protected:
     void FinalizeEdgeList(MPI_Comm comm) final;
 
-    inline void PushLocalEdge(const int from, const int to) {
+    inline void PushLocalEdge(const SInt from, const SInt to) {
         if (config_.self_loops || from != to) {
             local_edges_.emplace_back(from, to);
         }

@@ -31,7 +31,6 @@
     #include "kagen/generators/geometric/delaunay.h"
 #endif // KAGEN_CGAL_FOUND
 
-#include "kagen/tools/postprocessor.h"
 #include "kagen/tools/validator.h"
 
 namespace kagen {

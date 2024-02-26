@@ -9,16 +9,14 @@
 #pragma once
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
+#include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
-#include "kagen/tools/geometry.h"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 
 #include "libmorton/morton3D.h"
-#include <iostream>
 #include <tuple>
 #include <vector>
 

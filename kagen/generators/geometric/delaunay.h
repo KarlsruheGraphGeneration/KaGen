@@ -1,8 +1,6 @@
 #pragma once
 
 #include "kagen/generators/generator.h"
-#include "kagen/generators/geometric/delaunay/delaunay_2d.h"
-#include "kagen/generators/geometric/delaunay/delaunay_3d.h"
 
 namespace kagen {
 class Delaunay2DFactory : public GeneratorFactory {

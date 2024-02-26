@@ -4,8 +4,8 @@
 #include "kagen/facade.h"
 
 #include <cmath>
+#include <numeric>
 #include <sstream>
-#include <stdexcept>
 #include <unordered_map>
 
 namespace kagen {

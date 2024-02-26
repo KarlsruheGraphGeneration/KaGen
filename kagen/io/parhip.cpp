@@ -1,8 +1,7 @@
 #include "kagen/io/parhip.h"
 
+#include "kagen/definitions.h"
 #include "kagen/io.h"
-#include "kagen/io/buffered_writer.h"
-#include "kagen/tools/statistics.h"
 
 #include <mpi.h>
 

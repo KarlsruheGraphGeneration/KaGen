@@ -1,5 +1,8 @@
 #include "kagen/generators/geometric/delaunay.h"
 
+#include "kagen/generators/geometric/delaunay/delaunay_2d.h"
+#include "kagen/generators/geometric/delaunay/delaunay_3d.h"
+
 namespace kagen {
 namespace {
 PGeneratorConfig NormalizeParametersCommon(PGeneratorConfig config, const double factor, const bool output) {

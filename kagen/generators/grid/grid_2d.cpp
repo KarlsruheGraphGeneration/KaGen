@@ -3,8 +3,6 @@
 #include "kagen/generators/generator.h"
 #include "kagen/sampling/hash.hpp"
 
-#include <vector>
-
 namespace kagen {
 PGeneratorConfig
 Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {

@@ -1,11 +1,10 @@
 #pragma once
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
+#include "kagen/kagen.h"
 
 #include <mpi.h>
 
-#include <cstdint>
 #include <exception>
 #include <memory>
 

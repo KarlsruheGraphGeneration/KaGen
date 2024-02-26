@@ -1,5 +1,7 @@
 #include "kagen/generators/gnm/gnm_undirected.h"
 
+#include "kagen/sampling/hash.hpp"
+
 namespace kagen {
 std::unique_ptr<Generator>
 GNMUndirectedFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {

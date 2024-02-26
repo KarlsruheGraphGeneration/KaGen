@@ -1,7 +1,5 @@
 #include "kagen/generators/geometric/rgg/rgg_3d.h"
 
-#include "kagen/tools/newton.h"
-
 namespace kagen {
 RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric3D(config, rank, size) {
     // Chunk variables

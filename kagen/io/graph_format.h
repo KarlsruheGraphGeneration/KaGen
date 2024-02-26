@@ -6,7 +6,6 @@
 #include <mpi.h>
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 namespace kagen {

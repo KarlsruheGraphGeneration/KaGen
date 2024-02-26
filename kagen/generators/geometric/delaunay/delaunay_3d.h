@@ -7,8 +7,9 @@
  ******************************************************************************/
 #pragma once
 
-#include "kagen/generators/generator.h"
 #include "kagen/generators/geometric/geometric_3d.h"
+
+#include <climits>
 
 namespace kagen {
 class Delaunay3D : public Geometric3D {

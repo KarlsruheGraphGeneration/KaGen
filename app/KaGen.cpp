@@ -7,9 +7,9 @@
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/facade.h"
 #include "kagen/io.h"
-#include "kagen/tools/statistics.h"
 
 #include <mpi.h>
 

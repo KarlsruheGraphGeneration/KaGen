@@ -1,8 +1,6 @@
 #pragma once
 
 #include "kagen/generators/generator.h"
-#include "kagen/generators/geometric/rgg/rgg_2d.h"
-#include "kagen/generators/geometric/rgg/rgg_3d.h"
 
 namespace kagen {
 class RGG2DFactory : public GeneratorFactory {

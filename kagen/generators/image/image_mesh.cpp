@@ -1,14 +1,12 @@
 #include "kagen/generators/image/image_mesh.h"
 
-#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
 #include "kagen/generators/image/kargb.h"
 #include "kagen/generators/image/weight_models.h"
+#include "kagen/kagen.h"
 
 #include <array>
 #include <cmath>
-#include <cstring>
-#include <fstream>
 #include <iostream>
 
 namespace kagen {

@@ -1,7 +1,6 @@
 #include <mpi.h>
 
 #include "kagen.h"
-#include <algorithm>
 
 struct kagen_obj {
     kagen::KaGen* gen_ptr;

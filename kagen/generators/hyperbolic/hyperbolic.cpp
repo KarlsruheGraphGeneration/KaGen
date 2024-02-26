@@ -2,9 +2,10 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/sampling/hash.hpp"
+#include "kagen/tools/geometry.h"
 #include "kagen/tools/postprocessor.h"
 
-#include <csignal>
 #include <iostream>
 
 namespace kagen {

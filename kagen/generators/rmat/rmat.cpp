@@ -7,8 +7,6 @@
 
 #include <mpi.h>
 
-#include <numeric>
-
 namespace kagen {
 PGeneratorConfig
 RMATFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {

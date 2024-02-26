@@ -2,10 +2,6 @@
 
 #include "kagen/kagen.h"
 
-#include <ostream>
-#include <tuple>
-#include <vector>
-
 namespace kagen {
 constexpr PEID        ROOT             = 0;
 constexpr std::size_t NEWTON_MAX_ITERS = 10000;

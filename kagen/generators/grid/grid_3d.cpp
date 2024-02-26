@@ -2,8 +2,6 @@
 
 #include "kagen/sampling/hash.hpp"
 
-#include <vector>
-
 namespace kagen {
 std::unique_ptr<Generator>
 Grid3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {

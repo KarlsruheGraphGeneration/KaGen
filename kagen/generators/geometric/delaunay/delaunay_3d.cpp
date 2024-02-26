@@ -1,6 +1,6 @@
 #include "kagen/generators/geometric/delaunay/delaunay_3d.h"
 
-#include "kagen/generators/generator.h"
+#include "kagen/tools/geometry.h"
 
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>

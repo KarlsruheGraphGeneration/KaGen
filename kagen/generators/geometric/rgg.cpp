@@ -1,5 +1,8 @@
 #include "kagen/generators/geometric/rgg.h"
 
+#include "kagen/definitions.h"
+#include "kagen/generators/geometric/rgg/rgg_2d.h"
+#include "kagen/generators/geometric/rgg/rgg_3d.h"
 #include "kagen/tools/newton.h"
 
 namespace kagen {

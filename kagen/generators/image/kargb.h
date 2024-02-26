@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kagen/definitions.h"
+#include "kagen/kagen.h"
 
 #include <cstdint>
 #include <string>

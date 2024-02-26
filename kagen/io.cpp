@@ -1,8 +1,6 @@
 #include "kagen/io.h"
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
-#include "kagen/io/buffered_writer.h"
 #include "kagen/io/coordinates.h"
 #include "kagen/io/dot.h"
 #include "kagen/io/edgelist.h"
@@ -10,14 +8,12 @@
 #include "kagen/io/hmetis.h"
 #include "kagen/io/metis.h"
 #include "kagen/io/parhip.h"
+#include "kagen/kagen.h"
 #include "kagen/tools/postprocessor.h"
-#include "kagen/tools/statistics.h"
 #include "kagen/tools/utils.h"
 
 #include <mpi.h>
 
-#include <algorithm>
-#include <cassert>
 #include <memory>
 #include <sstream>
 

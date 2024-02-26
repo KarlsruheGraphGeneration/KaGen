@@ -1,6 +1,6 @@
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 
-#include "kagen/tools/newton.h"
+#include "kagen/tools/geometry.h"
 
 namespace kagen {
 RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {

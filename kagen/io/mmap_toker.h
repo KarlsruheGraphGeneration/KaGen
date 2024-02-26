@@ -6,7 +6,6 @@
 #include <unistd.h>
 
 #include <cctype>
-#include <iostream>
 #include <stdexcept>
 #include <string>
 

@@ -1,10 +1,9 @@
 #include "kagen/io/graph_format.h"
 
+#include "kagen/definitions.h"
 #include "kagen/io.h"
 
 #include <mpi.h>
-
-#include <fstream>
 
 namespace kagen {
 GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm)

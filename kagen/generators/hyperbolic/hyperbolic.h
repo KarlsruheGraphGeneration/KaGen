@@ -8,10 +8,7 @@
 #pragma once
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
 #include "kagen/generators/generator.h"
-#include "kagen/sampling/hash.hpp"
-#include "kagen/tools/geometry.h"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
@@ -19,10 +16,7 @@
 
 #include <mpi.h>
 
-#include <iostream>
-#include <limits>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
 namespace kagen {

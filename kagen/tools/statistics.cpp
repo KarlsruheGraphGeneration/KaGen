@@ -1,5 +1,7 @@
 #include "kagen/tools/statistics.h"
 
+#include "kagen/definitions.h"
+
 #include <mpi.h>
 
 #include <algorithm>

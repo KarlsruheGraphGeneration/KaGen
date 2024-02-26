@@ -1,8 +1,8 @@
 #pragma once
 
-#include "kagen/definitions.h"
 #include "kagen/io/graph_format.h"
 #include "kagen/io/mmap_toker.h"
+#include "kagen/kagen.h"
 
 #include <mpi.h>
 
