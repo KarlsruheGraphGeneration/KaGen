@@ -169,7 +169,18 @@ Graph MetisReader::Read(
         toker_.Seek(cached_first_vertex_pos_);
     }
 
-    Graph       graph;
+    Graph graph;
+    if (from_vertex == 0 && to_vertex >= global_n && to_edge >= global_m) {
+        if (representation == GraphRepresentation::EDGE_LIST) {
+            graph.edges.reserve(global_m);
+        } else if (representation == GraphRepresentation::CSR) {
+            graph.xadj.reserve(global_n + 1);
+            graph.adjncy.reserve(global_m);
+        } else {
+            __builtin_unreachable();
+        }
+    }
+
     std::size_t end_position = 0;
     if (representation == GraphRepresentation::EDGE_LIST) {
         end_position = ParseBody(
