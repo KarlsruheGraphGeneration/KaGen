@@ -217,7 +217,9 @@ void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool
     const std::string filename = config.distributed ? config.filename + "." + std::to_string(rank) : config.filename;
 
     // Overwrite file if it already exists
-    { std::ofstream out(filename); }
+    if (rank == 0) {
+        std::ofstream out(filename);
+    }
 
     if (config.distributed) {
         // Distributed output: each PE writes its part of the graph to its own file
