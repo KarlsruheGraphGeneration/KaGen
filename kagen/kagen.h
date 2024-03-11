@@ -18,7 +18,7 @@
 
 #define KAGEN_VERSION_MAJOR 1
 #define KAGEN_VERSION_MINOR 0
-#define KAGEN_VERSION_PATCH 2
+#define KAGEN_VERSION_PATCH 3
 
 #ifdef __cplusplus
 namespace kagen {
