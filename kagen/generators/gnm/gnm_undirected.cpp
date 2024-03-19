@@ -270,6 +270,7 @@ void GNMUndirected<BigInt>::GenerateRectangleEdges(const SInt m, const SInt row_
 
     // Sample from [1, total_edges]
     SInt h = sampling::Spooky::hash(config_.seed + (((row_id + 1) * row_id) / 2) + column_id);
+
     rng_.GenerateSample(h, total_edges, m, [&](SInt sample) {
         SInt i = (sample - 1) / n_column;
         SInt j = (sample - 1) % n_column;
@@ -288,12 +289,12 @@ void GNMUndirected<BigInt>::GenerateRectangleEdges(const SInt m, const SInt row_
 
 template <typename BigInt>
 inline SInt GNMUndirected<BigInt>::NodesInRows(const SInt rows, const SInt offset) const {
-    return nodes_per_chunk_ * rows + std::min(remaining_nodes_ - offset, rows);
+    return nodes_per_chunk_ * rows + std::min(remaining_nodes_ - std::min(remaining_nodes_, offset), rows);
 }
 
 template <typename BigInt>
 inline SInt GNMUndirected<BigInt>::NodesInColumns(const SInt columns, const SInt offset) const {
-    return nodes_per_chunk_ * columns + std::min(remaining_nodes_ - offset, columns);
+    return nodes_per_chunk_ * columns + std::min(remaining_nodes_ - std::min(remaining_nodes_, offset), columns);
 }
 
 template <typename BigInt>
