@@ -11,5 +11,9 @@
 namespace kagen {
 std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(GeneratorType type);
 
+void PrintHeader(const PGeneratorConfig& config);
+
+void GenerateInMemoryDistributed(PGeneratorConfig config, MPI_Comm comm);
+
 Graph Generate(const PGeneratorConfig& config, GraphRepresentation representation, MPI_Comm comm);
 } // namespace kagen

@@ -98,7 +98,6 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
     throw std::runtime_error("invalid graph generator type");
 }
 
-namespace {
 void PrintHeader(const PGeneratorConfig& config) {
     std::cout << "###############################################################################\n";
     std::cout << "#                         _  __      ____                                     #\n";
@@ -111,7 +110,32 @@ void PrintHeader(const PGeneratorConfig& config) {
     std::cout << "###############################################################################\n";
     std::cout << config;
 }
-} // namespace
+
+void GenerateInMemoryDistributed(PGeneratorConfig config, MPI_Comm comm) {
+    PEID size, rank;
+    MPI_Comm_size(comm, &size);
+    MPI_Comm_rank(comm, &rank);
+
+    auto graph = Generate(config, GraphRepresentation::EDGE_LIST, comm);
+
+    const std::string base_filename = config.output_graph.filename;
+    for (const FileFormat& format: config.output_graph.formats) {
+        const auto& factory = GetGraphFormatFactory(format);
+
+        const std::string filename   = (config.output_graph.extension && !factory->DefaultExtensions().empty())
+                                           ? base_filename + "." + factory->DefaultExtensions().front()
+                                           : base_filename;
+        config.output_graph.filename = filename;
+
+        GraphInfo info(graph, comm);
+        auto      writer = factory->CreateWriter(config.output_graph, graph, info, rank, size);
+        if (writer != nullptr) {
+            WriteGraph(*writer.get(), config.output_graph, rank == ROOT && !config.quiet, comm);
+        } else if (!config.quiet && rank == ROOT) {
+            std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
+        }
+    }
+}
 
 Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation representation, MPI_Comm comm) {
     PEID rank, size;

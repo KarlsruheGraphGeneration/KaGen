@@ -10,6 +10,7 @@
 #include "kagen/definitions.h"
 #include "kagen/facade.h"
 #include "kagen/io.h"
+#include "kagen/streaming.h"
 
 #include <mpi.h>
 
@@ -117,10 +118,10 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     app.fallthrough();
 
     // General parameters
+    app.add_option("--experimental-K", config.K, "Number of chunks for generating the graph in a streaming seeting.");
+
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
-    app.add_flag(
-           "-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")
-        ->trigger_on_parse();
+    app.add_flag("-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")->trigger_on_parse();
     app.add_flag("-V,--validate", config.validate_simple_graph)
         ->description(
             R"(Validate that the generated graph is undirected and does not have duplicated edges or inconsistent edge weights.
@@ -477,31 +478,10 @@ int main(int argc, char* argv[]) {
         config.output_graph.extension = true;
     }
 
-    // Run KaGen
-    auto graph = Generate(config, GraphRepresentation::EDGE_LIST, MPI_COMM_WORLD);
-
-    // Write resulting graph to disk
-    PEID rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    const std::string base_filename = config.output_graph.filename;
-    for (const FileFormat& format: config.output_graph.formats) {
-        const auto& factory = GetGraphFormatFactory(format);
-
-        // Append default filename
-        const std::string filename   = (config.output_graph.extension && !factory->DefaultExtensions().empty())
-                                           ? base_filename + "." + factory->DefaultExtensions().front()
-                                           : base_filename;
-        config.output_graph.filename = filename;
-
-        GraphInfo info(graph, MPI_COMM_WORLD);
-        auto      writer = factory->CreateWriter(config.output_graph, graph, info, rank, size);
-        if (writer != nullptr) {
-            WriteGraph(*writer.get(), config.output_graph, rank == ROOT && !config.quiet, MPI_COMM_WORLD);
-        } else if (!config.quiet && rank == ROOT) {
-            std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
-        }
+    if (config.K > 1) {
+        GenerateStreamed(config, MPI_COMM_WORLD);
+    } else {
+        GenerateInMemoryDistributed(config, MPI_COMM_WORLD);
     }
 
     return MPI_Finalize();

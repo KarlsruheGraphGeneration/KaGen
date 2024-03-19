@@ -36,9 +36,15 @@ std::ostream& operator<<(std::ostream& out, OutputHeader output_header) {
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Seed:                               " << config.seed << "\n";
-    out << "  Validate generated graph:           " << (config.validate_simple_graph ? "yes" : "no") << "\n";
-    out << "  Statistics level:                   " << config.statistics_level << "\n";
     out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";
+    out << "  Execution mode:                     " << (config.K > 1 ? "streamed" : "in-memory") << "\n";
+    if (config.K > 1) {
+        out << "  Temporary directory:                " << config.streaming_tmp_directory << "\n";
+        out << "  Sort edges:                         " << (config.streaming_sort_edges ? "yes" : "no") << "\n";
+    } else {
+        out << "  Validate generated graph:           " << (config.validate_simple_graph ? "yes" : "no") << "\n";
+        out << "  Statistics level:                   " << config.statistics_level << "\n";
+    }
     out << "-------------------------------------------------------------------------------\n";
 
     out << "Generator Parameters:\n";

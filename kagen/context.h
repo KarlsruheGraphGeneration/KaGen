@@ -68,6 +68,13 @@ struct PGeneratorConfig {
     bool            skip_postprocessing   = false;
     bool            print_header          = true;
 
+    // Streaming settings
+    int         K                           = 1; // value > 1: enable streaming mode
+    std::string streaming_tmp_directory     = "/tmp";
+    bool        streaming_remove_self_loops = false;
+    bool        streaming_add_reverse_edges = false;
+    bool        streaming_sort_edges        = false;
+
     // Generator settings
     GeneratorType generator;          // Generator type
     SInt          n          = 0;     // Number of nodes
