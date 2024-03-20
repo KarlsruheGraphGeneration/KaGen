@@ -6,6 +6,8 @@
 
 #include <mpi.h>
 
+#include <fstream>
+
 namespace kagen {
 class EdgelistWriter : public StandardGraphWriter {
 public:
@@ -120,6 +122,41 @@ class PlainEdgelistFactory : public FileFormatFactory {
 public:
     std::vector<std::string> DefaultExtensions() const final {
         return {"plain-edgelist"};
+    }
+
+    std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;
+
+    std::unique_ptr<GraphWriter>
+    CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
+};
+
+///
+
+class WeightedBinaryEdgelistReader : public GraphReader {
+public:
+    WeightedBinaryEdgelistReader(const std::string& filename, SInt vtx_width = 32, SInt adjwgt_width = 8);
+
+    GraphSize ReadSize() final;
+
+    Graph Read(SInt from_vertex, SInt to_vertex, SInt to_edge, GraphRepresentation representation) final;
+
+    SInt FindNodeByEdge(SInt edge) final;
+
+    int Deficits() const final;
+
+private:
+    SInt StepSize() const;
+
+    std::ifstream in_;
+
+    SInt vtx_width_;
+    SInt adjwgt_width_;
+};
+
+class WeightedBinaryEdgelistFactory : public FileFormatFactory {
+public:
+    std::vector<std::string> DefaultExtensions() const final {
+        return {"weighted-binary-edgelist"};
     }
 
     std::unique_ptr<GraphReader> CreateReader(const InputGraphConfig& config, PEID rank, PEID size) const final;

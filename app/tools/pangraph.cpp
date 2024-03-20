@@ -152,18 +152,34 @@ int main(int argc, char* argv[]) {
     app.add_option("-T,--tmp-directory", config.tmp_directory, "Directory for external memory buffers.")
         ->capture_default_str();
 
+    auto set_all_input_widths = [&in_config](const auto width) {
+        in_config.width        = width;
+        in_config.vtx_width    = width;
+        in_config.adjncy_width = width;
+        in_config.vwgt_width   = width;
+        in_config.adjwgt_width = width;
+    };
+    auto set_all_output_widths = [&out_config](const auto width) {
+        out_config.width = width;
+    };
+
     app.add_option("--input-filename", in_config.filename, "Input graph")->check(CLI::ExistingFile)->required();
     app.add_option("--input-format", in_config.format, "Input graph format")
         ->transform(CLI::CheckedTransformer(GetInputFormatMap()))
         ->required()
         ->capture_default_str();
-    app.add_option("--input-width", in_config.width, "Input width in bits.")->capture_default_str();
+    app.add_option_function<SInt>("--input-width", set_all_input_widths, "Input width in bits.")->capture_default_str();
+    app.add_option("--input-vtx-width", in_config.vtx_width, "")->capture_default_str();
+    app.add_option("--input-adjncy-width", in_config.adjncy_width, "")->capture_default_str();
+    app.add_option("--input-vwgt-width", in_config.vwgt_width, "")->capture_default_str();
+    app.add_option("--input-adjwgt-width", in_config.adjncy_width, "")->capture_default_str();
     app.add_option("--output-format", out_config.formats, "Output graph format")
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()))
         ->required()
         ->capture_default_str();
     app.add_option("--output-filename", out_config.filename, "Output graph")->required();
-    app.add_option("--output-width", out_config.width, "Output width in bits.")->capture_default_str();
+    app.add_option_function<SInt>("--output-width", set_all_output_widths, "Output width in bits.")
+        ->capture_default_str();
     app.add_flag("-q,--quiet", config.quiet, "Suppress any output to stdout.");
 
     app.add_flag("--remove-self-loops", config.remove_self_loops, "Remove self loops from the input graph.")

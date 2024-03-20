@@ -48,6 +48,11 @@ struct InputGraphConfig {
     FileFormat        format       = FileFormat::EXTENSION;
     GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
     int               width        = 64;
+
+    int vtx_width    = 64;
+    int adjncy_width = 64;
+    int vwgt_width   = 64;
+    int adjwgt_width = 64;
 };
 
 struct OutputGraphConfig {

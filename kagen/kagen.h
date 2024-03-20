@@ -87,6 +87,7 @@ enum class FileFormat {
     XTRAPULP,
     FREIGHT_NETL,
     FREIGHT_NETL_EP,
+    WEIGHTED_BINARY_EDGE_LIST,
 };
 
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap();

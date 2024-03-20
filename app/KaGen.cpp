@@ -9,7 +9,6 @@
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/facade.h"
-#include "kagen/io.h"
 #include "kagen/streaming.h"
 
 #include <mpi.h>
@@ -440,20 +439,22 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     app.add_flag(
         "--distributed-output", [&config](auto) { config.output_graph.distributed = true; },
         "Output one file for each PE");
-    app.add_flag(
-        "--64",
-        [&config](auto) {
-            config.output_graph.width = 64;
-            config.input_graph.width  = 64;
-        },
-        "Use 64 bit data types for the {binary-edge-list, xtrapulp} formats.");
-    app.add_flag(
-        "--32",
-        [&config](auto) {
-            config.output_graph.width = 32;
-            config.input_graph.width  = 32;
-        },
-        "Use 32 bit data types for the {binary-edge-list, xtrapulp} formats.");
+
+    auto set_all_widths = [&](const int width) {
+        return [&config, width](auto) {
+            // @deprecated, replace with more fine-grained control
+            config.output_graph.width = width;
+            config.input_graph.width  = width;
+
+            config.input_graph.vtx_width    = width;
+            config.input_graph.adjncy_width = width;
+            config.input_graph.vwgt_width   = width;
+            config.input_graph.adjwgt_width = width;
+        };
+    };
+
+    app.add_flag("--64", set_all_widths(64), "Use 64 bit data types for the {binary-edge-list, xtrapulp} formats.");
+    app.add_flag("--32", set_all_widths(32), "Use 32 bit data types for the {binary-edge-list, xtrapulp} formats.");
     app.add_flag(
         "--extension", config.output_graph.extension, "Always append a default extension to the output filename.");
 }

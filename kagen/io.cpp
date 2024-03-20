@@ -37,9 +37,10 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
         factories[FileFormat::PARHIP]                      = std::make_unique<ParhipFactory>();
 
         // Experimental formats
-        factories[FileFormat::FREIGHT_NETL_EP] = std::make_unique<FreightNetlEpFactory>();
-        factories[FileFormat::FREIGHT_NETL]    = std::make_unique<FreightNetlFactory>();
-        factories[FileFormat::HMETIS_EP]       = std::make_unique<HmetisEpFactory>();
+        factories[FileFormat::FREIGHT_NETL_EP]           = std::make_unique<FreightNetlEpFactory>();
+        factories[FileFormat::FREIGHT_NETL]              = std::make_unique<FreightNetlFactory>();
+        factories[FileFormat::HMETIS_EP]                 = std::make_unique<HmetisEpFactory>();
+        factories[FileFormat::WEIGHTED_BINARY_EDGE_LIST] = std::make_unique<WeightedBinaryEdgelistFactory>();
     }
     return factories;
 }

@@ -5,6 +5,8 @@
 #include "kagen/io/graph_format.h"
 #include "kagen/kagen.h"
 
+#include <cstring>
+
 namespace kagen {
 EdgelistWriter::EdgelistWriter(
     const bool header, const bool directed, const OutputGraphConfig& config, Graph& graph, const GraphInfo info,
@@ -169,5 +171,75 @@ std::unique_ptr<GraphReader> PlainEdgelistFactory::CreateReader(const InputGraph
 std::unique_ptr<GraphWriter> PlainEdgelistFactory::CreateWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
     return std::make_unique<PlainEdgelistWriter>(config, graph, info, rank, size);
+}
+
+//
+// WeightedBinaryEdgelist
+//
+
+WeightedBinaryEdgelistReader::WeightedBinaryEdgelistReader(
+    const std::string& filename, const SInt vtx_width, const SInt adjwgt_width)
+    : in_(filename, std::ios::binary),
+      vtx_width_(vtx_width / 8),
+      adjwgt_width_(adjwgt_width / 8) {}
+
+SInt WeightedBinaryEdgelistReader::StepSize() const {
+    return 2 * vtx_width_ + adjwgt_width_;
+}
+
+std::pair<SInt, SInt> WeightedBinaryEdgelistReader::ReadSize() {
+    in_.seekg(0, std::ios_base::end);
+    const std::size_t size = in_.tellg() / StepSize();
+    return {size, size};
+}
+
+Graph WeightedBinaryEdgelistReader::Read(const SInt from, const SInt to, SInt, GraphRepresentation) {
+    in_.seekg(from, std::ios_base::beg);
+
+    std::vector<char> data((to - from) * StepSize());
+    in_.read(data.data(), data.size());
+    if (!in_) {
+        throw IOError("could not read enough bytes");
+    }
+
+    Graph graph;
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        SInt from = 0;
+        std::memcpy(&from, &data[i], vtx_width_);
+        i += vtx_width_;
+
+        SInt to = 0;
+        std::memcpy(&to, &data[i], vtx_width_);
+        i += vtx_width_;
+
+        SSInt weight = 0;
+        std::memcpy(&weight, &data[i], adjwgt_width_);
+        i += adjwgt_width_;
+
+        graph.edges.emplace_back(from, to);
+        graph.edge_weights.emplace_back(weight);
+    }
+
+    return graph;
+}
+
+SInt WeightedBinaryEdgelistReader::FindNodeByEdge(SInt) {
+    return 0;
+}
+
+int WeightedBinaryEdgelistReader::Deficits() const {
+    return ReaderDeficits::REQUIRES_REDISTRIBUTION | ReaderDeficits::EDGE_LIST_ONLY
+           | ReaderDeficits::UNKNOWN_NUM_VERTICES | ReaderDeficits::UNKNOWN_NUM_EDGES;
+}
+
+std::unique_ptr<GraphReader>
+WeightedBinaryEdgelistFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
+    return std::make_unique<WeightedBinaryEdgelistReader>(config.filename, config.vtx_width, config.adjncy_width);
+}
+
+std::unique_ptr<GraphWriter> WeightedBinaryEdgelistFactory::CreateWriter(
+    const OutputGraphConfig& /* config */, Graph& /* graph */, GraphInfo /* info */, PEID /* rank */,
+    PEID /* size */) const {
+    return nullptr;
 }
 } // namespace kagen

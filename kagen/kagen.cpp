@@ -68,6 +68,7 @@ std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
         {"metis", FileFormat::METIS},
         {"parhip", FileFormat::PARHIP},
         {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
+        {"experimental/weighted-binary-edgelist", FileFormat::WEIGHTED_BINARY_EDGE_LIST},
     };
 }
 
@@ -126,6 +127,9 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
 
         case FileFormat::FREIGHT_NETL_EP:
             return out << "experimental/freight-netl-ep";
+
+        case FileFormat::WEIGHTED_BINARY_EDGE_LIST:
+            return out << "experimental/weighted-binary-edge-list";
     }
 
     return out << "<invalid>";
