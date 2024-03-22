@@ -194,7 +194,8 @@ std::pair<SInt, SInt> WeightedBinaryEdgelistReader::ReadSize() {
 }
 
 Graph WeightedBinaryEdgelistReader::Read(const SInt from, const SInt to, SInt, GraphRepresentation) {
-    in_.seekg(from, std::ios_base::beg);
+    // This is fine since ReadSize() reports the size of the graph as number of edges in the graph
+    in_.seekg(from * StepSize(), std::ios_base::beg);
 
     std::vector<char> data((to - from) * StepSize());
     in_.read(data.data(), data.size());
@@ -203,17 +204,17 @@ Graph WeightedBinaryEdgelistReader::Read(const SInt from, const SInt to, SInt, G
     }
 
     Graph graph;
-    for (std::size_t i = 0; i < data.size(); ++i) {
+    for (std::size_t i = 0; i < data.size();) {
         SInt from = 0;
-        std::memcpy(&from, &data[i], vtx_width_);
+        std::memcpy(&from, data.data() + i, vtx_width_);
         i += vtx_width_;
 
         SInt to = 0;
-        std::memcpy(&to, &data[i], vtx_width_);
+        std::memcpy(&to, data.data() + i, vtx_width_);
         i += vtx_width_;
 
         SSInt weight = 0;
-        std::memcpy(&weight, &data[i], adjwgt_width_);
+        std::memcpy(&weight, data.data() + i, adjwgt_width_);
         i += adjwgt_width_;
 
         graph.edges.emplace_back(from, to);
@@ -229,7 +230,7 @@ SInt WeightedBinaryEdgelistReader::FindNodeByEdge(SInt) {
 
 int WeightedBinaryEdgelistReader::Deficits() const {
     return ReaderDeficits::REQUIRES_REDISTRIBUTION | ReaderDeficits::EDGE_LIST_ONLY
-           | ReaderDeficits::UNKNOWN_NUM_VERTICES | ReaderDeficits::UNKNOWN_NUM_EDGES;
+           | ReaderDeficits::UNKNOWN_NUM_VERTICES;
 }
 
 std::unique_ptr<GraphReader>

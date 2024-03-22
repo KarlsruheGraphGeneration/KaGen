@@ -9,6 +9,10 @@
 #include <fstream>
 
 namespace kagen {
+//
+// Text-based edge list 
+//
+
 class EdgelistWriter : public StandardGraphWriter {
 public:
     EdgelistWriter(
@@ -44,6 +48,10 @@ public:
     std::unique_ptr<GraphWriter>
     CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
+
+//
+// Binary edge list
+//
 
 class BinaryEdgelistWriter : public StandardGraphWriter {
 public:
@@ -82,6 +90,10 @@ public:
     CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 
+//
+// XtraPuLP edge list
+//
+
 class XtrapulpFactory : public FileFormatFactory {
 public:
     std::vector<std::string> DefaultExtensions() const final {
@@ -91,6 +103,12 @@ public:
     std::unique_ptr<GraphWriter>
     CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
+
+// 
+// Text edge list without any headers / line prefixes etc.
+// Just lines 
+// <source> <target>
+//
 
 class PlainEdgelistReader : public GraphReader {
 public:
@@ -130,7 +148,12 @@ public:
     CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
 };
 
-///
+//
+// Binary edge list without header etc., but with edge weights:
+// <source><target><weight>
+//
+// Ctor takes number of bits for vertex IDs / edge weights
+//
 
 class WeightedBinaryEdgelistReader : public GraphReader {
 public:
