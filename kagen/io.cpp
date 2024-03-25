@@ -153,7 +153,7 @@ GraphFragment ReadGraphFragment(
     SInt to_edge = std::numeric_limits<SInt>::max();
 
     switch (config.distribution) {
-        case GraphDistribution::ROOT:
+        case GraphDistribution::ROOT: {
             if (rank == 0) {
                 from    = 0;
                 to_node = n;
@@ -162,9 +162,12 @@ GraphFragment ReadGraphFragment(
                 to_node = n;
             }
             break;
-        case GraphDistribution::BALANCE_VERTICES:
+        }
+
+        case GraphDistribution::BALANCE_VERTICES: {
             std::tie(from, to_node) = ComputeRange(n, size, rank);
             break;
+        }
 
         case GraphDistribution::BALANCE_EDGES: {
             const auto edge_range = ComputeRange(m, size, rank);

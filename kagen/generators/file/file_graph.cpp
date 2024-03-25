@@ -2,8 +2,6 @@
 
 #include "kagen/io.h"
 #include "kagen/tools/converter.h"
-#include "kagen/tools/postprocessor.h"
-#include "kagen/tools/utils.h"
 
 namespace kagen {
 std::unique_ptr<Generator> FileGraphFactory::Create(const PGeneratorConfig& config, PEID rank, PEID size) const {

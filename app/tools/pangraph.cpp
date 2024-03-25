@@ -1,11 +1,11 @@
 #include "app/CLI11.h"
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
 #include "kagen/io.h"
 #include "kagen/kagen.h"
-#include "kagen/tools/postprocessor.h"
 #include "kagen/tools/utils.h"
+
+#include <mpi.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -60,10 +60,15 @@ struct Config {
 
     SInt num_vertices = 0;
 
-    bool sort_edges = false;
+    bool sort_edges          = false;
+    bool drop_edge_weights   = false;
+    bool drop_vertex_weights = false;
 };
 
 void RemoveSelfLoops(Graph& graph) {
+    if (!graph.edge_weights.empty()) {
+        throw IOError("edge weight support is not implemented");
+    }
     graph.edges.erase(
         std::remove_if(
             graph.edges.begin(), graph.edges.end(), [](const auto& edge) { return edge.first == edge.second; }),
@@ -130,6 +135,21 @@ Graph RestoreFromExternalBuffers(
     return graph;
 }
 
+SInt FindNumberOfVertices(const Config& config, const Graph& graph) {
+    if (config.num_vertices > 0) {
+        return config.num_vertices;
+    }
+    if (graph.vertex_range.first == 0 && graph.vertex_range.second > 0) {
+        return graph.NumberOfLocalVertices();
+    }
+
+    SInt global_n = 0;
+    for (const auto& [from, to]: graph.edges) {
+        global_n = std::max(global_n, std::max(from, to));
+    }
+    return global_n + 1;
+}
+
 SInt FindNumberOfVertices(const InputGraphConfig& in_config, Config config) {
     if (config.num_vertices > 0) {
         return config.num_vertices;
@@ -144,7 +164,7 @@ SInt FindNumberOfVertices(const InputGraphConfig& in_config, Config config) {
         std::cout << "The graph format does not specify the number of vertices in the graph.\n";
         std::cout << "However, this information is required for the conversion.\n";
         std::cout << "Counting the number of vertices (skip this step by providing --num-vertices=<n>) ... "
-                  << std::flush;
+                  << std::endl;
     }
 
     SInt global_n = 0;
@@ -177,6 +197,14 @@ SInt FindNumberOfVertices(const InputGraphConfig& in_config, Config config) {
 }
 
 int main(int argc, char* argv[]) {
+    MPI_Init(&argc, &argv);
+    PEID size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    if (size != 1) {
+        std::cerr << "Error: must be run sequentially\n";
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
     OutputGraphConfig out_config;
     InputGraphConfig  in_config;
     Config            config;
@@ -203,7 +231,7 @@ int main(int argc, char* argv[]) {
     app.add_option("--input-vtx-width", in_config.vtx_width, "")->capture_default_str();
     app.add_option("--input-adjncy-width", in_config.adjncy_width, "")->capture_default_str();
     app.add_option("--input-vwgt-width", in_config.vwgt_width, "")->capture_default_str();
-    app.add_option("--input-adjwgt-width", in_config.adjncy_width, "")->capture_default_str();
+    app.add_option("--input-adjwgt-width", in_config.adjwgt_width, "")->capture_default_str();
 
     app.add_option(
         "-n,--num-vertices", config.num_vertices,
@@ -227,7 +255,7 @@ int main(int argc, char* argv[]) {
     app.add_option("--output-vtx-width", out_config.vtx_width, "")->capture_default_str();
     app.add_option("--output-adjncy-width", out_config.adjncy_width, "")->capture_default_str();
     app.add_option("--output-vwgt-width", out_config.vwgt_width, "")->capture_default_str();
-    app.add_option("--output-adjwgt-width", out_config.adjncy_width, "")->capture_default_str();
+    app.add_option("--output-adjwgt-width", out_config.adjwgt_width, "")->capture_default_str();
 
     app.add_flag("--remove-self-loops", config.remove_self_loops, "Remove self loops from the input graph.")
         ->capture_default_str();
@@ -236,26 +264,32 @@ int main(int argc, char* argv[]) {
            "Add reverse edges to the input graph, such that the output graph is undirected.")
         ->capture_default_str();
     app.add_flag("--sort-edges", config.sort_edges, "Sort outgoing edges by target vertex ID.")->capture_default_str();
+    app.add_flag("--drop-adjwgt", config.drop_edge_weights, "Drop edge weights.")->capture_default_str();
+    app.add_flag("--drop-vwgt", config.drop_vertex_weights, "Drop vertex weights.")->capture_default_str();
     CLI11_PARSE(app, argc, argv);
 
-    GraphInfo info;
-    info.global_n = FindNumberOfVertices(in_config, config);
-
-    // Create output file to make sure that we can write there
+    // Create output file to make sure that we can write there -- otherwise, we might waste a lot of time with no
+    // results ...
     if (std::ofstream out(out_config.filename); !out) {
         std::cerr << "Error: cannot write to " << out_config.filename << "\n";
         std::exit(1);
     }
 
     std::vector<SInt> vertex_distribution(config.num_chunks + 1);
-    for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
-        vertex_distribution[chunk + 1] = ComputeRange(info.global_n, config.num_chunks, chunk).second;
+    GraphInfo         info;
+
+    // We only need to count the number of vertices in advance if we work with external memory -- otherwise, we will
+    // integrate this information after reading the graph
+    if (config.num_chunks > 1) {
+        info.global_n = FindNumberOfVertices(in_config, config);
+        for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
+            vertex_distribution[chunk + 1] = ComputeRange(info.global_n, config.num_chunks, chunk).second;
+        }
     }
 
     const auto reader        = CreateGraphReader(in_config.format, in_config, 0, 1);
-    auto       reported_size = reader->ReadSize();
-
-    Graph in_memory_graph;
+    const auto reported_size = reader->ReadSize();
+    Graph      in_memory_graph;
 
     for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
         if (!config.quiet) {
@@ -267,22 +301,28 @@ int main(int argc, char* argv[]) {
         if (!config.quiet) {
             std::cout << "[" << from << ", " << to << ") ... " << std::flush;
         }
+
         Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
+
+        if (config.drop_edge_weights) {
+            if (!config.quiet) {
+                std::cout << "dropping edge weights ... " << std::flush;
+            }
+            graph.edge_weights.clear();
+        }
+
+        if (config.drop_vertex_weights) {
+            if (!config.quiet) {
+                std::cout << "dropping vertex weights ... " << std::flush;
+            }
+            graph.vertex_weights.clear();
+        }
 
         if (config.add_reverse_edges) {
             if (!config.quiet) {
                 std::cout << "adding reverse edges ... " << std::flush;
             }
             AddReverseEdges(graph);
-        }
-
-        for (const auto& [from, to]: graph.edges) {
-            if (from >= info.global_n || to >= info.global_n) {
-                std::cout << "ERROR" << std::endl;
-                std::cerr << "Error: edge (" << from << ", " << to << ") is out of bounds (expected at most "
-                          << info.global_n << " vertices)\n";
-                std::exit(1);
-            }
         }
 
         info.global_m += graph.edges.size();
@@ -299,7 +339,12 @@ int main(int argc, char* argv[]) {
                 RemoveSelfLoops(graph);
                 info.global_m = graph.edges.size();
             }
+
             in_memory_graph = std::move(graph);
+
+            info.global_n                = FindNumberOfVertices(config, in_memory_graph);
+            in_memory_graph.vertex_range = {0, info.global_n};
+            vertex_distribution.back()   = info.global_n;
         }
 
         if (!config.quiet) {
@@ -312,8 +357,11 @@ int main(int argc, char* argv[]) {
 
         for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
             if (!config.quiet) {
-                std::cout << "Counting edges (chunk " << chunk + 1 << " of " << config.num_chunks
-                          << ") ... reading ... " << std::flush;
+                std::cout << "Counting edges (chunk " << chunk + 1 << " of " << config.num_chunks << ") ... "
+                          << std::flush;
+                if (config.num_chunks > 1) {
+                    std::cout << "reading ... " << std::flush;
+                }
             }
 
             Graph graph = config.num_chunks > 1 ? RestoreFromExternalBuffers(vertex_distribution, chunk, config)
@@ -354,7 +402,10 @@ int main(int argc, char* argv[]) {
             for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
                 if (!config.quiet) {
                     std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
-                              << " of " << config.num_chunks << ") ... reading ... " << std::flush;
+                              << " of " << config.num_chunks << ") ... " << std::flush;
+                    if (config.num_chunks > 1) {
+                        std::cout << "reading ... " << std::flush;
+                    }
                 }
 
                 Graph graph = config.num_chunks > 1 ? RestoreFromExternalBuffers(vertex_distribution, chunk, config)
@@ -366,6 +417,7 @@ int main(int argc, char* argv[]) {
                     }
                     RemoveMultiEdges(graph);
                 }
+
                 if (config.sort_edges) {
                     if (!config.quiet) {
                         std::cout << "sorting ... " << std::flush;
@@ -388,7 +440,7 @@ int main(int argc, char* argv[]) {
                 continue_with_next_pass = factory->CreateWriter(out_config, graph, pass_info, chunk, config.num_chunks)
                                               ->Write(pass, out_config.filename);
 
-                if (!continue_with_next_pass) {
+                if (!continue_with_next_pass && config.num_chunks > 1) {
                     if (!config.quiet) {
                         std::cout << "cleanup ... " << std::flush;
                     }
@@ -409,5 +461,5 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    return 0;
+    return MPI_Finalize();
 }

@@ -450,11 +450,16 @@ This is mostly useful for experimental graph generators or when using KaGen to l
             config.input_graph.adjncy_width = width;
             config.input_graph.vwgt_width   = width;
             config.input_graph.adjwgt_width = width;
+
+            config.output_graph.vtx_width    = width;
+            config.output_graph.adjncy_width = width;
+            config.output_graph.vwgt_width   = width;
+            config.output_graph.adjwgt_width = width;
         };
     };
 
-    app.add_flag("--64", set_all_widths(64), "Use 64 bit data types for the {binary-edge-list, xtrapulp} formats.");
-    app.add_flag("--32", set_all_widths(32), "Use 32 bit data types for the {binary-edge-list, xtrapulp} formats.");
+    app.add_flag("--64", set_all_widths(64), "Use 64 bit data types for binary formats.");
+    app.add_flag("--32", set_all_widths(32), "Use 32 bit data types for binary formats.");
     app.add_flag(
         "--extension", config.output_graph.extension, "Always append a default extension to the output filename.");
 }

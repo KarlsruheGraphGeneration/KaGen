@@ -4,6 +4,8 @@
 
 #include <mpi.h>
 
+#include <limits>
+
 namespace kagen {
 inline std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
     const SInt chunk = n / size;
