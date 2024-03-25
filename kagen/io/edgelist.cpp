@@ -202,7 +202,14 @@ WeightedBinaryEdgelistReader::WeightedBinaryEdgelistReader(
     const std::string& filename, const SInt vtx_width, const SInt adjwgt_width)
     : in_(filename, std::ios::binary),
       vtx_width_(vtx_width / 8),
-      adjwgt_width_(adjwgt_width / 8) {}
+      adjwgt_width_(adjwgt_width / 8) {
+    if (vtx_width == 1 || (vtx_width % 8 != 0)) {
+        throw IOError("vertex width must be non-zero and dividable by 8");
+    }
+    if (adjwgt_width == 0 || (adjwgt_width % 8 != 0)) {
+        throw IOError("edge weight width must be non-zero and dividable by 8");
+    }
+}
 
 SInt WeightedBinaryEdgelistReader::StepSize() const {
     return 2 * vtx_width_ + adjwgt_width_;

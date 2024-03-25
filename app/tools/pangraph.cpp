@@ -291,6 +291,23 @@ int main(int argc, char* argv[]) {
     const auto reported_size = reader->ReadSize();
     Graph      in_memory_graph;
 
+    // We transform the graph from its input format to the requested output formats in up to three steps:
+    //
+    // (1) Read in the original graph, chunk by chunk; each chunk "simulates" a PE / MPI rank. To handle all file
+    // formats, distribute the graph to external memory buffers (source chunk x target chunk): each edge is owned by the
+    // MPI rank that owns its tail vertex.
+    //
+    // If we have to make the graph undirected (symmetric), create edges in both directions; this might create
+    // multi-edges.
+    //
+    // (2) Read in the external memory buffers, chunk by chunk, to count the overall number of edges after removing any
+    // multi-edges.
+    //
+    // (3) Read in the external memory buffers and write the output graphs after remving any multi-edges.
+
+    // @todo: if the graph is already symmetric / does not have to become symmetric, and does not have to be
+    // redistributed for a vertex-centric output, we could skip the redistribution buffers.
+
     for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
         if (!config.quiet) {
             std::cout << "Reading " << in_config.filename << " (chunk " << chunk + 1 << " of " << config.num_chunks
@@ -315,6 +332,7 @@ int main(int argc, char* argv[]) {
             if (!config.quiet) {
                 std::cout << "dropping vertex weights ... " << std::flush;
             }
+
             graph.vertex_weights.clear();
         }
 
@@ -322,6 +340,7 @@ int main(int argc, char* argv[]) {
             if (!config.quiet) {
                 std::cout << "adding reverse edges ... " << std::flush;
             }
+
             AddReverseEdges(graph);
         }
 
@@ -330,6 +349,10 @@ int main(int argc, char* argv[]) {
         info.has_edge_weights |= !graph.edge_weights.empty();
 
         if (config.num_chunks > 1) {
+            if (!config.quiet) {
+                std::cout << "distributing to external buffers ... " << std::flush;
+            }
+
             DistributeToExternalBuffers(graph, vertex_distribution, chunk, config);
         } else {
             if (config.remove_self_loops) {
