@@ -177,6 +177,27 @@ std::unique_ptr<GraphWriter> PlainEdgelistFactory::CreateWriter(
 // WeightedBinaryEdgelist
 //
 
+WeightedBinaryEdgelistWriter::WeightedBinaryEdgelistWriter(
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
+    : StandardGraphWriter(config, graph, info, rank, size) {}
+
+void WeightedBinaryEdgelistWriter::WriteHeader(const std::string&, SInt, SInt) {}
+
+bool WeightedBinaryEdgelistWriter::WriteBody(const std::string& filename) {
+    std::ofstream out(filename, std::ios_base::binary | std::ios_base::app);
+    for (std::size_t e = 0; e < graph_.edges.size(); ++e) {
+        const auto& [from, to] = graph_.edges[e];
+        const SInt weight      = info_.has_edge_weights ? graph_.edge_weights[e] : 1;
+
+        // @todo replace with something less ub'ish
+        out.write(reinterpret_cast<const char*>(&from), config_.vtx_width / 8);
+        out.write(reinterpret_cast<const char*>(&to), config_.vtx_width / 8);
+        out.write(reinterpret_cast<const char*>(&weight), config_.adjwgt_width / 8);
+    }
+
+    return false;
+}
+
 WeightedBinaryEdgelistReader::WeightedBinaryEdgelistReader(
     const std::string& filename, const SInt vtx_width, const SInt adjwgt_width)
     : in_(filename, std::ios::binary),
@@ -235,12 +256,11 @@ int WeightedBinaryEdgelistReader::Deficits() const {
 
 std::unique_ptr<GraphReader>
 WeightedBinaryEdgelistFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
-    return std::make_unique<WeightedBinaryEdgelistReader>(config.filename, config.vtx_width, config.adjncy_width);
+    return std::make_unique<WeightedBinaryEdgelistReader>(config.filename, config.vtx_width, config.adjwgt_width);
 }
 
 std::unique_ptr<GraphWriter> WeightedBinaryEdgelistFactory::CreateWriter(
-    const OutputGraphConfig& /* config */, Graph& /* graph */, GraphInfo /* info */, PEID /* rank */,
-    PEID /* size */) const {
-    return nullptr;
+    const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    return std::make_unique<WeightedBinaryEdgelistWriter>(config, graph, info, rank, size);
 }
 } // namespace kagen

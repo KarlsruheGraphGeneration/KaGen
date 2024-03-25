@@ -62,6 +62,11 @@ struct OutputGraphConfig {
     OutputHeader            header      = OutputHeader::ROOT;
     bool                    distributed = false;
     int                     width       = 64;
+
+    int vtx_width    = 64;
+    int adjncy_width = 64;
+    int vwgt_width   = 64;
+    int adjwgt_width = 64;
 };
 
 // Configuration for the generator.

@@ -130,16 +130,50 @@ Graph RestoreFromExternalBuffers(
     return graph;
 }
 
-SInt FindNumberOfVertices(GraphReader& reader, Config config) {
+SInt FindNumberOfVertices(const InputGraphConfig& in_config, Config config) {
     if (config.num_vertices > 0) {
         return config.num_vertices;
     }
-    if ((reader.Deficits() & ReaderDeficits::UNKNOWN_NUM_VERTICES) == 0) {
-        return reader.ReadSize().first;
+
+    const auto reader0 = CreateGraphReader(in_config.format, in_config, 0, config.num_chunks);
+    if ((reader0->Deficits() & ReaderDeficits::UNKNOWN_NUM_VERTICES) == 0) {
+        return reader0->ReadSize().first;
     }
 
-    std::cerr << "Error: please provide the number of vertices in the graph via the --num-vertices=<n> argument.\n";
-    std::exit(1);
+    if (!config.quiet) {
+        std::cout << "The graph format does not specify the number of vertices in the graph.\n";
+        std::cout << "However, this information is required for the conversion.\n";
+        std::cout << "Counting the number of vertices (skip this step by providing --num-vertices=<n>) ... "
+                  << std::flush;
+    }
+
+    SInt global_n = 0;
+
+    for (int chunk = 0; chunk < config.num_chunks; ++chunk) {
+        const auto reader        = CreateGraphReader(in_config.format, in_config, 0, 1);
+        const auto reported_size = reader->ReadSize();
+
+        if (!config.quiet) {
+            std::cout << "Reading " << in_config.filename << " (chunk " << chunk + 1 << " of " << config.num_chunks
+                      << "): " << std::flush;
+        }
+
+        const auto [from, to] = ComputeRange(reported_size.first, config.num_chunks, chunk);
+        if (!config.quiet) {
+            std::cout << "[" << from << ", " << to << ") ... " << std::flush;
+        }
+
+        Graph graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
+        for (const auto& [from, to]: graph.edges) {
+            global_n = std::max(global_n, std::max(from, to));
+        }
+
+        if (!config.quiet) {
+            std::cout << "OK" << std::endl;
+        }
+    }
+
+    return global_n + 1;
 }
 
 int main(int argc, char* argv[]) {
@@ -151,6 +185,7 @@ int main(int argc, char* argv[]) {
     app.add_option("-C,--chunks", config.num_chunks)->capture_default_str();
     app.add_option("-T,--tmp-directory", config.tmp_directory, "Directory for external memory buffers.")
         ->capture_default_str();
+    app.add_flag("-q,--quiet", config.quiet, "Suppress any output to stdout.");
 
     auto set_all_input_widths = [&in_config](const auto width) {
         in_config.width        = width;
@@ -159,28 +194,40 @@ int main(int argc, char* argv[]) {
         in_config.vwgt_width   = width;
         in_config.adjwgt_width = width;
     };
-    auto set_all_output_widths = [&out_config](const auto width) {
-        out_config.width = width;
-    };
 
     app.add_option("--input-filename", in_config.filename, "Input graph")->check(CLI::ExistingFile)->required();
     app.add_option("--input-format", in_config.format, "Input graph format")
         ->transform(CLI::CheckedTransformer(GetInputFormatMap()))
-        ->required()
         ->capture_default_str();
     app.add_option_function<SInt>("--input-width", set_all_input_widths, "Input width in bits.")->capture_default_str();
     app.add_option("--input-vtx-width", in_config.vtx_width, "")->capture_default_str();
     app.add_option("--input-adjncy-width", in_config.adjncy_width, "")->capture_default_str();
     app.add_option("--input-vwgt-width", in_config.vwgt_width, "")->capture_default_str();
     app.add_option("--input-adjwgt-width", in_config.adjncy_width, "")->capture_default_str();
+
+    app.add_option(
+        "-n,--num-vertices", config.num_vertices,
+        "Providing the number of vertices can speed up the conversion for some input formats.");
+
+    auto set_all_output_widths = [&out_config](const auto width) {
+        out_config.width        = width;
+        out_config.vtx_width    = width;
+        out_config.adjncy_width = width;
+        out_config.vwgt_width   = width;
+        out_config.adjwgt_width = width;
+    };
+
+    app.add_option("--output-filename", out_config.filename, "Output graph")->required();
     app.add_option("--output-format", out_config.formats, "Output graph format")
         ->transform(CLI::CheckedTransformer(GetOutputFormatMap()))
         ->required()
         ->capture_default_str();
-    app.add_option("--output-filename", out_config.filename, "Output graph")->required();
     app.add_option_function<SInt>("--output-width", set_all_output_widths, "Output width in bits.")
         ->capture_default_str();
-    app.add_flag("-q,--quiet", config.quiet, "Suppress any output to stdout.");
+    app.add_option("--output-vtx-width", out_config.vtx_width, "")->capture_default_str();
+    app.add_option("--output-adjncy-width", out_config.adjncy_width, "")->capture_default_str();
+    app.add_option("--output-vwgt-width", out_config.vwgt_width, "")->capture_default_str();
+    app.add_option("--output-adjwgt-width", out_config.adjncy_width, "")->capture_default_str();
 
     app.add_flag("--remove-self-loops", config.remove_self_loops, "Remove self loops from the input graph.")
         ->capture_default_str();
@@ -188,16 +235,11 @@ int main(int argc, char* argv[]) {
            "--add-reverse-edges", config.add_reverse_edges,
            "Add reverse edges to the input graph, such that the output graph is undirected.")
         ->capture_default_str();
-
-    app.add_option(
-        "-n,--num-vertices", config.num_vertices,
-        "Providing the number of vertices can speed up the conversion for some input formats.");
     app.add_flag("--sort-edges", config.sort_edges, "Sort outgoing edges by target vertex ID.")->capture_default_str();
     CLI11_PARSE(app, argc, argv);
 
-    const auto reader0 = CreateGraphReader(in_config.format, in_config, 0, config.num_chunks);
-    GraphInfo  info;
-    info.global_n = FindNumberOfVertices(*reader0, config);
+    GraphInfo info;
+    info.global_n = FindNumberOfVertices(in_config, config);
 
     // Create output file to make sure that we can write there
     if (std::ofstream out(out_config.filename); !out) {

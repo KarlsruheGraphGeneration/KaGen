@@ -155,6 +155,16 @@ public:
 // Ctor takes number of bits for vertex IDs / edge weights
 //
 
+class WeightedBinaryEdgelistWriter : public StandardGraphWriter {
+public:
+    WeightedBinaryEdgelistWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size);
+
+protected:
+    void WriteHeader(const std::string& filename, SInt n, SInt m) final;
+
+    bool WriteBody(const std::string& filename) final;
+};
+
 class WeightedBinaryEdgelistReader : public GraphReader {
 public:
     WeightedBinaryEdgelistReader(const std::string& filename, SInt vtx_width = 32, SInt adjwgt_width = 8);

@@ -59,6 +59,7 @@ std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
         {"xtrapulp", FileFormat::XTRAPULP},
         {"experimental/freight-netl", FileFormat::FREIGHT_NETL},
         {"experimental/freight-netl-ep", FileFormat::FREIGHT_NETL_EP},
+        {"experimental/weighted-binary-edgelist", FileFormat::WEIGHTED_BINARY_EDGE_LIST},
     };
 }
 
