@@ -32,6 +32,8 @@ int main(int argc, char* argv[]) {
     bool allow_multi_edges             = false;
     bool allow_negative_edge_weights   = false;
     bool allow_negative_vertex_weights = false;
+    bool ignore_vertex_weights         = false;
+    bool ignore_edge_weights           = false;
 
     CLI::App app("chkgraph");
     app.add_option("input graph", config.filename, "Input graph")->check(CLI::ExistingFile)->required();
@@ -54,6 +56,9 @@ int main(int argc, char* argv[]) {
            "--negative-vertex-weights", allow_negative_vertex_weights,
            "Do not warn if the graph contains negative vertex weights.")
         ->capture_default_str();
+
+    app.add_flag("--ignore-vwgt", ignore_vertex_weights)->capture_default_str();
+    app.add_flag("--ignore-adjwgt", ignore_edge_weights)->capture_default_str();
     CLI11_PARSE(app, argc, argv);
 
     auto reader = CreateGraphReader(config.format, config, rank, size);
@@ -96,6 +101,12 @@ int main(int argc, char* argv[]) {
     SSInt total_node_weight = 0;
     SSInt total_edge_weight = 0;
 
+    if (ignore_vertex_weights) {
+        graph.vertex_weights.clear();
+    }
+    if (ignore_edge_weights) {
+        graph.edge_weights.clear();
+    }
     const bool has_edge_weights   = !graph.edge_weights.empty();
     const bool has_vertex_weights = !graph.vertex_weights.empty();
 
