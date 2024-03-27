@@ -24,6 +24,13 @@ void FileGraphGenerator::GenerateCSR() {
 void FileGraphGenerator::GenerateImpl(const GraphRepresentation representation) {
     auto reader = CreateGraphReader(config_.input_graph.format, config_.input_graph, rank_, size_);
     fragment_   = ReadGraphFragment(*reader, representation, config_.input_graph, rank_, size_);
+
+    if (config_.input_graph.drop_vertex_weights) {
+        fragment_.graph.vertex_weights.clear();
+    }
+    if (config_.input_graph.drop_edge_weights) {
+        fragment_.graph.edge_weights.clear();
+    }
 }
 
 void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {

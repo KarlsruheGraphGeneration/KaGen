@@ -413,6 +413,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
   - metis:          text format used by METIS
   - parhip:         binary format used by ParHIP
   - plain-edgelist: text file containing one edge per line, separated by spaces or tabs, starting at 0)");
+        cmd->add_flag("--drop-vertex-weights", config.input_graph.drop_vertex_weights, "Drop vertex weights");
+        cmd->add_flag("--drop-edge-weights", config.input_graph.drop_edge_weights, "Drop edge weights");
     }
 
     // IO options

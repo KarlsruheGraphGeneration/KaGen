@@ -168,7 +168,9 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
 
         case GeneratorType::FILE:
             out << "  Input file:                         " << config.input_graph.filename << "\n";
-            out << "  File format:                        " << config.input_graph.format << "\n";
+            out << "  File format:                        " << config.input_graph.format
+                << " [vwgt: " << (config.input_graph.drop_vertex_weights ? "drop" : "keep")
+                << ", adjwgt: " << (config.input_graph.drop_edge_weights ? "drop" : "keep") << "]\n";
             out << "  Distribution:                       " << config.input_graph.distribution << "\n";
             break;
     }

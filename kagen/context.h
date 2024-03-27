@@ -53,6 +53,9 @@ struct InputGraphConfig {
     int adjncy_width = 64;
     int vwgt_width   = 64;
     int adjwgt_width = 64;
+
+    bool drop_vertex_weights = false;
+    bool drop_edge_weights   = false;
 };
 
 struct OutputGraphConfig {
