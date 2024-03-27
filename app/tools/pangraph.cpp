@@ -264,8 +264,8 @@ int main(int argc, char* argv[]) {
            "Add reverse edges to the input graph, such that the output graph is undirected.")
         ->capture_default_str();
     app.add_flag("--sort-edges", config.sort_edges, "Sort outgoing edges by target vertex ID.")->capture_default_str();
-    app.add_flag("--drop-adjwgt", config.drop_edge_weights, "Drop edge weights.")->capture_default_str();
-    app.add_flag("--drop-vwgt", config.drop_vertex_weights, "Drop vertex weights.")->capture_default_str();
+    app.add_flag("--drop-edge-weights", config.drop_edge_weights, "Drop edge weights.")->capture_default_str();
+    app.add_flag("--drop-vertex-weights", config.drop_vertex_weights, "Drop vertex weights.")->capture_default_str();
     CLI11_PARSE(app, argc, argv);
 
     // Create output file to make sure that we can write there -- otherwise, we might waste a lot of time with no
