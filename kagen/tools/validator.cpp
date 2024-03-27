@@ -243,4 +243,139 @@ bool ValidateGraph(
 
     return true;
 }
+
+bool ValidateGraphInplace(
+    Graph& graph, const bool allow_self_loops, const bool allow_directed_graphs, const bool allow_multi_edges,
+    MPI_Comm comm) {
+    if (graph.representation == GraphRepresentation::CSR) {
+        std::cerr << "not implemented";
+        MPI_Abort(comm, 1);
+    }
+    if (!graph.vertex_weights.empty()) {
+        std::cerr << "not implemented";
+        MPI_Abort(comm, 1);
+    }
+    if (!graph.edge_weights.empty()) {
+        std::cerr << "not implemented";
+        MPI_Abort(comm, 1);
+    }
+
+    auto& edges        = graph.edges;
+    auto& vertex_range = graph.vertex_range;
+
+    // Validate vertex ranges first
+    if (!ValidateVertexRanges(edges, vertex_range, comm)) {
+        return false; // failed, following checks could crash if vertex ranges are broken
+    }
+
+    const auto ranges = AllgatherVertexRange(vertex_range, comm);
+
+    // Sort edges to allow binary search to find reverse edges
+    std::sort(edges.begin(), edges.end());
+
+    // Check that there are no self-loops
+    if (!allow_self_loops) {
+        for (const auto& [from, to]: edges) {
+            if (from == to) {
+                std::cerr << "Graph contains a self-loops: " << from << " --> " << to << "; aborting\n";
+                return false;
+            }
+        }
+    }
+
+    // Check that there are no duplicate edges
+    if (!allow_multi_edges) {
+        for (std::size_t i = 1; i < edges.size(); ++i) {
+            if (edges[i - 1].first == edges[i].first && edges[i - 1].second == edges[i].second) {
+                const auto& [from, to] = edges[i];
+                std::cerr << "Graph contains a duplicated edge: " << from << " --> " << to << "; aborting\n";
+                return false;
+            }
+        }
+    }
+
+    // Precompute offset for each node
+    if (!allow_directed_graphs) {
+        int rank;
+        MPI_Comm_rank(comm, &rank);
+        const auto [from, to] = ranges[rank];
+
+        std::vector<SInt> node_offset(to - from + 1);
+        for (const auto& [u, v]: edges) {
+            ++node_offset[u - from + 1];
+        }
+        std::partial_sum(node_offset.begin(), node_offset.end(), node_offset.begin());
+
+        // Check that there are reverse edges for local edges
+        for (const auto& [u, v]: edges) {
+            if (from <= v && v < to) {
+                if (!std::binary_search(
+                        edges.begin() + node_offset[v - from], edges.begin() + node_offset[v - from + 1],
+                        std::make_pair(v, u))) {
+                    std::cerr << "Missing reverse edge " << v << " --> " << u
+                              << " (internal); the reverse edge might exist with a different edge weight\n";
+                    return false;
+                }
+            }
+        }
+
+        // Check that there are reverse edges for edges across PEs
+        int size;
+        MPI_Comm_size(comm, &size);
+
+        std::vector<std::vector<SInt>> message_buffers(size);
+        for (const auto& [u, v]: edges) {
+            if (v < from || v >= to) {
+                const SInt pe = static_cast<SInt>(FindPEInRange(v, ranges));
+                message_buffers[pe].emplace_back(u);
+                message_buffers[pe].emplace_back(v);
+            }
+        }
+
+        std::vector<SInt> send_buf;
+        std::vector<SInt> recv_buf;
+        std::vector<int>  send_counts(size);
+        std::vector<int>  recv_counts(size);
+        std::vector<int>  send_displs(size);
+        std::vector<int>  recv_displs(size);
+        for (size_t i = 0; i < send_counts.size(); ++i) {
+            send_counts[i] = message_buffers[i].size();
+        }
+
+        std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
+        const std::size_t total_send_count = send_displs.back() + send_counts.back();
+        MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+        std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
+        const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
+
+        send_buf.reserve(total_send_count);
+        for (std::size_t i = 0; i < send_counts.size(); ++i) {
+            for (const auto& elem: message_buffers[i]) {
+                send_buf.push_back(elem);
+            }
+            { [[maybe_unused]] auto clear = std::move(message_buffers[i]); }
+        }
+
+        recv_buf.resize(total_recv_count);
+        MPI_Alltoallv(
+            send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
+            recv_displs.data(), MPI_UINT64_T, comm);
+
+        for (std::size_t i = 0; i < recv_buf.size();) {
+            const SInt u = recv_buf[i++];
+            const SInt v = recv_buf[i++];
+
+            // Check that v --> u exists
+            if (!std::binary_search(
+                    edges.begin() + node_offset[v - from], edges.begin() + node_offset[v - from + 1],
+                    std::make_pair(v, u))) {
+                std::cerr << "Missing reverse edge " << v << " --> " << u
+                          << " (external); the reverse edge might exist with a different edge weight\n";
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 } // namespace kagen

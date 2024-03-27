@@ -1,7 +1,6 @@
 #include "app/CLI11.h"
 
 #include "kagen/context.h"
-#include "kagen/definitions.h"
 #include "kagen/io.h"
 #include "kagen/tools/postprocessor.h"
 #include "kagen/tools/utils.h"
@@ -9,11 +8,8 @@
 
 #include <mpi.h>
 
-#include <algorithm>
-#include <fstream>
 #include <iostream>
 #include <limits>
-#include <sstream>
 
 using namespace kagen;
 
@@ -23,7 +19,6 @@ int main(int argc, char* argv[]) {
     const PEID size = GetCommSize(MPI_COMM_WORLD);
 
     InputGraphConfig config;
-    config.width = 64;
 
     bool quiet                         = false;
     bool allow_64bits                  = false;
@@ -32,13 +27,28 @@ int main(int argc, char* argv[]) {
     bool allow_multi_edges             = false;
     bool allow_negative_edge_weights   = false;
     bool allow_negative_vertex_weights = false;
-    bool drop_vertex_weights         = false;
-    bool drop_edge_weights           = false;
+    bool drop_vertex_weights           = false;
+    bool drop_edge_weights             = false;
+
+    auto set_all_input_widths = [&config](const auto width) {
+        config.width        = width;
+        config.vtx_width    = width;
+        config.adjncy_width = width;
+        config.vwgt_width   = width;
+        config.adjwgt_width = width;
+    };
 
     CLI::App app("chkgraph");
     app.add_option("input graph", config.filename, "Input graph")->check(CLI::ExistingFile)->required();
     app.add_option("-f,--format", config.format, "File format of the input graph.")
         ->transform(CLI::CheckedTransformer(GetInputFormatMap()));
+
+    app.add_option_function<SInt>("--input-width", set_all_input_widths, "Input width in bits.")->capture_default_str();
+    app.add_option("--input-vtx-width", config.vtx_width, "")->capture_default_str();
+    app.add_option("--input-adjncy-width", config.adjncy_width, "")->capture_default_str();
+    app.add_option("--input-vwgt-width", config.vwgt_width, "")->capture_default_str();
+    app.add_option("--input-adjwgt-width", config.adjwgt_width, "")->capture_default_str();
+
     app.add_flag("-q,--quiet", quiet, "Suppress any output to stdout.");
     app.add_flag("--64bits", allow_64bits, "Warn if the graph requires 64 bit ID or weight types.")
         ->capture_default_str();
@@ -166,7 +176,11 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    has_warned |= !ValidateGraph(graph, allow_self_loops, allow_directed, allow_multi_edges, MPI_COMM_WORLD);
+    if (!has_edge_weights && !has_vertex_weights) {
+        has_warned |= !ValidateGraphInplace(graph, allow_self_loops, allow_directed, allow_multi_edges, MPI_COMM_WORLD);
+    } else {
+        has_warned |= !ValidateGraph(graph, allow_self_loops, allow_directed, allow_multi_edges, MPI_COMM_WORLD);
+    }
     MPI_Allreduce(MPI_IN_PLACE, &has_warned, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
 
     if (!has_warned && !quiet && rank == 0) {
