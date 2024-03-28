@@ -2,10 +2,8 @@
 #include "app/tools/strutils.h"
 
 #include "kagen/context.h"
-#include "kagen/generators/file/file_graph.h"
 #include "kagen/io.h"
 #include "kagen/kagen.h"
-#include "kagen/tools/statistics.h"
 #include "kagen/tools/utils.h"
 
 #include <mpi.h>
@@ -16,7 +14,7 @@ using namespace kagen;
 
 struct Configuration {
     std::vector<std::string> input_filenames;
-    FileFormat               input_format = FileFormat::EXTENSION;
+    InputGraphConfig         io_config;
 
     int  num_chunks      = 1;
     bool header_only     = false;
@@ -177,18 +175,18 @@ private:
     Statistics stats_;
 };
 
-Statistics ComputeStatistics(const Configuration& stats_config, const PGeneratorConfig& kagen_config) {
+Statistics ComputeStatistics(const Configuration& stats_config) {
     StatisticsComputator computator(stats_config);
 
-    auto reader = CreateGraphReader(kagen_config.input_graph.format, kagen_config.input_graph, 0, 1);
+    auto reader = CreateGraphReader(stats_config.io_config.format, stats_config.io_config, 0, 1);
 
-    GraphFragment first_fragment = ReadGraphFragment(
-        *reader, GraphRepresentation::EDGE_LIST, kagen_config.input_graph, 0, stats_config.num_chunks);
+    GraphFragment first_fragment =
+        ReadGraphFragment(*reader, GraphRepresentation::EDGE_LIST, stats_config.io_config, 0, stats_config.num_chunks);
     computator(first_fragment);
 
     for (int chunk = 1; chunk < stats_config.num_chunks; ++chunk) {
         const GraphFragment fragment = ReadGraphFragment(
-            *reader, GraphRepresentation::EDGE_LIST, kagen_config.input_graph, chunk, stats_config.num_chunks);
+            *reader, GraphRepresentation::EDGE_LIST, stats_config.io_config, chunk, stats_config.num_chunks);
         computator(fragment);
     }
 
@@ -214,7 +212,7 @@ Configuration parse_cli_arguments(int argc, char* argv[]) {
         "-C,--num-chunks", config.num_chunks,
         "If set, compute the statistics externally by splitting the graph into this many chunks; some statistics might "
         "not be available in this mode. Still requires O(n) memory.");
-    app.add_option("-f,--format", config.input_format, "File format of the input file(s).")
+    app.add_option("-f,--format", config.io_config.format, "File format of the input file(s).")
         ->transform(CLI::CheckedTransformer(GetInputFormatMap()));
     app.add_flag(
         "--strip-extension", config.strip_extension,
@@ -232,6 +230,19 @@ Configuration parse_cli_arguments(int argc, char* argv[]) {
     app.add_flag(
         "--report-degree-buckets-as-columns", config.report_degree_buckets_as_columns,
         "If set, output one column per degree bucket instead of one column for all degree buckets.");
+
+    auto set_all_input_widths = [&config](const auto width) {
+        config.io_config.width        = width;
+        config.io_config.vtx_width    = width;
+        config.io_config.adjncy_width = width;
+        config.io_config.vwgt_width   = width;
+        config.io_config.adjwgt_width = width;
+    };
+    app.add_option_function<SInt>("--input-width", set_all_input_widths, "Input width in bits.")->capture_default_str();
+    app.add_option("--input-vtx-width", config.io_config.vtx_width, "")->capture_default_str();
+    app.add_option("--input-adjncy-width", config.io_config.adjncy_width, "")->capture_default_str();
+    app.add_option("--input-vwgt-width", config.io_config.vwgt_width, "")->capture_default_str();
+    app.add_option("--input-adjwgt-width", config.io_config.adjwgt_width, "")->capture_default_str();
 
     app.add_option("--count-degree", config.count_num_deg_nodes, "Count the number of nodes with the given degree.");
 
@@ -262,11 +273,9 @@ int main(int argc, char* argv[]) {
     }
 
     for (const auto& filename: config.input_filenames) {
-        PGeneratorConfig kagen_config;
-        kagen_config.input_graph.filename = filename;
-        kagen_config.input_graph.format   = config.input_format;
+        config.io_config.filename = filename;
 
-        Statistics stats = ComputeStatistics(config, kagen_config);
+        Statistics stats = ComputeStatistics(config);
         stats.name       = ExtractFilename(filename);
         if (config.strip_extension) {
             stats.name = StripExtension(stats.name);

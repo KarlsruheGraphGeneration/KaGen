@@ -123,21 +123,7 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
 GraphFragment ReadGraphFragment(
     GraphReader& reader, const GraphRepresentation representation, const InputGraphConfig& config, const PEID rank,
     const PEID size) {
-    const auto [n, m] = [&] {
-        if (reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)
-            && reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
-            return std::pair<SInt, SInt>{size, size};
-        }
-
-        auto [n, m] = reader.ReadSize();
-        if (reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES)) {
-            n = size;
-        }
-        if (reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
-            m = size;
-        }
-        return std::pair<SInt, SInt>{n, m};
-    }();
+    const auto [n, m] = reader.ReadSize();
 
     if (reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
         && config.distribution == GraphDistribution::BALANCE_EDGES) {
