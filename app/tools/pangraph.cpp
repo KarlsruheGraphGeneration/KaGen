@@ -120,6 +120,7 @@ Graph RestoreFromExternalBuffers(
     }
 
     Graph graph;
+    graph.representation      = GraphRepresentation::EDGE_LIST;
     graph.vertex_range.first  = vertex_distribution[to_chunk];
     graph.vertex_range.second = vertex_distribution[to_chunk + 1];
     graph.edges.resize(total_size);

@@ -66,11 +66,6 @@ ParhipWriter::ParhipWriter(
     : GraphWriter(config, graph, info, rank, size) {}
 
 void ParhipWriter::WriteHeader(const std::string& filename) {
-    // Edges must be sorted in order to convert them to the CSR format
-    if (!std::is_sorted(graph_.edges.begin(), graph_.edges.end())) {
-        std::sort(graph_.edges.begin(), graph_.edges.end());
-    }
-
     // Header
     if (rank_ == ROOT && config_.header != OutputHeader::NEVER) {
         std::ofstream  out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
@@ -92,11 +87,21 @@ void ParhipWriter::WriteOffsets(const std::string& filename) {
     SInt cur_edge   = 0;
     SInt cur_vertex = 0;
 
+    if constexpr (kDebug) {
+        std::cout << "[Debug] Writing offsets to " << filename << " for " << graph_.NumberOfLocalVertices()
+                  << " vertices" << std::endl;
+        std::cout << "[Debug]   offset: " << cur_offset << ", vertex range: " << graph_.vertex_range.first << ".."
+                  << graph_.vertex_range.second << std::endl;
+        std::cout << "[Debug]   global_n=" << info_.global_n << ", global_m=" << info_.global_m
+                  << ", offset_n=" << info_.offset_n << ", offset_m=" << info_.offset_m << ", local_n=" << info_.local_n
+                  << ", local_m=" << info_.local_m << std::endl;
+    }
+
     for (SInt from = graph_.vertex_range.first; from < graph_.vertex_range.second; ++from) {
         offset[cur_vertex] = cur_offset;
 
         const SInt cur_edge_before = cur_edge;
-        while (cur_edge < graph_.edges.size() && std::get<0>(graph_.edges[cur_edge]) == from) {
+        while (cur_edge < graph_.edges.size() && graph_.edges[cur_edge].first == from) {
             ++cur_edge;
         }
         const SInt degree = cur_edge - cur_edge_before;
@@ -271,10 +276,10 @@ ParhipReader::ParhipReader(const InputGraphConfig& config) : in_(config.filename
     }
 
     if constexpr (kDebug) {
-        std::cout << "[Dbg] ParHiP file version: " << version_ << ", number of vertices: " << n_
+        std::cout << "[Debug] ParHiP file version: " << version_ << ", number of vertices: " << n_
                   << ", number of edges: " << m_ << "\n";
-        std::cout << "[Dbg] Expected file length: " << expected_length << "\n";
-        std::cout << "[Dbg] Actual file length: " << actual_length << "\n";
+        std::cout << "[Debug]   expected file length: " << expected_length << "\n";
+        std::cout << "[Debug]   actual file length: " << actual_length << "\n";
     }
 
     if (actual_length < expected_length) {
@@ -298,7 +303,7 @@ Graph ParhipReader::Read(
     }
 
     if constexpr (kDebug) {
-        std::cout << "[Dbg] Reading from vertex " << from_vertex << " to vertex " << to_vertex << "; or to edge "
+        std::cout << "[Debug] Reading from vertex " << from_vertex << " to vertex " << to_vertex << "; or to edge "
                   << to_edge << ", whichever is reached first\n";
     }
 
@@ -319,7 +324,7 @@ Graph ParhipReader::Read(
 
     const SInt first_global_edge = OffsetToEdge(version_, n_, xadj.front());
     if constexpr (kDebug) {
-        std::cout << "[Dbg] First global edge to be read: " << first_global_edge
+        std::cout << "[Debug] First global edge to be read: " << first_global_edge
                   << ", computed from xadj.front()=" << xadj.front() << ", n=" << n_ << ", version_=" << version_
                   << std::endl;
     }
@@ -337,7 +342,8 @@ Graph ParhipReader::Read(
         throw IOError("seeking to offset " + std::to_string(adjncy_offset) + " failed");
     }
     if constexpr (kDebug) {
-        std::cout << "[Dbg] Reading " << num_local_edges << " edges from file position " << adjncy_offset << std::endl;
+        std::cout << "[Debug] Reading " << num_local_edges << " edges from file position " << adjncy_offset
+                  << std::endl;
     }
 
     auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
