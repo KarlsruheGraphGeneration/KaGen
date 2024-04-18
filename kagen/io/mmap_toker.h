@@ -1,12 +1,13 @@
 #pragma once
 
+#include "kagen/io.h"
+
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <cctype>
-#include <stdexcept>
 #include <string>
 
 namespace kagen {
@@ -19,7 +20,7 @@ public:
         contents_ = static_cast<char*>(mmap(nullptr, length_, PROT_READ, MAP_PRIVATE, fd_, 0));
         if (contents_ == MAP_FAILED) {
             close(fd_);
-            throw std::runtime_error("mmap failed (bad filename or empty file?)");
+            throw IOError("mmap failed: could not map " + filename);
         }
     }
 
@@ -69,6 +70,17 @@ public:
         SkipSpaces();
     }
 
+    char ScanChar() {
+        if (!ValidPosition()) {
+            return EOF;
+        }
+
+        const char ch = Current();
+        Advance();
+        SkipSpaces();
+        return ch;
+    }
+
     bool TestInt() {
         return ValidPosition() && std::isdigit(Current());
     }
@@ -95,16 +107,22 @@ public:
         return ValidPosition() && Current() == ch;
     }
 
-    bool ConsumeChar(const char ch) {
+    void ConsumeChar(const char ch) {
         if (TestChar(ch)) {
             Advance();
-            return true;
+            return;
         }
-        return false;
+        throw IOError(std::string("unexpected char: expected ") + ch + ", got " + Current());
     }
 
     [[nodiscard]] bool ValidPosition() const {
         return position_ < length_;
+    }
+
+    void ExpectValidPosition() const {
+        if (!ValidPosition()) {
+            throw IOError("unexpected EOF");
+        }
     }
 
     [[nodiscard]] char Current() const {
@@ -135,7 +153,7 @@ private:
     static int OpenFile(const std::string& filename) {
         const int file = open(filename.c_str(), O_RDONLY);
         if (file < 0) {
-            throw std::runtime_error("cannot open input file");
+            throw IOError("cannot open input file: " + filename);
         }
         return file;
     }

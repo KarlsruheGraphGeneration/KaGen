@@ -88,6 +88,7 @@ enum class FileFormat {
     FREIGHT_NETL,
     FREIGHT_NETL_EP,
     WEIGHTED_BINARY_EDGE_LIST,
+    NETD_ARE,
 };
 
 std::unordered_map<std::string, FileFormat> GetOutputFormatMap();

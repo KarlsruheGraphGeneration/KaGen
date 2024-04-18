@@ -148,9 +148,7 @@ Graph PlainEdgelistReader::Read(const SInt from, const SInt to, SInt, GraphRepre
         const SInt v = toker_.ScanUnsigned();
         graph.edges.emplace_back(u, v);
 
-        if (toker_.ValidPosition() && !toker_.ConsumeChar('\n')) {
-            throw IOError("unexpected char in edge list");
-        }
+        toker_.ConsumeChar('\n');
     }
     return graph;
 }

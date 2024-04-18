@@ -7,6 +7,7 @@
 #include "kagen/io/freight-netl.h"
 #include "kagen/io/hmetis.h"
 #include "kagen/io/metis.h"
+#include "kagen/io/netd_are.h"
 #include "kagen/io/parhip.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/postprocessor.h"
@@ -41,6 +42,7 @@ const std::unordered_map<FileFormat, std::unique_ptr<FileFormatFactory>>& GetGra
         factories[FileFormat::FREIGHT_NETL]              = std::make_unique<FreightNetlFactory>();
         factories[FileFormat::HMETIS_EP]                 = std::make_unique<HmetisEpFactory>();
         factories[FileFormat::WEIGHTED_BINARY_EDGE_LIST] = std::make_unique<WeightedBinaryEdgelistFactory>();
+        factories[FileFormat::NETD_ARE]                  = std::make_unique<NetDAreFactory>();
     }
     return factories;
 }

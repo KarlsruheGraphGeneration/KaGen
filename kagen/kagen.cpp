@@ -51,12 +51,12 @@ std::unordered_map<std::string, FileFormat> GetOutputFormatMap() {
         {"metis", FileFormat::METIS},
         {"hmetis", FileFormat::HMETIS},
         {"hmetis-directed", FileFormat::HMETIS_DIRECTED},
-        {"experimental/hmetis-ep", FileFormat::HMETIS_EP},
         {"dot", FileFormat::DOT},
         {"dot-directed", FileFormat::DOT_DIRECTED},
         {"coordinates", FileFormat::COORDINATES},
         {"parhip", FileFormat::PARHIP},
         {"xtrapulp", FileFormat::XTRAPULP},
+        {"experimental/hmetis-ep", FileFormat::HMETIS_EP},
         {"experimental/freight-netl", FileFormat::FREIGHT_NETL},
         {"experimental/freight-netl-ep", FileFormat::FREIGHT_NETL_EP},
         {"experimental/weighted-binary-edgelist", FileFormat::WEIGHTED_BINARY_EDGE_LIST},
@@ -70,6 +70,7 @@ std::unordered_map<std::string, FileFormat> GetInputFormatMap() {
         {"parhip", FileFormat::PARHIP},
         {"plain-edgelist", FileFormat::PLAIN_EDGE_LIST},
         {"experimental/weighted-binary-edgelist", FileFormat::WEIGHTED_BINARY_EDGE_LIST},
+        {"experimental/netd-are", FileFormat::NETD_ARE},
     };
 }
 
@@ -131,6 +132,9 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
 
         case FileFormat::WEIGHTED_BINARY_EDGE_LIST:
             return out << "experimental/weighted-binary-edge-list";
+
+        case FileFormat::NETD_ARE:
+            return out << "experimental/netd-are";
     }
 
     return out << "<invalid>";

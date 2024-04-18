@@ -68,9 +68,7 @@ inline Format ParseHeader(MappedFileToker& toker) {
     const std::uint64_t number_of_nodes = toker.ScanUnsigned();
     const std::uint64_t number_of_edges = toker.ScanUnsigned() * 2;
     const std::uint64_t format          = (toker.Current() != '\n') ? toker.ScanUnsigned() : 0;
-    if (!toker.ConsumeChar('\n')) {
-        throw IOError("unexpected char");
-    }
+    toker.ConsumeChar('\n');
 
     if (format != 0 && format != 1 && format != 10 && format != 11 && format && format != 100 && format != 110
         && format != 101 && format != 111) {
@@ -117,9 +115,7 @@ std::size_t ParseBody(
             edge_cb(edge_weight, v);
         }
 
-        if (toker.ValidPosition() && !toker.ConsumeChar('\n')) {
-            throw IOError("unexpected char in neighbors list");
-        }
+        toker.ConsumeChar('\n');
     }
 
     if (!exited_preemptively) {
