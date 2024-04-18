@@ -7,7 +7,7 @@
 
 namespace kagen {
 namespace {
-constexpr static bool kDebug = true;
+constexpr static bool kDebug = false;
 
 inline std::string StripExtension(const std::string& filename) {
     const auto pos = filename.find_last_of('.');
@@ -83,11 +83,6 @@ Graph NetDAreReader::Read(SInt, SInt, SInt, GraphRepresentation) {
                 if (sid == tid) {
                     continue;
                 }
-                if (sid == 4) {
-                    std::cout << "sid: " << sid << ", sdir: " << sdir << ", tid: " << tid << ", tdir: " << tdir
-                              << std::endl;
-                }
-
                 if (sdir != tdir || (sdir == 'B' && tdir == 'B')) {
                     graph.edges.emplace_back(sid, tid);
                 }
