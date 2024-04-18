@@ -1,6 +1,7 @@
 #include "kagen/io/netd_are.h"
 
 #include "kagen/io.h"
+#include "kagen/kagen.h"
 
 #include <fstream>
 #include <string>
