@@ -123,7 +123,9 @@ Graph NetDAreReader::Read(SInt, SInt, SInt, GraphRepresentation) {
                   << " vertex weights" << std::endl;
         std::cout << "[Debug] Number of nets processed: " << flushed_nets << std::endl;
     }
-    graph.vertex_range = {0, num_modules_};
+
+    graph.vertex_range   = {0, num_modules_};
+    graph.representation = GraphRepresentation::EDGE_LIST;
 
     return graph;
 }
