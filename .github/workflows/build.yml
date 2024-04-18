@@ -23,7 +23,7 @@ jobs:
     steps:
     - name: Install dependencies
       run: sudo apt-get install -y libopenmpi3 libopenmpi-dev libsparsehash-dev
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: export-compiler
@@ -31,7 +31,7 @@ jobs:
         echo CXX=${{ matrix.compiler.cxx }} >> $GITHUB_ENV
         echo CC=${{ matrix.compiler.cc }} >> $GITHUB_ENV
     - name: cpu-cores
-      uses: SimenB/github-actions-cpu-cores@v1
+      uses: SimenB/github-actions-cpu-cores@v2
       id: cpu-cores
     - name: print-cpu-cores
       run: echo ${{ steps.cpu-cores.outputs.count }}
