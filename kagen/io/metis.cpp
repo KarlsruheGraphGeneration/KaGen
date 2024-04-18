@@ -115,7 +115,9 @@ std::size_t ParseBody(
             edge_cb(edge_weight, v);
         }
 
-        toker.ConsumeChar('\n');
+        if (toker.ValidPosition()) {
+            toker.ConsumeChar('\n');
+        }
     }
 
     if (!exited_preemptively) {
