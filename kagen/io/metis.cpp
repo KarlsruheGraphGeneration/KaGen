@@ -106,7 +106,7 @@ std::size_t ParseBody(
             break;
         }
 
-        while (std::isdigit(toker.Current())) {
+        while (toker.ValidPosition() && std::isdigit(toker.Current())) {
             const std::uint64_t v           = toker.ScanUnsigned() - 1;
             std::uint64_t       edge_weight = 1;
             if (has_edge_weights) {
