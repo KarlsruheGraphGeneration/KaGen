@@ -63,6 +63,9 @@ struct Config {
     bool sort_edges          = false;
     bool drop_edge_weights   = false;
     bool drop_vertex_weights = false;
+
+    bool  weight_vertices_by_degree = false;
+    SSInt weight_deg0_vertices      = 0;
 };
 
 void RemoveSelfLoops(Graph& graph) {
@@ -267,6 +270,13 @@ int main(int argc, char* argv[]) {
     app.add_flag("--sort-edges", config.sort_edges, "Sort outgoing edges by target vertex ID.")->capture_default_str();
     app.add_flag("--drop-edge-weights", config.drop_edge_weights, "Drop edge weights.")->capture_default_str();
     app.add_flag("--drop-vertex-weights", config.drop_vertex_weights, "Drop vertex weights.")->capture_default_str();
+
+    app.add_flag(
+           "--weight-vertices-by-degree", config.weight_vertices_by_degree,
+           "Introduce artificial vertex weights: use degree of vertices as vertex weight.")
+        ->capture_default_str();
+    app.add_option(
+        "--deg0-weight", config.weight_deg0_vertices, "[--weight-vertices-by-degree] Weight for isolated vertices.");
     CLI11_PARSE(app, argc, argv);
 
     // Create output file to make sure that we can write there -- otherwise, we might waste a lot of time with no
@@ -442,7 +452,7 @@ int main(int argc, char* argv[]) {
                     RemoveMultiEdges(graph);
                 }
 
-                if (config.sort_edges) {
+                if (config.weight_vertices_by_degree || config.sort_edges) {
                     if (!config.quiet) {
                         std::cout << "sorting ... " << std::flush;
                     }
@@ -451,6 +461,27 @@ int main(int argc, char* argv[]) {
 
                 if (!config.quiet) {
                     std::cout << "writing ... " << std::flush;
+                }
+
+                if (config.weight_vertices_by_degree) {
+                    if (!config.quiet) {
+                        std::cout << "weighting ... " << std::flush;
+                    }
+
+                    graph.vertex_weights.resize(graph.NumberOfLocalVertices());
+
+                    for (SInt e = 0, u = 0; u < graph.NumberOfLocalVertices(); ++u) {
+                        SInt degree = 0;
+                        while (e < graph.edges.size() && graph.edges[e].first == u) {
+                            ++degree;
+                            ++e;
+                        }
+
+                        const SSInt weight = (degree == 0) ? config.weight_deg0_vertices : static_cast<SSInt>(degree);
+                        graph.vertex_weights[u] = weight;
+                    }
+
+                    info.has_vertex_weights = true;
                 }
 
                 GraphInfo pass_info = info;
