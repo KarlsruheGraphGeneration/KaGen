@@ -117,7 +117,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     app.fallthrough();
 
     // General parameters
-    app.add_option("--experimental-K", config.K, "Number of chunks for generating the graph in a streaming seeting.");
+    app.add_option("--experimental-K", config.K, "Number of chunks for generating the graph in a buffered streaming setting.");
+    app.add_option("--experimental-T", config.streaming_tmp_directory, "Directory for temporary buffer files.");
 
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")->trigger_on_parse();
