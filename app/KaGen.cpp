@@ -8,8 +8,8 @@
  ******************************************************************************/
 #include "kagen/context.h"
 #include "kagen/definitions.h"
-#include "kagen/facade.h"
-#include "kagen/streaming.h"
+#include "kagen/in_memory_facade.h"
+#include "kagen/streaming_facade.h"
 
 #include <mpi.h>
 
@@ -117,7 +117,8 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     app.fallthrough();
 
     // General parameters
-    app.add_option("--experimental-K", config.K, "Number of chunks for generating the graph in a buffered streaming setting.");
+    app.add_option(
+        "--experimental-K", config.K, "Number of chunks for generating the graph in a buffered streaming setting.");
     app.add_option("--experimental-T", config.streaming_tmp_directory, "Directory for temporary buffer files.");
 
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
@@ -488,9 +489,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.K > 1) {
-        GenerateStreamed(config, MPI_COMM_WORLD);
+        GenerateStreamedToDisk(config, MPI_COMM_WORLD);
     } else {
-        GenerateInMemoryDistributed(config, MPI_COMM_WORLD);
+        GenerateInMemoryToDisk(config, MPI_COMM_WORLD);
     }
 
     return MPI_Finalize();

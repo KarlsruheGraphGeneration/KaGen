@@ -1,6 +1,6 @@
-#include "kagen/streaming.h"
+#include "kagen/streaming_facade.h"
 
-#include "kagen/facade.h"
+#include "kagen/factories.h"
 #include "kagen/io.h"
 
 #include <fstream>
@@ -8,16 +8,6 @@
 
 namespace kagen {
 namespace {
-void ForceSequentialExecution(MPI_Comm comm) {
-    PEID size;
-    MPI_Comm_size(comm, &size);
-    if (size != 1) {
-        std::cerr << "Error: streaming mode must be run sequentially\n";
-        MPI_Barrier(comm);
-        MPI_Abort(comm, 1);
-    }
-}
-
 void RemoveMultiEdges(Graph& graph) {
     std::sort(graph.edges.begin(), graph.edges.end());
     auto it = std::unique(graph.edges.begin(), graph.edges.end());
@@ -118,8 +108,9 @@ Graph RestoreFromExternalBuffers(
 }
 } // namespace
 
-void GenerateStreamed(PGeneratorConfig config, MPI_Comm comm) {
-    ForceSequentialExecution(comm);
+void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
+    PEID rank;
+    MPI_Comm_rank(comm, &rank);
 
     if (config.n == 0) {
         std::cerr << "Error: streaming mode requires the number of nodes to be given in advance\n";

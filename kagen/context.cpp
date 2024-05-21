@@ -208,6 +208,19 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     return out << std::flush;
 }
 
+void PrintHeader(const PGeneratorConfig& config) {
+    std::cout << "###############################################################################\n";
+    std::cout << "#                         _  __      ____                                     #\n";
+    std::cout << "#                        | |/ /__ _ / ___| ___ _ __                           #\n";
+    std::cout << "#                        | ' // _` | |  _ / _ \\ '_ \\                          #\n";
+    std::cout << "#                        | . \\ (_| | |_| |  __/ | | |                         #\n";
+    std::cout << "#                        |_|\\_\\__,_|\\____|\\___|_| |_|                         #\n";
+    std::cout << "#                         Karlsruhe Graph Generation                          #\n";
+    std::cout << "#                                                                             #\n";
+    std::cout << "###############################################################################\n";
+    std::cout << config;
+}
+
 namespace {
 using Options = std::unordered_map<std::string, std::string>;
 

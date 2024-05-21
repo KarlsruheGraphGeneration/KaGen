@@ -1,7 +1,7 @@
 #include "kagen.h"
 
 #include "kagen/context.h"
-#include "kagen/facade.h"
+#include "kagen/in_memory_facade.h"
 
 #include <cmath>
 #include <numeric>
@@ -427,7 +427,7 @@ namespace {
 auto GenericGenerateFromOptionString(
     const std::string& options_str, PGeneratorConfig base_config, const GraphRepresentation representation,
     MPI_Comm comm) {
-    return Generate(CreateConfigFromString(options_str, base_config), representation, comm);
+    return GenerateInMemory(CreateConfigFromString(options_str, base_config), representation, comm);
 }
 } // namespace
 
@@ -440,7 +440,7 @@ Graph KaGen::GenerateDirectedGNM(const SInt n, const SInt m, const bool self_loo
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 Graph KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool self_loops) {
@@ -448,7 +448,7 @@ Graph KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool self_l
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 Graph KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -456,7 +456,7 @@ Graph KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool self_
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 Graph KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -464,7 +464,7 @@ Graph KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bool sel
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 namespace {
@@ -476,7 +476,7 @@ Graph GenerateRGG2D_Impl(
     config.m           = m;
     config.r           = r;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -501,7 +501,7 @@ Graph GenerateRGG3D_Impl(
     config.n           = n;
     config.r           = r;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -527,7 +527,7 @@ Graph GenerateRDG2D_Impl(
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -547,7 +547,7 @@ Graph GenerateRDG3D_Impl(
     config.n           = n;
     config.m           = m;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -586,7 +586,7 @@ Graph GenerateBA_Impl(
     config.min_degree = d;
     config.self_loops = self_loops;
     config.directed   = directed;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -612,7 +612,7 @@ Graph GenerateRHG_Impl(
     config.avg_degree  = d;
     config.plexp       = gamma;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -640,7 +640,7 @@ Graph GenerateGrid2D_Impl(
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -669,7 +669,7 @@ Graph GenerateGrid3D_Impl(
     config.m           = m;
     config.periodic    = periodic;
     config.coordinates = coordinates;
-    return Generate(config, representation, comm);
+    return GenerateInMemory(config, representation, comm);
 }
 } // namespace
 
@@ -694,7 +694,7 @@ Graph KaGen::GenerateDirectedPath(unsigned long long n, bool permute, bool perio
     config_->n         = n;
     config_->permute   = permute;
     config_->periodic  = periodic;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 Graph KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, const bool self_loops) {
@@ -703,7 +703,7 @@ Graph KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, 
     config_->m          = m;
     config_->directed   = directed;
     config_->self_loops = self_loops;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 Graph KaGen::GenerateRMAT(
@@ -717,7 +717,7 @@ Graph KaGen::GenerateRMAT(
     config_->rmat_c     = c;
     config_->directed   = directed;
     config_->self_loops = self_loops;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution) {
@@ -725,12 +725,12 @@ Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, 
     config_->input_graph.filename     = filename;
     config_->input_graph.format       = format;
     config_->input_graph.distribution = distribution;
-    return Generate(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, comm_);
 }
 
 void KaGen::SetDefaults() {
     config_->quiet = true;
     config_->output_graph.formats.clear();
-    // keep all other defaults
+    // (keep other defaults)
 }
 } // namespace kagen

@@ -23,10 +23,6 @@ enum class OutputHeader {
     NEVER,
 };
 
-std::unordered_map<std::string, OutputHeader> GetOutputHeaderMap();
-
-std::ostream& operator<<(std::ostream& out, OutputHeader output_header);
-
 struct ImageMeshConfig {
     std::string          filename             = "";
     ImageMeshWeightModel weight_model         = ImageMeshWeightModel::RATIO;
@@ -133,6 +129,11 @@ struct PGeneratorConfig {
     OutputGraphConfig output_graph{};
 };
 
+void PrintHeader(const PGeneratorConfig& config);
+
+std::unordered_map<std::string, OutputHeader> GetOutputHeaderMap();
+
+std::ostream& operator<<(std::ostream& out, OutputHeader output_header);
 std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config);
 
 PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGeneratorConfig config = {});

@@ -1,122 +1,26 @@
-#include "kagen/facade.h"
+#include "kagen/in_memory_facade.h"
 
 #include "kagen/context.h"
+#include "kagen/definitions.h"
+#include "kagen/factories.h"
 #include "kagen/generators/generator.h"
+#include "kagen/io.h"
 #include "kagen/tools/statistics.h"
+#include "kagen/tools/validator.h"
 
 #include <mpi.h>
 
 #include <cmath>
 #include <iomanip>
 #include <iostream>
-#include <stdexcept>
-
-// Generators
-#include "kagen/generators/barabassi/barabassi.h"
-#include "kagen/generators/file/file_graph.h"
-#include "kagen/generators/geometric/rgg.h"
-#include "kagen/generators/gnm/gnm_directed.h"
-#include "kagen/generators/gnm/gnm_undirected.h"
-#include "kagen/generators/gnp/gnp_directed.h"
-#include "kagen/generators/gnp/gnp_undirected.h"
-#include "kagen/generators/grid/grid_2d.h"
-#include "kagen/generators/grid/grid_3d.h"
-#include "kagen/generators/hyperbolic/hyperbolic.h"
-#include "kagen/generators/image/image_mesh.h"
-#include "kagen/generators/kronecker/kronecker.h"
-#include "kagen/generators/path/path_directed.h"
-#include "kagen/generators/rmat/rmat.h"
-
-#ifdef KAGEN_CGAL_FOUND
-    #include "kagen/generators/geometric/delaunay.h"
-#endif // KAGEN_CGAL_FOUND
-
-#include "kagen/tools/validator.h"
 
 namespace kagen {
-std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType type) {
-    switch (type) {
-        case GeneratorType::GNM_DIRECTED:
-            return std::make_unique<GNMDirectedFactory>();
-
-        case GeneratorType::GNM_UNDIRECTED:
-            return std::make_unique<GNMUndirectedFactory>();
-
-        case GeneratorType::GNP_DIRECTED:
-            return std::make_unique<GNPDirectedFactory>();
-
-        case GeneratorType::GNP_UNDIRECTED:
-            return std::make_unique<GNPUndirectedFactory>();
-
-        case GeneratorType::RGG_2D:
-            return std::make_unique<RGG2DFactory>();
-
-        case GeneratorType::RGG_3D:
-            return std::make_unique<RGG3DFactory>();
-
-#ifdef KAGEN_CGAL_FOUND
-        case GeneratorType::RDG_2D:
-            return std::make_unique<Delaunay2DFactory>();
-
-        case GeneratorType::RDG_3D:
-            return std::make_unique<Delaunay3DFactory>();
-#else  // KAGEN_CGAL_FOUND
-        case GeneratorType::RDG_2D:
-        case GeneratorType::RDG_3D:
-            // throw exception after switch
-            break;
-#endif // KAGEN_CGAL_FOUND
-
-        case GeneratorType::GRID_2D:
-            return std::make_unique<Grid2DFactory>();
-
-        case GeneratorType::GRID_3D:
-            return std::make_unique<Grid3DFactory>();
-
-        case GeneratorType::PATH_DIRECTED:
-            return std::make_unique<PathDirectedFactory>();
-
-        case GeneratorType::BA:
-            return std::make_unique<BarabassiFactory>();
-
-        case GeneratorType::KRONECKER:
-            return std::make_unique<KroneckerFactory>();
-
-        case GeneratorType::RHG:
-            return std::make_unique<HyperbolicFactory>();
-
-        case GeneratorType::RMAT:
-            return std::make_unique<RMATFactory>();
-
-        case GeneratorType::IMAGE_MESH:
-            return std::make_unique<ImageMeshFactory>();
-
-        case GeneratorType::FILE:
-            return std::make_unique<FileGraphFactory>();
-    }
-
-    throw std::runtime_error("invalid graph generator type");
-}
-
-void PrintHeader(const PGeneratorConfig& config) {
-    std::cout << "###############################################################################\n";
-    std::cout << "#                         _  __      ____                                     #\n";
-    std::cout << "#                        | |/ /__ _ / ___| ___ _ __                           #\n";
-    std::cout << "#                        | ' // _` | |  _ / _ \\ '_ \\                          #\n";
-    std::cout << "#                        | . \\ (_| | |_| |  __/ | | |                         #\n";
-    std::cout << "#                        |_|\\_\\__,_|\\____|\\___|_| |_|                         #\n";
-    std::cout << "#                         Karlsruhe Graph Generation                          #\n";
-    std::cout << "#                                                                             #\n";
-    std::cout << "###############################################################################\n";
-    std::cout << config;
-}
-
-void GenerateInMemoryDistributed(PGeneratorConfig config, MPI_Comm comm) {
+void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     PEID size, rank;
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
 
-    auto graph = Generate(config, GraphRepresentation::EDGE_LIST, comm);
+    auto graph = GenerateInMemory(config, GraphRepresentation::EDGE_LIST, comm);
 
     const std::string base_filename = config.output_graph.filename;
     for (const FileFormat& format: config.output_graph.formats) {
@@ -137,7 +41,7 @@ void GenerateInMemoryDistributed(PGeneratorConfig config, MPI_Comm comm) {
     }
 }
 
-Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation representation, MPI_Comm comm) {
+Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentation representation, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -161,12 +65,11 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
         MPI_Abort(comm, 1);
     }
 
-    // Generate graph
     if (output_info) {
         std::cout << "Generating graph ... " << std::flush;
     }
 
-    const auto start_graphgen = MPI_Wtime();
+    const auto t_start_graphgen = MPI_Wtime();
 
     auto generator = factory->Create(config, rank, size);
     generator->Generate(representation);
@@ -189,7 +92,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
     }
     const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
 
-    const auto end_graphgen = MPI_Wtime();
+    const auto t_end_graphgen = MPI_Wtime();
 
     if (!config.skip_postprocessing && !config.quiet) {
         SInt num_global_edges_before, num_global_edges_after;
@@ -228,7 +131,7 @@ Graph Generate(const PGeneratorConfig& config_template, GraphRepresentation repr
     // Statistics
     if (!config.quiet) {
         if (output_info) {
-            std::cout << "Generation took " << std::fixed << std::setprecision(3) << end_graphgen - start_graphgen
+            std::cout << "Generation took " << std::fixed << std::setprecision(3) << t_end_graphgen - t_start_graphgen
                       << " seconds" << std::endl;
             std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
