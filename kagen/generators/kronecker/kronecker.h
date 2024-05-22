@@ -21,6 +21,8 @@ struct mrg_state;
 namespace kagen {
 class KroneckerFactory : public GeneratorFactory {
 public:
+    PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const final;
+
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 

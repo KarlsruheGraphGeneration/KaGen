@@ -52,8 +52,8 @@ HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
         config.hp_floats = 1;
     }
 
-    // Streaming mode does not call Finalize() 
-    config.streaming_add_reverse_edges = true;
+    // Streaming mode does not call Finalize()
+    config.streaming.fix_nonlocal_reverse_edges = true;
 
     return config;
 }

@@ -12,7 +12,7 @@
 namespace kagen {
 Generator::~Generator() = default;
 
-void Generator::Generate(const GraphRepresentation representation) {
+Generator* Generator::Generate(const GraphRepresentation representation) {
     Reset();
     desired_representation_ = representation;
 
@@ -25,9 +25,11 @@ void Generator::Generate(const GraphRepresentation representation) {
             GenerateCSR();
             break;
     }
+
+    return this;
 }
 
-void Generator::Finalize(MPI_Comm comm) {
+Generator* Generator::Finalize(MPI_Comm comm) {
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:
             FinalizeEdgeList(comm);
@@ -39,6 +41,8 @@ void Generator::Finalize(MPI_Comm comm) {
     }
 
     graph_.representation = desired_representation_;
+
+    return this;
 }
 
 void Generator::FinalizeEdgeList(MPI_Comm) {}

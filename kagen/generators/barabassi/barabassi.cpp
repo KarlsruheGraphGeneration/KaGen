@@ -35,7 +35,7 @@ BarabassiFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID 
     }
 
     // Streaming mode does not call Finalize()
-    config.streaming_add_reverse_edges = !config.directed;
+    config.streaming.fix_reverse_edges = !config.directed;
 
     return config;
 }

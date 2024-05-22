@@ -13,9 +13,9 @@ class Generator {
 public:
     virtual ~Generator();
 
-    void Generate(GraphRepresentation representation);
+    Generator* Generate(GraphRepresentation representation);
 
-    void Finalize(MPI_Comm comm);
+    Generator* Finalize(MPI_Comm comm);
 
     SInt GetNumberOfEdges() const;
 

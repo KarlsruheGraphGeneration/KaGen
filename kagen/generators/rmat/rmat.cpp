@@ -31,6 +31,8 @@ RMATFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size,
         config.k = static_cast<SInt>(size);
     }
 
+    config.streaming.refuse_streaming_mode = true;
+
     return config;
 }
 

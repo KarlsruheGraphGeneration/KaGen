@@ -81,8 +81,8 @@ public:
 
 struct GraphInfo {
     GraphInfo() = default;
-
     GraphInfo(const Graph& graph, MPI_Comm comm);
+    GraphInfo(const GraphInfo& local, MPI_Comm comm);
 
     SInt local_n            = 0;
     SInt local_m            = 0;

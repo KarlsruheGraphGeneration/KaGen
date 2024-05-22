@@ -36,6 +36,11 @@
 /* #define SPK_NOISE_LEVEL 1000 -- in INITIATOR_DENOMINATOR units */
 
 namespace kagen {
+PGeneratorConfig KroneckerFactory::NormalizeParameters(PGeneratorConfig config, PEID, PEID, bool) const {
+    config.streaming.refuse_streaming_mode = true;
+    return config;
+}
+
 std::unique_ptr<Generator>
 KroneckerFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
     return std::make_unique<Kronecker>(config, rank, size);
@@ -155,20 +160,20 @@ inline uint64_t Kronecker::bitreverse(uint64_t x) {
     uint32_t h = (uint32_t)(x >> 32);
     uint32_t l = (uint32_t)(x & UINT32_MAX);
     #ifdef USE_GCC_BYTESWAP
-    h          = __builtin_bswap32(h);
-    l          = __builtin_bswap32(l);
+    h = __builtin_bswap32(h);
+    l = __builtin_bswap32(l);
     #else
     h = (h >> 16) | (h << 16);
     l = (l >> 16) | (l << 16);
     h = ((h >> 8) & UINT32_C(0x00FF00FF)) | ((h & UINT32_C(0x00FF00FF)) << 8);
     l = ((l >> 8) & UINT32_C(0x00FF00FF)) | ((l & UINT32_C(0x00FF00FF)) << 8);
     #endif
-    h          = ((h >> 4) & UINT32_C(0x0F0F0F0F)) | ((h & UINT32_C(0x0F0F0F0F)) << 4);
-    l          = ((l >> 4) & UINT32_C(0x0F0F0F0F)) | ((l & UINT32_C(0x0F0F0F0F)) << 4);
-    h          = ((h >> 2) & UINT32_C(0x33333333)) | ((h & UINT32_C(0x33333333)) << 2);
-    l          = ((l >> 2) & UINT32_C(0x33333333)) | ((l & UINT32_C(0x33333333)) << 2);
-    h          = ((h >> 1) & UINT32_C(0x55555555)) | ((h & UINT32_C(0x55555555)) << 1);
-    l          = ((l >> 1) & UINT32_C(0x55555555)) | ((l & UINT32_C(0x55555555)) << 1);
+    h = ((h >> 4) & UINT32_C(0x0F0F0F0F)) | ((h & UINT32_C(0x0F0F0F0F)) << 4);
+    l = ((l >> 4) & UINT32_C(0x0F0F0F0F)) | ((l & UINT32_C(0x0F0F0F0F)) << 4);
+    h = ((h >> 2) & UINT32_C(0x33333333)) | ((h & UINT32_C(0x33333333)) << 2);
+    l = ((l >> 2) & UINT32_C(0x33333333)) | ((l & UINT32_C(0x33333333)) << 2);
+    h = ((h >> 1) & UINT32_C(0x55555555)) | ((h & UINT32_C(0x55555555)) << 1);
+    l = ((l >> 1) & UINT32_C(0x55555555)) | ((l & UINT32_C(0x55555555)) << 1);
     return ((uint64_t)l << 32) | h; /* Swap halves */
 
 #endif
