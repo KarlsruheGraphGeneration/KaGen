@@ -23,7 +23,11 @@ void AddReverseEdges(Edgelist& edges) {
         }
     }
 
-    FilterMultiEdges(edges);
+    std::sort(edges.begin(), edges.end());
+    auto it = std::unique(edges.begin(), edges.end());
+    edges.erase(it, edges.end());
+
+    edges.reserve(2 * edges.size());
 
     const std::size_t old_size = edges.size();
     for (std::size_t i = 0; i < old_size; ++i) {
@@ -34,7 +38,7 @@ void AddReverseEdges(Edgelist& edges) {
     }
 }
 
-Edgelist AddNonlocalReverseEdges(const Edgelist& edges, const std::pair<SInt, SInt>& local_vertices) {
+void AddNonlocalReverseEdges(Edgelist& edges, const std::pair<SInt, SInt>& local_vertices) {
     Edgelist additional_edges;
 
     for (auto& [from, to]: edges) {
@@ -43,7 +47,7 @@ Edgelist AddNonlocalReverseEdges(const Edgelist& edges, const std::pair<SInt, SI
         }
     }
 
-    return additional_edges;
+    edges.insert(edges.end(), additional_edges.begin(), additional_edges.end());
 }
 
 std::string BufferFilename(const PEID chunk, const PGeneratorConfig& config) {
@@ -51,35 +55,58 @@ std::string BufferFilename(const PEID chunk, const PGeneratorConfig& config) {
 }
 
 void SwapoutGraphChunk(
-    const Edgelist& edges, const Edgelist& additional_edges, const PEID chunk, const std::vector<SInt>& distribution,
-    const PGeneratorConfig& config) {
+    const Edgelist& edges, const PEID chunk, const std::vector<SInt>& distribution, const PGeneratorConfig& config) {
     std::vector<SInt> index(config.streaming.num_chunks + 1);
 
     PEID cur = 0;
-    for (const auto& [from, to]: additional_edges) {
+    for (const auto& [from, to]: edges) {
         while (cur + 1 < config.streaming.num_chunks && from >= distribution[cur + 1]) {
             ++cur;
         }
         ++index[cur + 1];
     }
-    index[chunk + 1] += edges.size();
 
     std::partial_sum(index.begin(), index.end(), index.begin());
-    const std::string filename = BufferFilename(chunk, config);
 
     constexpr std::size_t edge_size = sizeof(typename Edgelist::value_type);
 
+    std::cout << "Swapout edges: #edges=" << edges.size() << ", index=[";
+    for (const SInt i: index) {
+        std::cout << i << ", ";
+    }
+    std::cout << "\b\b]\n" << std::flush;
+
+    const std::string filename = BufferFilename(chunk, config);
+
+    // std::cout << "Edges for buffer " << filename << ":" << std::endl;
+    // for (const auto& [u, v]: edges) {
+    //     std::cout << u << " -> " << v << std::endl;
+    // }
+
     std::ofstream out(filename, std::ios::binary);
     out.write(reinterpret_cast<const char*>(index.data()), sizeof(SInt) * index.size());
-    out.write(reinterpret_cast<const char*>(additional_edges.data()), edge_size * index[chunk]);
     out.write(reinterpret_cast<const char*>(edges.data()), edge_size * edges.size());
-    out.write(
-        reinterpret_cast<const char*>(additional_edges.data() + index[chunk]),
-        edge_size * (additional_edges.size() - index[chunk]));
 }
 
-void SwapinEdges(std::ifstream& in, const PEID chunk, const PGeneratorConfig& config, Edgelist& append) {
+SInt CountEdges(const std::string& filename, const PEID chunk, const PGeneratorConfig& config) {
     std::vector<SInt> index(config.streaming.num_chunks + 1);
+
+    SInt num_edges = 0;
+
+    std::ifstream in(filename, std::ios::binary);
+    in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
+
+    const SInt first_edge         = index[chunk];
+    const SInt first_invalid_edge = index[chunk + 1];
+    num_edges += first_invalid_edge - first_edge;
+
+    return num_edges;
+}
+
+void SwapinEdges(const std::string& filename, const PEID chunk, const PGeneratorConfig& config, Edgelist& append) {
+    std::vector<SInt> index(config.streaming.num_chunks + 1);
+
+    std::ifstream in(filename, std::ios::binary);
     in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
 
     const SInt first_edge         = index[chunk];
@@ -87,32 +114,41 @@ void SwapinEdges(std::ifstream& in, const PEID chunk, const PGeneratorConfig& co
     const SInt num_edges          = first_invalid_edge - first_edge;
 
     if (num_edges > 0) {
+        constexpr std::size_t edge_size = sizeof(typename Edgelist::value_type);
+
         const std::size_t old_size = append.size();
         append.resize(old_size + num_edges);
-        in.seekg(sizeof(SInt) + first_edge * sizeof(typename Edgelist::value_type));
-        in.read(reinterpret_cast<char*>(append.data() + old_size), sizeof(typename Edgelist::value_type) * num_edges);
+
+        in.seekg(first_edge * edge_size, std::ios_base::cur);
+        in.read(reinterpret_cast<char*>(append.data() + old_size), edge_size * num_edges);
+
+        // std::cout << "Edges from chunk " << filename << ":" << std::endl;
+        // for (const auto& [u, v]: append) {
+        //     std::cout << u << " -> " << v << std::endl;
+        // }
+    } else {
+        std::cout << "No edges from chunk " << filename << std::endl;
     }
 }
 
 Graph SwapinGraphChunk(const PEID chunk, const std::vector<SInt>& distribution, const PGeneratorConfig& config) {
-    Edgelist additional_edges;
+    // @todo count edges, then allocate just one buffer, sort when writing
+
+    SInt num_edges = 0;
+    for (int cur = 0; cur < config.streaming.num_chunks; ++cur) {
+        const std::string filename = BufferFilename(cur, config);
+        num_edges += CountEdges(filename, chunk, config);
+    }
+
     Edgelist edges;
+    edges.reserve(num_edges);
 
     for (int cur = 0; cur < config.streaming.num_chunks; ++cur) {
         const std::string filename = BufferFilename(cur, config);
-        std::ifstream     in(filename, std::ios::binary);
-
-        if (chunk == cur) {
-            SwapinEdges(in, chunk, config, edges);
-        } else {
-            SwapinEdges(in, chunk, config, additional_edges);
-        }
+        SwapinEdges(filename, chunk, config, edges);
     }
 
-    if (!additional_edges.empty()) {
-        edges.insert(edges.end(), additional_edges.begin(), additional_edges.end());
-        FilterMultiEdges(edges);
-    }
+    FilterMultiEdges(edges);
 
     Graph graph;
     graph.vertex_range.first  = distribution[chunk];
@@ -138,12 +174,6 @@ std::vector<SInt> CreateVertexDistribution(const SInt n, const PEID K) {
     }
     return vertex_distribution;
 }
-
-GraphInfo CreateGraphInfo(const SInt n) {
-    GraphInfo info;
-    info.global_n = n;
-    return info;
-}
 } // namespace
 
 void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
@@ -165,15 +195,19 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
         MPI_Abort(comm, 1);
     }
 
-    GraphInfo local_info          = CreateGraphInfo(config.n);
+    GraphInfo local_info;
     auto      vertex_distribution = CreateVertexDistribution(config.n, config.streaming.num_chunks);
     auto      generator_factory   = CreateGeneratorFactory(config.generator);
 
-    const auto [chunk_begin, chunk_end] = ComputeFirstLastElement<PEID>(rank, size, config.streaming.num_chunks);
+    std::cout << "Vertex distribution: [";
+    for (const SInt i: vertex_distribution) {
+        std::cout << i << ", ";
+    }
+    std::cout << "\b\b]\n" << std::flush;
 
-    for (PEID chunk = chunk_begin; chunk < chunk_end; ++chunk) {
+    for (PEID chunk = rank; chunk < config.streaming.num_chunks; chunk += size) {
         try {
-            config = generator_factory->NormalizeParameters(config, chunk, config.streaming.num_chunks, true);
+            config = generator_factory->NormalizeParameters(config, chunk, config.streaming.num_chunks, output_info);
             if (config.streaming.refuse_streaming_mode) {
                 throw ConfigurationError("generator is not available in streaming mode");
             }
@@ -187,8 +221,8 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
         auto generator = generator_factory->Create(config, chunk, config.streaming.num_chunks);
 
         if (output_info) {
-            std::cout << "Generating edges (" << (chunk + 1) << " / " << chunk_end << ", "
-                      << config.streaming.num_chunks << ") ... " << std::flush;
+            std::cout << "Generating edges (" << (chunk + 1) << " / " << config.streaming.num_chunks << ") ... "
+                      << std::flush;
         }
 
         Graph graph = generator->Generate(GraphRepresentation::EDGE_LIST)->Take();
@@ -200,26 +234,22 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
         }
 
         Edgelist edges = std::move(graph.edges);
-        Edgelist additional_edges;
 
         if (config.streaming.fix_reverse_edges) {
             if (output_info) {
                 std::cout << "fixing reverse edges ... " << std::flush;
             }
             AddReverseEdges(edges);
-            std::swap(edges, additional_edges);
         }
 
         if (config.streaming.fix_nonlocal_reverse_edges) {
             if (output_info) {
                 std::cout << "fixing nonlocal reverse edges ... " << std::flush;
             }
-            additional_edges =
-                AddNonlocalReverseEdges(edges, {vertex_distribution[chunk], vertex_distribution[chunk + 1]});
+            AddNonlocalReverseEdges(edges, graph.vertex_range);
         }
 
         local_info.global_m += edges.size();
-        local_info.global_m += additional_edges.size();
         local_info.has_vertex_weights |= !graph.vertex_weights.empty();
 
         if (output_info) {
@@ -227,13 +257,12 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
         }
 
         std::sort(edges.begin(), edges.end());
-        std::sort(additional_edges.begin(), additional_edges.end());
 
         if (output_info) {
             std::cout << "writing to external buffer ... " << std::flush;
         }
 
-        SwapoutGraphChunk(edges, additional_edges, chunk, vertex_distribution, config);
+        SwapoutGraphChunk(edges, chunk, vertex_distribution, config);
 
         if (output_info) {
             std::cout << "OK" << std::endl;
@@ -251,10 +280,10 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
     if (config.streaming.fix_reverse_edges) {
         local_info.global_m = 0;
 
-        for (int chunk = chunk_begin; chunk < chunk_end; ++chunk) {
+        for (int chunk = rank; chunk < config.streaming.num_chunks; chunk += size) {
             if (output_info) {
-                std::cout << "Counting edges (chunk " << chunk + 1 << " / " << chunk_end << ", "
-                          << config.streaming.num_chunks << ") ... reading ... " << std::flush;
+                std::cout << "Counting edges (chunk " << chunk + 1 << " / " << config.streaming.num_chunks
+                          << ") ... reading ... " << std::flush;
             }
 
             Graph graph = SwapinGraphChunk(chunk, vertex_distribution, config);
@@ -270,17 +299,19 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
                 std::cout << "OK" << std::endl;
             }
         }
+
+        if (output_info) {
+            std::cout << "Waiting for other PEs ... " << std::flush;
+        }
+        MPI_Barrier(comm);
+        if (output_info) {
+            std::cout << "OK" << std::endl;
+        }
     }
 
-    if (output_info) {
-        std::cout << "Waiting for other PEs ... " << std::flush;
-    }
-    MPI_Barrier(comm);
-    if (output_info) {
-        std::cout << "OK" << std::endl;
-    }
+    GraphInfo global_info(local_info, comm);
+    global_info.global_n = config.n;
 
-    GraphInfo         global_info(local_info, comm);
     OutputGraphConfig out_config    = config.output_graph;
     const std::string base_filename = out_config.filename;
 
@@ -304,69 +335,60 @@ void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm) {
             SInt offset_n = 0;
             SInt offset_m = 0;
 
-            for (PEID pe = 0; pe < size; ++pe) {
-                MPI_Barrier(comm);
-
-                if (pe != rank) {
-                    continue;
+            for (PEID chunk = rank; chunk < config.streaming.num_chunks; chunk += size) {
+                if (output_info) {
+                    std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
+                              << " of " << config.streaming.num_chunks << ") ... reading ... " << std::flush;
                 }
 
-                for (PEID chunk = chunk_begin; chunk < chunk_end; ++chunk) {
-                    if (!config.quiet) {
-                        std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk "
-                                  << chunk + 1 << " of " << config.streaming.num_chunks << ") ... reading ... "
-                                  << std::flush;
-                    }
+                Graph graph = SwapinGraphChunk(chunk, vertex_distribution, config);
 
-                    Graph graph = SwapinGraphChunk(chunk, vertex_distribution, config);
+                if (!config.quiet) {
+                    std::cout << "writing ... " << std::flush;
+                }
 
-                    if (config.streaming.fix_reverse_edges) {
-                        if (!config.quiet) {
-                            std::cout << "filtering duplicates ... " << std::flush;
-                        }
-                        FilterMultiEdges(graph.edges);
-                    }
-                    if (config.streaming.sort_edges) {
-                        if (!config.quiet) {
-                            std::cout << "sorting ... " << std::flush;
-                        }
-                        std::sort(graph.edges.begin(), graph.edges.end());
-                    }
+                GraphInfo pass_info = global_info;
+                pass_info.local_n   = graph.NumberOfLocalVertices();
+                pass_info.local_m   = graph.NumberOfLocalEdges();
+                pass_info.offset_n  = offset_n;
+                pass_info.offset_m  = offset_m;
+                offset_n += pass_info.local_n;
+                offset_m += pass_info.local_m;
 
-                    if (!config.quiet) {
-                        std::cout << "writing ... " << std::flush;
+                for (PEID pe = 0; pe < size; ++pe) {
+                    MPI_Barrier(comm);
+                    if (pe != rank) {
+                        continue;
                     }
-
-                    GraphInfo pass_info = global_info;
-                    pass_info.local_n   = graph.NumberOfLocalVertices();
-                    pass_info.local_m   = graph.NumberOfLocalEdges();
-                    pass_info.offset_n  = offset_n;
-                    pass_info.offset_m  = offset_m;
-                    offset_n += pass_info.local_n;
-                    offset_m += pass_info.local_m;
 
                     continue_with_next_pass =
                         factory->CreateWriter(out_config, graph, pass_info, chunk, config.streaming.num_chunks)
                             ->Write(pass, out_config.filename);
+                }
 
-                    if (!continue_with_next_pass && i + 1 == out_config.formats.size()) {
-                        if (!config.quiet) {
-                            std::cout << "cleanup ... " << std::flush;
-                        }
-                        for (int from_chunk = 0; from_chunk < config.streaming.num_chunks; ++from_chunk) {
-                            const std::string filename = BufferFilename(chunk, config);
-                            std::remove(filename.c_str());
-                        }
+                if (!continue_with_next_pass && i + 1 == out_config.formats.size()) {
+                    if (output_info) {
+                        std::cout << "cleanup ... " << std::flush;
                     }
+                    for (int from_chunk = 0; from_chunk < config.streaming.num_chunks; ++from_chunk) {
+                        const std::string filename = BufferFilename(chunk, config);
+                        std::remove(filename.c_str());
+                    }
+                }
 
-                    if (!config.quiet) {
-                        std::cout << "OK" << std::endl;
-                    }
+                if (output_info) {
+                    std::cout << "OK" << std::endl;
                 }
             }
         }
 
+        if (output_info) {
+            std::cout << "Waiting for other PEs ... " << std::flush;
+        }
         MPI_Barrier(comm);
+        if (output_info) {
+            std::cout << "OK" << std::endl;
+        }
     }
 }
 } // namespace kagen
