@@ -37,7 +37,7 @@
 
 namespace kagen {
 PGeneratorConfig KroneckerFactory::NormalizeParameters(PGeneratorConfig config, PEID, PEID, bool) const {
-    config.streaming.refuse_streaming_mode = true;
+    config.external.refuse_external_mode = true;
     return config;
 }
 

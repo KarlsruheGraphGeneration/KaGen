@@ -52,8 +52,8 @@ HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
         config.hp_floats = 1;
     }
 
-    // Streaming mode does not call Finalize()
-    config.streaming.fix_nonlocal_reverse_edges = true;
+    // External memory mode does not call Finalize() -- instead, we have to enable postprocessing via flags
+    config.external.fix_nonlocal_reverse_edges = true;
 
     return config;
 }

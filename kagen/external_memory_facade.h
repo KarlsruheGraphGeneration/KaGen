@@ -6,5 +6,5 @@
 #include <mpi.h>
 
 namespace kagen {
-void GenerateStreamedToDisk(PGeneratorConfig config, MPI_Comm comm);
+void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm);
 }

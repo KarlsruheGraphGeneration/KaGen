@@ -37,11 +37,11 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Seed:                               " << config.seed << "\n";
     out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";
-    out << "  Execution mode:                     " << (config.streaming.num_chunks > 1 ? "streamed" : "in-memory")
+    out << "  Execution mode:                     " << (config.external.num_chunks > 1 ? "streamed" : "in-memory")
         << "\n";
-    if (config.streaming.num_chunks > 1) {
-        out << "  Temporary directory:                " << config.streaming.tmp_directory << "\n";
-        out << "  Sort edges:                         " << (config.streaming.sort_edges ? "yes" : "no") << "\n";
+    if (config.external.num_chunks > 1) {
+        out << "  Temporary directory:                " << config.external.tmp_directory << "\n";
+        out << "  Sort edges:                         " << (config.external.sort_edges ? "yes" : "no") << "\n";
     } else {
         out << "  Validate generated graph:           " << (config.validate_simple_graph ? "yes" : "no") << "\n";
         out << "  Statistics level:                   " << config.statistics_level << "\n";

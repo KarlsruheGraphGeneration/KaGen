@@ -68,15 +68,15 @@ struct OutputGraphConfig {
     int adjwgt_width = 64;
 };
 
-struct StreamingConfig {
-    int         num_chunks                 = 1;
-    std::string tmp_directory              = "/tmp";
-    //bool        remove_self_loops          = false;
-    bool        fix_reverse_edges          = false;
-    bool        fix_nonlocal_reverse_edges = false;
-    bool        sort_edges                 = false;
+struct ExternalMemoryConfig {
+    int         num_chunks    = 1;
+    std::string tmp_directory = "/tmp";
+    // bool        remove_self_loops          = false;
+    bool fix_reverse_edges          = false;
+    bool fix_nonlocal_reverse_edges = false;
+    bool sort_edges                 = false;
 
-    bool refuse_streaming_mode = false;
+    bool refuse_external_mode = false;
 };
 
 // Configuration for the generator.
@@ -88,8 +88,8 @@ struct PGeneratorConfig {
     bool            skip_postprocessing   = false;
     bool            print_header          = true;
 
-    // Streaming settings
-    StreamingConfig streaming{};
+    // External memory mode settings
+    ExternalMemoryConfig external{};
 
     // Generator settings
     GeneratorType generator;          // Generator type

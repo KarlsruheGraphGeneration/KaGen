@@ -8,8 +8,8 @@
  ******************************************************************************/
 #include "kagen/context.h"
 #include "kagen/definitions.h"
+#include "kagen/external_memory_facade.h"
 #include "kagen/in_memory_facade.h"
-#include "kagen/streaming_facade.h"
 
 #include <mpi.h>
 
@@ -118,9 +118,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     // General parameters
     app.add_option(
-        "--experimental-K", config.streaming.num_chunks,
-        "Number of chunks for generating the graph in a buffered streaming setting.");
-    app.add_option("--experimental-T", config.streaming.tmp_directory, "Directory for temporary buffer files.");
+        "--experimental-K", config.external.num_chunks,
+        "Number of chunks for generating the graph in the buffered external memory mode.");
+    app.add_option("--experimental-T", config.external.tmp_directory, "Directory for temporary buffer files.");
 
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")->trigger_on_parse();
@@ -489,8 +489,8 @@ int main(int argc, char* argv[]) {
         config.output_graph.extension = true;
     }
 
-    if (config.streaming.num_chunks > 1) {
-        GenerateStreamedToDisk(config, MPI_COMM_WORLD);
+    if (config.external.num_chunks > 1) {
+        GenerateExternalMemoryToDisk(config, MPI_COMM_WORLD);
     } else {
         GenerateInMemoryToDisk(config, MPI_COMM_WORLD);
     }
