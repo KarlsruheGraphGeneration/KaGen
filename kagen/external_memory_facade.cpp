@@ -100,6 +100,10 @@ void SwapinEdges(const std::string& filename, const PEID chunk, const PGenerator
     std::vector<SInt> index(config.external.num_chunks + 1);
 
     std::ifstream in(filename, std::ios::binary);
+    if (!in) {
+        throw std::ios_base::failure("cannot read from " + filename);
+    }
+
     in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
 
     const SInt first_edge         = index[chunk];
