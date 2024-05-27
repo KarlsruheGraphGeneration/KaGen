@@ -51,7 +51,7 @@ However, many generators fail to provide instances on a massive scale due to the
 In our work, we present novel generators for a variety of network models commonly found in practice.
 By making use of pseudorandomization and divide-and-conquer schemes, our generators follow a communication-free paradigm.
 The resulting generators are often embarrassingly parallel and have a near optimal scaling behavior.
-This allows us to generate instances of up to 2^43 vertices and 2^47 edges in less than 22 minutes on 32768 cores.
+This allows us to generate instances of up to $2^{43}$ vertices and $2^{47}$ edges in less than 22 minutes on 32,768 cores.
 Therefore, our generators allow new graph families to be used on an unprecedented scale.
 
 ## Requirements 
