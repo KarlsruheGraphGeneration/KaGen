@@ -118,9 +118,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     // General parameters
     app.add_option(
-        "--experimental-K", config.external.num_chunks,
-        "Number of chunks for generating the graph in the buffered external memory mode.");
-    app.add_option("--experimental-T", config.external.tmp_directory, "Directory for temporary buffer files.");
+           "--external-k,--external-num-chunks", config.external.num_chunks,
+           "Number of chunks for generating the graph in external memory mode. Set to '1' to disable external memory "
+           "mode.")
+        ->capture_default_str();
+    app.add_option(
+           "--external-T,--external-tmp-directory", config.external.tmp_directory,
+           "Directory for temporary buffer files (requires free space between ~1x to ~2x the final graph size).")
+        ->capture_default_str();
 
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")->trigger_on_parse();
