@@ -455,14 +455,6 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
             // or not
             MPI_Allreduce(MPI_IN_PLACE, &continue_with_next_pass, 1, MPI_C_BOOL, MPI_LOR, comm);
         }
-
-        if (output_info) {
-            std::cout << "Waiting for other PEs ... " << std::flush;
-        }
-        MPI_Barrier(comm);
-        if (output_info) {
-            std::cout << "OK" << std::endl;
-        }
     }
 
     if (rank == ROOT) {
