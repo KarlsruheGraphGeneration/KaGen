@@ -79,31 +79,38 @@ void SwapoutGraphChunk(
     out.write(reinterpret_cast<const char*>(edges.data()), edge_size * edges.size());
 }
 
-SInt CountEdges(const std::string& filename, const PEID chunk, const PGeneratorConfig& config) {
+void ReadIndex(const SInt chunk, const PGeneratorConfig& config, std::vector<SInt>& index) {
+    const std::string filename = BufferFilename(chunk, config);
+
     std::ifstream in(filename, std::ios::binary);
     if (!in) {
         throw std::ios_base::failure("cannot read from " + filename);
     }
 
-    std::vector<SInt> index(config.external.num_chunks + 1);
     in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
-
-    return index[chunk + 1] - index[chunk];
 }
 
-void SwapinEdges(const std::string& filename, const PEID chunk, const PGeneratorConfig& config, Edgelist& append) {
-    std::vector<SInt> index(config.external.num_chunks + 1);
+void SwapinEdges(
+    const std::string& filename, const PEID chunk, const PGeneratorConfig& config, Edgelist& append,
+    const std::pair<SInt, SInt>& range = {1, 0}) {
+    auto [first_edge, first_invalid_edge] = range;
 
-    std::ifstream in(filename, std::ios::binary);
-    if (!in) {
-        throw std::ios_base::failure("cannot read from " + filename);
+    // Only read the index structure if we do not already know the edge range
+    if (first_invalid_edge < first_edge) {
+        std::vector<SInt> index(config.external.num_chunks + 1);
+
+        std::ifstream in(filename, std::ios::binary);
+        if (!in) {
+            throw std::ios_base::failure("cannot read from " + filename);
+        }
+
+        in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
+
+        first_edge         = index[chunk];
+        first_invalid_edge = index[chunk + 1];
     }
 
-    in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
-
-    const SInt first_edge         = index[chunk];
-    const SInt first_invalid_edge = index[chunk + 1];
-    const SInt num_edges          = first_invalid_edge - first_edge;
+    const SInt num_edges = first_invalid_edge - first_edge;
 
     if (num_edges > 0) {
         constexpr std::size_t edge_size = sizeof(typename Edgelist::value_type);
@@ -111,7 +118,11 @@ void SwapinEdges(const std::string& filename, const PEID chunk, const PGenerator
         const std::size_t old_size = append.size();
         append.resize(old_size + num_edges);
 
-        in.seekg(first_edge * edge_size, std::ios_base::cur);
+        const SInt pos_after_index      = (config.external.num_chunks + 1) * sizeof(SInt);
+        const SInt pos_after_prev_edges = first_edge * edge_size + pos_after_index;
+
+        std::ifstream in(filename, std::ios::binary);
+        in.seekg(pos_after_prev_edges);
         in.read(reinterpret_cast<char*>(append.data() + old_size), edge_size * num_edges);
     }
 }
@@ -154,10 +165,20 @@ Graph SwapinGraphChunk(
             std::cout << "counting unfiltered edges ... " << std::flush;
         }
 
+        // @todo reading the index of every file can become a bottleneck if file access time is high
+        // We should keep the index in memory
+        std::vector<std::pair<SInt, SInt>> edge_ranges;
+        edge_ranges.reserve(config.external.num_chunks);
+
         SInt num_edges = 0;
+
+        std::vector<SInt> index(config.external.num_chunks + 1);
+
         for (int cur = 0; cur < config.external.num_chunks; ++cur) {
-            const std::string filename = BufferFilename(cur, config);
-            num_edges += CountEdges(filename, chunk, config);
+            ReadIndex(cur, config, index);
+
+            edge_ranges.emplace_back(index[chunk], index[chunk + 1]);
+            num_edges += index[chunk + 1] - index[chunk];
         }
 
         if (output_info) {
@@ -172,7 +193,7 @@ Graph SwapinGraphChunk(
 
         for (int cur = 0; cur < config.external.num_chunks; ++cur) {
             const std::string filename = BufferFilename(cur, config);
-            SwapinEdges(filename, chunk, config, edges);
+            SwapinEdges(filename, chunk, config, edges, edge_ranges[cur]);
         }
 
         if (output_info) {
