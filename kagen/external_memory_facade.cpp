@@ -4,6 +4,7 @@
 #include "kagen/factories.h"
 #include "kagen/io.h"
 
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -22,7 +23,7 @@ void AddReverseEdges(Edgelist& edges) {
             std::swap(from, to);
         }
     }
-    //
+
     std::sort(edges.begin(), edges.end());
     auto it = std::unique(edges.begin(), edges.end());
     edges.erase(it, edges.end());
@@ -308,7 +309,15 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
             SInt offset_n = 0;
             SInt offset_m = 0;
 
-            for (PEID chunk = rank; chunk < config.external.num_chunks; chunk += size) {
+            const PEID rounded_chunk_count = std::ceil(1.0 * config.external.num_chunks / size) * size;
+            for (PEID chunk = rank; chunk < rounded_chunk_count; chunk += size) {
+                if (chunk >= config.external.num_chunks) {
+                    for (PEID pe = 0; pe < size; ++pe) {
+                        MPI_Barrier(comm);
+                    }
+                    continue;
+                }
+
                 if (output_info) {
                     std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
                               << "... of " << config.external.num_chunks << ") ... reading ... " << std::flush;

@@ -34,7 +34,7 @@ BarabassiFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID 
         }
     }
 
-    // Streaming mode does not call Finalize()
+    // External memory mode does not call Finalize()
     config.external.fix_reverse_edges = !config.directed;
 
     return config;

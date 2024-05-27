@@ -37,8 +37,8 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Seed:                               " << config.seed << "\n";
     out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";
-    out << "  Execution mode:                     " << (config.external.num_chunks > 1 ? "streamed" : "in-memory")
-        << "\n";
+    out << "  Execution mode:                     "
+        << (config.external.num_chunks > 1 ? "external memory" : "internal memory") << "\n";
     if (config.external.num_chunks > 1) {
         out << "  Temporary directory:                " << config.external.tmp_directory << "\n";
         out << "  Sort edges:                         " << (config.external.sort_edges ? "yes" : "no") << "\n";
