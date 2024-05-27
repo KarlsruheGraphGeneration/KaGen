@@ -73,6 +73,10 @@ void SwapoutGraphChunk(
     const std::string     filename  = BufferFilename(chunk, config);
 
     std::ofstream out(filename, std::ios::binary | std::ios::trunc);
+    if (!out) {
+        throw std::ios_base::failure("cannot write to " + filename);
+    }
+
     out.write(reinterpret_cast<const char*>(index.data()), sizeof(SInt) * index.size());
     out.write(reinterpret_cast<const char*>(edges.data()), edge_size * edges.size());
 }
