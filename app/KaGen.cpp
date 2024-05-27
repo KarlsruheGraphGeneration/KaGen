@@ -423,6 +423,11 @@ This is mostly useful for experimental graph generators or when using KaGen to l
   - plain-edgelist: text file containing one edge per line, separated by spaces or tabs, starting at 0)");
         cmd->add_flag("--drop-vertex-weights", config.input_graph.drop_vertex_weights, "Drop vertex weights");
         cmd->add_flag("--drop-edge-weights", config.input_graph.drop_edge_weights, "Drop edge weights");
+
+        cmd->add_option("--input-vtx-width", config.input_graph.vtx_width, "")->capture_default_str();
+        cmd->add_option("--input-adjncy-width", config.input_graph.adjncy_width, "")->capture_default_str();
+        cmd->add_option("--input-vwgt-width", config.input_graph.vwgt_width, "")->capture_default_str();
+        cmd->add_option("--input-adjwgt-width", config.input_graph.adjwgt_width, "")->capture_default_str();
     }
 
     // IO options
@@ -450,9 +455,13 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "--distributed-output", [&config](auto) { config.output_graph.distributed = true; },
         "Output one file for each PE");
 
+    app.add_option("--vtx-width", config.output_graph.vtx_width, "")->capture_default_str();
+    app.add_option("--adjncy-width", config.output_graph.adjncy_width, "")->capture_default_str();
+    app.add_option("--vwgt-width", config.output_graph.vwgt_width, "")->capture_default_str();
+    app.add_option("--adjwgt-width", config.output_graph.adjwgt_width, "")->capture_default_str();
+
     auto set_all_widths = [&](const int width) {
         return [&config, width](auto) {
-            // @deprecated, replace with more fine-grained control
             config.output_graph.width = width;
             config.input_graph.width  = width;
 
@@ -468,8 +477,9 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         };
     };
 
-    app.add_flag("--64", set_all_widths(64), "Use 64 bit data types for binary formats.");
-    app.add_flag("--32", set_all_widths(32), "Use 32 bit data types for binary formats.");
+    app.add_flag("--64", set_all_widths(64), "Use 64 bit data types for binary formats (input and output).");
+    app.add_flag("--32", set_all_widths(32), "Use 32 bit data types for binary formats (input and output).");
+
     app.add_flag(
         "--extension", config.output_graph.extension, "Always append a default extension to the output filename.");
 }
