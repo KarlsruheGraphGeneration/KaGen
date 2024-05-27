@@ -52,7 +52,11 @@ void AddNonlocalReverseEdges(Edgelist& edges, const std::pair<SInt, SInt>& local
 }
 
 std::string BufferFilename(const PEID chunk, const PGeneratorConfig& config) {
-    return config.external.tmp_directory + "/sKaGen_" + std::to_string(chunk) + ".buf";
+    return config.external.tmp_directory + "/KaGen_" + std::to_string(chunk) + ".buf1";
+}
+
+std::string AggregatedBufferFilename(const PEID chunk, const PGeneratorConfig& config) {
+    return config.external.tmp_directory + "/KaGen_" + std::to_string(chunk) + ".buf2";
 }
 
 void SwapoutGraphChunk(
@@ -82,18 +86,15 @@ void SwapoutGraphChunk(
 }
 
 SInt CountEdges(const std::string& filename, const PEID chunk, const PGeneratorConfig& config) {
-    std::vector<SInt> index(config.external.num_chunks + 1);
-
-    SInt num_edges = 0;
-
     std::ifstream in(filename, std::ios::binary);
+    if (!in) {
+        throw std::ios_base::failure("cannot read from " + filename);
+    }
+
+    std::vector<SInt> index(config.external.num_chunks + 1);
     in.read(reinterpret_cast<char*>(index.data()), sizeof(SInt) * index.size());
 
-    const SInt first_edge         = index[chunk];
-    const SInt first_invalid_edge = index[chunk + 1];
-    num_edges += first_invalid_edge - first_edge;
-
-    return num_edges;
+    return index[chunk + 1] - index[chunk];
 }
 
 void SwapinEdges(const std::string& filename, const PEID chunk, const PGeneratorConfig& config, Edgelist& append) {
@@ -121,27 +122,84 @@ void SwapinEdges(const std::string& filename, const PEID chunk, const PGenerator
     }
 }
 
-Graph SwapinGraphChunk(const PEID chunk, const std::vector<SInt>& distribution, const PGeneratorConfig& config) {
-    SInt num_edges = 0;
-    for (int cur = 0; cur < config.external.num_chunks; ++cur) {
-        const std::string filename = BufferFilename(cur, config);
-        num_edges += CountEdges(filename, chunk, config);
+void SwapoutAggregatedGraphChunk(const PEID chunk, const Graph& graph, const PGeneratorConfig& config) {
+    const std::string filename = AggregatedBufferFilename(chunk, config);
+    std::ofstream     out(filename, std::ios_base::binary | std::ios_base::trunc);
+    if (!out) {
+        throw std::ios_base::failure("cannot write to " + filename);
     }
 
+    const SInt num_edges = graph.edges.size();
+    out.write(reinterpret_cast<const char*>(&num_edges), sizeof(SInt));
+    out.write(reinterpret_cast<const char*>(graph.edges.data()), sizeof(typename Edgelist::value_type) * num_edges);
+}
+
+Edgelist SwapinAggregatedEdgelist(std::ifstream& in) {
+    SInt num_edges;
+    in.read(reinterpret_cast<char*>(&num_edges), sizeof(SInt));
+
+    Edgelist edges(num_edges);
+    in.read(reinterpret_cast<char*>(edges.data()), sizeof(typename Edgelist::value_type) * num_edges);
+    return edges;
+}
+
+Graph SwapinGraphChunk(
+    const PEID chunk, const std::vector<SInt>& distribution, const PGeneratorConfig& config, bool cache_aggregate,
+    const bool output_info) {
     Edgelist edges;
-    edges.reserve(num_edges);
 
-    for (int cur = 0; cur < config.external.num_chunks; ++cur) {
-        const std::string filename = BufferFilename(cur, config);
-        SwapinEdges(filename, chunk, config, edges);
+    const std::string aggregated_filename = AggregatedBufferFilename(chunk, config);
+    if (std::ifstream in(aggregated_filename, std::ios_base::binary); in) {
+        if (output_info) {
+            std::cout << "reading aggregated buffer ... " << std::flush;
+        }
+        edges           = SwapinAggregatedEdgelist(in);
+        cache_aggregate = false;
+    } else {
+        if (output_info) {
+            std::cout << "counting unfiltered edges ... " << std::flush;
+        }
+
+        SInt num_edges = 0;
+        for (int cur = 0; cur < config.external.num_chunks; ++cur) {
+            const std::string filename = BufferFilename(cur, config);
+            num_edges += CountEdges(filename, chunk, config);
+        }
+
+        if (output_info) {
+            std::cout << "allocating(" << num_edges << ") ... " << std::flush;
+        }
+
+        edges.reserve(num_edges);
+
+        if (output_info) {
+            std::cout << "reading ... " << std::flush;
+        }
+
+        for (int cur = 0; cur < config.external.num_chunks; ++cur) {
+            const std::string filename = BufferFilename(cur, config);
+            SwapinEdges(filename, chunk, config, edges);
+        }
+
+        if (output_info) {
+            std::cout << "filtering ... " << std::flush;
+        }
+
+        FilterMultiEdges(edges);
     }
-
-    FilterMultiEdges(edges);
 
     Graph graph;
     graph.vertex_range.first  = distribution[chunk];
     graph.vertex_range.second = distribution[chunk + 1];
     graph.edges               = std::move(edges);
+
+    if (cache_aggregate) {
+        if (output_info) {
+            std::cout << "writing aggregated buffer(" << graph.edges.size() << ") ... " << std::flush;
+        }
+
+        SwapoutAggregatedGraphChunk(chunk, graph, config);
+    }
 
     return graph;
 }
@@ -161,6 +219,32 @@ std::vector<SInt> CreateVertexDistribution(const SInt n, const PEID K) {
         vertex_distribution[chunk + 1] = ComputeFirstLastElement<SInt>(chunk, K, n).second;
     }
     return vertex_distribution;
+}
+
+void RemoveBufferFiles(const PGeneratorConfig& config, const bool output_info) {
+    if (output_info) {
+        std::cout << "Removing buffer files ... " << std::flush;
+    }
+    for (PEID chunk = 0; chunk < config.external.num_chunks; ++chunk) {
+        const std::string filename = BufferFilename(chunk, config);
+        std::remove(filename.c_str());
+    }
+    if (output_info) {
+        std::cout << "OK" << std::endl;
+    }
+}
+
+void RemoveAggregatedBufferFiles(const PGeneratorConfig& config, const bool output_info) {
+    if (output_info) {
+        std::cout << "Removing aggregated buffer files ... " << std::flush;
+    }
+    for (PEID chunk = 0; chunk < config.external.num_chunks; ++chunk) {
+        const std::string filename = AggregatedBufferFilename(chunk, config);
+        std::remove(filename.c_str());
+    }
+    if (output_info) {
+        std::cout << "OK" << std::endl;
+    }
 }
 } // namespace
 
@@ -265,16 +349,12 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
         for (int chunk = rank; chunk < config.external.num_chunks; chunk += size) {
             if (output_info) {
-                std::cout << "Counting edges (chunk " << chunk + 1 << "... / " << config.external.num_chunks
-                          << ") ... reading ... " << std::flush;
+                std::cout << "Counting edges (chunk " << chunk + 1 << "... / " << config.external.num_chunks << ") ... "
+                          << std::flush;
             }
-            Graph graph = SwapinGraphChunk(chunk, vertex_distribution, config);
 
-            if (output_info) {
-                std::cout << "filtering duplicates ... " << std::flush;
-            }
-            FilterMultiEdges(graph.edges);
-
+            Graph graph = SwapinGraphChunk(
+                chunk, vertex_distribution, config, config.external.cache_aggregated_chunks, output_info);
             local_info.global_m += graph.edges.size();
 
             if (output_info) {
@@ -289,6 +369,11 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
         if (output_info) {
             std::cout << "OK" << std::endl;
         }
+
+        if (rank == ROOT && config.external.cache_aggregated_chunks) {
+            RemoveBufferFiles(config, output_info);
+        }
+        MPI_Barrier(comm);
     }
 
     GraphInfo global_info(local_info, comm);
@@ -328,13 +413,15 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
                 if (output_info) {
                     std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
-                              << "... of " << config.external.num_chunks << ") ... reading ... " << std::flush;
+                              << "... of " << config.external.num_chunks << ") ... " << std::flush;
                 }
 
-                Graph graph = SwapinGraphChunk(chunk, vertex_distribution, config);
+                // @todo to determine whether we want to cache the aggregated bufers, we would have to know whether we
+                // need multiple IO passes or not -- extend IO interface to give this information?
+                Graph graph = SwapinGraphChunk(chunk, vertex_distribution, config, false, output_info);
 
                 if (output_info) {
-                    std::cout << "writing ... " << std::flush;
+                    std::cout << "writing(" << graph.edges.size() << "...) ... " << std::flush;
                 }
 
                 GraphInfo pass_info = global_info;
@@ -372,16 +459,8 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     }
 
     if (rank == ROOT) {
-        if (output_info) {
-            std::cout << "Cleaning up ... " << std::flush;
-        }
-        for (PEID chunk = 0; chunk < config.external.num_chunks; ++chunk) {
-            const std::string filename = BufferFilename(chunk, config);
-            std::remove(filename.c_str());
-        }
-        if (output_info) {
-            std::cout << "OK" << std::endl;
-        }
+        RemoveBufferFiles(config, output_info);
+        RemoveAggregatedBufferFiles(config, output_info);
     }
 }
 } // namespace kagen

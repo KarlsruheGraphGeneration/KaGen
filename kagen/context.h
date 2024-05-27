@@ -71,10 +71,12 @@ struct OutputGraphConfig {
 struct ExternalMemoryConfig {
     int         num_chunks    = 1;
     std::string tmp_directory = "/tmp";
-    // bool        remove_self_loops          = false;
+
     bool fix_reverse_edges          = false;
     bool fix_nonlocal_reverse_edges = false;
     bool sort_edges                 = false;
+
+    bool cache_aggregated_chunks = true;
 
     bool refuse_external_mode = false;
 };

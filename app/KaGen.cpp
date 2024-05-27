@@ -126,6 +126,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
            "--external-T,--external-tmp-directory", config.external.tmp_directory,
            "Directory for temporary buffer files (requires free space between ~1x to ~2x the final graph size).")
         ->capture_default_str();
+    app.add_flag(
+        "!--external-avoid-extra-writes", config.external.cache_aggregated_chunks,
+        "Do not cache aggregated chunks in extra buffer files (less IO writes, more extra work).");
 
     app.add_flag("-q,--quiet", config.quiet, "Quiet mode");
     app.add_flag("-v,--version", [&](auto) { PrintVersion(); }, "Print KaGen version")->trigger_on_parse();
