@@ -28,8 +28,8 @@ GraphInfo::GraphInfo(const GraphInfo& local, MPI_Comm comm)
       global_m(local.global_m),
       has_vertex_weights(local.has_vertex_weights),
       has_edge_weights(local.has_edge_weights) {
-    MPI_Allreduce(MPI_IN_PLACE, &global_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &global_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    MPI_Allreduce(&local_n, &global_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    MPI_Allreduce(&local_m, &global_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     MPI_Exscan(&local_n, &offset_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     MPI_Exscan(&local_m, &offset_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights, 1, MPI_C_BOOL, MPI_LOR, comm);

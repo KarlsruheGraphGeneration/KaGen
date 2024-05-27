@@ -161,7 +161,7 @@ Graph SwapinGraphChunk(
         }
 
         if (output_info) {
-            std::cout << "allocating(" << num_edges << ") ... " << std::flush;
+            std::cout << "allocating ... " << std::flush;
         }
 
         edges.reserve(num_edges);
@@ -354,7 +354,8 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
             Graph graph = SwapinGraphChunk(
                 chunk, vertex_distribution, config, config.external.cache_aggregated_chunks, output_info);
-            local_info.global_m += graph.edges.size();
+            local_info.local_n += graph.NumberOfLocalVertices();
+            local_info.local_m += graph.NumberOfLocalEdges();
 
             if (output_info) {
                 std::cout << "OK" << std::endl;
@@ -376,7 +377,6 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     }
 
     GraphInfo global_info(local_info, comm);
-    global_info.global_n = config.n;
 
     OutputGraphConfig out_config    = config.output_graph;
     const std::string base_filename = out_config.filename;
@@ -401,23 +401,31 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
             SInt last_round_offset_n = 0;
             SInt last_round_offset_m = 0;
 
+            // In contrast to the other loops, we have to do some communication during the "write to disk" loop
+            // Thus, we have to make sure that all PEs participate in this loop: we achieve this by rounding the number
+            // of chunks to the next multiple of the number of PEs and make sure that the "dummy rounds" on some PEs are
+            // a no-op in terms of IO
             const PEID rounded_chunk_count = std::ceil(1.0 * config.external.num_chunks / size) * size;
 
             for (PEID chunk = rank; chunk < rounded_chunk_count; chunk += size) {
                 if (output_info) {
                     std::cout << "Writing " << out_config.filename << " (pass " << pass + 1 << ", chunk " << chunk + 1
-                              << "... of " << config.external.num_chunks << ") ... " << std::flush;
+                              << "... / " << config.external.num_chunks << ") ... " << std::flush;
                 }
 
-                // @todo to determine whether we want to cache the aggregated bufers, we would have to know whether we
+                // @todo to determine whether we want to cache the aggregated buffers, we would have to know whether we
                 // need multiple IO passes or not -- extend IO interface to give this information?
                 Graph graph = chunk < config.external.num_chunks
                                   ? SwapinGraphChunk(chunk, vertex_distribution, config, false, output_info)
                                   : Graph{};
 
+                // global_info contains information about the graph distribution on a "per PE" level, but we need this
+                // information on a "per chunk" level
+                // We have to compute this information by our self:
                 GraphInfo pass_info = global_info;
                 pass_info.local_n   = graph.NumberOfLocalVertices();
                 pass_info.local_m   = graph.NumberOfLocalEdges();
+
                 MPI_Exscan(&pass_info.local_n, &pass_info.offset_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
                 MPI_Exscan(&pass_info.local_m, &pass_info.offset_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
                 pass_info.offset_n += last_round_offset_n;
@@ -431,7 +439,7 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
                 last_round_offset_m += this_round_m;
 
                 if (output_info) {
-                    std::cout << "writing(" << this_round_m << "...) ... " << std::flush;
+                    std::cout << "writing(m=" << this_round_m << "...) ... " << std::flush;
                 }
 
                 for (PEID pe = 0; pe < size; ++pe) {
