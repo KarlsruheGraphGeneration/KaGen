@@ -49,8 +49,8 @@ std::string BufferFilename(const PEID pe, const PGeneratorConfig& config, const 
     return config.external.tmp_directory + "/KaGen.pe" + std::to_string(pe) + "." + (index ? "index" : "edges");
 }
 
-std::string AggregatedBufferFilename(const PEID chunk, const PGeneratorConfig& config) {
-    return config.external.tmp_directory + "/KaGen.chunk" + std::to_string(chunk) + ".edges";
+std::string AggregatedBufferFilename(const PEID pe, const PGeneratorConfig& config) {
+    return config.external.tmp_directory + "/KaGen.chunk" + std::to_string(pe) + ".aggregated";
 }
 
 SInt SwapoutGraphChunk(
@@ -93,13 +93,7 @@ void SwapinEdges(const std::string& filename, Edgelist& append, const std::pair<
     }
 }
 
-void SwapoutAggregatedGraphChunk(const PEID chunk, const Graph& graph, const PGeneratorConfig& config) {
-    const std::string filename = AggregatedBufferFilename(chunk, config);
-    std::ofstream     out(filename, std::ios_base::binary | std::ios_base::trunc);
-    if (!out) {
-        throw std::ios_base::failure("cannot write to " + filename);
-    }
-
+void SwapoutAggregatedGraphChunk(std::ofstream& out, const Graph& graph) {
     const SInt num_edges = graph.edges.size();
     out.write(reinterpret_cast<const char*>(&num_edges), sizeof(SInt));
     out.write(reinterpret_cast<const char*>(graph.edges.data()), sizeof(typename Edgelist::value_type) * num_edges);
@@ -157,17 +151,22 @@ ReadMyIndices(const PEID rank, const PEID size, const PGeneratorConfig& config) 
 }
 
 Graph SwapinGraphChunk(
-    const PEID chunk, const PEID size, const Indices& my_indices, const std::vector<SInt>& distribution,
-    const PGeneratorConfig& config, bool cache_aggregate, const bool output_info) {
+    const PEID chunk, const Indices& my_indices, const std::vector<SInt>& distribution, std::ifstream* aggregate_in,
+    std::ofstream* aggregate_out, const PGeneratorConfig& config, MPI_Comm comm) {
+    PEID size;
+    PEID rank;
+    MPI_Comm_size(comm, &size);
+    MPI_Comm_rank(comm, &rank);
+
+    const bool output_info = (rank == ROOT && !config.quiet);
+
     Edgelist edges;
 
-    const std::string aggregated_filename = AggregatedBufferFilename(chunk, config);
-    if (std::ifstream in(aggregated_filename, std::ios_base::binary); in) {
+    if (aggregate_in) {
         if (output_info) {
             std::cout << "reading aggregated buffer ... " << std::flush;
         }
-        edges           = SwapinAggregatedEdgelist(in);
-        cache_aggregate = false;
+        edges = SwapinAggregatedEdgelist(*aggregate_in);
     } else {
         const PEID my_nth_chunk = chunk / size;
         SInt       num_edges    = 0;
@@ -209,12 +208,12 @@ Graph SwapinGraphChunk(
     graph.vertex_range.second = distribution[chunk + 1];
     graph.edges               = std::move(edges);
 
-    if (cache_aggregate) {
+    if (!aggregate_in && aggregate_out) {
         if (output_info) {
             std::cout << "writing aggregated buffer ... " << std::flush;
         }
 
-        SwapoutAggregatedGraphChunk(chunk, graph, config);
+        SwapoutAggregatedGraphChunk(*aggregate_out, graph);
     }
 
     return graph;
@@ -376,14 +375,19 @@ GraphInfo DeduplicateEdges(
     info.local_m = 0;
     info.local_n = 0;
 
+    const std::string              agg_filename = AggregatedBufferFilename(rank, config);
+    std::unique_ptr<std::ofstream> agg_out =
+        config.external.cache_aggregated_chunks
+            ? std::make_unique<std::ofstream>(agg_filename, std::ios_base::binary | std::ios_base::trunc)
+            : nullptr;
+
     for (int chunk = rank; chunk < config.external.num_chunks; chunk += size) {
         if (output_info) {
             std::cout << "Counting edges (chunk " << chunk + 1 << "... / " << config.external.num_chunks << ") ... "
                       << std::flush;
         }
 
-        Graph graph = SwapinGraphChunk(
-            chunk, size, my_indices, vertex_distribution, config, config.external.cache_aggregated_chunks, output_info);
+        Graph graph = SwapinGraphChunk(chunk, my_indices, vertex_distribution, nullptr, agg_out.get(), config, comm);
         info.local_n += graph.NumberOfLocalVertices();
         info.local_m += graph.NumberOfLocalEdges();
 
@@ -460,6 +464,15 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
             SInt last_round_offset_n = 0;
             SInt last_round_offset_m = 0;
 
+            // Read aggregated buffers for each pass from beginning
+            const std::string              agg_filename = AggregatedBufferFilename(rank, config);
+            std::unique_ptr<std::ifstream> agg_in       = [&] {
+                if (std::ifstream in(agg_filename, std::ios_base::binary); in) {
+                    return std::make_unique<std::ifstream>(std::move(in));
+                }
+                return std::unique_ptr<std::ifstream>(nullptr);
+            }();
+
             // In contrast to the other loops, we have to do some communication during the "write to disk" loop
             // Thus, we have to make sure that all PEs participate in this loop: we achieve this by rounding the number
             // of chunks to the next multiple of the number of PEs and make sure that the "dummy rounds" on some PEs are
@@ -474,10 +487,14 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
                 // @todo to determine whether we want to cache the aggregated buffers, we would have to know whether we
                 // need multiple IO passes or not -- extend IO interface to give this information?
-                Graph graph =
-                    chunk < config.external.num_chunks
-                        ? SwapinGraphChunk(chunk, size, my_indices, vertex_distribution, config, false, output_info)
-                        : Graph{};
+                Graph graph = [&] {
+                    if (chunk < config.external.num_chunks) {
+                        return SwapinGraphChunk(
+                            chunk, my_indices, vertex_distribution, agg_in.get(), nullptr, config, comm);
+                    }
+
+                    return Graph{};
+                }();
 
                 // global_info contains information about the graph distribution on a "per PE" level, but we need this
                 // information on a "per chunk" level
