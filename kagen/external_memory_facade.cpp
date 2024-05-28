@@ -76,7 +76,7 @@ SInt SwapoutGraphChunk(
     return offset + edges.size();
 }
 
-void SwapinEdges(const std::string& filename, Edgelist& append, const std::pair<SInt, SInt>& range) {
+void SwapinEdges(std::ifstream& in, Edgelist& append, const std::pair<SInt, SInt>& range) {
     auto [first_edge, first_invalid_edge] = range;
 
     const SInt num_edges = first_invalid_edge - first_edge;
@@ -87,7 +87,6 @@ void SwapinEdges(const std::string& filename, Edgelist& append, const std::pair<
         const std::size_t old_size = append.size();
         append.resize(old_size + num_edges);
 
-        std::ifstream in(filename, std::ios::binary);
         in.seekg(first_edge * edge_size);
         in.read(reinterpret_cast<char*>(append.data() + old_size), edge_size * num_edges);
     }
@@ -185,9 +184,17 @@ Graph SwapinGraphChunk(
             std::cout << "reading ... " << std::flush;
         }
 
-        for (PEID from_chunk = 0; from_chunk < config.external.num_chunks; ++from_chunk) {
-            const std::string filename = BufferFilename(from_chunk % size, config, false);
-            SwapinEdges(filename, edges, my_indices[my_nth_chunk][from_chunk]);
+        {
+            std::vector<std::ifstream> buffer_ins;
+            buffer_ins.reserve(size);
+            for (PEID pe = 0; pe < size; ++pe) {
+                buffer_ins.emplace_back(BufferFilename(pe, config, false), std::ios_base::binary);
+            }
+
+            for (PEID from_chunk = 0; from_chunk < config.external.num_chunks; ++from_chunk) {
+                const PEID pe = from_chunk % size;
+                SwapinEdges(buffer_ins[pe], edges, my_indices[my_nth_chunk][from_chunk]);
+            }
         }
 
         if (output_info) {
