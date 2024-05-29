@@ -25,6 +25,8 @@ struct Configuration {
     bool report_degree_buckets_as_columns = false;
 
     std::vector<SInt> count_num_deg_nodes;
+
+    bool fast = false;
 };
 
 struct Statistics {
@@ -44,6 +46,15 @@ struct Statistics {
 };
 
 void PrintHeader(const Configuration& config) {
+    if (config.fast) {
+        std::cout << "Graph,";
+        std::cout << "N,";
+        std::cout << "M,";
+        std::cout << "AvgDeg";
+        std::cout << std::endl;
+        return;
+    }
+
     std::cout << "Graph,";
     std::cout << "N,";
     std::cout << "M,";
@@ -68,6 +79,14 @@ void PrintHeader(const Configuration& config) {
 }
 
 void PrintRow(const Configuration& config, const Statistics& stats) {
+    if (config.fast) {
+        std::cout << stats.name << ",";
+        std::cout << stats.n << ",";
+        std::cout << stats.m << ",";
+        std::cout << stats.avg_deg << std::endl;
+        return;
+    }
+
     std::cout << stats.name << ",";
     std::cout << stats.n << ",";
     std::cout << stats.m << ",";
@@ -180,6 +199,13 @@ Statistics ComputeStatistics(const Configuration& stats_config) {
 
     auto reader = CreateGraphReader(stats_config.io_config.format, stats_config.io_config, 0, 1);
 
+    if (stats_config.fast) {
+        Statistics stats;
+        std::tie(stats.n, stats.m) = reader->ReadSize();
+        stats.avg_deg              = 1.0 * stats.m / stats.n;
+        return stats;
+    }
+
     GraphFragment first_fragment =
         ReadGraphFragment(*reader, GraphRepresentation::EDGE_LIST, stats_config.io_config, 0, stats_config.num_chunks);
     computator(first_fragment);
@@ -208,6 +234,7 @@ Configuration parse_cli_arguments(int argc, char* argv[]) {
     group->add_option("input filenames", config.input_filenames)->check(CLI::ExistingFile);
     group->add_flag("--header-only", config.header_only);
 
+    app.add_flag("-F,--fast", config.fast, "Only compute statistics that do not require reading the full graph.");
     app.add_option(
         "-C,--num-chunks", config.num_chunks,
         "If set, compute the statistics externally by splitting the graph into this many chunks; some statistics might "
