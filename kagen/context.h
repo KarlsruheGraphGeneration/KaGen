@@ -55,7 +55,7 @@ struct InputGraphConfig {
 };
 
 struct EdgeWeightConfig {
-    EdgeWeightGeneratorType edge_weight_type = EdgeWeightGeneratorType::HASHED;
+    EdgeWeightGeneratorType edge_weight_type = EdgeWeightGeneratorType::HASHING_BASED;
     SInt weight_range_begin = 0;
     SInt weight_range_end = 100;
 };

@@ -49,8 +49,8 @@ Generator* Generator::Finalize(MPI_Comm comm) {
 
 std::unique_ptr<kagen::EdgeWeightGeneratorFactory> CreateEdgeWeightGeneratorFactory(const EdgeWeightGeneratorType type) {
     switch (type) {
-        case EdgeWeightGeneratorType::HASHED:
-            return std::make_unique<HashedEdgeWeightGeneratorFactory>();
+        case EdgeWeightGeneratorType::HASHING_BASED:
+            return std::make_unique<HashingBasedEdgeWeightGeneratorFactory>();
     }
 
     throw std::runtime_error("invalid graph generator type");

@@ -4,10 +4,10 @@
 #include "kagen/context.h"
 
 namespace kagen {
-    HashedEdgeWeightGenerator::HashedEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {
+    HashingBasedEdgeWeightGenerator::HashingBasedEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {
     }
 
-    SSInt HashedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
+    SSInt HashingBasedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
         SSInt hash1, hash2;
 
         hash1 = XXH64(&u, 1, 0);
@@ -17,7 +17,7 @@ namespace kagen {
     }
 
     std::unique_ptr<EdgeWeightGenerator>
-    HashedEdgeWeightGeneratorFactory::Create(kagen::EdgeWeightConfig config) const {
-        return std::make_unique<HashedEdgeWeightGenerator>(config);
+    HashingBasedEdgeWeightGeneratorFactory::Create(kagen::EdgeWeightConfig config) const {
+        return std::make_unique<HashingBasedEdgeWeightGenerator>(config);
     }
 }

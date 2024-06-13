@@ -299,14 +299,14 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
 
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightTypeMap() {
     return {
-        {"hashed", EdgeWeightGeneratorType::HASHED}
+        {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED}
     };
 }
 
 std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType weight_type) {
     switch (weight_type) {
-        case kagen::EdgeWeightGeneratorType::HASHED:
-            return out << "hashed";
+        case kagen::EdgeWeightGeneratorType::HASHING_BASED:
+            return out << "hashing_based";
     }
 
     return out << "<invalid>";

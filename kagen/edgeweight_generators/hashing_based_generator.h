@@ -6,9 +6,9 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
-class HashedEdgeWeightGenerator : public PerEdgeWeightGenerator<HashedEdgeWeightGenerator> {
+class HashingBasedEdgeWeightGenerator : public PerEdgeWeightGenerator<HashingBasedEdgeWeightGenerator> {
 public:
-    HashedEdgeWeightGenerator(EdgeWeightConfig config);
+    HashingBasedEdgeWeightGenerator(EdgeWeightConfig config);
 
     SSInt GenerateEdgeWeight(SInt u, SInt v);
 
@@ -16,7 +16,7 @@ private:
     const EdgeWeightConfig config_;
 };
 
-class HashedEdgeWeightGeneratorFactory : public EdgeWeightGeneratorFactory {
+class HashingBasedEdgeWeightGeneratorFactory : public EdgeWeightGeneratorFactory {
 public:
     std::unique_ptr<EdgeWeightGenerator> Create(EdgeWeightConfig config) const final;
 };

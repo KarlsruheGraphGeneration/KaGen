@@ -164,7 +164,7 @@ std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 
-enum class EdgeWeightGeneratorType { HASHED };
+enum class EdgeWeightGeneratorType { HASHING_BASED };
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightTypeMap();
 
 } // namespace kagen
