@@ -1,4 +1,5 @@
 #include "kagen/tools/postprocessor.h"
+#include "kagen/tools/utils.h"
 
 #include <mpi.h>
 
@@ -34,31 +35,18 @@ std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MP
 }
 } // namespace
 
-void AddNonlocalReverseEdges(Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
+template <typename T>
+std::vector<T> ExchangeMessageBuffers(
+    std::unordered_map<PEID, std::vector<T>> message_buffers, MPI_Datatype mpi_datatype, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
-
-    const auto ranges = AllgatherVertexRange(vertex_range, comm);
-
-    const auto& [local_from, local_to] = ranges[rank];
-    std::unordered_map<PEID, std::vector<SInt>> message_buffers;
-
-    // Each PE gets the edges that we have to that PE
-    for (const auto& [tail, head]: edge_list) {
-        if ((tail >= local_from && tail < local_to) && (head < local_from || head >= local_to)) {
-            const SInt pe = static_cast<SInt>(FindPEInRange(head, ranges));
-            message_buffers[pe].emplace_back(tail);
-            message_buffers[pe].emplace_back(head);
-        }
-    }
-
-    std::vector<SInt> send_buf;
-    std::vector<SInt> recv_buf;
-    std::vector<int>  send_counts(size);
-    std::vector<int>  recv_counts(size);
-    std::vector<int>  send_displs(size);
-    std::vector<int>  recv_displs(size);
+    std::vector<T>   send_buf;
+    std::vector<T>   recv_buf;
+    std::vector<int> send_counts(size);
+    std::vector<int> recv_counts(size);
+    std::vector<int> send_displs(size);
+    std::vector<int> recv_displs(size);
     for (size_t i = 0; i < send_counts.size(); ++i) {
         send_counts[i] = message_buffers[i].size();
     }
@@ -78,20 +66,61 @@ void AddNonlocalReverseEdges(Edgelist& edge_list, const VertexRange vertex_range
     }
     recv_buf.resize(total_recv_count);
     MPI_Alltoallv(
-        send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
-        recv_displs.data(), MPI_UINT64_T, comm);
+        send_buf.data(), send_counts.data(), send_displs.data(), mpi_datatype, recv_buf.data(), recv_counts.data(),
+        recv_displs.data(), mpi_datatype, comm);
     send_buf.clear();
     send_buf.resize(0);
-    for (std::size_t i = 0; i < recv_buf.size(); i += 2) {
-        edge_list.emplace_back(recv_buf[i + 1], recv_buf[i]);
+    return recv_buf;
+}
+
+void AddNonlocalReverseEdges(Edgelist& edge_list, EdgeWeights& edge_weights, const VertexRange vertex_range, MPI_Comm comm) {
+    PEID        rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    const auto ranges           = AllgatherVertexRange(vertex_range, comm);
+    const bool has_edge_weights = !edge_weights.empty();
+
+    const auto& [local_from, local_to] = ranges[rank];
+    std::unordered_map<PEID, std::vector<SInt>> message_buffers_edges;
+    std::unordered_map<PEID, std::vector<SInt>> message_buffers_weights;
+
+    // Each PE gets the edges that we have to that PE
+    for (size_t i = 0; i < edge_list.size(); ++i) {
+        const auto& [tail, head] = edge_list[i];
+        if ((tail >= local_from && tail < local_to) && (head < local_from || head >= local_to)) {
+            const SInt pe = static_cast<SInt>(FindPEInRange(head, ranges));
+            message_buffers_edges[pe].emplace_back(tail);
+            message_buffers_edges[pe].emplace_back(head);
+            if (has_edge_weights) {
+                message_buffers_weights[pe].emplace_back(edge_weights[i]);
+            }
+        }
     }
-    recv_buf.clear();
-    recv_buf.resize(0);
+
+    {
+        // exchange edges
+        auto recv_buf = ExchangeMessageBuffers(message_buffers_edges, MPI_UINT64_T, comm);
+
+        for (std::size_t i = 0; i < recv_buf.size(); i += 2) {
+            edge_list.emplace_back(recv_buf[i + 1], recv_buf[i]);
+        }
+    }
+    {
+        // exchange weights
+        auto recv_buf = ExchangeMessageBuffers(message_buffers_weights, MPI_INT64_T, comm);
+
+        for (std::size_t i = 0; i < recv_buf.size(); ++i) {
+            edge_weights.emplace_back(recv_buf[i]);
+        }
+    }
 
     // KaGen sometimes produces duplicate edges
-    std::sort(edge_list.begin(), edge_list.end());
-    auto it = std::unique(edge_list.begin(), edge_list.end());
-    edge_list.erase(it, edge_list.end());
+    auto cmp_from = [](const auto& lhs, const auto& rhs) {
+        return std::get<0>(lhs) < std::get<0>(rhs);
+    };
+    sort_edges_and_weights(edge_list, edge_weights, cmp_from);
+    remove_duplicates(edge_list, edge_weights);
 }
 
 void RedistributeEdgesByVertexRange(Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {

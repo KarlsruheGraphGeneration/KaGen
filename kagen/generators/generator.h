@@ -15,6 +15,8 @@ public:
 
     Generator* Generate(GraphRepresentation representation);
 
+    void GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm);
+
     Generator* Finalize(MPI_Comm comm);
 
     SInt GetNumberOfEdges() const;

@@ -1,6 +1,8 @@
 #include "kagen/generators/generator.h"
 
 #include "kagen/context.h"
+#include "kagen/edgeweight_generators/edge_weight_generator.h"
+#include "kagen/edgeweight_generators/hashing_based_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 
@@ -43,6 +45,38 @@ Generator* Generator::Finalize(MPI_Comm comm) {
     graph_.representation = desired_representation_;
 
     return this;
+}
+
+std::unique_ptr<kagen::EdgeWeightGeneratorFactory> CreateEdgeWeightGeneratorFactory(const EdgeWeightGeneratorType type) {
+    switch (type) {
+        case EdgeWeightGeneratorType::HASHED:
+            return std::make_unique<HashedEdgeWeightGeneratorFactory>();
+    }
+
+    throw std::runtime_error("invalid graph generator type");
+}
+
+void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm) {
+    (void) comm; // currently unused
+    std::unique_ptr<kagen::EdgeWeightGeneratorFactory> factory =
+        CreateEdgeWeightGeneratorFactory(weight_config.edge_weight_type);
+
+    std::unique_ptr<kagen::EdgeWeightGenerator> edge_weight_generator = factory->Create(weight_config);
+    switch (desired_representation_) {
+        case GraphRepresentation::EDGE_LIST:
+            graph_.edge_weights = edge_weight_generator->GenerateEdgeWeights(graph_.edges);
+            break;
+        case GraphRepresentation::CSR:
+            if (!graph_.xadj.empty()) {
+                graph_.edge_weights = edge_weight_generator->GenerateEdgeWeights(graph_.edges);
+            } else {
+                // for generateds graph edgelist format is used for construction and then transformed to CSR only in the
+                // finalized step
+                graph_.edge_weights =
+                    edge_weight_generator->GenerateEdgeWeights(graph_.xadj, graph_.adjncy);
+            }
+            break;
+    }
 }
 
 void Generator::FinalizeEdgeList(MPI_Comm) {}

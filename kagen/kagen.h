@@ -163,6 +163,10 @@ enum class GraphDistribution {
 std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
+
+enum class EdgeWeightGeneratorType { HASHED };
+std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightTypeMap();
+
 } // namespace kagen
 #endif
 
@@ -276,6 +280,23 @@ public:
     void EnableAdvancedStatistics();
 
     /*!
+     * If enables, KaGen will generate edge weights.
+     */
+    void EnableEdgeWeightGeneration();
+
+    /*!
+     * Configures the edge weight generation in KaGen.
+     *
+     * @param generator_type Type of generator (HASHED, RANDOM, etc.) to be used.
+     * @pram weight_range_begin Minimum edge weight to be assigned.
+     * @pram weight_range_end Maximum edge weight to be assigned - 1.
+     *
+     * Note that all edge weights will be in [weight_range_begin, weight_range_end).
+     */
+    void ConfigureEdgeWeightGeneration(
+        EdgeWeightGeneratorType generator_type, SInt weight_range_begin, SInt weight_range_end);
+
+    /*!
      * If enabled, KaGen will print information to stdout and stderr (but only on rank 0).
      *
      * @param header If set to true, KaGen will also print a banner and a summary of the
@@ -284,12 +305,12 @@ public:
     void EnableOutput(bool header);
 
     /*!
-     * If set to true, KaGen will use higher-precision floating point numbers (80 bit instead of 64 bit on x86 systems)
-     * to generate graphs. Currently, this only affects the random hyperbolic graph generator. Per default, KaGen will
-     * decide automatically which precision to use.
+     * If set to true, KaGen will use higher-precision floating point numbers (80 bit instead of 64 bit on x86
+     * systems) to generate graphs. Currently, this only affects the random hyperbolic graph generator. Per default,
+     * KaGen will decide automatically which precision to use.
      *
-     * Note that "higher-precision" refers to "long double". On systems where "long double" has the same precision as
-     * "double", this option does nothing.
+     * Note that "higher-precision" refers to "long double". On systems where "long double" has the same precision
+     * as "double", this option does nothing.
      *
      * @param state If true, always use higher-precision floating point numbers; if false, never use them.
      */
@@ -441,8 +462,8 @@ private:
  * @param idx_mpi_type MPI type corresponding to the template parameter IDX.
  * @param comm MPI communicator that was used to generate the graph.
  *
- * @tparam IDX Data type to be used for the entries in A. Must be large enough to represent the global number of nodes
- * in the graph.
+ * @tparam IDX Data type to be used for the entries in A. Must be large enough to represent the global number of
+ * nodes in the graph.
  *
  * @return Vertex distribution as described above.
  */

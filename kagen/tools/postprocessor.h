@@ -12,10 +12,11 @@ namespace kagen {
  * **Note:** in order to do so, the edge list is sorted and duplicate edges are removed.
  *
  * @param edge_list The edge list to add reverse edges to.
+ * @param edge_weights The corresponding edge weights if generated (otherwise list is empty).
  * @param vertex_range The vertex range assigned to this PE.
  * @param comm The MPI communicator.
  */
-void AddNonlocalReverseEdges(Edgelist& edge_list, VertexRange vertex_range, MPI_Comm comm);
+void AddNonlocalReverseEdges(Edgelist& edge_list, EdgeWeights& edge_weights, VertexRange vertex_range, MPI_Comm comm);
 
 /**
  * @brief Redistributes the edges such that each PE owns the edges that it should owned due to the given vertex range.
