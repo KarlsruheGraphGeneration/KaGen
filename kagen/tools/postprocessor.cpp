@@ -116,10 +116,7 @@ void AddNonlocalReverseEdges(Edgelist& edge_list, EdgeWeights& edge_weights, con
     }
 
     // KaGen sometimes produces duplicate edges
-    auto cmp_from = [](const auto& lhs, const auto& rhs) {
-        return std::get<0>(lhs) < std::get<0>(rhs);
-    };
-    sort_edges_and_weights(edge_list, edge_weights, cmp_from);
+    sort_edges_and_weights(edge_list, edge_weights);
     remove_duplicates(edge_list, edge_weights);
 }
 
