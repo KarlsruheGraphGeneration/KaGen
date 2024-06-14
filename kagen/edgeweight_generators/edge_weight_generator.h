@@ -12,11 +12,4 @@ public:
     virtual EdgeWeights
     GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy) = 0;
 };
-
-class EdgeWeightGeneratorFactory {
-public:
-    virtual ~EdgeWeightGeneratorFactory() = default;
-
-    virtual std::unique_ptr<EdgeWeightGenerator> Create(EdgeWeightConfig config) const = 0;
-};
 } // namespace kagen

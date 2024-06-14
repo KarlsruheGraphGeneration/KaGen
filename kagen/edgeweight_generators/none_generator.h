@@ -17,11 +17,4 @@ public:
         return {};
     }
 };
-
-class NoneEdgeWeightGeneratorFactory : public EdgeWeightGeneratorFactory {
-public:
-    std::unique_ptr<EdgeWeightGenerator> Create(EdgeWeightConfig config) const final{
-        return std::make_unique<NoneEdgeWeightGenerator>(config);
-    }
-};
 } // namespace kagen

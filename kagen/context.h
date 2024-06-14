@@ -56,7 +56,7 @@ struct InputGraphConfig {
 
 struct EdgeWeightConfig {
     EdgeWeightGeneratorType generator_type = EdgeWeightGeneratorType::NONE;
-    SInt weight_range_begin = 0;
+    SInt weight_range_begin = 1;
     SInt weight_range_end = 100;
 };
 

@@ -57,7 +57,7 @@ T FloorLog2(const T arg) {
 
 template <typename Comparator = std::less<Edgelist::value_type>>
 inline void
-sort_edges_and_weights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
+SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
     if (!std::is_sorted(edges.begin(), edges.end(), cmp)) {
         const SInt num_local_edges = edges.size();
         // If we have edge weights, sort them the same way as the edges

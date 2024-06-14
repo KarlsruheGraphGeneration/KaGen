@@ -17,7 +17,7 @@ BuildCSRFromEdgeList(VertexRange vertex_range, Edgelist& edges, EdgeWeights& edg
         return std::get<0>(lhs) < std::get<0>(rhs);
     };
 
-    sort_edges_and_weights(edges, edge_weights, cmp_from);
+    SortEdgesAndWeights(edges, edge_weights, cmp_from);
     
 
     std::vector<SInt> xadj(num_local_nodes + 1);

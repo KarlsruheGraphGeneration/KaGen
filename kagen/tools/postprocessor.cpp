@@ -116,7 +116,7 @@ void AddNonlocalReverseEdges(Edgelist& edge_list, EdgeWeights& edge_weights, con
     }
 
     // KaGen sometimes produces duplicate edges
-    sort_edges_and_weights(edge_list, edge_weights);
+    SortEdgesAndWeights(edge_list, edge_weights);
     remove_duplicates(edge_list, edge_weights);
 }
 
