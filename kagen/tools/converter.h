@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kagen/kagen.h"
+#include "kagen/tools/utils.h"
 
 #include <algorithm>
 #include <numeric>
@@ -16,24 +17,8 @@ BuildCSRFromEdgeList(VertexRange vertex_range, Edgelist& edges, EdgeWeights& edg
         return std::get<0>(lhs) < std::get<0>(rhs);
     };
 
-    if (!std::is_sorted(edges.begin(), edges.end(), cmp_from)) {
-        // If we have edge weights, sort them the same way as the edges
-        // This not very efficient; ideally, we should probably implement some kind of zip iterator to sort edges
-        // and edge weights without extra allocation / expensive permutation step (@todo)
-        if (!edge_weights.empty()) {
-            std::vector<EdgeWeights::value_type> indices(num_local_edges);
-            std::iota(indices.begin(), indices.end(), 0);
-            std::sort(indices.begin(), indices.end(), [&](const auto& lhs, const auto& rhs) {
-                return cmp_from(edges[lhs], edges[rhs]);
-            });
-            for (std::size_t e = 0; e < num_local_edges; ++e) {
-                indices[e] = edge_weights[indices[e]];
-            }
-            std::swap(edge_weights, indices);
-        }
-
-        std::sort(edges.begin(), edges.end(), cmp_from);
-    }
+    SortEdgesAndWeights(edges, edge_weights, cmp_from);
+    
 
     std::vector<SInt> xadj(num_local_nodes + 1);
     std::vector<SInt> adjncy(num_local_edges);

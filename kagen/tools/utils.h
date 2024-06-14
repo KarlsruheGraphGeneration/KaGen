@@ -5,6 +5,7 @@
 #include <mpi.h>
 
 #include <limits>
+#include <numeric>
 
 namespace kagen {
 inline std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
@@ -53,4 +54,57 @@ T FloorLog2(const T arg) {
 
     return log2 - 1;
 }
+
+template <typename Comparator = std::less<Edgelist::value_type>>
+inline void
+SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
+    if (!std::is_sorted(edges.begin(), edges.end(), cmp)) {
+        const SInt num_local_edges = edges.size();
+        // If we have edge weights, sort them the same way as the edges
+        // This not very efficient; ideally, we should probably implement some kind of zip iterator to sort edges
+        // and edge weights without extra allocation / expensive permutation step (@todo)
+        if (!edge_weights.empty()) {
+            std::vector<EdgeWeights::value_type> indices(num_local_edges);
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&](const auto& lhs, const auto& rhs) {
+                return cmp(edges[lhs], edges[rhs]);
+            });
+            for (std::size_t e = 0; e < num_local_edges; ++e) {
+                indices[e] = edge_weights[indices[e]];
+            }
+            std::swap(edge_weights, indices);
+        }
+
+        std::sort(edges.begin(), edges.end(), cmp);
+    }
+}
+
+inline void RemoveDuplicates(Edgelist& edges, EdgeWeights& edge_weights) {
+    const SInt num_local_edges = edges.size();
+    if (!edge_weights.empty()) {
+        // TODO replace with zip view once C++23 is enabled
+        using Edge = typename Edgelist::value_type;
+        using Weight = typename EdgeWeights::value_type;
+
+        std::vector<std::pair<Edge, Weight>> edge_weights_zip;
+        edge_weights_zip.reserve(num_local_edges);
+        for (size_t i = 0; i < num_local_edges; ++i) {
+            edge_weights_zip.emplace_back(edges[i], edge_weights[i]);
+        }
+        edges.clear();
+        edge_weights.clear();
+        auto it = std::unique(edge_weights_zip.begin(), edge_weights_zip.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.first == rhs.first;
+        });
+        edge_weights_zip.erase(it, edge_weights_zip.end());
+        for (const auto& [edge, weight] : edge_weights_zip) {
+            edges.push_back(edge);
+            edge_weights.push_back(weight);
+        }
+    } else {
+        auto it = std::unique(edges.begin(), edges.end());
+        edges.erase(it, edges.end());
+    }
+}
+
 } // namespace kagen

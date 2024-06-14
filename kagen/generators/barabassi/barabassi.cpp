@@ -55,7 +55,7 @@ Barabassi::Barabassi(const PGeneratorConfig& config, const PEID rank, const PEID
 
 void Barabassi::FinalizeEdgeList(MPI_Comm comm) {
     if (!config_.directed) {
-        AddNonlocalReverseEdges(graph_.edges, graph_.vertex_range, comm);
+        AddNonlocalReverseEdges(graph_.edges, graph_.edge_weights, graph_.vertex_range, comm);
     }
 }
 

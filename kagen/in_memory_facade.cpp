@@ -79,6 +79,8 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         std::cout << "OK" << std::endl;
     }
 
+    generator->GenerateEdgeWeights(config.edge_weights, comm);
+
     const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
     if (output_info) {
         std::cout << "Finalizing graph ... " << std::flush;

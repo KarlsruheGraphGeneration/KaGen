@@ -54,6 +54,12 @@ struct InputGraphConfig {
     bool drop_edge_weights   = false;
 };
 
+struct EdgeWeightConfig {
+    EdgeWeightGeneratorType generator_type = EdgeWeightGeneratorType::NONE;
+    SInt weight_range_begin = 1;
+    SInt weight_range_end = 100;
+};
+
 struct OutputGraphConfig {
     std::string             filename    = "out";
     bool                    extension   = false;
@@ -127,6 +133,9 @@ struct PGeneratorConfig {
     // Settings for the static graph pseudo-generator
     InputGraphConfig input_graph{};
 
+    // Settings for edge weight generation
+    EdgeWeightConfig edge_weights{};
+
     // Hashing / sampling settings
     int  seed        = 1;      // Seed for PRNG
     bool hash_sample = false;  // Use hash tryagain sampling
@@ -134,6 +143,8 @@ struct PGeneratorConfig {
     SInt precision   = 32;     // Floating-point precision
     SInt base_size   = 1 << 8; // Sampler base size
     SInt hyp_base    = 1 << 8;
+    
+    // Edge weights
 
     OutputGraphConfig output_graph{};
 };
