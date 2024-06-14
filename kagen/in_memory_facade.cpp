@@ -79,9 +79,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         std::cout << "OK" << std::endl;
     }
 
-    if(config.generate_edge_weights) {
-        generator->GenerateEdgeWeights(config.edge_weights, comm);
-    }
+    generator->GenerateEdgeWeights(config.edge_weights, comm);
 
     const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
     if (output_info) {

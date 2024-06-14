@@ -55,7 +55,7 @@ struct InputGraphConfig {
 };
 
 struct EdgeWeightConfig {
-    EdgeWeightGeneratorType edge_weight_type = EdgeWeightGeneratorType::HASHING_BASED;
+    EdgeWeightGeneratorType generator_type = EdgeWeightGeneratorType::NONE;
     SInt weight_range_begin = 0;
     SInt weight_range_end = 100;
 };
@@ -126,8 +126,6 @@ struct PGeneratorConfig {
     double max_vertex_imbalance = 0.1; // RGG, RDG, RHG
 
     bool coordinates = false; // Store vertex coordinates
-
-    bool generate_edge_weights = false; // Generate edge weights
 
     // Image mesh generator settings
     ImageMeshConfig image_mesh{};

@@ -164,8 +164,8 @@ std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 
-enum class EdgeWeightGeneratorType { HASHING_BASED };
-std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightTypeMap();
+enum class EdgeWeightGeneratorType { NONE, HASHING_BASED };
+std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap();
 
 } // namespace kagen
 #endif
@@ -283,18 +283,6 @@ public:
      * If enables, KaGen will generate edge weights.
      */
     void EnableEdgeWeightGeneration();
-
-    /*!
-     * Configures the edge weight generation in KaGen.
-     *
-     * @param generator_type Type of generator (HASHED, RANDOM, etc.) to be used.
-     * @pram weight_range_begin Minimum edge weight to be assigned.
-     * @pram weight_range_end Maximum edge weight to be assigned - 1.
-     *
-     * Note that all edge weights will be in [weight_range_begin, weight_range_end).
-     */
-    void ConfigureEdgeWeightGeneration(
-        EdgeWeightGeneratorType generator_type, SInt weight_range_begin, SInt weight_range_end);
 
     /*!
      * If enabled, KaGen will print information to stdout and stderr (but only on rank 0).

@@ -3,6 +3,7 @@
 #include "kagen/context.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
 #include "kagen/edgeweight_generators/hashing_based_generator.h"
+#include "kagen/edgeweight_generators/none_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 
@@ -49,6 +50,8 @@ Generator* Generator::Finalize(MPI_Comm comm) {
 
 std::unique_ptr<kagen::EdgeWeightGeneratorFactory> CreateEdgeWeightGeneratorFactory(const EdgeWeightGeneratorType type) {
     switch (type) {
+        case EdgeWeightGeneratorType::NONE:
+            return std::make_unique<NoneEdgeWeightGeneratorFactory>();
         case EdgeWeightGeneratorType::HASHING_BASED:
             return std::make_unique<HashingBasedEdgeWeightGeneratorFactory>();
     }
@@ -59,7 +62,7 @@ std::unique_ptr<kagen::EdgeWeightGeneratorFactory> CreateEdgeWeightGeneratorFact
 void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm) {
     (void) comm; // currently unused
     std::unique_ptr<kagen::EdgeWeightGeneratorFactory> factory =
-        CreateEdgeWeightGeneratorFactory(weight_config.edge_weight_type);
+        CreateEdgeWeightGeneratorFactory(weight_config.generator_type);
 
     std::unique_ptr<kagen::EdgeWeightGenerator> edge_weight_generator = factory->Create(weight_config);
     switch (desired_representation_) {

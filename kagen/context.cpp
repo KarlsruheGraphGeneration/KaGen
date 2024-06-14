@@ -342,6 +342,12 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.coordinates = get_bool_or_default("coordinates");
     config.permute     = get_bool_or_default("permute");
 
+    // edge weight generation
+    const std::string edge_weight_generator_name = get_string_or_default("edgeweight-generator", "none");
+    config.edge_weights.generator_type = GetEdgeWeightGeneratorTypeMap()[edge_weight_generator_name];
+    config.edge_weights.weight_range_begin = get_sint_or_default("edgeweight-range-begin", 1);
+    config.edge_weights.weight_range_end = get_sint_or_default("edgeweights-range-end", 100);
+
     if (config.generator == GeneratorType::IMAGE_MESH) {
         const std::string filename = get_string_or_default("filename");
         if (filename.empty()) {

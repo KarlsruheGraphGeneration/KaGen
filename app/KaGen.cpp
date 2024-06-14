@@ -169,6 +169,17 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "automatically");
     app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
+    app.add_option(
+           "--edgeweight-generator", config.edge_weights.generator_type,
+           "Generator type to use for generating edge weights.")
+        ->transform(CLI::CheckedTransformer(GetEdgeWeightGeneratorTypeMap(), CLI::ignore_case));
+    app.add_option(
+        "--edgeweight-range-begin", config.edge_weights.weight_range_begin,
+        "(Included) begin of weight range used for edge weights, i.e., minimum edge weight.");
+    app.add_option(
+        "--edgeweight-range-end", config.edge_weights.weight_range_begin,
+        "(Excluded) end of weight range to be used for edge weights.");
+
     { // Options string
         auto* cmd = app.add_subcommand(
             "options",

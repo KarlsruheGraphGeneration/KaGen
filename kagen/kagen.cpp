@@ -297,14 +297,17 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightTypeMap() {
+std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap() {
     return {
-        {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED}
+        { "none", EdgeWeightGeneratorType::NONE},
+        { "hashing_based", EdgeWeightGeneratorType::HASHING_BASED}
     };
 }
 
 std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType weight_type) {
     switch (weight_type) {
+        case kagen::EdgeWeightGeneratorType::NONE:
+            return out << "none";
         case kagen::EdgeWeightGeneratorType::HASHING_BASED:
             return out << "hashing_based";
     }
@@ -415,17 +418,6 @@ void KaGen::EnableBasicStatistics() {
 void KaGen::EnableAdvancedStatistics() {
     config_->statistics_level = StatisticsLevel::ADVANCED;
     config_->quiet            = false;
-}
-
-void KaGen::EnableEdgeWeightGeneration() {
-    config_->generate_edge_weights = true;
-}
-
-void KaGen::ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType weight_type, SInt weight_range_begin, SInt weight_range_end) {
-    config_->edge_weights.edge_weight_type = weight_type;
-    config_->edge_weights.weight_range_begin = weight_range_begin;
-    config_->edge_weights.weight_range_end = weight_range_end;
-
 }
 
 void KaGen::EnableOutput(const bool header) {
