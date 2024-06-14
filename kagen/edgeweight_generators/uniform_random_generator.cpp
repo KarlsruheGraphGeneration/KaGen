@@ -43,7 +43,7 @@ public:
         } else {
             edge_to_weightdata.emplace(key, value);
         }
-    };
+    }
 
     // Use weigth with smaller associated random integer.
     SSInt agree_on_edge_weight(const Edge& edge) {
