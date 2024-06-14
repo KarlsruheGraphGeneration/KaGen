@@ -25,6 +25,10 @@ struct EdgeData {
           weight{weight_param} {}
 };
 
+// Stores edge (u,v) together with and associated random integer and an edge weight.
+// Since an edge weight for each (directed) edge (u,v) and (v,u) is chosen uniformly at random, one has to agree on a
+// common weight for the undirected edge {u,v}. This is done choosing the weight with the smaller random integer to
+// avoid biases. The random integer is also used to break ties in case KaGen generates duplicate edges.
 class EdgeWeightStorage {
     using Edge           = typename Edgelist::value_type;
     using RandInt_Weight = std::pair<SSInt, SSInt>;
@@ -33,13 +37,15 @@ public:
     void insert_or_replace(const Edge& key, const RandInt_Weight& value) {
         auto it = edge_to_weightdata.find(key);
         if (it != edge_to_weightdata.end() && value < it->second) {
-            // if edge is already present (due to duplicate edges) store edge weight with (min randomness, min
-            // weight)
+            // if edge is already present (due to duplicate edges) store edge weight with smaller (rand_int, weight)
+            // pair.
             it->second = value;
         } else {
             edge_to_weightdata.emplace(key, value);
         }
     };
+
+    // Use weigth with smaller associated random integer.
     SSInt agree_on_edge_weight(const Edge& edge) {
         const auto& reversed_edge = std::make_pair(edge.second, edge.first);
         auto        edge_it       = edge_to_weightdata.find(edge);
@@ -82,7 +88,6 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const XadjArra
 }
 
 EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist& edgelist) {
-    using Edge = typename Edgelist::value_type;
     PEID rank;
     MPI_Comm_rank(comm_, &rank);
     std::mt19937                         gen((rank + 42) * 3);
