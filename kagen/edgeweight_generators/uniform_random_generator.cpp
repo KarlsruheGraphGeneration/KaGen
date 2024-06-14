@@ -98,12 +98,13 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
     std::unordered_map<PEID, std::vector<EdgeData>> message_buffers;
     EdgeWeightStorage                               edge_weight_storage;
 
-    // Each PE gets the edges that we have to that PE
+    // store (rand_int, weight) for each edge and exchange this data for cut edges
     for (size_t i = 0; i < edgelist.size(); ++i) {
         const auto& edge         = edgelist[i];
         const auto& [tail, head] = edge;
         const SSInt randomness   = weight_dist(gen);
         const SSInt weight       = weight_dist(gen);
+        // Each PE gets the edges that we have to that PE
         if ((head < local_from || head >= local_to)) {
             const SInt pe = static_cast<SInt>(FindPEInRange(head, ranges));
             message_buffers[pe].emplace_back(tail, head, randomness, weight);
@@ -120,6 +121,7 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
         auto recv_buf = ExchangeMessageBuffers(message_buffers, edgedata_mpi_type, comm_);
         MPI_Type_free(&edgedata_mpi_type);
 
+        // add received cut edges into edge_weight storage
         for (const auto& [u, v, randomness, weight]: recv_buf) {
             const auto key   = std::make_pair(u, v);
             const auto value = std::make_pair(randomness, weight);
@@ -127,6 +129,7 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
         }
     }
 
+    // agree on which weight to choose
     EdgeWeights weights(edgelist.size());
     for (size_t i = 0; i < edgelist.size(); ++i) {
         const auto& edge = edgelist[i];
