@@ -225,7 +225,8 @@ void PrintHeader(const PGeneratorConfig& config) {
 namespace {
 using Options = std::unordered_map<std::string, std::string>;
 
-// Parse a string such as 'key1=value1;key2=value2;key3;key4'
+// Parse a string such as 'key1=value1;key2=value2;key3;key4'.
+// Note that all occurences of '-' in a key are replaced with '_'.
 Options ParseOptionString(const std::string& options) {
     std::istringstream toker(options);
     std::string        pair;
@@ -234,9 +235,11 @@ Options ParseOptionString(const std::string& options) {
     while (std::getline(toker, pair, ';')) {
         const auto eq_pos = pair.find('=');
         if (eq_pos == std::string::npos) { // No equal sign -> Option is a flag
+            std::replace(pair.begin(), pair.end(), '-', '_');
             result[pair] = "1";
         } else {
-            const std::string key   = pair.substr(0, eq_pos);
+            std::string key = pair.substr(0, eq_pos);
+            std::replace(key.begin(), key.end(), '-', '_');
             const std::string value = pair.substr(eq_pos + 1);
             result[key]             = value;
         }
@@ -400,18 +403,18 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     {
         // edge weight generation
         const std::string weight_generator_name =
-            get_string_or_default("edgeweights-generator", StringifyEnum(config.edge_weights.generator_type));
+            get_string_or_default("edgeweights_generator", StringifyEnum(config.edge_weights.generator_type));
 
-        const auto        weight_generators = GetEdgeWeightGeneratorTypeMap();
+        const auto weight_generators   = GetEdgeWeightGeneratorTypeMap();
         const auto weight_generator_it = weight_generators.find(weight_generator_name);
         if (weight_generator_it == weight_generators.end()) {
             throw std::runtime_error("invalid graph distribution");
         }
         config.edge_weights.generator_type = weight_generator_it->second;
         config.edge_weights.weight_range_begin =
-            get_sint_or_default("edgeweights-range-begin", config.edge_weights.weight_range_begin);
+            get_sint_or_default("edgeweights_range_begin", config.edge_weights.weight_range_begin);
         config.edge_weights.weight_range_end =
-            get_sint_or_default("edgeweights-range-end", config.edge_weights.weight_range_end);
+            get_sint_or_default("edgeweights_range_end", config.edge_weights.weight_range_end);
     }
 
     int rank;
