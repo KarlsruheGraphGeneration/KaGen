@@ -25,7 +25,7 @@ struct EdgeData {
           weight{weight_param} {}
 };
 
-// Stores edge (u,v) together with and associated random integer and an edge weight.
+// Stores edge (u,v) together with an associated random integer and an edge weight.
 // Since an edge weight for each (directed) edge (u,v) and (v,u) is chosen uniformly at random, one has to agree on a
 // common weight for the undirected edge {u,v}. This is done choosing the weight with the smaller random integer to
 // avoid biases. The random integer is also used to break ties in case KaGen generates duplicate edges.
@@ -45,7 +45,7 @@ public:
         }
     }
 
-    // Use weigth with smaller associated random integer.
+    // Use weight with smaller associated random integer.
     SSInt agree_on_edge_weight(const Edge& edge) {
         const auto& reversed_edge = std::make_pair(edge.second, edge.first);
         auto        edge_it       = edge_to_weightdata.find(edge);
