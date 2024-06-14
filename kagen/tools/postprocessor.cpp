@@ -117,7 +117,7 @@ void AddNonlocalReverseEdges(Edgelist& edge_list, EdgeWeights& edge_weights, con
 
     // KaGen sometimes produces duplicate edges
     SortEdgesAndWeights(edge_list, edge_weights);
-    remove_duplicates(edge_list, edge_weights);
+    RemoveDuplicates(edge_list, edge_weights);
 }
 
 void RedistributeEdgesByVertexRange(Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {

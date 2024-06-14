@@ -79,7 +79,7 @@ SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp =
     }
 }
 
-inline void remove_duplicates(Edgelist& edges, EdgeWeights& edge_weights) {
+inline void RemoveDuplicates(Edgelist& edges, EdgeWeights& edge_weights) {
     const SInt num_local_edges = edges.size();
     if (!edge_weights.empty()) {
         // TODO replace with zip view once C++23 is enabled
