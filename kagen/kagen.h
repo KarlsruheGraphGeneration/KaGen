@@ -167,6 +167,8 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 enum class EdgeWeightGeneratorType { NONE, HASHING_BASED };
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap();
 
+std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator);
+
 } // namespace kagen
 #endif
 
@@ -280,9 +282,13 @@ public:
     void EnableAdvancedStatistics();
 
     /*!
-     * If enables, KaGen will generate edge weights.
+     * KaGen will generate edge weights according to the given configuration.
+     *
+     * @param generator Edge weights generator to be used.
+     * @param weight_range_begin (Included) begin of weight range for edge weights, i.e. minimum possible edge weight.
+     * @param weight_range_end (Excluded) end of weight range for edge weights.
      */
-    void EnableEdgeWeightGeneration();
+    void ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end);
 
     /*!
      * If enabled, KaGen will print information to stdout and stderr (but only on rank 0).
