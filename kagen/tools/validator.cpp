@@ -1,6 +1,7 @@
 #include "kagen/tools/validator.h"
 
 #include "kagen/tools/converter.h"
+#include "kagen/tools/utils.h"
 
 #include <mpi.h>
 
@@ -9,31 +10,6 @@
 #include <numeric>
 
 namespace kagen {
-namespace {
-PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SInt>>& ranges) {
-    for (std::size_t i = 0; i < ranges.size(); ++i) {
-        const auto& [local_from, local_to] = ranges[i];
-
-        if (local_from <= node && node < local_to) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
-    int rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
-
-    std::vector<VertexRange> ranges(static_cast<std::size_t>(size));
-    ranges[static_cast<std::size_t>(rank)] = vertex_range;
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, comm);
-
-    return ranges;
-}
-} // namespace
 
 bool ValidateVertexRanges(const Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;

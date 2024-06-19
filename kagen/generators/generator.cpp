@@ -4,6 +4,7 @@
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
 #include "kagen/edgeweight_generators/hashing_based_generator.h"
 #include "kagen/edgeweight_generators/none_generator.h"
+#include "kagen/edgeweight_generators/uniform_random_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 
@@ -48,20 +49,23 @@ Generator* Generator::Finalize(MPI_Comm comm) {
     return this;
 }
 
-std::unique_ptr<kagen::EdgeWeightGenerator> CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config) {
+std::unique_ptr<kagen::EdgeWeightGenerator>
+CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, VertexRange vertex_range) {
     switch (weight_config.generator_type) {
         case EdgeWeightGeneratorType::NONE:
             return std::make_unique<NoneEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::HASHING_BASED:
             return std::make_unique<HashingBasedEdgeWeightGenerator>(weight_config);
+        case EdgeWeightGeneratorType::UNIFORM_RANDOM:
+            return std::make_unique<UniformRandomEdgeWeightGenerator>(weight_config, comm, vertex_range);
     }
 
     throw std::runtime_error("invalid graph generator type");
 }
 
 void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm) {
-    (void)comm; // currently unused
-    std::unique_ptr<kagen::EdgeWeightGenerator> edge_weight_generator = CreateEdgeWeightGenerator(weight_config);
+    std::unique_ptr<kagen::EdgeWeightGenerator> edge_weight_generator =
+        CreateEdgeWeightGenerator(weight_config, comm, graph_.vertex_range);
 
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:

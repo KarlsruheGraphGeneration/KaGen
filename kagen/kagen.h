@@ -164,7 +164,7 @@ std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 
-enum class EdgeWeightGeneratorType { NONE, HASHING_BASED };
+enum class EdgeWeightGeneratorType { NONE, HASHING_BASED, UNIFORM_RANDOM };
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap();
 
 std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator);

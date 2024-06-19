@@ -298,7 +298,10 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
 }
 
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap() {
-    return {{"none", EdgeWeightGeneratorType::NONE}, {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED}};
+    return {
+        {"none", EdgeWeightGeneratorType::NONE},
+        {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED},
+        {"uniform_random", EdgeWeightGeneratorType::UNIFORM_RANDOM}};
 }
 
 std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator) {
@@ -307,6 +310,8 @@ std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator) {
             return out << "none";
         case kagen::EdgeWeightGeneratorType::HASHING_BASED:
             return out << "hashing_based";
+        case kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM:
+            return out << "uniform_random";
     }
 
     return out << "<invalid>";

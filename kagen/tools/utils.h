@@ -55,6 +55,68 @@ T FloorLog2(const T arg) {
     return log2 - 1;
 }
 
+inline PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SInt>>& ranges) {
+    for (std::size_t i = 0; i < ranges.size(); ++i) {
+        const auto& [local_from, local_to] = ranges[i];
+
+        if (local_from <= node && node < local_to) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+inline std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
+    int rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    std::vector<VertexRange> ranges(static_cast<std::size_t>(size));
+    ranges[static_cast<std::size_t>(rank)] = vertex_range;
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, comm);
+
+    return ranges;
+}
+
+template <typename T>
+std::vector<T> ExchangeMessageBuffers(
+    std::unordered_map<PEID, std::vector<T>> message_buffers, MPI_Datatype mpi_datatype, MPI_Comm comm) {
+    PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+    std::vector<T>   send_buf;
+    std::vector<T>   recv_buf;
+    std::vector<int> send_counts(size);
+    std::vector<int> recv_counts(size);
+    std::vector<int> send_displs(size);
+    std::vector<int> recv_displs(size);
+    for (size_t i = 0; i < send_counts.size(); ++i) {
+        send_counts[i] = message_buffers[i].size();
+    }
+
+    std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
+    const std::size_t total_send_count = send_displs.back() + send_counts.back();
+    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+    std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
+    const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
+    send_buf.reserve(total_send_count);
+    for (size_t i = 0; i < send_counts.size(); ++i) {
+        for (const auto& elem: message_buffers[i]) {
+            send_buf.push_back(elem);
+        }
+        message_buffers[i].clear();
+        message_buffers[i].resize(0);
+    }
+    recv_buf.resize(total_recv_count);
+    MPI_Alltoallv(
+        send_buf.data(), send_counts.data(), send_displs.data(), mpi_datatype, recv_buf.data(), recv_counts.data(),
+        recv_displs.data(), mpi_datatype, comm);
+    send_buf.clear();
+    send_buf.resize(0);
+    return recv_buf;
+}
+
 template <typename Comparator = std::less<Edgelist::value_type>>
 inline void
 SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
