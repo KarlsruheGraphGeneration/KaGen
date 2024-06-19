@@ -34,7 +34,7 @@ class EdgeWeightStorage {
     using RandInt_Weight = std::pair<SSInt, SSInt>;
 
 public:
-    void insert_or_replace(const Edge& key, const RandInt_Weight& value) {
+    void InsertOrReplace(const Edge& key, const RandInt_Weight& value) {
         auto it = edge_to_weightdata.find(key);
         if (it != edge_to_weightdata.end() && value < it->second) {
             // if edge is already present (due to duplicate edges) store edge weight with smaller (rand_int, weight)
@@ -46,7 +46,7 @@ public:
     }
 
     // Use weight with smaller associated random integer.
-    SSInt agree_on_edge_weight(const Edge& edge) {
+    SSInt AgreeOnEdgeWeight(const Edge& edge) {
         const auto& reversed_edge = std::make_pair(edge.second, edge.first);
         auto        edge_it       = edge_to_weightdata.find(edge);
         if (edge_it == edge_to_weightdata.end()) {
@@ -110,7 +110,7 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
             message_buffers[pe].emplace_back(tail, head, randomness, weight);
         }
         auto value = std::make_pair(randomness, weight);
-        edge_weight_storage.insert_or_replace(edge, value);
+        edge_weight_storage.InsertOrReplace(edge, value);
     }
 
     {
@@ -125,7 +125,7 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
         for (const auto& [u, v, randomness, weight]: recv_buf) {
             const auto key   = std::make_pair(u, v);
             const auto value = std::make_pair(randomness, weight);
-            edge_weight_storage.insert_or_replace(key, value);
+            edge_weight_storage.InsertOrReplace(key, value);
         }
     }
 
@@ -133,7 +133,7 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
     EdgeWeights weights(edgelist.size());
     for (size_t i = 0; i < edgelist.size(); ++i) {
         const auto& edge = edgelist[i];
-        weights[i]       = edge_weight_storage.agree_on_edge_weight(edge);
+        weights[i]       = edge_weight_storage.AgreeOnEdgeWeight(edge);
     }
     return weights;
 }
