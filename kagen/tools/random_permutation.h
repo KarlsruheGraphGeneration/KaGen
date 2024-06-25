@@ -62,7 +62,7 @@ constexpr To asserting_cast(From value) noexcept {
 // index is stored in the destination operand. The source operand can be a register or a memory location; the
 // destination operand is a register. The bit index is an unsigned offset from bit 0 of the source operand. If the
 // content source operand is 0, the content of the destination operand is undefined.
-template <typename Data>
+/*template <typename Data>
 inline uint8_t most_significant_bit_set(Data bytes) {
     static_assert(std::is_trivially_copyable_v<Data>, "Data has to be a trivially copyable type.");
 
@@ -73,6 +73,21 @@ inline uint8_t most_significant_bit_set(Data bytes) {
     Data msb;
     asm("bsr %1,%0" : "=r"(msb) : "r"(bytes));
     return asserting_cast<uint8_t>(msb);
+}*/
+template <typename Data> std::uint8_t most_significant_bit_set(const Data arg) {
+  constexpr std::size_t arg_width = std::numeric_limits<Data>::digits;
+  auto log2 = static_cast<Data>(arg_width);
+
+  if constexpr (arg_width == std::numeric_limits<unsigned int>::digits) {
+    log2 -= __builtin_clz(arg);
+  } else {
+    static_assert(
+        arg_width == std::numeric_limits<unsigned long>::digits, "unsupported data type width"
+    );
+    log2 -= __builtin_clzl(arg);
+  }
+
+  return log2 - 1;
 }
 
 #define UNUSED(expr) (void)(expr)
