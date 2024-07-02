@@ -77,15 +77,9 @@ public:
 
     template <typename HybVertex>
     static Double HyperbolicDistance(const HybVertex& v1, const HybVertex& v2) {
-        const Double x1      = std::get<2>(v1);
-        const Double x2      = std::get<2>(v2);
-        const Double y1      = std::get<3>(v1);
-        const Double y2      = std::get<3>(v2);
-        const Double gamma1  = std::get<4>(v1);
-        const Double gamma2  = std::get<4>(v2);
-        const Double delta_x = x1 - x2;
-        const Double delta_y = y1 - y2;
-        return (delta_x * delta_x + delta_y * delta_y) * gamma1 * gamma2;
+        const Double delta_x = v1.x - v2.x;
+        const Double delta_y = v1.y - v2.y;
+        return (delta_x * delta_x + delta_y * delta_y) * v1.gamma * v2.gamma;
     }
 
     static Double HyperbolicDistance(const Double r1, const Double r2, const Double phi1, const Double phi2) {

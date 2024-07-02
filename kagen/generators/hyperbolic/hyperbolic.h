@@ -16,7 +16,6 @@
 
 #include <mpi.h>
 
-#include <tuple>
 #include <vector>
 
 namespace kagen {
@@ -30,14 +29,46 @@ public:
 template <typename Double>
 class Hyperbolic : public virtual Generator, private EdgeListOnlyGenerator {
 public:
+    struct Annulus {
+        SInt   n;         // 0
+        Double min_r;     // 1
+        Double max_r;     // 2
+        bool   generated; // 3
+        SInt   offset;    // 4
+    };
+
+    struct Chunk {
+        SInt   n;       // 0
+        Double min_phi; // 1
+        Double max_phi; // 2
+        SInt   offset;  // 3
+    };
+
+    struct Cell {
+        SInt   n;         // 0
+        Double min_phi;   // 1
+        Double max_phi;   // 2
+        bool   generated; // 3
+        SInt   offset;    // 4
+    };
+
+    struct Vertex {
+        Double phi;   // 0
+        Double r;     // 1
+        Double x;     // 2
+        Double y;     // 3
+        Double gamma; // 4
+        SInt   id;    // 5
+    };
+
     // n, min_r, max_r, generated, offset
-    using Annulus = std::tuple<SInt, Double, Double, bool, SInt>;
+    // using Annulus = std::tuple<SInt, Double, Double, bool, SInt>;
     // n, min_phi, max_phi, offset
-    using Chunk = std::tuple<SInt, Double, Double, SInt>;
+    // using Chunk = std::tuple<SInt, Double, Double, SInt>;
     // n, min_phi, max_phi, generated, generated
-    using Cell = std::tuple<SInt, Double, Double, bool, SInt>;
+    // using Cell = std::tuple<SInt, Double, Double, bool, SInt>;
     // phi, r, x, y, gamma, id
-    using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
+    // using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
 
     Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
