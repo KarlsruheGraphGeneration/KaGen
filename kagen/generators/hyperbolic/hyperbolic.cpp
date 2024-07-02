@@ -291,8 +291,6 @@ void Hyperbolic<Double>::GenerateCells(const SInt annulus_id, SInt chunk_id) {
 
 template <typename Double>
 void Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SInt cell_id) {
-    bool clique = false;
-
     // Lazily compute chunk
     if (chunks_.find(chunk_id) == std::end(chunks_)) {
         ComputeChunk(chunk_id);
@@ -322,13 +320,8 @@ void Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, 
     Double min_r = annulus.min_r;
     Double max_r = annulus.max_r;
 
-    SInt seed = 0;
-    if (clique) {
-        seed = config_.seed + annulus_id * config_.k * GridSizeForAnnulus(annulus_id);
-    } else {
-        seed = config_.seed + annulus_id * config_.k * GridSizeForAnnulus(annulus_id)
-               + chunk_id * GridSizeForAnnulus(annulus_id) + cell_id + config_.n;
-    }
+    const SInt seed = config_.seed + annulus_id * config_.k * GridSizeForAnnulus(annulus_id)
+                      + chunk_id * GridSizeForAnnulus(annulus_id) + cell_id + config_.n;
 
     SInt h = sampling::Spooky::hash(seed);
     mersenne.RandomInit(h);
@@ -387,6 +380,7 @@ void Hyperbolic<Double>::GenerateEdges(const SInt annulus_id, const SInt chunk_i
             // Need copy because of hash movement
             const Vertex v = vertices_[global_cell_id][i];
 
+            // @todo why do we need this check?
             if (pe_min_phi_ > v.phi || pe_max_phi_ < v.phi) {
                 continue;
             }
