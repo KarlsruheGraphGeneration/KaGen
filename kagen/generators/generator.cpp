@@ -137,6 +137,10 @@ Graph Generator::Take() {
     return std::move(graph_);
 }
 
+Edgelist Generator::TakeNonlocalEdges() {
+    return std::move(nonlocal_edges_);
+}
+
 void Generator::SetVertexRange(const VertexRange vertex_range) {
     graph_.vertex_range = vertex_range;
 }

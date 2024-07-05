@@ -1,5 +1,7 @@
 #pragma once
 
+#include "kagen/context.h"
+#include "kagen/generators/generator.h"
 #include "kagen/kagen.h"
 
 #include <mpi.h>
@@ -54,5 +56,24 @@ public:
      * @return True if the generation is not finished, false otherwise.
      */
     [[nodiscard]] bool Continue(EdgelistChunk& chunk);
+
+private:
+    std::unique_ptr<Generator> CreateGenerator(PEID chunk);
+
+    void     ExchangeNonlocalEdges();
+    Edgelist GenerateBadHyperbolicEdges(PEID chunk);
+
+    PGeneratorConfig config_;
+
+    PEID next_chunk_;
+    PEID chunks_per_pe_;
+
+    PEID     rank_;
+    PEID     size_;
+    MPI_Comm comm_;
+
+    std::unique_ptr<GeneratorFactory> factory_;
+
+    std::vector<Edgelist> nonlocal_edges_;
 };
 } // namespace kagen
