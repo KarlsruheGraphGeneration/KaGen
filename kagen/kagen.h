@@ -175,6 +175,12 @@ std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorT
 
 std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator);
 
+enum class VertexWeightGeneratorType { NONE, UNIFORM_RANDOM };
+
+std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGeneratorTypeMap();
+
+std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator);
+
 } // namespace kagen
 #endif
 
@@ -296,6 +302,17 @@ public:
      */
     void
     ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end);
+
+    /*!
+     * KaGen will generate vertex weights according to the given configuration.
+     *
+     * @param generator Vertex weights generator to be used.
+     * @param weight_range_begin (Included) begin of weight range for vertex weights, i.e. minimum possible vertex
+     * weight.
+     * @param weight_range_end (Excluded) end of weight range for vertex weights.
+     */
+    void ConfigureVertexWeightGeneration(
+        VertexWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end);
 
     /*!
      * If enabled, KaGen will print information to stdout and stderr (but only on rank 0).

@@ -54,6 +54,12 @@ struct InputGraphConfig {
     bool drop_edge_weights   = false;
 };
 
+struct VertexWeightConfig {
+    VertexWeightGeneratorType generator_type = VertexWeightGeneratorType::NONE;
+    SInt weight_range_begin = 1;
+    SInt weight_range_end = 100;
+};
+
 struct EdgeWeightConfig {
     EdgeWeightGeneratorType generator_type = EdgeWeightGeneratorType::DEFAULT;
     SInt weight_range_begin = 1;
@@ -135,6 +141,9 @@ struct PGeneratorConfig {
 
     // Settings for edge weight generation
     EdgeWeightConfig edge_weights{};
+
+    // Settings for vertex weight generation
+    VertexWeightConfig vertex_weights{};
 
     // Hashing / sampling settings
     int  seed        = 1;      // Seed for PRNG

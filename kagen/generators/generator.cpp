@@ -8,6 +8,9 @@
 #include "kagen/edgeweight_generators/voiding_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
+#include "kagen/vertexweight_generators/none_generator.h"
+#include "kagen/vertexweight_generators/uniform_random_generator.h"
+#include "kagen/vertexweight_generators/vertex_weight_generator.h"
 
 #include <mpi.h>
 
@@ -63,7 +66,7 @@ CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, c
             return std::make_unique<UniformRandomEdgeWeightGenerator>(weight_config, comm, vertex_range);
     }
 
-    throw std::runtime_error("invalid graph generator type");
+    throw std::runtime_error("invalid weight generator type");
 }
 
 void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm) {
@@ -78,9 +81,43 @@ void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm com
             if (!graph_.xadj.empty()) {
                 edge_weight_generator->GenerateEdgeWeights(graph_.edges, graph_.edge_weights);
             } else {
-                // for generateds graph edgelist format is used for construction and then transformed to CSR only in the
+                // for generated graph edgelist format is used for construction and then transformed to CSR only in the
                 // finalized step
                 edge_weight_generator->GenerateEdgeWeights(graph_.xadj, graph_.adjncy, graph_.edge_weights);
+            }
+            break;
+    }
+}
+
+std::unique_ptr<kagen::VertexWeightGenerator>
+CreateVertexWeightGenerator(const VertexWeightConfig weight_config, MPI_Comm comm) {
+    switch (weight_config.generator_type) {
+        case VertexWeightGeneratorType::NONE:
+            return std::make_unique<NoneVertexWeightGenerator>(weight_config);
+        case VertexWeightGeneratorType::UNIFORM_RANDOM:
+            return std::make_unique<UniformRandomVertexWeightGenerator>(weight_config, comm);
+    }
+
+    throw std::runtime_error("invalid weight generator type");
+}
+
+void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm comm) {
+    std::unique_ptr<kagen::VertexWeightGenerator> vertex_weight_generator =
+        CreateVertexWeightGenerator(weight_config, comm);
+
+    switch (desired_representation_) {
+        case GraphRepresentation::EDGE_LIST:
+            graph_.vertex_weights = vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges);
+            break;
+        case GraphRepresentation::CSR:
+            if (!graph_.xadj.empty()) {
+                graph_.vertex_weights =
+                    vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges);
+            } else {
+                // for generated graph edgelist format is used for construction and then transformed to CSR only in the
+                // finalized step
+                graph_.vertex_weights =
+                    vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.xadj, graph_.adjncy);
             }
             break;
     }

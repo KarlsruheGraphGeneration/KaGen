@@ -297,6 +297,21 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
     return out << "<invalid>";
 }
 
+std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGeneratorTypeMap() {
+    return {{"none", VertexWeightGeneratorType::NONE}, {"uniform_random", VertexWeightGeneratorType::UNIFORM_RANDOM}};
+}
+
+std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator) {
+    switch (generator) {
+        case kagen::VertexWeightGeneratorType::NONE:
+            return out << "none";
+        case kagen::VertexWeightGeneratorType::UNIFORM_RANDOM:
+            return out << "uniform_random";
+    }
+
+    return out << "<invalid>";
+}
+
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap() {
     return {
         {"default", EdgeWeightGeneratorType::DEFAULT},
@@ -430,6 +445,13 @@ void KaGen::ConfigureEdgeWeightGeneration(
     config_->edge_weights.generator_type     = generator;
     config_->edge_weights.weight_range_begin = weight_range_begin;
     config_->edge_weights.weight_range_end   = weight_range_end;
+}
+
+void KaGen::ConfigureVertexWeightGeneration(
+    VertexWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end) {
+    config_->vertex_weights.generator_type     = generator;
+    config_->vertex_weights.weight_range_begin = weight_range_begin;
+    config_->vertex_weights.weight_range_end   = weight_range_end;
 }
 
 void KaGen::EnableOutput(const bool header) {

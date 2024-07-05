@@ -80,6 +80,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
     }
 
     generator->GenerateEdgeWeights(config.edge_weights, comm);
+    generator->GenerateVertexWeights(config.vertex_weights, comm);
 
     const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
     if (output_info) {
