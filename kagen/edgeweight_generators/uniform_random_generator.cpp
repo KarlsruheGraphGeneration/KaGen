@@ -6,6 +6,7 @@
 #include "kagen/tools/utils.h"
 
 #include "xxhash.h"
+#include <random>
 #include <unordered_map>
 
 namespace kagen {
@@ -17,12 +18,14 @@ struct EdgeData {
     SInt  v;
     SSInt randomness;
     SSInt weight;
+
     EdgeData() = default;
+
     EdgeData(SInt u_param, SInt v_param, SSInt randomness_param, SSInt weight_param)
-        : u{u_param},
-          v{v_param},
-          randomness{randomness_param},
-          weight{weight_param} {}
+        : u(u_param),
+          v(v_param),
+          randomness(randomness_param),
+          weight(weight_param) {}
 };
 
 // Stores edge (u,v) together with an associated random integer and an edge weight.
@@ -75,19 +78,20 @@ private:
 UniformRandomEdgeWeightGenerator::UniformRandomEdgeWeightGenerator(
     EdgeWeightConfig config, MPI_Comm comm, VertexRange vertex_range)
     : config_(config),
-      comm_{comm},
-      vertex_range_{vertex_range} {
+      comm_(comm),
+      vertex_range_(vertex_range) {
     if (config_.weight_range_begin >= config_.weight_range_end) {
         throw std::runtime_error("Weight causes undefined behavior, need weight_range_begin > weight_range_end.");
     }
 }
 
-EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy) {
+void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(
+    const XadjArray& xadj, const AdjncyArray& adjncy, EdgeWeights& weights) {
     const auto edge_list = BuildEdgeListFromCSR(vertex_range_, xadj, adjncy);
-    return GenerateEdgeWeights(edge_list);
+    GenerateEdgeWeights(edge_list, weights);
 }
 
-EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist& edgelist) {
+void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) {
     PEID rank;
     MPI_Comm_rank(comm_, &rank);
     std::mt19937                         gen((rank + 42) * 3);
@@ -130,11 +134,10 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
     }
 
     // agree on which weight to choose
-    EdgeWeights weights(edgelist.size());
+    weights.resize(edgelist.size());
     for (size_t i = 0; i < edgelist.size(); ++i) {
         const auto& edge = edgelist[i];
         weights[i]       = edge_weight_storage.AgreeOnEdgeWeight(edge);
     }
-    return weights;
 }
 } // namespace kagen
