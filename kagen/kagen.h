@@ -490,7 +490,7 @@ struct StreamedGraph {
     Edgelist    secondary_edges;
 
     template <typename EdgeConsumer>
-    void ForEachEdge(EdgeConsumer&& consumer) {
+    void ForEachEdge(EdgeConsumer&& consumer) const {
         std::size_t primary_idx   = 0;
         std::size_t secondary_idx = 0;
 

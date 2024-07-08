@@ -36,7 +36,9 @@ void StreamingGenerator::Initialize() {
         std::vector<SInt> vertex_distribution(size_ + 1);
 
         for (PEID chunk = 0; chunk < streaming_chunks_per_pe_; ++chunk) {
-            auto  generator      = CreateGenerator(chunk)->Generate(GraphRepresentation::EDGE_LIST);
+            auto generator = CreateGenerator(chunk);
+            generator->Generate(GraphRepresentation::EDGE_LIST);
+
             auto  nonlocal_edges = generator->TakeNonlocalEdges();
             Graph graph          = generator->Take();
 
@@ -125,12 +127,25 @@ std::unique_ptr<Generator> StreamingGenerator::CreateGenerator(const PEID chunk)
 }
 
 StreamedGraph StreamingGenerator::Next() {
-    Graph graph = CreateGenerator(next_streaming_chunk_++)->Generate(GraphRepresentation::EDGE_LIST)->Take();
-    return StreamedGraph{
+    if (next_streaming_chunk_ >= streaming_chunks_per_pe_) {
+        return {
+            .vertex_range    = {-1, -1},
+            .primary_edges   = {},
+            .secondary_edges = {},
+        };
+    }
+
+    Graph         graph  = CreateGenerator(next_streaming_chunk_)->Generate(GraphRepresentation::EDGE_LIST)->Take();
+    StreamedGraph sgraph = {
         .vertex_range    = graph.vertex_range,
         .primary_edges   = std::move(graph.edges),
         .secondary_edges = std::move(nonlocal_edges_[next_streaming_chunk_]),
     };
+    sgraph.SortEdgelist();
+
+    ++next_streaming_chunk_;
+
+    return sgraph;
 }
 
 bool StreamingGenerator::Continue() const {
