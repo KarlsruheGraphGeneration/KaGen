@@ -41,7 +41,7 @@ public:
      * counts are possible at the discretion of the generator.
      * @param comm The MPI communicator to be used.
      */
-    sKaGen(const std::string& options, int chunks, MPI_Comm comm);
+    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
 
     /**
      * This function must be called before the first call to Continue().
@@ -60,13 +60,13 @@ public:
 private:
     std::unique_ptr<Generator> CreateGenerator(PEID chunk);
 
-    void     ExchangeNonlocalEdges();
+    void     ExchangeNonlocalEdges(const std::vector<SInt> &vertex_distribution);
     Edgelist GenerateBadHyperbolicEdges(PEID chunk);
 
     PGeneratorConfig config_;
 
-    PEID next_chunk_;
-    PEID chunks_per_pe_;
+    PEID next_streaming_chunk_;
+    PEID streaming_chunks_per_pe_;
 
     PEID     rank_;
     PEID     size_;
@@ -74,6 +74,7 @@ private:
 
     std::unique_ptr<GeneratorFactory> factory_;
 
+    std::vector<VertexRange> my_vertex_ranges_;
     std::vector<Edgelist> nonlocal_edges_;
 };
 } // namespace kagen
