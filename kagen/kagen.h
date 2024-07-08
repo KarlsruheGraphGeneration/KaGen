@@ -525,6 +525,8 @@ public:
      */
     sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
 
+    ~sKaGen();
+
     /*!
      * This function must be called before the first call to Continue().
      * Depending on the generator, this function may run for a long time.

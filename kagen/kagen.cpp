@@ -789,6 +789,8 @@ void StreamedGraph::SortEdgelist() {
 sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
     : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm)) {}
 
+sKaGen::~sKaGen() = default;
+
 void sKaGen::Initialize() {
     generator_->Initialize();
 }
