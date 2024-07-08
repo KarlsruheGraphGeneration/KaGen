@@ -4,6 +4,7 @@
 
 #include <mpi.h>
 
+#include <cassert>
 #include <numeric>
 
 namespace kagen {
@@ -27,7 +28,7 @@ void StreamingGenerator::Initialize() {
     nonlocal_edges_.resize(streaming_chunks_per_pe_);
 
     my_vertex_ranges_.clear();
-    my_vertex_ranges_.reserve(streaming_chunks_per_pe_);
+    my_vertex_ranges_.resize(streaming_chunks_per_pe_);
 
     // Special treatment for RHG: we lack inward-facing inter-chunk edges between annulis
     // To handle this in the streaming setting, we therefore generate the graph twice, only tracking these difficult
@@ -69,14 +70,14 @@ void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_d
 
         for (PEID pe = 0; pe < size_; ++pe) {
             while (idx < edges.size() && edges[idx].first < vertex_distribution[pe + 1]) {
-                send_counts[pe] += 2;
-                idx += 1;
+                ++send_counts[pe];
+                ++idx;
             }
         }
     }
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
-    std::vector<SInt> send_bufs(send_displs.back() + send_counts.back());
+    Edgelist send_bufs(send_displs.back() + send_counts.back());
     std::fill(send_counts.begin(), send_counts.end(), 0);
 
     for (auto& edges: nonlocal_edges_) {
@@ -84,9 +85,9 @@ void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_d
 
         for (PEID pe = 0; pe < size_; ++pe) {
             while (idx < edges.size() && edges[idx].first < vertex_distribution[pe + 1]) {
-                send_bufs[send_displs[pe] + send_counts[pe]++] = edges[idx].first;
-                send_bufs[send_displs[pe] + send_counts[pe]++] = edges[idx].second;
-                idx += 1;
+                send_bufs[send_displs[pe] + send_counts[pe]] = edges[idx];
+                ++send_counts[pe];
+                ++idx;
             }
         }
 
@@ -99,25 +100,35 @@ void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_d
     MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm_);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
 
-    std::vector<SInt> recv_bufs(recv_displs.back() + recv_counts.back());
+    MPI_Datatype sint_pair = MPI_DATATYPE_NULL;
+    MPI_Type_contiguous(2, KAGEN_MPI_SINT, &sint_pair);
+    MPI_Type_commit(&sint_pair);
 
+    Edgelist recv_bufs(recv_displs.back() + recv_counts.back());
     MPI_Alltoallv(
-        send_bufs.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_bufs.data(), recv_counts.data(),
-        recv_displs.data(), KAGEN_MPI_SINT, comm_);
+        send_bufs.data(), send_counts.data(), send_displs.data(), sint_pair, recv_bufs.data(), recv_counts.data(),
+        recv_displs.data(), sint_pair, comm_);
+
+    MPI_Type_free(&sint_pair);
 
     for (PEID pe = 0; pe < size_; ++pe) {
         std::sort(recv_bufs.begin() + recv_displs[pe], recv_bufs.begin() + recv_displs[pe] + recv_counts[pe]);
         PEID chunk = 0;
 
-        for (PEID idx = recv_displs[pe]; idx < recv_displs[pe] + recv_counts[pe]; idx += 2) {
-            const SInt from = recv_bufs[idx];
-            const SInt to   = recv_bufs[idx + 1];
+        for (PEID idx = recv_displs[pe]; idx < recv_displs[pe] + recv_counts[pe]; ++idx) {
+            const auto [from, to] = recv_bufs[idx];
 
-            while (from >= my_vertex_ranges_[chunk].second) {
+            assert(from >= vertex_distribution[rank_] && from < vertex_distribution[rank_ + 1]);
+
+            while (chunk < static_cast<int>(my_vertex_ranges_.size()) && from >= my_vertex_ranges_[chunk].second) {
                 chunk += 1;
             }
 
-            nonlocal_edges_[chunk].emplace_back(from, to);
+            assert(chunk < static_cast<int>(my_vertex_ranges_.size()));
+            assert(from >= my_vertex_ranges_[chunk].first);
+            assert(from < my_vertex_ranges_[chunk].second);
+
+            nonlocal_edges_.at(chunk).emplace_back(from, to);
         }
     }
 }
