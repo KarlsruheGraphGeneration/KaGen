@@ -1,10 +1,12 @@
 #include "kagen/streaming_facade.h"
 
+#include "kagen/definitions.h"
 #include "kagen/factories.h"
 
 #include <mpi.h>
 
 #include <cassert>
+#include <iomanip>
 #include <numeric>
 
 namespace kagen {
@@ -34,7 +36,16 @@ void StreamingGenerator::Initialize() {
     // To handle this in the streaming setting, we therefore generate the graph twice, only tracking these difficult
     // edges during the first iteration, and then use communication to fix them up
     if (config_.generator == GeneratorType::RHG) {
+        if (rank_ == ROOT && !config_.quiet) {
+            std::cout << "Hyperbolic generator requires two passes to generate the graph" << std::endl;
+            std::cout << "Initializaing " << std::flush;
+        }
+
         std::vector<SInt> vertex_distribution(size_ + 1);
+
+        SInt max_nonlocal_edges = 0; // PE-level max. nonlocal edges
+        SInt num_local_edges    = 0; // Total number of local edges
+        SInt max_local_edges    = 0; // Chunk-level max local edges
 
         for (PEID chunk = 0; chunk < streaming_chunks_per_pe_; ++chunk) {
             auto generator = CreateGenerator(chunk);
@@ -49,11 +60,33 @@ void StreamingGenerator::Initialize() {
 
             my_vertex_ranges_[chunk] = graph.vertex_range;
             nonlocal_edges_[chunk]   = std::move(nonlocal_edges);
+            max_nonlocal_edges += nonlocal_edges_[chunk].size();
+            num_local_edges += graph.edges.size();
+            max_local_edges = std::max(max_local_edges, static_cast<SInt>(graph.edges.size()));
+
+            if (rank_ == ROOT && !config_.quiet) {
+                std::cout << "." << std::flush;
+            }
         }
+
+        MPI_Allreduce(MPI_IN_PLACE, &max_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
+        MPI_Allreduce(MPI_IN_PLACE, &num_local_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
+        MPI_Allreduce(MPI_IN_PLACE, &max_local_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
 
         vertex_distribution[rank_]     = my_vertex_ranges_.front().first;
         vertex_distribution[rank_ + 1] = my_vertex_ranges_.back().second;
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vertex_distribution.data() + 1, 1, KAGEN_MPI_SINT, comm_);
+
+        if (rank_ == ROOT && !config_.quiet) {
+            std::cout << std::endl;
+            std::cout << "Total number of local edges:      " << num_local_edges << std::endl;
+            std::cout << "Maximum number of local edges:    " << max_local_edges << " = " << std::fixed
+                      << std::setprecision(3) << 16 * max_local_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+            std::cout << "Maximum number of nonlocal edges: " << max_nonlocal_edges << " = " << std::fixed
+                      << std::setprecision(3) << 16 * max_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+            std::cout << "Memory peak:                      roughly "
+                      << 16 * (max_local_edges + max_nonlocal_edges) / 1024.0 / 1024.0 << " MB" << std::endl;
+        }
 
         ExchangeNonlocalEdges(vertex_distribution);
     }
