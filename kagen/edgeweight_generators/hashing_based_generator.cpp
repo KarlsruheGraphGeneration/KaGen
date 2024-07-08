@@ -9,12 +9,10 @@ namespace kagen {
 HashingBasedEdgeWeightGenerator::HashingBasedEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {}
 
 SSInt HashingBasedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
-    SSInt hash1, hash2;
-
-    hash1 = XXH64(&u, 1, 0);
-    hash2 = XXH64(&v, 1, 0);
-    SSInt combined_value =
+    const SInt  hash1 = XXH64(&u, 1, 0);
+    const SInt  hash2 = XXH64(&v, 1, 0);
+    const SSInt combined =
         (hash1 ^ hash2) % (config_.weight_range_end - config_.weight_range_begin) + config_.weight_range_begin;
-    return combined_value;
+    return combined;
 }
 } // namespace kagen
