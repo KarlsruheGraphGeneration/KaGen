@@ -1,10 +1,11 @@
 #include "kagen/generators/generator.h"
 
 #include "kagen/context.h"
+#include "kagen/edgeweight_generators/default_generator.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
 #include "kagen/edgeweight_generators/hashing_based_generator.h"
-#include "kagen/edgeweight_generators/none_generator.h"
 #include "kagen/edgeweight_generators/uniform_random_generator.h"
+#include "kagen/edgeweight_generators/voiding_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 
@@ -50,10 +51,12 @@ Generator* Generator::Finalize(MPI_Comm comm) {
 }
 
 std::unique_ptr<kagen::EdgeWeightGenerator>
-CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, VertexRange vertex_range) {
+CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, const VertexRange vertex_range) {
     switch (weight_config.generator_type) {
-        case EdgeWeightGeneratorType::NONE:
-            return std::make_unique<NoneEdgeWeightGenerator>(weight_config);
+        case EdgeWeightGeneratorType::DEFAULT:
+            return std::make_unique<DefaultEdgeWeightGenerator>(weight_config);
+        case EdgeWeightGeneratorType::VOIDING:
+            return std::make_unique<VoidingEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::HASHING_BASED:
             return std::make_unique<HashingBasedEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::UNIFORM_RANDOM:

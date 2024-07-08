@@ -38,27 +38,27 @@ class EdgeWeightStorage {
 
 public:
     void InsertOrReplace(const Edge& key, const RandInt_Weight& value) {
-        auto it = edge_to_weightdata.find(key);
-        if (it != edge_to_weightdata.end() && value < it->second) {
-            // if edge is already present (due to duplicate edges) store edge weight with smaller (rand_int, weight)
+        const auto it = edge_to_weight_data.find(key);
+        if (it != edge_to_weight_data.end() && value < it->second) {
+            // If edge is already present (due to duplicate edges) store edge weight with smaller (rand_int, weight)
             // pair.
             it->second = value;
         } else {
-            edge_to_weightdata.emplace(key, value);
+            edge_to_weight_data.emplace(key, value);
         }
     }
 
     // Use weight with smaller associated random integer.
     SSInt AgreeOnEdgeWeight(const Edge& edge) {
         const auto& reversed_edge = std::make_pair(edge.second, edge.first);
-        auto        edge_it       = edge_to_weightdata.find(edge);
-        if (edge_it == edge_to_weightdata.end()) {
+        auto        edge_it       = edge_to_weight_data.find(edge);
+        if (edge_it == edge_to_weight_data.end()) {
             throw std::runtime_error("edge should have been inserted into map!");
         }
         const auto& edge_value        = edge_it->second;
         SSInt       weight            = edge_value.second; // use this value as default
-        auto        reveresed_edge_it = edge_to_weightdata.find(reversed_edge);
-        if (reveresed_edge_it != edge_to_weightdata.end() && reveresed_edge_it->second < edge_value) {
+        const auto  reveresed_edge_it = edge_to_weight_data.find(reversed_edge);
+        if (reveresed_edge_it != edge_to_weight_data.end() && reveresed_edge_it->second < edge_value) {
             const auto& reversed_edge_value = reveresed_edge_it->second;
             weight                          = reversed_edge_value.second;
         }
@@ -71,7 +71,8 @@ private:
             return edge.first ^ (edge.second << 1);
         }
     };
-    std::unordered_map<Edge, std::pair<SSInt, SSInt>, EdgeHasher> edge_to_weightdata;
+
+    std::unordered_map<Edge, std::pair<SSInt, SSInt>, EdgeHasher> edge_to_weight_data;
 };
 } // namespace
 
@@ -94,6 +95,7 @@ void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(
 void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) {
     PEID rank;
     MPI_Comm_rank(comm_, &rank);
+
     std::mt19937                         gen((rank + 42) * 3);
     std::uniform_int_distribution<SSInt> weight_dist(config_.weight_range_begin, config_.weight_range_end - 1);
 

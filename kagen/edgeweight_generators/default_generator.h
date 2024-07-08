@@ -5,9 +5,9 @@
 #include "kagen/kagen.h"
 
 namespace kagen {
-class NoneEdgeWeightGenerator : public EdgeWeightGenerator {
+class DefaultEdgeWeightGenerator : public EdgeWeightGenerator {
 public:
-    NoneEdgeWeightGenerator(EdgeWeightConfig) {}
+    DefaultEdgeWeightGenerator(EdgeWeightConfig) {}
 
     void GenerateEdgeWeights(const Edgelist&, EdgeWeights&) final {}
 
