@@ -2,6 +2,7 @@
 
 #include "kagen/context.h"
 #include "kagen/in_memory_facade.h"
+#include "kagen/streaming_facade.h"
 
 #include <cmath>
 #include <numeric>
@@ -762,5 +763,41 @@ void KaGen::SetDefaults() {
     config_->quiet = true;
     config_->output_graph.formats.clear();
     // (keep other defaults)
+}
+
+//
+// Streaming interface
+//
+
+[[nodiscard]] SInt StreamedGraph::NumberOfLocalVertices() const {
+    return vertex_range.second - vertex_range.first;
+}
+
+[[nodiscard]] SInt StreamedGraph::NumberOfLocalEdges() const {
+    return primary_edges.size() + secondary_edges.size();
+}
+
+void StreamedGraph::SortEdgelist() {
+    if (!std::is_sorted(primary_edges.begin(), primary_edges.end())) {
+        std::sort(primary_edges.begin(), primary_edges.end());
+    }
+    if (!std::is_sorted(secondary_edges.begin(), secondary_edges.end())) {
+        std::sort(secondary_edges.begin(), secondary_edges.end());
+    }
+}
+
+sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
+    : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm)) {}
+
+void sKaGen::Initialize() {
+    generator_->Initialize();
+}
+
+[[nodiscard]] StreamedGraph sKaGen::Next() {
+    return generator_->Next();
+}
+
+[[nodiscard]] bool sKaGen::Continue() {
+    return generator_->Continue();
 }
 } // namespace kagen

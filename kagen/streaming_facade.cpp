@@ -1,4 +1,4 @@
-#include "kagen/skagen.h"
+#include "kagen/streaming_facade.h"
 
 #include "kagen/factories.h"
 
@@ -7,7 +7,7 @@
 #include <numeric>
 
 namespace kagen {
-sKaGen::sKaGen(const std::string& options, const PEID chunks_per_pe, MPI_Comm comm)
+StreamingGenerator::StreamingGenerator(const std::string& options, const PEID chunks_per_pe, MPI_Comm comm)
     : config_(CreateConfigFromString(options)),
       comm_(comm),
       factory_(CreateGeneratorFactory(config_.generator)) {
@@ -22,7 +22,7 @@ sKaGen::sKaGen(const std::string& options, const PEID chunks_per_pe, MPI_Comm co
     streaming_chunks_per_pe_ = config_.k / size_;
 }
 
-void sKaGen::Initialize() {
+void StreamingGenerator::Initialize() {
     nonlocal_edges_.clear();
     nonlocal_edges_.resize(streaming_chunks_per_pe_);
 
@@ -58,7 +58,7 @@ void sKaGen::Initialize() {
     next_streaming_chunk_ = 0;
 }
 
-void sKaGen::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_distribution) {
+void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_distribution) {
     std::vector<int> send_counts(size_);
     std::vector<int> send_displs(size_);
 
@@ -120,20 +120,20 @@ void sKaGen::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_distribution)
     }
 }
 
-std::unique_ptr<Generator> sKaGen::CreateGenerator(const PEID chunk) {
+std::unique_ptr<Generator> StreamingGenerator::CreateGenerator(const PEID chunk) {
     return factory_->Create(config_, streaming_chunks_per_pe_ * rank_ + chunk, streaming_chunks_per_pe_ * size_);
 }
 
-bool sKaGen::Continue(EdgelistChunk& chunk) {
-    if (next_streaming_chunk_ >= streaming_chunks_per_pe_) {
-        return false;
-    }
+StreamedGraph StreamingGenerator::Next() {
+    Graph graph = CreateGenerator(next_streaming_chunk_++)->Generate(GraphRepresentation::EDGE_LIST)->Take();
+    return StreamedGraph{
+        .vertex_range    = graph.vertex_range,
+        .primary_edges   = std::move(graph.edges),
+        .secondary_edges = std::move(nonlocal_edges_[next_streaming_chunk_]),
+    };
+}
 
-    Graph graph_chunk     = CreateGenerator(next_streaming_chunk_)->Generate(GraphRepresentation::EDGE_LIST)->Take();
-    chunk.vertex_range    = graph_chunk.vertex_range;
-    chunk.primary_edges   = std::move(graph_chunk.edges);
-    chunk.secondary_edges = std::move(nonlocal_edges_[next_streaming_chunk_]);
-
-    return (++next_streaming_chunk_) < streaming_chunks_per_pe_;
+bool StreamingGenerator::Continue() const {
+    return next_streaming_chunk_ < streaming_chunks_per_pe_;
 }
 } // namespace kagen

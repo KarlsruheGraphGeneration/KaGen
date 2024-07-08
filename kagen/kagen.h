@@ -200,7 +200,6 @@ struct Graph {
     Coordinates   coordinates;
 
     SInt NumberOfLocalVertices() const;
-
     SInt NumberOfLocalEdges() const;
 
     void SortEdgelist();
@@ -480,6 +479,71 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
 
     return distribution;
 }
+
+//
+// Streaming Interface
+//
+
+struct StreamedGraph {
+    VertexRange vertex_range;
+    Edgelist    primary_edges;
+    Edgelist    secondary_edges;
+
+    template <typename EdgeConsumer>
+    void ForEachEdge(EdgeConsumer&& consumer) {
+        std::size_t primary_idx   = 0;
+        std::size_t secondary_idx = 0;
+
+        for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
+            while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
+                consumer(primary_edges[primary_idx].first, primary_edges[primary_idx].second);
+                ++primary_idx;
+            }
+
+            while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
+                consumer(secondary_edges[secondary_idx].first, secondary_edges[secondary_idx].second);
+                ++secondary_idx;
+            }
+        }
+    }
+
+    [[nodiscard]] SInt NumberOfLocalVertices() const;
+    [[nodiscard]] SInt NumberOfLocalEdges() const;
+
+    void SortEdgelist();
+};
+
+/*!
+ * Streaming interface for KaGen: generates graphs a chunk at a time.
+ */
+class sKaGen {
+public:
+    /*!
+     * @param options The options string to be passed to KaGen, e.g, `rhg;N=10;M=12`.
+     * @param chunks Number of chunks *per PE* that generation will be split into.
+     * @param comm The MPI communicator to be used.
+     */
+    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
+
+    /*!
+     * This function must be called before the first call to Continue().
+     * Depending on the generator, this function may run for a long time.
+     */
+    void Initialize();
+
+    /*!
+     * @return Next chunk of the graph.
+     */
+    [[nodiscard]] StreamedGraph Next();
+
+    /*!
+     * @return True if the generation is not finished, false otherwise.
+     */
+    [[nodiscard]] bool Continue();
+
+private:
+    std::unique_ptr<class StreamingGenerator> generator_;
+};
 } // namespace kagen
 #endif
 
