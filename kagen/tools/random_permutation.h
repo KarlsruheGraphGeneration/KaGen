@@ -7,11 +7,16 @@
  ******************************************************************************/
 #pragma once
 
+#ifndef KAGEN_XXHASH_FOUND
+    #error "This file requires xxHash to be available."
+#endif
+
 #include "xxhash.h"
 #include <cassert>
 #include <cstdint>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 namespace kagen::random_permutation {
@@ -74,20 +79,19 @@ inline uint8_t most_significant_bit_set(Data bytes) {
     asm("bsr %1,%0" : "=r"(msb) : "r"(bytes));
     return asserting_cast<uint8_t>(msb);
 }*/
-template <typename Data> std::uint8_t most_significant_bit_set(const Data arg) {
-  constexpr std::size_t arg_width = std::numeric_limits<Data>::digits;
-  auto log2 = static_cast<Data>(arg_width);
+template <typename Data>
+std::uint8_t most_significant_bit_set(const Data arg) {
+    constexpr std::size_t arg_width = std::numeric_limits<Data>::digits;
+    auto                  log2      = static_cast<Data>(arg_width);
 
-  if constexpr (arg_width == std::numeric_limits<unsigned int>::digits) {
-    log2 -= __builtin_clz(arg);
-  } else {
-    static_assert(
-        arg_width == std::numeric_limits<unsigned long>::digits, "unsupported data type width"
-    );
-    log2 -= __builtin_clzl(arg);
-  }
+    if constexpr (arg_width == std::numeric_limits<unsigned int>::digits) {
+        log2 -= __builtin_clz(arg);
+    } else {
+        static_assert(arg_width == std::numeric_limits<unsigned long>::digits, "unsupported data type width");
+        log2 -= __builtin_clzl(arg);
+    }
 
-  return log2 - 1;
+    return log2 - 1;
 }
 
 #define UNUSED(expr) (void)(expr)
