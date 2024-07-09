@@ -782,6 +782,10 @@ sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
 
 sKaGen::~sKaGen() = default;
 
+VertexRange sKaGen::EstimateVertexRange(const PEID pe) const {
+    return generator_->EstimateVertexRange(pe);
+}
+
 void sKaGen::Initialize() {
     generator_->Initialize();
 }

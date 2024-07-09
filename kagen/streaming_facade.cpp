@@ -2,6 +2,7 @@
 
 #include "kagen/definitions.h"
 #include "kagen/factories.h"
+#include "kagen/tools/utils.h"
 
 #include <mpi.h>
 
@@ -25,6 +26,18 @@ StreamingGenerator::StreamingGenerator(const std::string& options, const PEID ch
     streaming_chunks_per_pe_ = config_.k / size_;
 }
 
+VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
+    if (pe < 0) {
+        pe = rank_;
+    }
+
+    if (!vertex_distribution_.empty()) {
+        return {vertex_distribution_[pe], vertex_distribution_[pe + 1]};
+    }
+
+    return ComputeRange(config_.n, size_, pe);
+}
+
 void StreamingGenerator::Initialize() {
     nonlocal_edges_.clear();
     nonlocal_edges_.resize(streaming_chunks_per_pe_);
@@ -32,16 +45,13 @@ void StreamingGenerator::Initialize() {
     my_vertex_ranges_.clear();
     my_vertex_ranges_.resize(streaming_chunks_per_pe_);
 
-    // Special treatment for RHG: we lack inward-facing inter-chunk edges between annulis
-    // To handle this in the streaming setting, we therefore generate the graph twice, only tracking these difficult
-    // edges during the first iteration, and then use communication to fix them up
-    if (config_.generator == GeneratorType::RHG) {
+    if (!initialized_) {
         if (rank_ == ROOT && !config_.quiet) {
-            std::cout << "Hyperbolic generator requires two passes to generate the graph" << std::endl;
             std::cout << "Initializaing " << std::flush;
         }
 
-        std::vector<SInt> vertex_distribution(size_ + 1);
+        initialized_ = true;
+        vertex_distribution_.resize(size_ + 1);
 
         SInt max_nonlocal_edges = 0; // PE-level max. nonlocal edges
         SInt num_local_edges    = 0; // Total number of local edges
@@ -73,9 +83,9 @@ void StreamingGenerator::Initialize() {
         MPI_Allreduce(MPI_IN_PLACE, &num_local_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
         MPI_Allreduce(MPI_IN_PLACE, &max_local_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
 
-        vertex_distribution[rank_]     = my_vertex_ranges_.front().first;
-        vertex_distribution[rank_ + 1] = my_vertex_ranges_.back().second;
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vertex_distribution.data() + 1, 1, KAGEN_MPI_SINT, comm_);
+        vertex_distribution_[rank_]     = my_vertex_ranges_.front().first;
+        vertex_distribution_[rank_ + 1] = my_vertex_ranges_.back().second;
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vertex_distribution_.data() + 1, 1, KAGEN_MPI_SINT, comm_);
 
         if (rank_ == ROOT && !config_.quiet) {
             std::cout << std::endl;
@@ -88,13 +98,13 @@ void StreamingGenerator::Initialize() {
                       << 16 * (max_local_edges + max_nonlocal_edges) / 1024.0 / 1024.0 << " MB" << std::endl;
         }
 
-        ExchangeNonlocalEdges(vertex_distribution);
+        ExchangeNonlocalEdges();
     }
 
     next_streaming_chunk_ = 0;
 }
 
-void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_distribution) {
+void StreamingGenerator::ExchangeNonlocalEdges() {
     std::vector<int> send_counts(size_);
     std::vector<int> send_displs(size_);
 
@@ -102,7 +112,7 @@ void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_d
         std::size_t idx = 0;
 
         for (PEID pe = 0; pe < size_; ++pe) {
-            while (idx < edges.size() && edges[idx].first < vertex_distribution[pe + 1]) {
+            while (idx < edges.size() && edges[idx].first < vertex_distribution_[pe + 1]) {
                 ++send_counts[pe];
                 ++idx;
             }
@@ -117,7 +127,7 @@ void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_d
         std::size_t idx = 0;
 
         for (PEID pe = 0; pe < size_; ++pe) {
-            while (idx < edges.size() && edges[idx].first < vertex_distribution[pe + 1]) {
+            while (idx < edges.size() && edges[idx].first < vertex_distribution_[pe + 1]) {
                 send_bufs[send_displs[pe] + send_counts[pe]] = edges[idx];
                 ++send_counts[pe];
                 ++idx;
@@ -151,7 +161,7 @@ void StreamingGenerator::ExchangeNonlocalEdges(const std::vector<SInt>& vertex_d
         for (PEID idx = recv_displs[pe]; idx < recv_displs[pe] + recv_counts[pe]; ++idx) {
             const auto [from, to] = recv_bufs[idx];
 
-            assert(from >= vertex_distribution[rank_] && from < vertex_distribution[rank_ + 1]);
+            assert(from >= vertex_distribution_[rank_] && from < vertex_distribution_[rank_ + 1]);
 
             while (chunk < static_cast<int>(my_vertex_ranges_.size()) && from >= my_vertex_ranges_[chunk].second) {
                 chunk += 1;

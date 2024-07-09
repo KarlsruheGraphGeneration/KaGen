@@ -13,6 +13,8 @@ class StreamingGenerator {
 public:
     StreamingGenerator(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
 
+    [[nodiscard]] VertexRange EstimateVertexRange(PEID pe = -1) const;
+
     void Initialize();
 
     [[nodiscard]] StreamedGraph Next();
@@ -21,7 +23,7 @@ public:
 private:
     std::unique_ptr<Generator> CreateGenerator(PEID chunk);
 
-    void     ExchangeNonlocalEdges(const std::vector<SInt>& vertex_distribution);
+    void     ExchangeNonlocalEdges();
     Edgelist GenerateBadHyperbolicEdges(PEID chunk);
 
     PGeneratorConfig config_;
@@ -33,8 +35,11 @@ private:
     PEID     size_;
     MPI_Comm comm_;
 
+    bool initialized_ = false;
+
     std::unique_ptr<GeneratorFactory> factory_;
 
+    std::vector<SInt>        vertex_distribution_;
     std::vector<VertexRange> my_vertex_ranges_;
     std::vector<Edgelist>    nonlocal_edges_;
 };

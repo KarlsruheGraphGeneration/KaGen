@@ -525,6 +525,8 @@ public:
 
     ~sKaGen();
 
+    [[nodiscard]] VertexRange EstimateVertexRange(PEID pe = -1) const;
+
     /*!
      * This function must be called before the first call to Continue().
      * Depending on the generator, this function may run for a long time.
@@ -537,7 +539,7 @@ public:
     [[nodiscard]] StreamedGraph Next();
 
     /*!
-     * @return True if the generation is not finished, false otherwise.
+     * @return True if generation is not finished, false otherwise.
      */
     [[nodiscard]] bool Continue();
 

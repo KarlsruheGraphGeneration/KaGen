@@ -2,6 +2,7 @@
 #include <mpi.h>
 
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <numeric>
 
@@ -29,7 +30,15 @@ int main(int argc, char* argv[]) {
     kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
     gen.Initialize();
 
+    kagen::VertexRange my_expected_vertex_range       = gen.EstimateVertexRange();
+    bool               respects_esimated_vertex_range = true;
+
     if (rank == 0) {
+        for (int pe = 0; pe < size; ++pe) {
+            std::cout << "Vertices on PE " << std::setw(3) << pe << ": " << gen.EstimateVertexRange(pe).first << " - "
+                      << gen.EstimateVertexRange(pe).second << std::endl;
+        }
+
         std::cout << "Generating " << std::flush;
     }
 
@@ -37,9 +46,13 @@ int main(int argc, char* argv[]) {
     while (gen.Continue()) {
         const kagen::StreamedGraph graph = gen.Next();
 
-        graph.ForEachEdge([&local_edges](const auto from, const auto to) {
+        graph.ForEachEdge([&](const auto from, const auto to) {
             local_edges.push_back(from);
             local_edges.push_back(to);
+
+            if (from < my_expected_vertex_range.first || from >= my_expected_vertex_range.second) {
+                respects_esimated_vertex_range = false;
+            }
         });
 
         if (rank == 0) {
@@ -52,6 +65,12 @@ int main(int argc, char* argv[]) {
         std::cout << "Waiting for other PEs ..." << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
+
+    MPI_Allreduce(MPI_IN_PLACE, &respects_esimated_vertex_range, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
+    if (rank == 0 && !respects_esimated_vertex_range) {
+        std::cout << "Info: Some edges on some PEs are out of the estimated vertex range." << std::endl;
+    }
+
     if (rank == 0) {
         std::cout << "Dumping edges from root ..." << std::endl;
     }
