@@ -509,8 +509,6 @@ struct StreamedGraph {
 
     [[nodiscard]] SInt NumberOfLocalVertices() const;
     [[nodiscard]] SInt NumberOfLocalEdges() const;
-
-    void SortEdgelist();
 };
 
 /*!

@@ -185,7 +185,13 @@ StreamedGraph StreamingGenerator::Next() {
         .primary_edges   = std::move(graph.edges),
         .secondary_edges = std::move(nonlocal_edges_[next_streaming_chunk_]),
     };
-    sgraph.SortEdgelist();
+
+    if (!std::is_sorted(sgraph.primary_edges.begin(), sgraph.primary_edges.end())) {
+        std::sort(sgraph.primary_edges.begin(), sgraph.primary_edges.end());
+    }
+    if (!std::is_sorted(sgraph.secondary_edges.begin(), sgraph.secondary_edges.end())) {
+        std::sort(sgraph.secondary_edges.begin(), sgraph.secondary_edges.end());
+    }
 
     ++next_streaming_chunk_;
 

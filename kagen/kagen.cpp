@@ -777,15 +777,6 @@ void KaGen::SetDefaults() {
     return primary_edges.size() + secondary_edges.size();
 }
 
-void StreamedGraph::SortEdgelist() {
-    if (!std::is_sorted(primary_edges.begin(), primary_edges.end())) {
-        std::sort(primary_edges.begin(), primary_edges.end());
-    }
-    if (!std::is_sorted(secondary_edges.begin(), secondary_edges.end())) {
-        std::sort(secondary_edges.begin(), secondary_edges.end());
-    }
-}
-
 sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
     : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm)) {}
 
