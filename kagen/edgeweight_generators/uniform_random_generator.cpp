@@ -5,7 +5,6 @@
 #include "kagen/tools/converter.h"
 #include "kagen/tools/utils.h"
 
-#include "xxhash.h"
 #include <random>
 #include <unordered_map>
 
