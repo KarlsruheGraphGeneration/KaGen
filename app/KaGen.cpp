@@ -169,6 +169,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "automatically");
     app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
+    // Edge weight generator parameters
     app.add_option(
            "--edgeweights-generator", config.edge_weights.generator_type,
            "Generator type to use for generating edge weights.")
@@ -179,6 +180,18 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     app.add_option(
         "--edgeweights-range-end", config.edge_weights.weight_range_begin,
         "(Excluded) end of weight range to be used for edge weights.");
+
+    // Vertex weight generator parameters
+    app.add_option(
+           "--vertexweights-generator", config.vertex_weights.generator_type,
+           "Generator type to use for generating vertex weights.")
+        ->transform(CLI::CheckedTransformer(GetVertexWeightGeneratorTypeMap(), CLI::ignore_case));
+    app.add_option(
+        "--vertexweights-range-begin", config.vertex_weights.weight_range_begin,
+        "(Included) begin of weight range used for vertex weights, i.e., minimum vertex weight.");
+    app.add_option(
+        "--vertexweights-range-end", config.vertex_weights.weight_range_begin,
+        "(Excluded) end of weight range to be used for vertex weights.");
 
     { // Options string
         auto* cmd = app.add_subcommand(
