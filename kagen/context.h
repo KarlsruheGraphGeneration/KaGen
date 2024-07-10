@@ -54,10 +54,16 @@ struct InputGraphConfig {
     bool drop_edge_weights   = false;
 };
 
+struct VertexWeightConfig {
+    VertexWeightGeneratorType generator_type     = VertexWeightGeneratorType::DEFAULT;
+    SInt                      weight_range_begin = 1;
+    SInt                      weight_range_end   = 100;
+};
+
 struct EdgeWeightConfig {
-    EdgeWeightGeneratorType generator_type = EdgeWeightGeneratorType::DEFAULT;
-    SInt weight_range_begin = 1;
-    SInt weight_range_end = 100;
+    EdgeWeightGeneratorType generator_type     = EdgeWeightGeneratorType::DEFAULT;
+    SInt                    weight_range_begin = 1;
+    SInt                    weight_range_end   = 100;
 };
 
 struct OutputGraphConfig {
@@ -136,6 +142,9 @@ struct PGeneratorConfig {
     // Settings for edge weight generation
     EdgeWeightConfig edge_weights{};
 
+    // Settings for vertex weight generation
+    VertexWeightConfig vertex_weights{};
+
     // Hashing / sampling settings
     int  seed        = 1;      // Seed for PRNG
     bool hash_sample = false;  // Use hash tryagain sampling
@@ -143,7 +152,7 @@ struct PGeneratorConfig {
     SInt precision   = 32;     // Floating-point precision
     SInt base_size   = 1 << 8; // Sampler base size
     SInt hyp_base    = 1 << 8;
-    
+
     // Edge weights
 
     OutputGraphConfig output_graph{};
