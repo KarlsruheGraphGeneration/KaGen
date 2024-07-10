@@ -7,7 +7,9 @@ class VertexWeightGenerator {
 public:
     virtual ~VertexWeightGenerator() = default;
 
-    virtual VertexWeights GenerateVertexWeights(const VertexRange& vertex_range, const Edgelist& edgelist) = 0;
-    virtual VertexWeights GenerateVertexWeights(const VertexRange& vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy) = 0;
+    virtual void
+    GenerateVertexWeights(const VertexRange& vertex_range, const Edgelist& edgelist, VertexWeights& weights) = 0;
+    virtual void GenerateVertexWeights(
+        const VertexRange& vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy, VertexWeights& weights) = 0;
 };
 } // namespace kagen

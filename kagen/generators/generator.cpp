@@ -8,7 +8,8 @@
 #include "kagen/edgeweight_generators/voiding_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
-#include "kagen/vertexweight_generators/none_generator.h"
+#include "kagen/vertexweight_generators/default_generator.h"
+#include "kagen/vertexweight_generators/voiding_generator.h"
 #include "kagen/vertexweight_generators/uniform_random_generator.h"
 #include "kagen/vertexweight_generators/vertex_weight_generator.h"
 
@@ -92,8 +93,10 @@ void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm com
 std::unique_ptr<kagen::VertexWeightGenerator>
 CreateVertexWeightGenerator(const VertexWeightConfig weight_config, MPI_Comm comm) {
     switch (weight_config.generator_type) {
-        case VertexWeightGeneratorType::NONE:
-            return std::make_unique<NoneVertexWeightGenerator>(weight_config);
+        case VertexWeightGeneratorType::DEFAULT:
+            return std::make_unique<DefaultVertexWeightGenerator>(weight_config);
+        case VertexWeightGeneratorType::VOIDING:
+            return std::make_unique<VoidingVertexWeightGenerator>(weight_config);
         case VertexWeightGeneratorType::UNIFORM_RANDOM:
             return std::make_unique<UniformRandomVertexWeightGenerator>(weight_config, comm);
     }
@@ -107,17 +110,17 @@ void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm
 
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:
-            graph_.vertex_weights = vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges);
+            vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges, graph_.vertex_weights);
             break;
         case GraphRepresentation::CSR:
             if (!graph_.xadj.empty()) {
-                graph_.vertex_weights =
-                    vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges);
+                vertex_weight_generator->GenerateVertexWeights(
+                    graph_.vertex_range, graph_.edges, graph_.vertex_weights);
             } else {
                 // for generated graph edgelist format is used for construction and then transformed to CSR only in the
                 // finalized step
-                graph_.vertex_weights =
-                    vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.xadj, graph_.adjncy);
+                vertex_weight_generator->GenerateVertexWeights(
+                    graph_.vertex_range, graph_.xadj, graph_.adjncy, graph_.vertex_weights);
             }
             break;
     }

@@ -175,7 +175,7 @@ std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorT
 
 std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator);
 
-enum class VertexWeightGeneratorType { NONE, UNIFORM_RANDOM };
+enum class VertexWeightGeneratorType { DEFAULT, VOIDING, UNIFORM_RANDOM };
 
 std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGeneratorTypeMap();
 

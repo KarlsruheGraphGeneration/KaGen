@@ -13,24 +13,25 @@ UniformRandomVertexWeightGenerator::UniformRandomVertexWeightGenerator(VertexWei
 }
 
 namespace {
-VertexWeights GenerateRandomWeights(const VertexWeightConfig& config, VertexRange vertex_range, MPI_Comm comm) {
+void GenerateRandomWeights(
+    const VertexWeightConfig& config, VertexRange vertex_range, MPI_Comm comm, VertexWeights& vertex_weights) {
     PEID rank;
     MPI_Comm_rank(comm, &rank);
     std::mt19937                         gen((rank + 42) * 3);
     std::uniform_int_distribution<SSInt> weight_dist(config.weight_range_begin, config.weight_range_end - 1);
     const size_t                         num_vertices = vertex_range.second - vertex_range.first;
-    VertexWeights                        vertex_weights(num_vertices);
+    vertex_weights.clear();
+    vertex_weights.resize(num_vertices);
     std::generate(vertex_weights.begin(), vertex_weights.end(), [&]() { return weight_dist(gen); });
-    return vertex_weights;
 }
 } // namespace
 
-VertexWeights
-UniformRandomVertexWeightGenerator::GenerateVertexWeights(const VertexRange& vertex_range, const Edgelist&) {
-    return GenerateRandomWeights(config_, vertex_range, comm_);
+void UniformRandomVertexWeightGenerator::GenerateVertexWeights(
+    const VertexRange& vertex_range, const Edgelist&, VertexWeights& weights) {
+    return GenerateRandomWeights(config_, vertex_range, comm_, weights);
 }
-VertexWeights UniformRandomVertexWeightGenerator::GenerateVertexWeights(
-    const VertexRange& vertex_range, const XadjArray&, const AdjncyArray&) {
-    return GenerateRandomWeights(config_, vertex_range, comm_);
+void UniformRandomVertexWeightGenerator::GenerateVertexWeights(
+    const VertexRange& vertex_range, const XadjArray&, const AdjncyArray&, VertexWeights& weights) {
+    GenerateRandomWeights(config_, vertex_range, comm_, weights);
 }
 } // namespace kagen

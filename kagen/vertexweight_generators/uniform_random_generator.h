@@ -11,9 +11,10 @@ namespace kagen {
 class UniformRandomVertexWeightGenerator : public VertexWeightGenerator {
 public:
     UniformRandomVertexWeightGenerator(VertexWeightConfig config, MPI_Comm comm);
-    VertexWeights GenerateVertexWeights(const VertexRange& vertex_range, const Edgelist& edgelist) final;
-    VertexWeights
-    GenerateVertexWeights(const VertexRange& vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy) final;
+    void GenerateVertexWeights(const VertexRange& vertex_range, const Edgelist& edgelist, VertexWeights& weights) final;
+    void GenerateVertexWeights(
+        const VertexRange& vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy,
+        VertexWeights& weights) final;
 
 private:
     const VertexWeightConfig config_;
