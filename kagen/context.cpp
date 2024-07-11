@@ -339,9 +339,9 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.grid_x      = get_sint_or_default("grid_x", get_sint_or_default("x"));
     config.grid_y      = get_sint_or_default("grid_y", get_sint_or_default("y"));
     config.grid_z      = get_sint_or_default("grid_z", get_sint_or_default("z"));
-    config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a"));
-    config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b"));
-    config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c"));
+    config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a", Graph500RMATDefaults::a));
+    config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b", Graph500RMATDefaults::b));
+    config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c", Graph500RMATDefaults::c));
     config.coordinates = get_bool_or_default("coordinates");
     config.permute     = get_bool_or_default("permute");
 

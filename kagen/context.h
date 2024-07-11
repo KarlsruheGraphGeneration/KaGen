@@ -93,6 +93,14 @@ struct ExternalMemoryConfig {
     bool refuse_external_mode = false;
 };
 
+// Probabilities used in the Graph500 benchmark
+// https://graph500.org/?page_id=12
+struct Graph500RMATDefaults {
+    static constexpr double a = 0.57;
+    static constexpr double b = 0.19;
+    static constexpr double c = 0.19;
+};
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     // General settings
@@ -123,9 +131,9 @@ struct PGeneratorConfig {
     SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
     bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
     int           hp_floats  = 0;     // Use 80 bit floating point numbers for RHG generator, 0 for auto
-    double        rmat_a     = 0.0;
-    double        rmat_b     = 0.0;
-    double        rmat_c     = 0.0;
+    double        rmat_a     = Graph500RMATDefaults::a;
+    double        rmat_b     = Graph500RMATDefaults::b;
+    double        rmat_c     = Graph500RMATDefaults::c;
     bool          directed   = false;
     bool          permute    = false; // Permute node vertices
 
