@@ -178,7 +178,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "--edgeweights-range-begin", config.edge_weights.weight_range_begin,
         "(Included) begin of weight range used for edge weights, i.e., minimum edge weight.");
     app.add_option(
-        "--edgeweights-range-end", config.edge_weights.weight_range_begin,
+        "--edgeweights-range-end", config.edge_weights.weight_range_end,
         "(Excluded) end of weight range to be used for edge weights.");
 
     // Vertex weight generator parameters
@@ -190,7 +190,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "--vertexweights-range-begin", config.vertex_weights.weight_range_begin,
         "(Included) begin of weight range used for vertex weights, i.e., minimum vertex weight.");
     app.add_option(
-        "--vertexweights-range-end", config.vertex_weights.weight_range_begin,
+        "--vertexweights-range-end", config.vertex_weights.weight_range_end,
         "(Excluded) end of weight range to be used for vertex weights.");
 
     { // Options string
