@@ -81,7 +81,7 @@ UniformRandomEdgeWeightGenerator::UniformRandomEdgeWeightGenerator(
       comm_(comm),
       vertex_range_(vertex_range) {
     if (config_.weight_range_begin >= config_.weight_range_end) {
-        throw std::runtime_error("Weight causes undefined behavior, need weight_range_begin > weight_range_end.");
+        throw std::runtime_error("Weight causes undefined behavior, need weight_range_begin < weight_range_end.");
     }
 }
 
