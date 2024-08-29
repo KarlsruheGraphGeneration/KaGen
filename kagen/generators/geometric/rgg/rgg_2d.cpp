@@ -105,7 +105,7 @@ void RGG2D::GenerateGridEdges(
             const Vertex& v1 = vertices_first[i];
             for (SInt j = i + 1; j < vertices_second.size(); ++j) {
                 const Vertex& v2 = vertices_second[j];
-                if (PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+                if (PGGeometry<HPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
                     PushEdge(std::get<2>(v1), std::get<2>(v2));
                     PushEdge(std::get<2>(v2), std::get<2>(v1));
                 }
@@ -116,7 +116,7 @@ void RGG2D::GenerateGridEdges(
             const Vertex& v1 = vertices_first[i];
             for (SInt j = 0; j < vertices_second.size(); ++j) {
                 const Vertex& v2 = vertices_second[j];
-                if (PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+                if (PGGeometry<HPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
                     PushEdge(std::get<2>(v1), std::get<2>(v2));
                     if (IsLocalChunk(second_chunk_id)) {
                         PushEdge(std::get<2>(v2), std::get<2>(v1));
@@ -140,15 +140,15 @@ void RGG2D::GenerateCells(const SInt chunk_id) {
     SInt    seed       = 0;
     SInt    n          = std::get<0>(chunk);
     SInt    offset     = std::get<4>(chunk);
-    LPFloat total_area = chunk_size_ * chunk_size_;
-    LPFloat cell_area  = cell_size_ * cell_size_;
+    HPFloat total_area = chunk_size_ * chunk_size_;
+    HPFloat cell_area  = cell_size_ * cell_size_;
 
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
         seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
         SInt    h             = sampling::Spooky::hash(seed);
         SInt    cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
-        LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
-        LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
+        HPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
+        HPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
 
         // Only generate adjacent cells
         if (cell_vertices != 0) {

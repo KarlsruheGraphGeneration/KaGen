@@ -15,13 +15,13 @@ namespace {
 // prob. edge = 1/2 l^4 - 8/3 l^3 + pi l^2
 //
 // Note that the case there r > 1 is not implemented.
-inline double ComputeEdgeProability2D(const LPFloat r) {
+inline double ComputeEdgeProability2D(const HPFloat r) {
     const double r2 = r * r;
     return r2 * (r2 / 2.0 - 8.0 / 3.0 * r + M_PI);
 }
 
 // = d/dx ComputeEdgeProability(x)
-inline double ComputeDerivedEdgeProbability2D(const LPFloat r) {
+inline double ComputeDerivedEdgeProbability2D(const HPFloat r) {
     const double r2 = r * r;
     return (2 * r * (0.5 * r2 - 8.0 / 3.0 * r + M_PI) + r2 * (r - 8.0 / 3.0));
 }
@@ -54,14 +54,14 @@ SInt ApproxNumNodes2D(const SInt m, const double r) {
 //            = 1/30 [(48 - 5 r) r^5 - 5 pi r^3 (9r - 8)]
 //
 // Note that the case where r > 1 is not implemented.
-inline double ComputeEdgeProability3D(const LPFloat r) {
+inline double ComputeEdgeProability3D(const HPFloat r) {
     const double r3 = r * r * r;
     const double r5 = r3 * r * r;
     return (1.0 / 30.0) * ((48.0 - 5.0 * r) * r5 - 5 * M_PI * r3 * (9.0 * r - 8.0));
 }
 
 // = d/dx ComputeEdgeProability(r)
-inline double ComputeDerivedEdgeProbability3D(const LPFloat r) {
+inline double ComputeDerivedEdgeProbability3D(const HPFloat r) {
     return -1.0 * r * r * ((r - 8.0) * r * r + M_PI * (6 * r - 4));
 }
 

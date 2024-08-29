@@ -16,7 +16,7 @@ public:
     RGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
 private:
-    LPFloat target_r_;
+    HPFloat target_r_;
 
     void GenerateEdges(SInt chunk_row, SInt chunk_column) override;
 

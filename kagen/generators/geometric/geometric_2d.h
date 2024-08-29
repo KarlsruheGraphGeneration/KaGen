@@ -24,11 +24,11 @@ namespace kagen {
 class Geometric2D : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     // n, x_off, y_off, generated, offset
-    using Chunk = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
+    using Chunk = std::tuple<SInt, HPFloat, HPFloat, bool, SInt>;
     // n, x_off, y_off, generated, offset
-    using Cell = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
+    using Cell = std::tuple<SInt, HPFloat, HPFloat, bool, SInt>;
     // x, y, id
-    using Vertex = std::tuple<LPFloat, LPFloat, SInt>;
+    using Vertex = std::tuple<HPFloat, HPFloat, SInt>;
 
     Geometric2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
         : config_(config),
@@ -64,9 +64,9 @@ protected:
     Mersenne     mersenne;
 
     // Constants and variables
-    LPFloat chunk_size_;
+    HPFloat chunk_size_;
     SInt    total_chunks_, chunks_per_dim_, local_chunk_start_, local_chunk_end_;
-    LPFloat cell_size_;
+    HPFloat cell_size_;
     SInt    cells_per_chunk_, cells_per_dim_;
     SInt    start_node_, num_nodes_;
 
@@ -133,12 +133,12 @@ protected:
 
         // Generate variate for upper/lower half
         SInt h         = sampling::Spooky::hash(config_.seed + chunk_start + level * total_chunks_);
-        SInt v_variate = rng_.GenerateBinomial(h, n, (LPFloat)row_splitter / row_k);
+        SInt v_variate = rng_.GenerateBinomial(h, n, (HPFloat)row_splitter / row_k);
 
         // Upper half
         if (chunk_row < row_splitter + chunk_start_row) {
             // Generate variate for left/right half
-            SInt h_variate = rng_.GenerateBinomial(h, v_variate, (LPFloat)column_splitter / column_k);
+            SInt h_variate = rng_.GenerateBinomial(h, v_variate, (HPFloat)column_splitter / column_k);
 
             // Upper left/right quadrant
             if (chunk_column < column_splitter + chunk_start_column)
@@ -152,7 +152,7 @@ protected:
         } else {
             // Lower half
             // Generate variate for left/right half
-            SInt h_variate = rng_.GenerateBinomial(h, n - v_variate, (LPFloat)column_splitter / column_k);
+            SInt h_variate = rng_.GenerateBinomial(h, n - v_variate, (HPFloat)column_splitter / column_k);
 
             // Lower left/right quadrant
             if (chunk_column < column_splitter + chunk_start_column)
@@ -193,15 +193,15 @@ protected:
         SInt    seed       = 0;
         SInt    n          = std::get<0>(chunk);
         SInt    offset     = std::get<4>(chunk);
-        LPFloat total_area = chunk_size_ * chunk_size_;
-        LPFloat cell_area  = cell_size_ * cell_size_;
+        HPFloat total_area = chunk_size_ * chunk_size_;
+        HPFloat cell_area  = cell_size_ * cell_size_;
 
         for (SInt i = 0; i < cells_per_chunk_; ++i) {
             seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
             SInt    h             = sampling::Spooky::hash(seed);
             SInt    cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
-            LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
-            LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
+            HPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
+            HPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
             if (cell_vertices != 0) {
                 cells_[ComputeGlobalCellId(chunk_id, i)] =
                     std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);
@@ -236,8 +236,8 @@ protected:
         // Compute vertex distribution
         SInt    n       = std::get<0>(cell);
         SInt    offset  = std::get<4>(cell);
-        LPFloat start_x = std::get<1>(cell);
-        LPFloat start_y = std::get<2>(cell);
+        HPFloat start_x = std::get<1>(cell);
+        HPFloat start_y = std::get<2>(cell);
 
         SInt seed = config_.seed + chunk_id * cells_per_chunk_ + cell_id;
         SInt h    = sampling::Spooky::hash(seed);
@@ -246,8 +246,8 @@ protected:
         cell_vertices.reserve(n);
         for (SInt i = 0; i < n; ++i) {
             // Compute coordinates
-            LPFloat x = mersenne.Random() * cell_size_ + start_x;
-            LPFloat y = mersenne.Random() * cell_size_ + start_y;
+            HPFloat x = mersenne.Random() * cell_size_ + start_x;
+            HPFloat y = mersenne.Random() * cell_size_ + start_y;
 
             cell_vertices.emplace_back(x, y, offset + i);
         }
@@ -284,8 +284,8 @@ protected:
 
         SInt    n       = std::get<0>(cell);
         SInt    offset  = std::get<4>(cell);
-        LPFloat start_x = std::get<1>(cell);
-        LPFloat start_y = std::get<2>(cell);
+        HPFloat start_x = std::get<1>(cell);
+        HPFloat start_y = std::get<2>(cell);
 
         SInt seed = config_.seed + chunk_id * cells_per_chunk_ + cell_id;
         SInt h    = sampling::Spooky::hash(seed);
@@ -294,8 +294,8 @@ protected:
         vertex_buffer.reserve(n);
         for (SInt i = 0; i < n; ++i) {
             // Compute coordinates
-            LPFloat x = mersenne.Random() * cell_size_ + start_x;
-            LPFloat y = mersenne.Random() * cell_size_ + start_y;
+            HPFloat x = mersenne.Random() * cell_size_ + start_x;
+            HPFloat y = mersenne.Random() * cell_size_ + start_y;
 
             vertex_buffer.emplace_back(x, y, offset + i);
             // fprintf(edge_file, "v %f %f\n", x, y);
