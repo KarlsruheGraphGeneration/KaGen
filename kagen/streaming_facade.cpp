@@ -54,6 +54,7 @@ void StreamingGenerator::Initialize() {
         vertex_distribution_.resize(size_ + 1);
 
         SInt max_nonlocal_edges = 0; // PE-level max. nonlocal edges
+        SInt num_nonlocal_edges = 0; // Total number of nonlocal edges
         SInt num_local_edges    = 0; // Total number of local edges
         SInt max_local_edges    = 0; // Chunk-level max local edges
 
@@ -71,6 +72,7 @@ void StreamingGenerator::Initialize() {
             my_vertex_ranges_[chunk] = graph.vertex_range;
             nonlocal_edges_[chunk]   = std::move(nonlocal_edges);
             max_nonlocal_edges += nonlocal_edges_[chunk].size();
+            num_nonlocal_edges += nonlocal_edges_[chunk].size();
             num_local_edges += graph.edges.size();
             max_local_edges = std::max(max_local_edges, static_cast<SInt>(graph.edges.size()));
 
@@ -80,6 +82,7 @@ void StreamingGenerator::Initialize() {
         }
 
         MPI_Allreduce(MPI_IN_PLACE, &max_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
+        MPI_Allreduce(MPI_IN_PLACE, &num_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
         MPI_Allreduce(MPI_IN_PLACE, &num_local_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
         MPI_Allreduce(MPI_IN_PLACE, &max_local_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
 
@@ -92,6 +95,8 @@ void StreamingGenerator::Initialize() {
             std::cout << "Total number of local edges:      " << num_local_edges << std::endl;
             std::cout << "Maximum number of local edges:    " << max_local_edges << " = " << std::fixed
                       << std::setprecision(3) << 16 * max_local_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+            std::cout << "Total number of nonlocal edges:   " << num_nonlocal_edges << " = " << std::fixed
+                      << std::setprecision(3) << 16 * num_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
             std::cout << "Maximum number of nonlocal edges: " << max_nonlocal_edges << " = " << std::fixed
                       << std::setprecision(3) << 16 * max_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
             std::cout << "Memory peak:                      roughly "
