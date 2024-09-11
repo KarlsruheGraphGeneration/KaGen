@@ -79,7 +79,7 @@ void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm com
             edge_weight_generator->GenerateEdgeWeights(graph_.edges, graph_.edge_weights);
             break;
         case GraphRepresentation::CSR:
-            if (!graph_.xadj.empty()) {
+            if (!graph_.edges.empty()) {
                 edge_weight_generator->GenerateEdgeWeights(graph_.edges, graph_.edge_weights);
             } else {
                 // for generated graph edgelist format is used for construction and then transformed to CSR only in the
