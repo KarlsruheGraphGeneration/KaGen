@@ -113,7 +113,7 @@ void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm
             vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges, graph_.vertex_weights);
             break;
         case GraphRepresentation::CSR:
-            if (!graph_.xadj.empty()) {
+            if (!graph_.edges.empty()) {
                 vertex_weight_generator->GenerateVertexWeights(
                     graph_.vertex_range, graph_.edges, graph_.vertex_weights);
             } else {
