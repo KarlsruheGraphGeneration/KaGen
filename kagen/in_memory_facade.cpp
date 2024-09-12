@@ -22,6 +22,8 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
     auto graph = GenerateInMemory(config, GraphRepresentation::EDGE_LIST, comm);
 
+    const auto t_start_io = MPI_Wtime();
+
     const std::string base_filename = config.output_graph.filename;
     for (const FileFormat& format: config.output_graph.formats) {
         const auto& factory = GetGraphFormatFactory(format);
@@ -38,6 +40,13 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
         } else if (!config.quiet && rank == ROOT) {
             std::cout << "Warning: invalid file format " << format << " for writing; skipping\n";
         }
+    }
+
+    const auto t_end_io = MPI_Wtime();
+
+    if (!config.quiet && rank == ROOT) {
+        std::cout << "IO took " << std::fixed << std::setprecision(3) << t_end_io - t_start_io << " seconds"
+                  << std::endl;
     }
 }
 
