@@ -81,7 +81,7 @@ void StreamingGenerator::Initialize() {
                      prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
                      --prev_chunk) {
                     my_vertex_ranges_[prev_chunk].first = my_vertex_ranges_[prev_chunk].second =
-                        my_vertex_ranges_[chunk].first - 1;
+                        my_vertex_ranges_[chunk].first;
                 }
             }
 
