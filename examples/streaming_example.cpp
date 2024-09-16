@@ -35,8 +35,8 @@ int main(int argc, char* argv[]) {
 
     if (rank == 0) {
         for (int pe = 0; pe < size; ++pe) {
-            std::cout << "Vertices on PE " << std::setw(3) << pe << ": " << gen.EstimateVertexRange(pe).first << " - "
-                      << gen.EstimateVertexRange(pe).second << std::endl;
+            std::cout << "Vertices on PE " << std::setw(3) << pe << ": [" << gen.EstimateVertexRange(pe).first << ", "
+                      << gen.EstimateVertexRange(pe).second << ")" << std::endl;
         }
 
         std::cout << "Generating " << std::flush;
