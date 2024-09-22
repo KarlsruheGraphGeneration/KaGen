@@ -508,17 +508,28 @@ struct StreamedGraph {
 
     template <typename EdgeConsumer>
     void ForEachEdge(EdgeConsumer&& consumer) const {
-        std::size_t primary_idx   = 0;
-        std::size_t secondary_idx = 0;
+        std::size_t           primary_idx   = 0;
+        std::size_t           secondary_idx = 0;
+        std::pair<SInt, SInt> prev          = {0, 0};
 
         for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
             while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
-                consumer(primary_edges[primary_idx].first, primary_edges[primary_idx].second);
+                const auto &current = primary_edges[primary_idx];
+                if (prev != current) [[unlikely]] {
+                    consumer(current.first, current.second);
+                    prev = current;
+                }
+
                 ++primary_idx;
             }
 
             while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
-                consumer(secondary_edges[secondary_idx].first, secondary_edges[secondary_idx].second);
+                const auto &current = secondary_edges[secondary_idx];
+                if (prev != current) [[unlikely]] {
+                    consumer(current.first, current.second);
+                    prev = current;
+                }
+
                 ++secondary_idx;
             }
         }

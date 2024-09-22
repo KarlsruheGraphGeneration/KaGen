@@ -660,7 +660,7 @@ void Hyperbolic<Double>::GenerateGridEdges(
                 PushEdge(std::get<5>(q), std::get<5>(v));
                 if (IsLocalChunk(chunk_id)) {
                     PushEdge(std::get<5>(v), std::get<5>(q));
-                } else if (annulus_id != current_annulus_) {
+                } else { // if (annulus_id != current_annulus_) {
                     PushNonlocalEdge(std::get<5>(v), std::get<5>(q));
                 }
             }
