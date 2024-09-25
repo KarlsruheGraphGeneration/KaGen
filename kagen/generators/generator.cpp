@@ -9,9 +9,9 @@
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 #include "kagen/vertexweight_generators/default_generator.h"
-#include "kagen/vertexweight_generators/voiding_generator.h"
 #include "kagen/vertexweight_generators/uniform_random_generator.h"
 #include "kagen/vertexweight_generators/vertex_weight_generator.h"
+#include "kagen/vertexweight_generators/voiding_generator.h"
 
 #include <mpi.h>
 
@@ -79,13 +79,7 @@ void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm com
             edge_weight_generator->GenerateEdgeWeights(graph_.edges, graph_.edge_weights);
             break;
         case GraphRepresentation::CSR:
-            if (!graph_.edges.empty()) {
-                edge_weight_generator->GenerateEdgeWeights(graph_.edges, graph_.edge_weights);
-            } else {
-                // for generated graph edgelist format is used for construction and then transformed to CSR only in the
-                // finalized step
-                edge_weight_generator->GenerateEdgeWeights(graph_.xadj, graph_.adjncy, graph_.edge_weights);
-            }
+            edge_weight_generator->GenerateEdgeWeights(graph_.xadj, graph_.adjncy, graph_.edge_weights);
             break;
     }
 }
@@ -113,15 +107,9 @@ void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm
             vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges, graph_.vertex_weights);
             break;
         case GraphRepresentation::CSR:
-            if (!graph_.edges.empty()) {
-                vertex_weight_generator->GenerateVertexWeights(
-                    graph_.vertex_range, graph_.edges, graph_.vertex_weights);
-            } else {
-                // for generated graph edgelist format is used for construction and then transformed to CSR only in the
-                // finalized step
-                vertex_weight_generator->GenerateVertexWeights(
-                    graph_.vertex_range, graph_.xadj, graph_.adjncy, graph_.vertex_weights);
-            }
+            vertex_weight_generator->GenerateVertexWeights(
+                graph_.vertex_range, graph_.xadj, graph_.adjncy, graph_.vertex_weights);
+
             break;
     }
 }
