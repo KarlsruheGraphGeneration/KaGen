@@ -86,6 +86,7 @@ UniformRandomEdgeWeightGenerator::UniformRandomEdgeWeightGenerator(
 }
 
 void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(
+    //TODO add more native implementation
     const XadjArray& xadj, const AdjncyArray& adjncy, EdgeWeights& weights) {
     const auto edge_list = BuildEdgeListFromCSR(vertex_range_, xadj, adjncy);
     GenerateEdgeWeights(edge_list, weights);

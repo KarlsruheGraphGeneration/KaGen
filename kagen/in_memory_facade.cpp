@@ -88,9 +88,6 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         std::cout << "OK" << std::endl;
     }
 
-    generator->GenerateEdgeWeights(config.edge_weights, comm);
-    generator->GenerateVertexWeights(config.vertex_weights, comm);
-
     const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
     if (output_info) {
         std::cout << "Finalizing graph ... " << std::flush;
@@ -103,6 +100,15 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         std::cout << "OK" << std::endl;
     }
     const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
+
+    if (output_info) {
+        std::cout << "Generating weights ... " << std::flush;
+    }
+    generator->GenerateEdgeWeights(config.edge_weights, comm);
+    generator->GenerateVertexWeights(config.vertex_weights, comm);
+    if (output_info) {
+        std::cout << "OK" << std::endl;
+    }
 
     const auto t_end_graphgen = MPI_Wtime();
 
