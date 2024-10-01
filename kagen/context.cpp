@@ -1,6 +1,7 @@
 #include "kagen/context.h"
 
 #include "kagen/definitions.h"
+#include "kagen/kagen.h"
 
 #include <mpi.h>
 
@@ -385,6 +386,21 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             throw std::runtime_error("invalid weight model name");
         }
         config.image_mesh.weight_model = weight_model_it->second;
+
+    } else if (config.generator == GeneratorType::BRAIN) {
+        const auto        synapse_creation_models = GetBrainSynapseCreationModelMap();
+        const std::string synapse_creation_model_name =
+            get_string_or_default("synapse_creation_model", StringifyEnum(config.brain.algorithm));
+        const auto it = synapse_creation_models.find(synapse_creation_model_name);
+        if (it == synapse_creation_models.end()) {
+            throw std::runtime_error("invalid synapse creation model name");
+        }
+        config.brain.algorithm        = it->second;
+        config.brain.gaussian_mu      = get_hpfloat_or_default("gaussian_mu", config.brain.gaussian_mu);
+        config.brain.gaussian_sigma   = get_hpfloat_or_default("gaussian_sigma", config.brain.gaussian_sigma);
+        config.brain.simulation_steps = get_sint_or_default("simulation_steps", config.brain.simulation_steps);
+        config.brain.synapses_lb      = get_hpfloat_or_default("synapses_lb", config.brain.synapses_lb);
+        config.brain.synapses_ub      = get_hpfloat_or_default("synapses_ub", config.brain.synapses_ub);
     } else if (config.generator == GeneratorType::FILE) {
         const std::string filename = get_string_or_default("filename");
         if (filename.empty()) {

@@ -162,6 +162,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"image", GeneratorType::IMAGE_MESH},
         {"imagemesh", GeneratorType::IMAGE_MESH},
         {"image-mesh", GeneratorType::IMAGE_MESH},
+        {"brain", GeneratorType::BRAIN},
         {"file", GeneratorType::FILE},
         {"static", GeneratorType::FILE}, // @deprecated
     };
