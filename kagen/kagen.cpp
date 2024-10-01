@@ -222,6 +222,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
         case GeneratorType::IMAGE_MESH:
             return out << "image-mesh";
 
+        case GeneratorType::BRAIN:
+            return out << "brain";
+
         case GeneratorType::FILE:
             return out << "file";
     }
@@ -296,6 +299,23 @@ std::ostream& operator<<(std::ostream& out, GraphRedistribution distribution) {
             return out << "balance-edges";
     }
 
+std::unordered_map<std::string, BrainSynapseCreationModel> GetBrainSynapseCreationModelMap() {
+    return {
+        {"naive", BrainSynapseCreationModel::NAIVE},
+        {"barnes-hut", BrainSynapseCreationModel::BARNES_HUT},
+        {"barnes-hut-inverted", BrainSynapseCreationModel::BARNES_HUT_INVERTED},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, BrainSynapseCreationModel brain_model) {
+    switch (brain_model) {
+        case BrainSynapseCreationModel::NAIVE:
+            return out << "naive";
+        case BrainSynapseCreationModel::BARNES_HUT:
+            return out << "barnes-hut";
+        case BrainSynapseCreationModel::BARNES_HUT_INVERTED:
+            return out << "barnes-hut-inverted";
+    }
     return out << "<invalid>";
 }
 
