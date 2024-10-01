@@ -166,6 +166,16 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << (config.image_mesh.rows_per_pe == 0 ? "auto" : std::to_string(config.image_mesh.rows_per_pe))
                 << "\n";
             break;
+        case kagen::GeneratorType::BRAIN:
+            out << "  Number of vertices:                 " << config.n << "\n";
+            out << "  Number of neurons per rank:         " << config.brain.num_neurons_per_rank << "\n";
+            out << "  Synapses lower bound:               " << config.brain.synapses_lb << "\n";
+            out << "  Synapses upper bound:               " << config.brain.synapses_ub << "\n";
+            out << "  Simulation steps:                   " << config.brain.simulation_steps << "\n";
+            out << "  Algorithm:                          " << config.brain.algorithm << "\n";
+            out << "  Gaussian sigma:                     " << config.brain.gaussian_sigma << "\n";
+            out << "  Gaussian mu:                        " << config.brain.gaussian_mu << "\n";
+            break;
 
         case GeneratorType::FILE:
             out << "  Input file:                         " << config.input_graph.filename << "\n";

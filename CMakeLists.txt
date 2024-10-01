@@ -23,6 +23,8 @@ option(KAGEN_USE_SPARSEHASH "Build with Google Sparsehash. If turned off, fall b
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
 option(KAGEN_USE_MKL "Build with Intel MKL random generator." OFF)
 option(KAGEN_USE_XXHASH "Build with xxHash. If turned off, path permutation will not be available." ON)
+option(KAGEN_ENABLE_BRAIN_GRAPH "Enable support for the RELeARN brain graph generator. Requires an additional dependency." OFF)
+
 
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 
@@ -193,7 +195,26 @@ if (KAGEN_USE_MKL)
     else ()
         message(STATUS "MKL requested but not found, building without MKL")
     endif ()
-endif ()
+  endif ()
+  
+###############################################################################
+# RELeARN brain graph generator
+###############################################################################
+
+if (KAGEN_ENABLE_BRAIN_GRAPH)
+  set(CMAKE_CXX_STANDARD 20)
+  FetchContent_Declare(
+    relearn
+    GIT_REPOSITORY https://github.com/KarlsruheGraphGeneration/RELeARN.git
+    GIT_TAG 9a448d3
+    SOURCE_SUBDIR relearn
+    SYSTEM
+  )
+  FetchContent_MakeAvailable(relearn)
+  list(APPEND KAGEN_LINK_LIBRARIES relearn_lib)
+  add_definitions(-DKAGEN_ENABLE_BRAIN_GRAPH)
+  
+endif()
 
 ################################################################################
 

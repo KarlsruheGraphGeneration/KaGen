@@ -428,6 +428,16 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--cols-per-pe", config.image_mesh.cols_per_pe, "Number of columns assigned to the same PE");
         cmd->add_option("--rows-per-pe", config.image_mesh.rows_per_pe, "Number of rows assigned to the same PE");
     }
+    { // BRAIN
+        auto* cmd = app.add_subcommand("brain", "R-MAT Graph");
+        cmd->callback([&] { config.generator = GeneratorType::BRAIN; });
+        add_option_n(cmd);
+        cmd->add_option("--gaussian-mu", config.brain.gaussian_mu);
+        cmd->add_option("--gaussian-sigma", config.brain.gaussian_sigma);
+        cmd->add_option("--simulation-steps", config.brain.simulation_steps);
+        cmd->add_option("--synapses-ub", config.brain.synapses_ub);
+        cmd->add_option("--synapses-lb", config.brain.synapses_lb);
+    }
 
     { // Graph from file
         auto* cmd =

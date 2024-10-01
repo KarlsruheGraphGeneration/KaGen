@@ -39,6 +39,16 @@ struct ImageMeshConfig {
     SInt                 rows_per_pe          = 0;
 };
 
+struct BrainConfig {
+    std::uint64_t             num_neurons_per_rank;
+    double                    synapses_ub      = 5.0;
+    double                    synapses_lb      = 5.0;
+    std::uint32_t             simulation_steps = 1001;
+    BrainSynapseCreationModel algorithm        = BrainSynapseCreationModel::BARNES_HUT;
+    double                    gaussian_sigma   = 2.0;
+    double                    gaussian_mu      = 0.0;
+};
+
 struct InputGraphConfig {
     std::string       filename     = "";
     FileFormat        format       = FileFormat::EXTENSION;
@@ -143,6 +153,9 @@ struct PGeneratorConfig {
 
     // Image mesh generator settings
     ImageMeshConfig image_mesh{};
+
+    // Brain generator settings
+    BrainConfig brain{};
 
     // Settings for the static graph pseudo-generator
     InputGraphConfig input_graph{};

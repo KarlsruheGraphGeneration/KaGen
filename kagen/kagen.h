@@ -115,6 +115,7 @@ enum class GeneratorType {
     RMAT,
     IMAGE_MESH,
     FILE,
+    BRAIN
 };
 
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap();
@@ -144,6 +145,16 @@ enum class ImageMeshWeightModel : std::uint8_t {
 std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap();
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
+
+enum class BrainSynapseCreationModel : std::uint8_t {
+    NAIVE               = 0,
+    BARNES_HUT          = 1,
+    BARNES_HUT_INVERTED = 2,
+};
+
+std::unordered_map<std::string, BrainSynapseCreationModel> GetBrainSynapseCreationModelMap();
+
+std::ostream& operator<<(std::ostream& out, BrainSynapseCreationModel brain_model);
 
 enum class GraphRepresentation {
     EDGE_LIST,
