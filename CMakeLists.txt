@@ -174,7 +174,7 @@ if (KAGEN_ENABLE_BRAIN_GRAPH)
   FetchContent_Declare(
     relearn
     GIT_REPOSITORY https://github.com/KarlsruheGraphGeneration/RELeARN.git
-    GIT_TAG 42158d1
+    GIT_TAG 60380e9
     SOURCE_SUBDIR relearn
     SYSTEM
   )
