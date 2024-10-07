@@ -164,6 +164,25 @@ if (KAGEN_USE_SPARSEHASH)
     list(APPEND KAGEN_LINK_LIBRARIES Sparsehash::Sparsehash)
     add_definitions(-DKAGEN_SPARSEHASH_FOUND)
 endif ()
+  
+###############################################################################
+# RELeARN brain graph generator
+###############################################################################
+
+if (KAGEN_ENABLE_BRAIN_GRAPH)
+  set(CMAKE_CXX_STANDARD 20)
+  FetchContent_Declare(
+    relearn
+    GIT_REPOSITORY https://github.com/KarlsruheGraphGeneration/RELeARN.git
+    GIT_TAG 42158d1
+    SOURCE_SUBDIR relearn
+    SYSTEM
+  )
+  FetchContent_MakeAvailable(relearn)
+  list(APPEND KAGEN_LINK_LIBRARIES relearn_lib)
+  add_definitions(-DKAGEN_ENABLE_BRAIN_GRAPH)
+  
+endif()
 
 ###############################################################################
 # CGAL
@@ -197,24 +216,6 @@ if (KAGEN_USE_MKL)
     endif ()
   endif ()
   
-###############################################################################
-# RELeARN brain graph generator
-###############################################################################
-
-if (KAGEN_ENABLE_BRAIN_GRAPH)
-  set(CMAKE_CXX_STANDARD 20)
-  FetchContent_Declare(
-    relearn
-    GIT_REPOSITORY https://github.com/KarlsruheGraphGeneration/RELeARN.git
-    GIT_TAG 9a448d3
-    SOURCE_SUBDIR relearn
-    SYSTEM
-  )
-  FetchContent_MakeAvailable(relearn)
-  list(APPEND KAGEN_LINK_LIBRARIES relearn_lib)
-  add_definitions(-DKAGEN_ENABLE_BRAIN_GRAPH)
-  
-endif()
 
 ################################################################################
 
