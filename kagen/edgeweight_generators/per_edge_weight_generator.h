@@ -24,7 +24,6 @@ public:
                 SInt  v      = adjncy[e];
                 SSInt weight = static_cast<Derived*>(this)->GenerateEdgeWeight(u, v);
                 weights.push_back(weight);
-                weights.push_back(weight);
             }
         }
     }
