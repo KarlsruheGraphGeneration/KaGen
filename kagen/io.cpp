@@ -122,6 +122,27 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
     throw IOError(error_msg.str());
 }
 
+namespace {
+
+std::vector<SInt> ReadExplicitVertexDistribution(const std::string& filename) {
+    MappedFileToker toker(filename);
+    toker.SkipSpaces();
+
+    std::vector<SInt> number_of_vertices;
+    while (toker.ValidPosition()) {
+        toker.SkipSpaces();
+        number_of_vertices.push_back(toker.ScanUnsigned());
+        toker.SkipLine();
+    }
+    number_of_vertices.push_back(0);
+
+    std::exclusive_scan(number_of_vertices.begin(), number_of_vertices.end(), number_of_vertices.begin(), 0);
+
+    return number_of_vertices;
+}
+
+} // namespace
+
 GraphFragment ReadGraphFragment(
     GraphReader& reader, const GraphRepresentation representation, const InputGraphConfig& config, const PEID rank,
     const PEID size) {
@@ -161,6 +182,13 @@ GraphFragment ReadGraphFragment(
             const auto edge_range = ComputeRange(m, size, rank);
             from                  = reader.FindNodeByEdge(edge_range.first);
             to_edge               = edge_range.second;
+            break;
+        }
+
+        case GraphDistribution::EXPLICIT: {
+            auto distribution = ReadExplicitVertexDistribution(config.explicit_distribution_filename);
+            from              = distribution[rank];
+            to_node           = distribution[rank + 1];
             break;
         }
     }
@@ -214,8 +242,9 @@ void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool
     }
 
     if (config.distributed) {
-        // Distributed output: each PE writes its part of the graph to its own file
-        // This allows parallel writes to parallel file systems
+        // Distributed output: each PE writes its part of the graph to
+        // its own file This allows parallel writes to parallel file
+        // systems
 
         if (output) {
             std::cout << "Writing graph to [" << filename << ".0";
@@ -237,7 +266,8 @@ void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool
             std::cout << "OK" << std::endl;
         }
     } else {
-        // Sequential output (default): all PEs write the the same file, sequentially
+        // Sequential output (default): all PEs write the the same file,
+        // sequentially
 
         if (output) {
             std::cout << "Writing graph to " << filename << " ..." << std::endl;

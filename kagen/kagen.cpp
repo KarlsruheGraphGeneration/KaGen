@@ -281,6 +281,7 @@ std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
         {"root", GraphDistribution::ROOT},
         {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
         {"balance-edges", GraphDistribution::BALANCE_EDGES},
+        {"explicit", GraphDistribution::EXPLICIT},
     };
 }
 
@@ -292,6 +293,8 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
             return out << "balance-vertices";
         case GraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
+        case GraphDistribution::EXPLICIT:
+            return out << "explicit";
     }
 
     return out << "<invalid>";

@@ -158,6 +158,7 @@ enum class GraphDistribution {
     ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
+    EXPLICIT,
 };
 
 std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
@@ -288,7 +289,8 @@ public:
      * @param weight_range_begin (Included) begin of weight range for edge weights, i.e. minimum possible edge weight.
      * @param weight_range_end (Excluded) end of weight range for edge weights.
      */
-    void ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end);
+    void
+    ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end);
 
     /*!
      * If enabled, KaGen will print information to stdout and stderr (but only on rank 0).

@@ -391,6 +391,8 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         }
         config.input_graph.distribution = distribution_it->second;
 
+        config.input_graph.explicit_distribution_filename = get_string_or_default("explicit_distribution");
+
         const auto        formats     = GetInputFormatMap();
         const std::string format_name = get_string_or_default("input_format", StringifyEnum(config.input_graph.format));
         const auto        format_it   = formats.find(format_name);

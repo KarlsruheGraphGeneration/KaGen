@@ -40,10 +40,11 @@ struct ImageMeshConfig {
 };
 
 struct InputGraphConfig {
-    std::string       filename     = "";
-    FileFormat        format       = FileFormat::EXTENSION;
-    GraphDistribution distribution = GraphDistribution::BALANCE_VERTICES;
-    int               width        = 64;
+    std::string       filename                       = "";
+    FileFormat        format                         = FileFormat::EXTENSION;
+    GraphDistribution distribution                   = GraphDistribution::BALANCE_VERTICES;
+    std::string       explicit_distribution_filename = "";
+    int               width                          = 64;
 
     int vtx_width    = 64;
     int adjncy_width = 64;
@@ -55,9 +56,9 @@ struct InputGraphConfig {
 };
 
 struct EdgeWeightConfig {
-    EdgeWeightGeneratorType generator_type = EdgeWeightGeneratorType::NONE;
-    SInt weight_range_begin = 1;
-    SInt weight_range_end = 100;
+    EdgeWeightGeneratorType generator_type     = EdgeWeightGeneratorType::NONE;
+    SInt                    weight_range_begin = 1;
+    SInt                    weight_range_end   = 100;
 };
 
 struct OutputGraphConfig {
@@ -143,7 +144,7 @@ struct PGeneratorConfig {
     SInt precision   = 32;     // Floating-point precision
     SInt base_size   = 1 << 8; // Sampler base size
     SInt hyp_base    = 1 << 8;
-    
+
     // Edge weights
 
     OutputGraphConfig output_graph{};
