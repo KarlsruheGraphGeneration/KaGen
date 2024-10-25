@@ -339,9 +339,9 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.grid_x      = get_sint_or_default("grid_x", get_sint_or_default("x"));
     config.grid_y      = get_sint_or_default("grid_y", get_sint_or_default("y"));
     config.grid_z      = get_sint_or_default("grid_z", get_sint_or_default("z"));
-    config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a"));
-    config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b"));
-    config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c"));
+    config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a", Graph500RMATDefaults::a));
+    config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b", Graph500RMATDefaults::b));
+    config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c", Graph500RMATDefaults::c));
     config.coordinates = get_bool_or_default("coordinates");
     config.permute     = get_bool_or_default("permute");
 
@@ -404,19 +404,35 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
 
     {
         // edge weight generation
-        const std::string weight_generator_name =
+        const std::string edge_weight_generator_name =
             get_string_or_default("edgeweights_generator", StringifyEnum(config.edge_weights.generator_type));
 
-        const auto weight_generators   = GetEdgeWeightGeneratorTypeMap();
-        const auto weight_generator_it = weight_generators.find(weight_generator_name);
-        if (weight_generator_it == weight_generators.end()) {
-            throw std::runtime_error("invalid graph distribution");
+        const auto edge_weight_generators   = GetEdgeWeightGeneratorTypeMap();
+        const auto edge_weight_generator_it = edge_weight_generators.find(edge_weight_generator_name);
+        if (edge_weight_generator_it == edge_weight_generators.end()) {
+            throw std::runtime_error("invalid edge weight generator type");
         }
-        config.edge_weights.generator_type = weight_generator_it->second;
+        config.edge_weights.generator_type = edge_weight_generator_it->second;
         config.edge_weights.weight_range_begin =
             get_sint_or_default("edgeweights_range_begin", config.edge_weights.weight_range_begin);
         config.edge_weights.weight_range_end =
             get_sint_or_default("edgeweights_range_end", config.edge_weights.weight_range_end);
+    }
+    {
+        // vertex weight generation
+        const std::string vertex_weight_generator_name =
+            get_string_or_default("vertexweights_generator", StringifyEnum(config.vertex_weights.generator_type));
+
+        const auto vertex_weight_generators   = GetVertexWeightGeneratorTypeMap();
+        const auto vertex_weight_generator_it = vertex_weight_generators.find(vertex_weight_generator_name);
+        if (vertex_weight_generator_it == vertex_weight_generators.end()) {
+            throw std::runtime_error("invalid vertex weight generator type");
+        }
+        config.vertex_weights.generator_type = vertex_weight_generator_it->second;
+        config.vertex_weights.weight_range_begin =
+            get_sint_or_default("vertexweights_range_begin", config.vertex_weights.weight_range_begin);
+        config.vertex_weights.weight_range_end =
+            get_sint_or_default("vertexweights_range_end", config.vertex_weights.weight_range_end);
     }
 
     int rank;

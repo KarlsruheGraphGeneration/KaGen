@@ -5,7 +5,7 @@
 #include "kagen/tools/converter.h"
 #include "kagen/tools/utils.h"
 
-#include "xxhash.h"
+#include <random>
 #include <unordered_map>
 
 namespace kagen {
@@ -17,12 +17,14 @@ struct EdgeData {
     SInt  v;
     SSInt randomness;
     SSInt weight;
+
     EdgeData() = default;
+
     EdgeData(SInt u_param, SInt v_param, SSInt randomness_param, SSInt weight_param)
-        : u{u_param},
-          v{v_param},
-          randomness{randomness_param},
-          weight{weight_param} {}
+        : u(u_param),
+          v(v_param),
+          randomness(randomness_param),
+          weight(weight_param) {}
 };
 
 // Stores edge (u,v) together with an associated random integer and an edge weight.
@@ -35,27 +37,27 @@ class EdgeWeightStorage {
 
 public:
     void InsertOrReplace(const Edge& key, const RandInt_Weight& value) {
-        auto it = edge_to_weightdata.find(key);
-        if (it != edge_to_weightdata.end() && value < it->second) {
-            // if edge is already present (due to duplicate edges) store edge weight with smaller (rand_int, weight)
+        const auto it = edge_to_weight_data.find(key);
+        if (it != edge_to_weight_data.end() && value < it->second) {
+            // If edge is already present (due to duplicate edges) store edge weight with smaller (rand_int, weight)
             // pair.
             it->second = value;
         } else {
-            edge_to_weightdata.emplace(key, value);
+            edge_to_weight_data.emplace(key, value);
         }
     }
 
     // Use weight with smaller associated random integer.
     SSInt AgreeOnEdgeWeight(const Edge& edge) {
         const auto& reversed_edge = std::make_pair(edge.second, edge.first);
-        auto        edge_it       = edge_to_weightdata.find(edge);
-        if (edge_it == edge_to_weightdata.end()) {
+        auto        edge_it       = edge_to_weight_data.find(edge);
+        if (edge_it == edge_to_weight_data.end()) {
             throw std::runtime_error("edge should have been inserted into map!");
         }
         const auto& edge_value        = edge_it->second;
         SSInt       weight            = edge_value.second; // use this value as default
-        auto        reveresed_edge_it = edge_to_weightdata.find(reversed_edge);
-        if (reveresed_edge_it != edge_to_weightdata.end() && reveresed_edge_it->second < edge_value) {
+        const auto  reveresed_edge_it = edge_to_weight_data.find(reversed_edge);
+        if (reveresed_edge_it != edge_to_weight_data.end() && reveresed_edge_it->second < edge_value) {
             const auto& reversed_edge_value = reveresed_edge_it->second;
             weight                          = reversed_edge_value.second;
         }
@@ -68,28 +70,32 @@ private:
             return edge.first ^ (edge.second << 1);
         }
     };
-    std::unordered_map<Edge, std::pair<SSInt, SSInt>, EdgeHasher> edge_to_weightdata;
+
+    std::unordered_map<Edge, std::pair<SSInt, SSInt>, EdgeHasher> edge_to_weight_data;
 };
 } // namespace
 
 UniformRandomEdgeWeightGenerator::UniformRandomEdgeWeightGenerator(
     EdgeWeightConfig config, MPI_Comm comm, VertexRange vertex_range)
     : config_(config),
-      comm_{comm},
-      vertex_range_{vertex_range} {
+      comm_(comm),
+      vertex_range_(vertex_range) {
     if (config_.weight_range_begin >= config_.weight_range_end) {
-        throw std::runtime_error("Weight causes undefined behavior, need weight_range_begin > weight_range_end.");
+        throw std::runtime_error("Weight causes undefined behavior, need weight_range_begin < weight_range_end.");
     }
 }
 
-EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy) {
+void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(
+    //TODO add more native implementation
+    const XadjArray& xadj, const AdjncyArray& adjncy, EdgeWeights& weights) {
     const auto edge_list = BuildEdgeListFromCSR(vertex_range_, xadj, adjncy);
-    return GenerateEdgeWeights(edge_list);
+    GenerateEdgeWeights(edge_list, weights);
 }
 
-EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist& edgelist) {
+void UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) {
     PEID rank;
     MPI_Comm_rank(comm_, &rank);
+
     std::mt19937                         gen((rank + 42) * 3);
     std::uniform_int_distribution<SSInt> weight_dist(config_.weight_range_begin, config_.weight_range_end - 1);
 
@@ -130,11 +136,10 @@ EdgeWeights UniformRandomEdgeWeightGenerator::GenerateEdgeWeights(const Edgelist
     }
 
     // agree on which weight to choose
-    EdgeWeights weights(edgelist.size());
+    weights.resize(edgelist.size());
     for (size_t i = 0; i < edgelist.size(); ++i) {
         const auto& edge = edgelist[i];
         weights[i]       = edge_weight_storage.AgreeOnEdgeWeight(edge);
     }
-    return weights;
 }
 } // namespace kagen

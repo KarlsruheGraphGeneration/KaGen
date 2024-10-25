@@ -1,15 +1,14 @@
 #pragma once
 
-#include "kagen/context.h"
+#include "kagen/kagen.h"
 
 namespace kagen {
 class EdgeWeightGenerator {
 public:
     virtual ~EdgeWeightGenerator() = default;
 
-    virtual EdgeWeights GenerateEdgeWeights(const Edgelist& edgelist) = 0;
+    virtual void GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) = 0;
 
-    virtual EdgeWeights
-    GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy) = 0;
+    virtual void GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy, EdgeWeights& weights) = 0;
 };
 } // namespace kagen
