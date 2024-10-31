@@ -361,8 +361,15 @@ std::ostream& operator<<(std::ostream& out, const GraphRepresentation representa
 
     return out << "<invalid>";
 }
+
 SInt Graph::NumberOfLocalVertices() const {
     return vertex_range.second - vertex_range.first;
+}
+
+SInt Graph::NumberOfGlobalVertices() const {
+    SInt number_vertices = NumberOfLocalVertices();
+    MPI_Allreduce(MPI_IN_PLACE, &number_vertices, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    return number_vertices;
 }
 
 SInt Graph::NumberOfLocalEdges() const {
@@ -375,6 +382,12 @@ SInt Graph::NumberOfLocalEdges() const {
     }
 
     __builtin_unreachable();
+}
+
+SInt Graph::NumberOfGlobalEdges() const {
+    SInt number_edges = NumberOfLocalEdges();
+    MPI_Allreduce(MPI_IN_PLACE, &number_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    return number_edges;
 }
 
 void Graph::Clear() {
