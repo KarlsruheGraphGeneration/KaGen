@@ -208,7 +208,11 @@ struct Graph {
 
     SInt NumberOfLocalVertices() const;
 
+    SInt NumberOfGlobalVertices() const;
+
     SInt NumberOfLocalEdges() const;
+
+    SInt NumberOfGlobalEdges() const;
 
     void SortEdgelist();
 
