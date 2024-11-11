@@ -248,6 +248,8 @@ void Generator::PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm) {
     if (!graph_.vertex_weights.empty())
         throw std::runtime_error(
             "Graph is vertex weight but this is not yet supported by the vertex permutation routine!");
+
+#ifdef KAGEN_XXHASH_FOUND
     int size = -1;
     int rank = -1;
     MPI_Comm_rank(comm, &rank);
@@ -292,6 +294,7 @@ void Generator::PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm) {
         }
     }
     SetVertexRange(recv_range);
+#endif // KAGEN_XXHASH_FOUND
 }
 
 std::unique_ptr<kagen::VertexWeightGenerator>
