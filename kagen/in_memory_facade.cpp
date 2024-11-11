@@ -125,6 +125,9 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
                       << ")" << std::endl;
         }
     }
+    if (config.permute) {
+        generator->PermuteVertices(config, comm);
+    }
 
     auto graph = generator->Take();
 
