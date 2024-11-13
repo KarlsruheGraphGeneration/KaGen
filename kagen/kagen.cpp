@@ -321,26 +321,6 @@ std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator)
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGeneratorTypeMap() {
-    return {
-        {"default", VertexWeightGeneratorType::DEFAULT},
-        {"voiding", VertexWeightGeneratorType::VOIDING},
-        {"uniform_random", VertexWeightGeneratorType::UNIFORM_RANDOM}};
-}
-
-std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator) {
-    switch (generator) {
-        case kagen::VertexWeightGeneratorType::DEFAULT:
-            return out << "default";
-        case kagen::VertexWeightGeneratorType::VOIDING:
-            return out << "voiding";
-        case kagen::VertexWeightGeneratorType::UNIFORM_RANDOM:
-            return out << "uniform_random";
-    }
-
-    return out << "<invalid>";
-}
-
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap() {
     return {
         {"default", EdgeWeightGeneratorType::DEFAULT},

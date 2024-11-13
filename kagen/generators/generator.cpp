@@ -328,42 +328,6 @@ void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm
     }
 }
 
-std::unique_ptr<kagen::VertexWeightGenerator>
-CreateVertexWeightGenerator(const VertexWeightConfig weight_config, MPI_Comm comm) {
-    switch (weight_config.generator_type) {
-        case VertexWeightGeneratorType::DEFAULT:
-            return std::make_unique<DefaultVertexWeightGenerator>(weight_config);
-        case VertexWeightGeneratorType::VOIDING:
-            return std::make_unique<VoidingVertexWeightGenerator>(weight_config);
-        case VertexWeightGeneratorType::UNIFORM_RANDOM:
-            return std::make_unique<UniformRandomVertexWeightGenerator>(weight_config, comm);
-    }
-
-    throw std::runtime_error("invalid weight generator type");
-}
-
-void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm comm) {
-    std::unique_ptr<kagen::VertexWeightGenerator> vertex_weight_generator =
-        CreateVertexWeightGenerator(weight_config, comm);
-
-    switch (desired_representation_) {
-        case GraphRepresentation::EDGE_LIST:
-            vertex_weight_generator->GenerateVertexWeights(graph_.vertex_range, graph_.edges, graph_.vertex_weights);
-            break;
-        case GraphRepresentation::CSR:
-            if (!graph_.edges.empty()) {
-                vertex_weight_generator->GenerateVertexWeights(
-                    graph_.vertex_range, graph_.edges, graph_.vertex_weights);
-            } else {
-                // for generated graph edgelist format is used for construction and then transformed to CSR only in the
-                // finalized step
-                vertex_weight_generator->GenerateVertexWeights(
-                    graph_.vertex_range, graph_.xadj, graph_.adjncy, graph_.vertex_weights);
-            }
-            break;
-    }
-}
-
 void Generator::FinalizeEdgeList(MPI_Comm) {}
 
 void Generator::FinalizeCSR(MPI_Comm) {}
