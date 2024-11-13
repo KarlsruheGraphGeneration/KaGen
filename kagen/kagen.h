@@ -508,6 +508,84 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
 
     return distribution;
 }
+
+//
+// Streaming Interface
+//
+
+struct StreamedGraph {
+    VertexRange vertex_range;
+    Edgelist    primary_edges;
+    Edgelist    secondary_edges;
+
+    template <typename EdgeConsumer>
+    void ForEachEdge(EdgeConsumer&& consumer) const {
+        std::size_t           primary_idx   = 0;
+        std::size_t           secondary_idx = 0;
+        std::pair<SInt, SInt> prev          = {0, 0};
+
+        for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
+            while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
+                const auto &current = primary_edges[primary_idx];
+                if (prev != current) [[unlikely]] {
+                    consumer(current.first, current.second);
+                    prev = current;
+                }
+
+                ++primary_idx;
+            }
+
+            while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
+                const auto &current = secondary_edges[secondary_idx];
+                if (prev != current) [[unlikely]] {
+                    consumer(current.first, current.second);
+                    prev = current;
+                }
+
+                ++secondary_idx;
+            }
+        }
+    }
+
+    [[nodiscard]] SInt NumberOfLocalVertices() const;
+    [[nodiscard]] SInt NumberOfLocalEdges() const;
+};
+
+/*!
+ * Streaming interface for KaGen: generates graphs a chunk at a time.
+ */
+class sKaGen {
+public:
+    /*!
+     * @param options The options string to be passed to KaGen, e.g, `rhg;N=10;M=12`.
+     * @param chunks Number of chunks *per PE* that generation will be split into.
+     * @param comm The MPI communicator to be used.
+     */
+    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
+
+    ~sKaGen();
+
+    [[nodiscard]] VertexRange EstimateVertexRange(PEID pe = -1) const;
+
+    /*!
+     * This function must be called before the first call to Continue().
+     * Depending on the generator, this function may run for a long time.
+     */
+    void Initialize();
+
+    /*!
+     * @return Next chunk of the graph.
+     */
+    [[nodiscard]] StreamedGraph Next();
+
+    /*!
+     * @return True if generation is not finished, false otherwise.
+     */
+    [[nodiscard]] bool Continue();
+
+private:
+    std::unique_ptr<class StreamingGenerator> generator_;
+};
 } // namespace kagen
 #endif
 

@@ -118,8 +118,6 @@ private:
     SInt GridSizeForAnnulus(SInt annulus_id);
 
     bool IsLocalChunk(SInt chunk_id) const;
-
-    SInt expected_num_missing_edges_ = 0;
 };
 
 using LowPrecisionHyperbolic  = Hyperbolic<LPFloat>;

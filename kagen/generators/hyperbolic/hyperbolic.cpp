@@ -9,10 +9,6 @@
 #include <iostream>
 
 namespace kagen {
-namespace {
-constexpr static bool kDebug = true;
-}
-
 PGeneratorConfig
 HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     if (config.k == 0) {
@@ -126,19 +122,7 @@ Hyperbolic<Double>::Hyperbolic(const PGeneratorConfig& config, const PEID rank, 
 
 template <typename Double>
 void Hyperbolic<Double>::FinalizeEdgeList(MPI_Comm comm) {
-    if constexpr (kDebug) {
-        SInt total_expected_num_missing_edges = 0;
-        MPI_Allreduce(
-            &expected_num_missing_edges_, &total_expected_num_missing_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-
-        PEID rank = 0;
-        MPI_Comm_rank(comm, &rank);
-        if (rank == 0) {
-            std::cout << "(expected number of missing edges: " << total_expected_num_missing_edges << ") ... "
-                      << std::flush;
-        }
-    }
-
+    // @todo use nonlocal_edges_ to implement this fix
     AddNonlocalReverseEdges(graph_.edges, graph_.edge_weights, graph_.vertex_range, comm);
 }
 
@@ -676,8 +660,8 @@ void Hyperbolic<Double>::GenerateGridEdges(
                 PushEdge(std::get<5>(q), std::get<5>(v));
                 if (IsLocalChunk(chunk_id)) {
                     PushEdge(std::get<5>(v), std::get<5>(q));
-                } else if (kDebug && annulus_id != current_annulus_) {
-                    ++expected_num_missing_edges_;
+                } else { // if (annulus_id != current_annulus_) {
+                    PushNonlocalEdge(std::get<5>(v), std::get<5>(q));
                 }
             }
         }

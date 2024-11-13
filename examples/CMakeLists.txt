@@ -16,3 +16,5 @@ target_link_libraries(example_cpp_options_string PRIVATE KaGen::KaGen)
 add_executable(example_c_options_string options_string_c_example.c)
 target_link_libraries(example_c_options_string PRIVATE KaGen::KaGen)
 
+add_executable(example_streaming streaming_example.cpp)
+target_link_libraries(example_streaming PRIVATE KaGen::KaGen)

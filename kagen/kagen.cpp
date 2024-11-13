@@ -2,6 +2,7 @@
 
 #include "kagen/context.h"
 #include "kagen/in_memory_facade.h"
+#include "kagen/streaming_facade.h"
 
 #include <cmath>
 #include <numeric>
@@ -295,6 +296,26 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
             return out << "balance-edges";
         case GraphDistribution::EXPLICIT:
             return out << "explicit";
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGeneratorTypeMap() {
+    return {
+        {"default", VertexWeightGeneratorType::DEFAULT},
+        {"voiding", VertexWeightGeneratorType::VOIDING},
+        {"uniform_random", VertexWeightGeneratorType::UNIFORM_RANDOM}};
+}
+
+std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator) {
+    switch (generator) {
+        case kagen::VertexWeightGeneratorType::DEFAULT:
+            return out << "default";
+        case kagen::VertexWeightGeneratorType::VOIDING:
+            return out << "voiding";
+        case kagen::VertexWeightGeneratorType::UNIFORM_RANDOM:
+            return out << "uniform_random";
     }
 
     return out << "<invalid>";
@@ -809,5 +830,38 @@ void KaGen::SetDefaults() {
     config_->quiet = true;
     config_->output_graph.formats.clear();
     // (keep other defaults)
+}
+
+//
+// Streaming interface
+//
+
+[[nodiscard]] SInt StreamedGraph::NumberOfLocalVertices() const {
+    return vertex_range.second - vertex_range.first;
+}
+
+[[nodiscard]] SInt StreamedGraph::NumberOfLocalEdges() const {
+    return primary_edges.size() + secondary_edges.size();
+}
+
+sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
+    : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm)) {}
+
+sKaGen::~sKaGen() = default;
+
+VertexRange sKaGen::EstimateVertexRange(const PEID pe) const {
+    return generator_->EstimateVertexRange(pe);
+}
+
+void sKaGen::Initialize() {
+    generator_->Initialize();
+}
+
+[[nodiscard]] StreamedGraph sKaGen::Next() {
+    return generator_->Next();
+}
+
+[[nodiscard]] bool sKaGen::Continue() {
+    return generator_->Continue();
 }
 } // namespace kagen

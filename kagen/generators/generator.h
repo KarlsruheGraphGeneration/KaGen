@@ -27,6 +27,8 @@ public:
 
     virtual void PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm);
 
+    Edgelist TakeNonlocalEdges();
+
 protected:
     virtual void GenerateEdgeList() = 0;
 
@@ -54,6 +56,10 @@ protected:
         graph_.edges.emplace_back(from, to);
     }
 
+    inline void PushNonlocalEdge(const SInt from, const SInt to) {
+        nonlocal_edges_.emplace_back(from, to);
+    }
+
     inline void PushEdgeWeight(const SSInt weight) {
         graph_.edge_weights.push_back(weight);
     }
@@ -66,6 +72,7 @@ protected:
 
     GraphRepresentation desired_representation_;
     Graph               graph_;
+    Edgelist            nonlocal_edges_;
 
 private:
     void Reset();
