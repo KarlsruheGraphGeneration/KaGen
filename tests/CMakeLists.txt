@@ -59,3 +59,7 @@ kagen_add_test(test_edge_weights
         FILES edge_weights/edge_generation_test.cpp
         CORES 1 2 4)
 
+kagen_add_test(test_permutation
+        FILES permutation/permutation_test.cpp
+        CORES 1 2 4)
+

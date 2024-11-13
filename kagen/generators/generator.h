@@ -25,6 +25,8 @@ public:
 
     Graph Take();
 
+    virtual void PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm);
+
 protected:
     virtual void GenerateEdgeList() = 0;
 

@@ -299,6 +299,12 @@ public:
     void EnableAdvancedStatistics();
 
     /*!
+     * If enabled, KaGen will apply a FeistelPermutation to the vertices of the generated graph and rearrange vertices/edges accordingly.
+     * This will remove locality from the generated graph.
+     */
+    void EnableVertexPermutation();
+
+    /*!
      * KaGen will generate edge weights according to the given configuration.
      *
      * @param generator Edge weights generator to be used.

@@ -55,7 +55,7 @@ T FloorLog2(const T arg) {
     return log2 - 1;
 }
 
-inline PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SInt>>& ranges) {
+inline PEID FindPEInRange(const SInt node, const std::vector<VertexRange>& ranges) {
     for (std::size_t i = 0; i < ranges.size(); ++i) {
         const auto& [local_from, local_to] = ranges[i];
 
@@ -65,6 +65,16 @@ inline PEID FindPEInRange(const SInt node, const std::vector<std::pair<SInt, SIn
     }
 
     return -1;
+}
+
+inline PEID FindPEInRangeWithBinarySearch(const SInt node, const std::vector<VertexRange>& ranges) {
+    auto it = std::upper_bound(ranges.begin(), ranges.end(), node, [](SInt value, const std::pair<SInt, SInt>& range) {
+        return range.first <= value && value < range.second;
+    });
+    if (it == ranges.end()) {
+        return -1;
+    }
+    return std::distance(ranges.begin(), it);
 }
 
 inline std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
@@ -118,8 +128,7 @@ std::vector<T> ExchangeMessageBuffers(
 }
 
 template <typename Comparator = std::less<Edgelist::value_type>>
-inline void
-SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
+inline void SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
     if (!std::is_sorted(edges.begin(), edges.end(), cmp)) {
         const SInt num_local_edges = edges.size();
         // If we have edge weights, sort them the same way as the edges
@@ -145,7 +154,7 @@ inline void RemoveDuplicates(Edgelist& edges, EdgeWeights& edge_weights) {
     const SInt num_local_edges = edges.size();
     if (!edge_weights.empty()) {
         // TODO replace with zip view once C++23 is enabled
-        using Edge = typename Edgelist::value_type;
+        using Edge   = typename Edgelist::value_type;
         using Weight = typename EdgeWeights::value_type;
 
         std::vector<std::pair<Edge, Weight>> edge_weights_zip;
@@ -159,7 +168,7 @@ inline void RemoveDuplicates(Edgelist& edges, EdgeWeights& edge_weights) {
             return lhs.first == rhs.first;
         });
         edge_weights_zip.erase(it, edge_weights_zip.end());
-        for (const auto& [edge, weight] : edge_weights_zip) {
+        for (const auto& [edge, weight]: edge_weights_zip) {
             edges.push_back(edge);
             edge_weights.push_back(weight);
         }

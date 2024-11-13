@@ -461,6 +461,10 @@ void KaGen::EnableAdvancedStatistics() {
     config_->quiet            = false;
 }
 
+void KaGen::EnableVertexPermutation() {
+    config_->permute = true;
+}
+
 void KaGen::ConfigureEdgeWeightGeneration(
     EdgeWeightGeneratorType generator, SInt weight_range_begin, SInt weight_range_end) {
     config_->edge_weights.generator_type     = generator;
