@@ -392,6 +392,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         config.input_graph.distribution = distribution_it->second;
 
         config.input_graph.explicit_distribution_filename = get_string_or_default("explicit_distribution");
+        config.input_graph.explicit_distribution_is_prefix_sum = get_bool_or_default("explicit_distribution_is_prefix_sum");
 
         const auto        formats     = GetInputFormatMap();
         const std::string format_name = get_string_or_default("input_format", StringifyEnum(config.input_graph.format));

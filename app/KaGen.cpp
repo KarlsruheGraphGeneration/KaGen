@@ -447,6 +447,9 @@ This is mostly useful for experimental graph generators or when using KaGen to l
             "--explicit-distribution", config.input_graph.explicit_distribution_filename,
             "A text file containing the number of vertices on each PE, one line per PE. Only used when "
             "--distribution=explicit.");
+        cmd->add_flag(
+            "--explicit-distribution-is-prefix-sum", config.input_graph.explicit_distribution_is_prefix_sum,
+            "Interpret the explicit distribution as prefix sum instead of vertices on each PE.");
         cmd->add_option("--input-format", config.input_graph.format)
             ->transform(CLI::CheckedTransformer(GetInputFormatMap()).description(""))
             ->description(R"(The following file formats are supported:

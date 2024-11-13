@@ -124,7 +124,7 @@ CreateGraphReader(const FileFormat format, const InputGraphConfig& config, const
 
 namespace {
 
-std::vector<SInt> ReadExplicitVertexDistribution(const std::string& filename) {
+std::vector<SInt> ReadExplicitVertexDistribution(const std::string& filename, const bool is_prefix_sum) {
     MappedFileToker toker(filename);
     toker.SkipSpaces();
 
@@ -134,9 +134,11 @@ std::vector<SInt> ReadExplicitVertexDistribution(const std::string& filename) {
         number_of_vertices.push_back(toker.ScanUnsigned());
         toker.SkipLine();
     }
-    number_of_vertices.push_back(0);
 
-    std::exclusive_scan(number_of_vertices.begin(), number_of_vertices.end(), number_of_vertices.begin(), 0);
+    if (!is_prefix_sum) {
+        number_of_vertices.push_back(0);
+        std::exclusive_scan(number_of_vertices.begin(), number_of_vertices.end(), number_of_vertices.begin(), 0);
+    }
 
     return number_of_vertices;
 }
@@ -186,9 +188,10 @@ GraphFragment ReadGraphFragment(
         }
 
         case GraphDistribution::EXPLICIT: {
-            auto distribution = ReadExplicitVertexDistribution(config.explicit_distribution_filename);
-            from              = distribution[rank];
-            to_node           = distribution[rank + 1];
+            auto distribution = ReadExplicitVertexDistribution(
+                config.explicit_distribution_filename, config.explicit_distribution_is_prefix_sum);
+            from    = distribution[rank];
+            to_node = distribution[rank + 1];
             break;
         }
     }

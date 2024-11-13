@@ -40,11 +40,12 @@ struct ImageMeshConfig {
 };
 
 struct InputGraphConfig {
-    std::string       filename                       = "";
-    FileFormat        format                         = FileFormat::EXTENSION;
-    GraphDistribution distribution                   = GraphDistribution::BALANCE_VERTICES;
-    std::string       explicit_distribution_filename = "";
-    int               width                          = 64;
+    std::string       filename                            = "";
+    FileFormat        format                              = FileFormat::EXTENSION;
+    GraphDistribution distribution                        = GraphDistribution::BALANCE_VERTICES;
+    std::string       explicit_distribution_filename      = "";
+    bool              explicit_distribution_is_prefix_sum = false;
+    int               width                               = 64;
 
     int vtx_width    = 64;
     int adjncy_width = 64;
