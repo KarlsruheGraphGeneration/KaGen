@@ -174,7 +174,7 @@ auto ApplyPermutationAndComputeSendBuffers(
     }
 }
 
-inline auto ConstructPermutedGraphCSR(
+[[maybe_unused]] inline auto ConstructPermutedGraphCSR(
     VertexRange recv_range, const std::vector<SInt>& recv_edges, const std::vector<SSInt>& recv_edge_weights) {
     std::size_t       num_local_vertices = recv_range.second - recv_range.first;
     std::vector<SInt> degree_count(num_local_vertices, 0);
@@ -220,7 +220,7 @@ inline auto ConstructPermutedGraphCSR(
     return std::make_tuple(std::move(xadj), std::move(adjncy), std::move(edge_weights));
 }
 
-inline auto ConstructPermutedGraphEdgeList(
+[[maybe_unused]] inline auto ConstructPermutedGraphEdgeList(
     VertexRange recv_range, const std::vector<SInt>& recv_edges, const std::vector<SSInt>& recv_edge_weights) {
     std::size_t       num_local_vertices = recv_range.second - recv_range.first;
     std::vector<SInt> degree(num_local_vertices, 0);
@@ -249,7 +249,7 @@ inline auto ConstructPermutedGraphEdgeList(
 }
 } // namespace
 
-void Generator::PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm) {
+void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config, [[maybe_unused]] MPI_Comm comm) {
     if (!graph_.vertex_weights.empty())
         throw std::runtime_error(
             "Graph is vertex weight but this is not yet supported by the vertex permutation routine!");
