@@ -8,7 +8,6 @@
 #include "kagen/edgeweight_generators/voiding_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
-#include "kagen/tools/random_permutation.h"
 #include "kagen/vertexweight_generators/default_generator.h"
 #include "kagen/vertexweight_generators/uniform_random_generator.h"
 #include "kagen/vertexweight_generators/vertex_weight_generator.h"
@@ -18,6 +17,10 @@
 
 #include <algorithm>
 #include <cmath>
+
+#ifdef KAGEN_XXHASH_FOUND
+    #include "kagen/tools/random_permutation.h"
+#endif
 
 namespace kagen {
 Generator::~Generator() = default;
@@ -251,7 +254,7 @@ void Generator::PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm) {
         throw std::runtime_error(
             "Graph is vertex weight but this is not yet supported by the vertex permutation routine!");
 
-    #ifdef KAGEN_XXHASH_FOUND
+#ifdef KAGEN_XXHASH_FOUND
     int size = -1;
     int rank = -1;
     MPI_Comm_rank(comm, &rank);
@@ -296,7 +299,7 @@ void Generator::PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm) {
         }
     }
     SetVertexRange(recv_range);
-    #endif // KAGEN_XXHASH_FOUND
+#endif // KAGEN_XXHASH_FOUND
 }
 
 std::unique_ptr<kagen::VertexWeightGenerator>
