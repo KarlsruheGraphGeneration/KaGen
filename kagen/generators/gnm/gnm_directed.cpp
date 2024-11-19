@@ -27,7 +27,7 @@ void GNMDirected::GenerateEdgeList() {
 
     start_node_ = start_chunk * nodes_per_chunk + std::min(remaining_nodes, start_chunk);
     end_node_   = end_chunk * nodes_per_chunk + std::min(remaining_nodes, end_chunk);
-    num_nodes_  = end_node_ - start_node_ - 1;
+    num_nodes_  = end_node_ - start_node_;
 
     // Generate chunks
     for (SInt i = 0; i < num_chunks; i++)
