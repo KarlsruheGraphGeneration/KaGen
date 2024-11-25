@@ -6,6 +6,7 @@
 #include "kagen/edgeweight_generators/hashing_based_generator.h"
 #include "kagen/edgeweight_generators/uniform_random_generator.h"
 #include "kagen/edgeweight_generators/voiding_generator.h"
+#include "kagen/edgeweight_generators/euclidean_distance_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 #include "kagen/vertexweight_generators/default_generator.h"
@@ -67,6 +68,8 @@ CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, c
             return std::make_unique<VoidingEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::HASHING_BASED:
             return std::make_unique<HashingBasedEdgeWeightGenerator>(weight_config);
+        case EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE:
+            return std::make_unique<EuclideanDistanceEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::UNIFORM_RANDOM:
             return std::make_unique<UniformRandomEdgeWeightGenerator>(weight_config, comm, vertex_range);
     }
