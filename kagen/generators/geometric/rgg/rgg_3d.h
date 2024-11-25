@@ -9,9 +9,10 @@
 #pragma once
 
 #include "kagen/generators/geometric/geometric_3d.h"
+#include "kagen/generators/geometric/rgg.h"
 
 namespace kagen {
-class RGG3D : public Geometric3D {
+class RGG3D : public Geometric3D, RGG {
 public:
     RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
