@@ -143,4 +143,16 @@ std::unique_ptr<Generator>
 RGG3DFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
     return std::make_unique<RGG3D>(config, rank, size);
 }
+
+void RGG::PushWeightIfRequested(
+    const EdgeWeightConfig& config, const double& squared_distance, const double& squared_radius) {
+    const bool use_euclidean_edge_weights = config.generator_type == EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE;
+    if (!use_euclidean_edge_weights) {
+        return;
+    }
+    const auto  normalized_euclidean_distance = std::sqrt(squared_distance / squared_radius);
+    const SInt  weight_range                  = config.weight_range_end - config.weight_range_begin;
+    const SSInt weight = config.weight_range_begin + static_cast<SSInt>(weight_range * normalized_euclidean_distance);
+    PushEdgeWeight(weight);
+}
 } // namespace kagen

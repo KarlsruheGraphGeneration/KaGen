@@ -107,18 +107,23 @@ void RGG3D::GenerateGridEdges(
     // const std::vector<Vertex> &vertices_second = second_vertex_buffer_;
     // Generate edges
     // Same cell
+
+    // push euclidean distance scaled to the requested weight range
     if (first_chunk_id == second_chunk_id && first_cell_id == second_cell_id) {
         for (SInt i = 0; i < vertices_first.size(); ++i) {
             const Vertex& v1 = vertices_first[i];
             for (SInt j = i + 1; j < vertices_second.size(); ++j) {
                 const Vertex& v2 = vertices_second[j];
                 // Euclidean distance
-                LPFloat x = std::get<0>(v1) - std::get<0>(v2);
-                LPFloat y = std::get<1>(v1) - std::get<1>(v2);
-                LPFloat z = std::get<2>(v1) - std::get<2>(v2);
-                if (x * x + y * y + z * z <= target_r_) {
+                LPFloat    x                = std::get<0>(v1) - std::get<0>(v2);
+                LPFloat    y                = std::get<1>(v1) - std::get<1>(v2);
+                LPFloat    z                = std::get<2>(v1) - std::get<2>(v2);
+                const auto squared_distance = x * x + y * y + z * z;
+                if (squared_distance <= target_r_) {
                     PushEdge(std::get<3>(v1), std::get<3>(v2));
+                    PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                     PushEdge(std::get<3>(v2), std::get<3>(v1));
+                    PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                 }
             }
         }
@@ -126,14 +131,17 @@ void RGG3D::GenerateGridEdges(
         for (SInt i = 0; i < vertices_first.size(); ++i) {
             const Vertex& v1 = vertices_first[i];
             for (SInt j = 0; j < vertices_second.size(); ++j) {
-                const Vertex& v2 = vertices_second[j];
-                LPFloat       x  = std::get<0>(v1) - std::get<0>(v2);
-                LPFloat       y  = std::get<1>(v1) - std::get<1>(v2);
-                LPFloat       z  = std::get<2>(v1) - std::get<2>(v2);
-                if (x * x + y * y + z * z <= target_r_) {
+                const Vertex& v2               = vertices_second[j];
+                LPFloat       x                = std::get<0>(v1) - std::get<0>(v2);
+                LPFloat       y                = std::get<1>(v1) - std::get<1>(v2);
+                LPFloat       z                = std::get<2>(v1) - std::get<2>(v2);
+                const auto    squared_distance = x * x + y * y + z * z;
+                if (squared_distance <= target_r_) {
                     PushEdge(std::get<3>(v1), std::get<3>(v2));
+                    PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                     if (IsLocalChunk(second_chunk_id)) {
                         PushEdge(std::get<3>(v2), std::get<3>(v1));
+                        PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                     }
                 }
             }

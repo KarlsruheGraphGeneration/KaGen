@@ -326,6 +326,7 @@ std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorT
         {"default", EdgeWeightGeneratorType::DEFAULT},
         {"voiding", EdgeWeightGeneratorType::VOIDING},
         {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED},
+        {"euclidean_distance", EdgeWeightGeneratorType::HASHING_BASED},
         {"uniform_random", EdgeWeightGeneratorType::UNIFORM_RANDOM}};
 }
 
@@ -339,6 +340,8 @@ std::ostream& operator<<(std::ostream& out, EdgeWeightGeneratorType generator) {
             return out << "hashing_based";
         case kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM:
             return out << "uniform_random";
+        case kagen::EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE:
+            return out << "euclidean_distance";
     }
 
     return out << "<invalid>";

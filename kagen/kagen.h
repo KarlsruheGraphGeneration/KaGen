@@ -170,6 +170,7 @@ enum class EdgeWeightGeneratorType {
     VOIDING,
     HASHING_BASED,
     UNIFORM_RANDOM,
+    EUCLIDEAN_DISTANCE,
 };
 
 std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorTypeMap();

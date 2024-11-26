@@ -97,17 +97,20 @@ void RGG2D::GenerateGridEdges(
     // if (vertices_.find(second_global_cell_id) == end(vertices_)) return;
     // const std::vector<Vertex> &vertices_first = vertices_[first_global_cell_id];
     // const std::vector<Vertex> &vertices_second = vertices_[second_global_cell_id];
-
     // Generate edges
     // Same cell
+
     if (first_chunk_id == second_chunk_id && first_cell_id == second_cell_id) {
         for (SInt i = 0; i < vertices_first.size(); ++i) {
             const Vertex& v1 = vertices_first[i];
             for (SInt j = i + 1; j < vertices_second.size(); ++j) {
-                const Vertex& v2 = vertices_second[j];
-                if (PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+                const Vertex& v2               = vertices_second[j];
+                const auto    squared_distance = PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2);
+                if (squared_distance <= target_r_) {
                     PushEdge(std::get<2>(v1), std::get<2>(v2));
+                    PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                     PushEdge(std::get<2>(v2), std::get<2>(v1));
+                    PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                 }
             }
         }
@@ -115,11 +118,14 @@ void RGG2D::GenerateGridEdges(
         for (SInt i = 0; i < vertices_first.size(); ++i) {
             const Vertex& v1 = vertices_first[i];
             for (SInt j = 0; j < vertices_second.size(); ++j) {
-                const Vertex& v2 = vertices_second[j];
-                if (PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2) <= target_r_) {
+                const Vertex& v2               = vertices_second[j];
+                const auto    squared_distance = PGGeometry<LPFloat>::SquaredEuclideanDistance(v1, v2);
+                if (squared_distance <= target_r_) {
                     PushEdge(std::get<2>(v1), std::get<2>(v2));
+                    PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                     if (IsLocalChunk(second_chunk_id)) {
                         PushEdge(std::get<2>(v2), std::get<2>(v1));
+                        PushWeightIfRequested(config_.edge_weights, squared_distance, target_r_);
                     }
                 }
             }
