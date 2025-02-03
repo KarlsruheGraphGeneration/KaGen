@@ -30,6 +30,8 @@ option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
 option(KAGEN_BUILD_APPS "Build binaries." ON)
 option(KAGEN_BUILD_EXAMPLES "Build examples." ON)
 
+option(INSTALL_KAGEN "Install KaGen." ON)
+
 ################################################################################
 
 include(FetchContent) 

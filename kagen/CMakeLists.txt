@@ -31,5 +31,7 @@ target_compile_options(kagen PRIVATE ${KAGEN_WARNING_FLAGS})
 # Allow library users to include kagen.h without kagen/ prefix
 target_include_directories(kagen INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-install(TARGETS kagen DESTINATION lib)
-install(FILES kagen.h DESTINATION include)
+if (INSTALL_KAGEN)
+    install(TARGETS kagen DESTINATION lib)
+    install(FILES kagen.h DESTINATION include)
+endif ()
