@@ -1,7 +1,15 @@
-
 #include "kagen/kagen.h"
 
+#include <mpi.h>
+
 namespace kagen::testing {
+
+inline bool IsRoot(MPI_Comm comm) {
+    PEID rank;
+    MPI_Comm_rank(comm, &rank);
+    return rank == 0;
+}
+
 using SrcDstEdgeWeight = std::tuple<SInt, SInt, SSInt>;
 inline std::vector<SrcDstEdgeWeight> ConvertToWeightedEdgelist(const Graph& graph) {
     std::vector<SrcDstEdgeWeight> weighted_edges;
@@ -29,4 +37,5 @@ inline std::vector<SrcDstEdgeWeight> ConvertToWeightedEdgelist(const Graph& grap
     }
     return weighted_edges;
 }
-}
+
+} // namespace kagen::testing

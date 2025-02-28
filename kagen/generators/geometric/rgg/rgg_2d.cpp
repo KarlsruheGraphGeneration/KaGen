@@ -3,6 +3,7 @@
 #include "kagen/tools/geometry.h"
 
 namespace kagen {
+
 RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
     // Number of chunks must be (a) a multiple of size and (b) be a quadratic number
     total_chunks_ = config_.k;
@@ -150,11 +151,13 @@ void RGG2D::GenerateCells(const SInt chunk_id) {
     LPFloat cell_area  = cell_size_ * cell_size_;
 
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
-        seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
-        SInt    h             = sampling::Spooky::hash(seed);
-        SInt    cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
-        LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
-        LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
+        seed = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
+
+        const SInt h = sampling::Spooky::hash(seed);
+        const SInt cell_vertices =
+            (cell_area / total_area >= 1 ? n : rng_.GenerateBinomial(h, n, cell_area / total_area));
+        const LPFloat cell_start_x = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
+        const LPFloat cell_start_y = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
 
         // Only generate adjacent cells
         if (cell_vertices != 0) {
@@ -216,4 +219,5 @@ inline void RGG2D::DecodeCell(const SInt id, SInt& x, SInt& y) const {
     x = id % cells_per_dim_;
     y = (id / cells_per_dim_) % cells_per_dim_;
 }
+
 } // namespace kagen

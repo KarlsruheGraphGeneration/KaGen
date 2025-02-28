@@ -21,6 +21,7 @@
 #include <vector>
 
 namespace kagen {
+
 class Geometric2D : public virtual Generator, private EdgeListOnlyGenerator {
 public:
     // n, x_off, y_off, generated, offset
@@ -48,6 +49,7 @@ protected:
         // Generate local chunks and edges
         for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i)
             GenerateChunk(i);
+
 
         SetVertexRange(start_node_, start_node_ + num_nodes_);
         if (config_.coordinates) {
@@ -321,4 +323,5 @@ protected:
         libmorton::m2D_d_sLUT(id, x, y);
     }
 };
+
 } // namespace kagen

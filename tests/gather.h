@@ -10,6 +10,7 @@
 #include <utility>
 
 namespace kagen::testing {
+
 inline void GatherCoordinates2D(const Graph& local_graph, Graph& global_graph) {
     PEID size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -159,6 +160,7 @@ inline Graph GatherEdgeLists(const Graph& local_graph) {
     GatherWeights(local_graph, global_graph);
     GatherCoordinates2D(local_graph, global_graph);
     GatherCoordinates3D(local_graph, global_graph);
+    global_graph.SortEdgelist();
 
     return global_graph;
 }
@@ -221,4 +223,5 @@ inline Graph GatherGraph(const Graph& local_graph) {
 
     __builtin_unreachable();
 }
+
 } // namespace kagen::testing

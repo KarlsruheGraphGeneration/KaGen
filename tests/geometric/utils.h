@@ -4,66 +4,83 @@
 #include "kagen/tools/geometry.h"
 
 #include <cmath>
-#include <numeric>
 #include <utility>
 
 namespace kagen::testing {
-inline Edgelist CreateExpectedRGG2DEdges(PGeneratorConfig config, const Graph& graph) {
+
+inline Edgelist GenerateLocalRGG2DEdges(const Graph& graph, const double radius) {
     std::vector<std::pair<SInt, SInt>> edges;
-    for (SInt i = 0; i < config.n; i++) {
-        auto [x1, y1] = graph.coordinates.first[i];
-        for (SInt j = 0; j < config.n; j++) {
-            auto [x2, y2] = graph.coordinates.first[j];
-            // Comparing all coordinates
-            if (i != j && std::hypot(x1 - x2, y1 - y2) <= config.r) {
-                edges.emplace_back(i, j);
+
+    for (SInt u = graph.vertex_range.first; u < graph.vertex_range.second; ++u) {
+        const auto [xu, yu] = graph.coordinates.first[u];
+
+        for (SInt v = u + 1; v < graph.vertex_range.second; ++v) {
+            const auto [xv, yv] = graph.coordinates.first[v];
+
+            if (std::hypot(xu - xv, yu - yv) <= radius) {
+                edges.emplace_back(u, v);
+                edges.emplace_back(v, u);
             }
         }
     }
+
+    std::sort(edges.begin(), edges.end());
+
     return edges;
 }
 
-inline Edgelist CreateExpectedRGG3DEdges(PGeneratorConfig config, const Graph& graph) {
+inline Edgelist GenerateLocalRGG3DEdges(const Graph& graph, const double radius) {
     std::vector<std::pair<SInt, SInt>> edges;
-    for (SInt i = 0; i < config.n; i++) {
-        auto [x1, y1, z1] = graph.coordinates.second[i];
-        for (SInt j = 0; j < config.n; j++) {
-            auto [x2, y2, z2] = graph.coordinates.second[j];
-            // Comparing all coordinates
-            if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
-                edges.emplace_back(i, j);
+
+    for (SInt u = graph.vertex_range.first; u < graph.vertex_range.second; ++u) {
+        const auto [xu, yu, zu] = graph.coordinates.second[u];
+
+        for (SInt v = u + 1; v < graph.vertex_range.second; ++v) {
+            const auto [xv, yv, zv] = graph.coordinates.second[v];
+
+            if (std::hypot(xu - xv, yu - yv, zu - zv) <= radius) {
+                edges.emplace_back(u, v);
+                edges.emplace_back(v, u);
             }
         }
     }
+
+    std::sort(edges.begin(), edges.end());
+
     return edges;
 }
 
 template <typename Double>
-Edgelist CreateExpectedHyperbolicEdges(PGeneratorConfig config, const Graph& graph) {
+Edgelist
+GenerateLocalRHGEdges(PGeneratorConfig config, const Graph& graph, const double plexp, const double avg_degree) {
     std::vector<std::pair<SInt, SInt>> edges;
 
-    std::vector<std::pair<Double, Double>> polar_coordinates(config.n);
-    for (SInt i = 0; i < config.n; ++i) {
-        const auto& [x, y] = graph.coordinates.first[i];
-        PGGeometry<Double>::CartesianToPolar({x, y}, polar_coordinates[i].first, polar_coordinates[i].second);
-        polar_coordinates[i].second = PGGeometry<Double>::EuclideanRadiusToHyperbolic(polar_coordinates[i].second);
+    std::vector<std::pair<Double, Double>> coordinates(graph.NumberOfLocalVertices());
+    for (SInt u = graph.vertex_range.first; u < graph.vertex_range.second; ++u) {
+        const auto& [x, y] = graph.coordinates.first[u];
+        PGGeometry<Double>::CartesianToPolar({x, y}, coordinates[u].first, coordinates[u].second);
+        coordinates[u].second = PGGeometry<Double>::EuclideanRadiusToHyperbolic(coordinates[u].second);
     }
 
-    const Double alpha = (config.plexp - 1.0) / 2.0;
-    const Double r     = PGGeometry<Double>::GetTargetRadius(config.n, config.n * config.avg_degree / 2, alpha);
+    const Double radius = PGGeometry<Double>::GetTargetRadius(
+        graph.NumberOfLocalVertices(), graph.NumberOfLocalVertices() * avg_degree / 2, (plexp - 1.0) / 2.0);
 
-    for (SInt i = 0; i < config.n; i++) {
-        auto [phi1, r1] = polar_coordinates[i];
+    for (SInt u = graph.vertex_range.first; u < graph.vertex_range.second; u++) {
+        auto [phiu, ru] = coordinates[u];
 
-        for (SInt j = 0; j < config.n; j++) {
-            auto [phi2, r2] = polar_coordinates[j];
+        for (SInt v = u + 1; v < graph.vertex_range.second; v++) {
+            auto [phiv, rv] = coordinates[v];
 
-            // Comparing all coordinates
-            if (i != j && PGGeometry<Double>::HyperbolicDistance(r1, r2, phi1, phi2) <= r) {
-                edges.emplace_back(i, j);
+            if (PGGeometry<Double>::HyperbolicDistance(ru, rv, phiu, phiv) <= radius) {
+                edges.emplace_back(u, v);
+                edges.emplace_back(v, u);
             }
         }
     }
+
+    std::sort(edges.begin(), edges.end());
+
     return edges;
 }
+
 } // namespace kagen::testing

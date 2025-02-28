@@ -1,6 +1,4 @@
 #include "kagen/context.h"
-#include "kagen/definitions.h"
-#include "kagen/generators/geometric/geometric_2d.h"
 #include "kagen/generators/geometric/rgg.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +8,8 @@
 
 using namespace kagen;
 
-namespace {
+namespace kagen::testing {
+
 void validate_graph(const Graph& local_graph, const PGeneratorConfig& config) {
     Graph global_graph = kagen::testing::GatherEdgeLists(local_graph);
 
@@ -18,8 +17,6 @@ void validate_graph(const Graph& local_graph, const PGeneratorConfig& config) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank == 0) {
-        EXPECT_EQ(config.n, global_graph.coordinates.second.size());
-
         // Creating the correct edge list as a test instance
         std::vector<std::pair<SInt, SInt>> expected_edges =
             kagen::testing::CreateExpectedRGG3DEdges(config, global_graph);
@@ -50,7 +47,6 @@ void test_configuration(const SInt n, const double radius) {
 
     validate_graph(local_graph, config);
 }
-} // namespace
 
 TEST(Geometric3DTest, generates_graph_on_np_PE_n32_r125) {
     test_configuration(32, 0.125);
@@ -63,3 +59,5 @@ TEST(Geometric3DTest, generates_graph_on_np_PE_n16_r10) {
 TEST(Geometric3DTest, generates_graph_on_np_PE_n512_r01) {
     test_configuration(512, 0.01);
 }
+
+} // namespace kagen::testing

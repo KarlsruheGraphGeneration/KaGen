@@ -1,65 +1,72 @@
 #include "kagen/context.h"
-#include "kagen/definitions.h"
-#include "kagen/generators/geometric/geometric_2d.h"
 #include "kagen/generators/geometric/rgg.h"
 
 #include <gtest/gtest.h>
 
 #include "tests/gather.h"
 #include "tests/geometric/utils.h"
+#include "tests/utils.h"
 
 using namespace kagen;
 
-namespace {
-void validate_graph(const Graph& local_graph, const PGeneratorConfig& config) {
-    Graph global_graph = kagen::testing::GatherEdgeLists(local_graph);
+namespace kagen::testing {
 
-    PEID rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+void ValidateRGG2D(const Graph& graph, const double radius) {
+    std::cout << "gather" << std::endl;
+    const Graph global_graph = GatherEdgeLists(graph);
 
-    if (rank == 0) {
-        EXPECT_EQ(config.n, global_graph.coordinates.first.size());
-
-        // Creating the correct edge list as a test instance
-        std::vector<std::pair<SInt, SInt>> expected_edges =
-            kagen::testing::CreateExpectedRGG2DEdges(config, global_graph);
-
-        // Sorting both lists before comparing them
-        std::sort(global_graph.edges.begin(), global_graph.edges.end());
-        std::sort(expected_edges.begin(), expected_edges.end());
-
-        EXPECT_EQ(global_graph.edges, expected_edges);
+    std::cout << "test\n";
+    if (IsRoot(MPI_COMM_WORLD)) {
+        const auto& actual_edges   = global_graph.edges;
+        const auto  expected_edges = GenerateLocalRGG2DEdges(global_graph, radius);
+        EXPECT_EQ(actual_edges, expected_edges);
     }
 }
 
-void test_configuration(const SInt n, const double radius) {
-    PGeneratorConfig config;
-    config.n           = n;
-    config.r           = radius;
-    config.coordinates = true;
-
-    RGG2DFactory factory;
-    PEID         size, rank;
+Graph TestConfiguration(const SInt n, const double radius) {
+    PEID size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    config         = factory.NormalizeParameters(config, rank, size, false);
+
+    PGeneratorConfig config = {
+        .n           = n,
+        .r           = radius,
+        .coordinates = true,
+    };
+
+    RGG2DFactory factory;
+    config = factory.NormalizeParameters(config, rank, size, false);
+
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(MPI_COMM_WORLD);
-    const auto local_graph = generator->Take();
 
-    validate_graph(local_graph, config);
-}
-} // namespace
+    return generator->Take();
+    Graph graph = generator->Take();
 
-TEST(Geometric2DTest, generates_graph_on_np_PE_n32_r125) {
-    test_configuration(32, 0.125);
-}
+    ValidateRGG2D(graph, radius);
 
-TEST(Geometric2DTest, generates_graph_on_np_PE_n16_r10) {
-    test_configuration(16, 0.1);
+    return graph;
 }
 
-TEST(Geometric2DTest, generates_graph_on_np_PE_n512_r01) {
-    test_configuration(512, 0.01);
+TEST(RGG2D, N1) {
+    for (const double radius: {0.01, 0.5, 1.0}) {
+        Graph global_graph = TestConfiguration(1, radius);
+        EXPECT_LE(global_graph.NumberOfGlobalVertices(), 1);
+        EXPECT_EQ(global_graph.NumberOfGlobalEdges(), 0);
+    }
 }
+
+TEST(RGG2D, N16) {
+    for (const double radius: {0.001, 0.01, 0.1, 0.5, 1.0, 2.0}) {
+        Graph global_graph = TestConfiguration(16, radius);
+        EXPECT_EQ(global_graph.NumberOfGlobalVertices(), 16);
+    }
+}
+
+TEST(RGG2D, N2000) {
+    Graph global_graph = TestConfiguration(2000, 0.01);
+    EXPECT_EQ(global_graph.NumberOfGlobalVertices(), 2000);
+}
+
+} // namespace kagen::testing

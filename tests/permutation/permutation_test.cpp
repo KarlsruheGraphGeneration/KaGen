@@ -1,14 +1,13 @@
+#include "kagen/factories.h"
 #include "kagen/kagen.h"
+#include "kagen/tools/random_permutation.h"
 
 #include <gtest/gtest.h>
-#include <kagen/tools/random_permutation.h>
 
-#include "../gather.h"
-#include "../utils.h"
-#include "factories.h"
+#include "tests/gather.h"
+#include "tests/utils.h"
 
 using namespace kagen;
-
 
 template <typename Transformer>
 void transform_vertices(std::vector<kagen::testing::SrcDstEdgeWeight>& weighted_edges, Transformer&& op) {
