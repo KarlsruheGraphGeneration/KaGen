@@ -124,7 +124,7 @@ endif ()
 # libmorton
 ###############################################################################
 add_library(morton INTERFACE)
-target_include_directories(morton SYSTEM INTERFACE extlib/libmorton/include)
+target_include_directories(morton SYSTEM INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/extlib/libmorton/include>)
 list(APPEND KAGEN_LINK_LIBRARIES morton)
 
 ###############################################################################
