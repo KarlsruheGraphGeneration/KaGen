@@ -63,6 +63,6 @@ void RMAT::GenerateEdgeList() {
     r.init(depth);
 
     // Generate local edges
-    r.get_edges([&](const auto u, const auto v) { PushLocalEdge(u, v); }, num_edges_, gen);
+    r.get_edges([&](const RMAT::node u, const RMAT::node v) { PushLocalEdge(u, v); }, num_edges_, gen);
 }
 } // namespace kagen
