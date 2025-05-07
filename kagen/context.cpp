@@ -144,6 +144,8 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << " / " << config.rmat_b << " / " << config.rmat_c << " / "
                 << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
             out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+	    out << "  Graph type:                         "
+                << (config.directed ? "directed" : "undirected") << "\n";
             break;
 
         case GeneratorType::IMAGE_MESH:
@@ -344,6 +346,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c", Graph500RMATDefaults::c));
     config.coordinates = get_bool_or_default("coordinates");
     config.permute     = get_bool_or_default("permute");
+    config.directed    = get_bool_or_default("directed");
 
     if (config.generator == GeneratorType::IMAGE_MESH) {
         const std::string filename = get_string_or_default("filename");
