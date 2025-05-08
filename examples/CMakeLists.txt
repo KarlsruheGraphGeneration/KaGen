@@ -18,3 +18,6 @@ target_link_libraries(example_c_options_string PRIVATE KaGen::KaGen)
 
 add_executable(example_streaming streaming_example.cpp)
 target_link_libraries(example_streaming PRIVATE KaGen::KaGen)
+
+add_executable(example_streaming_sequential streaming_example_sequential.cpp)
+target_link_libraries(example_streaming_sequential PRIVATE KaGen::KaGen)

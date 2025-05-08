@@ -561,8 +561,9 @@ public:
      * @param options The options string to be passed to KaGen, e.g, `rhg;N=10;M=12`.
      * @param chunks Number of chunks *per PE* that generation will be split into.
      * @param comm The MPI communicator to be used.
+     * @param sequential tells KaGen to use one single PE
      */
-    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
+    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm, const bool sequential);
 
     ~sKaGen();
 
@@ -572,7 +573,7 @@ public:
      * This function must be called before the first call to Continue().
      * Depending on the generator, this function may run for a long time.
      */
-    void Initialize();
+    void Initialize(const bool sequential);
 
     /*!
      * @return Next chunk of the graph.
@@ -583,6 +584,12 @@ public:
      * @return True if generation is not finished, false otherwise.
      */
     [[nodiscard]] bool Continue();
+
+    /*!
+    * This function streams the next vertex and loads the neighbors in the vector
+    * If the current chunk is empty it calls 'Next()'
+    */
+    void getNextVertex(SInt vertex, std::vector<SInt> neighbors);
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;

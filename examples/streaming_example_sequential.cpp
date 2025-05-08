@@ -28,22 +28,26 @@ int main(int argc, char* argv[]) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
     }
     
-    const bool sequentialGeneration = false; 
+    const bool sequentialGeneration = true; 
 
-    kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD, false);
-    gen.Initialize(false);
+    kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD, true);
+    
+    gen.Initialize(true);
 
+    // this already works so gives me the expected range
     kagen::VertexRange my_expected_vertex_range = gen.EstimateVertexRange();
+
 
     if (rank == 0) {
         for (int pe = 0; pe < size; ++pe) {
             std::cout << "Vertices on PE " << std::setw(3) << pe << ": [" << gen.EstimateVertexRange(pe).first << ", "
                       << gen.EstimateVertexRange(pe).second << ")" << std::endl;
-        }
+    }
 
         std::cout << "Generating " << std::flush;
     }
 
+    
     std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
 
     while (gen.Continue()) {
@@ -51,10 +55,11 @@ int main(int argc, char* argv[]) {
 
         std::vector<kagen::SInt> local_edges;
         graph.ForEachEdge([&](const auto from, const auto to) {
+            std::cout << from << " " << to << std::endl; 
             local_edges.push_back(from);
             local_edges.push_back(to);
         });
-        out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
+        //out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
         local_edges.clear();
 
         if (rank == 0) {
@@ -62,6 +67,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    
     if (rank == 0) {
         std::cout << std::endl;
         std::cout << "Waiting for other PEs ..." << std::endl;
