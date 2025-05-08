@@ -127,7 +127,7 @@ void RedistributeEdgesByVertexRange(Edgelist& edge_list, const VertexRange verte
     std::swap(local_edges, edge_list);
 }
 
-VertexRange RedistributeEdgesRoundRobin(Edgelist32& source, Edgelist& destination, const SInt n, MPI_Comm comm) {
+VertexRange RedistributeEdgesRoundRobin(Edgelist& source, Edgelist& destination, const SInt n, MPI_Comm comm) {
     {
         std::sort(source.begin(), source.end());
         auto it = std::unique(source.begin(), source.end());
@@ -140,43 +140,44 @@ VertexRange RedistributeEdgesRoundRobin(Edgelist32& source, Edgelist& destinatio
     MPI_Comm_rank(comm, &rank);
 
     // Remove vertex distribution (round-robin)
-    const int num_vertices_per_pe = n / size;
-    const int remaining_vertices  = n % size;
+    const SInt num_vertices_per_pe = n / size;
+    const SInt remaining_vertices  = n % size;
 
-    std::vector<int> distribution(size + 1);
+    std::vector<SInt> distribution(size + 1);
     for (PEID pe = 0; pe < size; ++pe) {
-        distribution[pe] = num_vertices_per_pe + (pe < remaining_vertices);
+        distribution[pe] = num_vertices_per_pe + (static_cast<SInt>(pe) < remaining_vertices);
     }
     std::exclusive_scan(distribution.begin(), distribution.end(), distribution.begin(), 0);
     distribution.back() = n;
 
     // Find number of edges for each PE
-    auto compute_owner = [&](const int id) {
+    auto compute_owner = [&](const SInt id) {
         return id % size;
     };
-    auto compute_remap = [&](const int id) {
+    auto compute_remap = [&](const SInt id) {
         return distribution[compute_owner(id)] + id / size;
     };
 
     // Compute send_counts and send_displs
     std::vector<int> send_counts(size);
     for (const auto& [u, v]: source) {
-        ++send_counts[compute_owner(u)];
+        send_counts[compute_owner(u)] += 2;
     }
     std::vector<int> send_displs(size);
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
 
     // Remap edges and build send buffer
-    std::vector<long long> sendbuf(source.size());
-    std::vector<int>       sendbuf_pos(size);
+    std::vector<SInt> sendbuf(source.size() * 2);
+    std::vector<int>  sendbuf_pos(size);
     for (const auto& [u, v]: source) {
         const PEID u_owner = compute_owner(u);
-        const int  u_prime = compute_remap(u);
-        const int  v_prime = compute_remap(v);
+        const SInt u_prime = compute_remap(u);
+        const SInt v_prime = compute_remap(v);
 
-        const auto index = send_displs[u_owner] + sendbuf_pos[u_owner];
-        sendbuf[index]   = (static_cast<long long>(u_prime) << 32) | static_cast<long long>(v_prime);
-        ++sendbuf_pos[u_owner];
+        const auto index   = send_displs[u_owner] + sendbuf_pos[u_owner];
+        sendbuf[index]     = u_prime;
+        sendbuf[index + 1] = v_prime;
+        sendbuf_pos[u_owner] += 2;
     }
 
     // Free the old edge list before allocating the new one
@@ -192,12 +193,11 @@ VertexRange RedistributeEdgesRoundRobin(Edgelist32& source, Edgelist& destinatio
     // Exchange edges
     std::vector<long long> recvbuf(recv_counts.back() + recv_displs.back());
     MPI_Alltoallv(
-        sendbuf.data(), send_counts.data(), send_displs.data(), MPI_LONG_LONG, recvbuf.data(), recv_counts.data(),
-        recv_displs.data(), MPI_LONG_LONG, comm);
-
-    for (const auto& edge: recvbuf) {
-        const int u = edge >> 32;
-        const int v = edge & 0xFFFFFFFF;
+        sendbuf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recvbuf.data(), recv_counts.data(),
+        recv_displs.data(), KAGEN_MPI_SINT, comm);
+    for (std::size_t i = 0; i < recvbuf.size(); i += 2) {
+        const SInt u = recvbuf[i];
+        const SInt v = recvbuf[i + 1];
         destination.emplace_back(u, v);
     }
 

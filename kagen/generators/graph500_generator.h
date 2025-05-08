@@ -23,6 +23,6 @@ protected:
 
 private:
     const PGeneratorConfig& config_;
-    Edgelist32              local_edges_;
+    Edgelist              local_edges_;
 };
 } // namespace kagen
