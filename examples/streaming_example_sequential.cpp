@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (argc < 4) {
+    if (argc < 3) {
         if (rank == 0) {
             std::cout << "Usage: ./streaming_example <graph> <chunks = 32> <out-dir>" << std::endl;
         }
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
     const std::string graph   = argv[1];
     const kagen::PEID chunks  = std::atoi(argv[2]);
-    const std::string out_dir = argv[3];
+    //const std::string out_dir = argv[3];
 
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     }
 
     
-    std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
+    //std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
 
     while (gen.Continue()) {
         const kagen::StreamedGraph graph = gen.Next();
@@ -62,9 +62,11 @@ int main(int argc, char* argv[]) {
         //out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
         local_edges.clear();
 
+        /*
         if (rank == 0) {
             std::cout << "." << std::flush;
         }
+        */
     }
 
     
