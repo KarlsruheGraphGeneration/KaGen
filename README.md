@@ -1,5 +1,7 @@
 # Communication-free Graph Generators (+ others)
 
+![The KaGen logo.](./kagen_logo.svg)
+
 This is the code to accompany our eponymous paper: *Funke, D., Lamm, S., Sanders, P., Schulz, C., Strash, D. and von Looz, M., 2017. Communication-free Massively Distributed Graph Generation. arXiv preprint arXiv:1710.07565.*
 You can find a freely accessible online version [in the arXiv](https://arxiv.org/abs/1710.07565).
 
