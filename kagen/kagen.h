@@ -589,7 +589,7 @@ public:
     * This function streams the next vertex and loads the neighbors in the vector
     * If the current chunk is empty it calls 'Next()'
     */
-    void getNextVertex(SInt vertex, std::vector<SInt> neighbors);
+    void getNextVertex(SInt vertex, std::vector<SInt>& neighbors);
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;
