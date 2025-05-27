@@ -547,6 +547,51 @@ struct StreamedGraph {
             }
         }
     }
+    /*
+    * There are two modes: "all" and "ordered".
+    * If "all", the neighborhood will contain every neighbor.
+    * If "ordered", the neighborhood will contain only neighbors that were already generated. 
+    */
+    template <typename NodeConsumer>
+    void ForEachNode(NodeConsumer&& consumer, const std::string& mode) const {
+        std::size_t primary_idx = 0; 
+        std::size_t secondary_idx = 0; 
+
+        for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
+            std::vector<SInt> neighbors; 
+            std::pair<SInt, SInt> prev = {0, 0}; 
+            
+            while(primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
+                const auto& current = primary_edges[primary_idx]; 
+                if (prev != current) [[unlikely]] {
+                    if (mode == "all") {
+                        neighbors.push_back(current.second); 
+                        prev = current;  
+                    } else {
+                        if (current.second < u) neighbors.push_back(current.second); 
+                        prev = current; 
+                    } 
+                }
+                ++primary_idx; 
+            }
+
+            while(secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
+                const auto& current = secondary_edges[secondary_idx]; 
+                if (prev != current) [[unlikely]] {
+                    if (mode == "all") {
+                        neighbors.push_back(current.second); 
+                        prev = current; 
+                    } else {
+                        if (current.second < u) neighbors.push_back(current.second); 
+                        prev = current; 
+                    }
+                }
+                ++secondary_idx; 
+            }
+
+            consumer(u, neighbors); 
+        }
+    }
 
     [[nodiscard]] SInt NumberOfLocalVertices() const;
     [[nodiscard]] SInt NumberOfLocalEdges() const;
@@ -584,13 +629,6 @@ public:
      * @return True if generation is not finished, false otherwise.
      */
     [[nodiscard]] bool Continue();
-
-    /*!
-    * This function streams the next vertex and loads the neighbors in the vector
-    * If the current chunk is empty it calls 'Next()'
-    * Can be done via iterator object over current chunk using Next and Continue
-    */
-    void getNextVertex();
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;

@@ -15,14 +15,13 @@ int main(int argc, char* argv[]) {
 
     if (argc < 3) {
         if (rank == 0) {
-            std::cout << "Usage: ./streaming_example <graph> <chunks = 32> <out-dir>" << std::endl;
+            std::cout << "Usage: ./streaming_example <graph> <chunks = 32>" << std::endl;
         }
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     const std::string graph   = argv[1];
     const kagen::PEID chunks  = std::atoi(argv[2]);
-    //const std::string out_dir = argv[3];
 
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
@@ -47,26 +46,16 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating " << std::flush;
     }
 
-    
-    //std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
-
     while (gen.Continue()) {
         const kagen::StreamedGraph graph = gen.Next();
 
-        std::vector<kagen::SInt> local_edges;
-        graph.ForEachEdge([&](const auto from, const auto to) {
-            std::cout << from << " " << to << std::endl; 
-            local_edges.push_back(from);
-            local_edges.push_back(to);
-        });
-        //out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
-        local_edges.clear();
-
-        /*
-        if (rank == 0) {
-            std::cout << "." << std::flush;
-        }
-        */
+        graph.ForEachNode([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
+            std::cout << u << ":"; 
+            for (kagen::SInt v : neighbors) {
+                std::cout << " " << v; 
+            }
+            std::cout << std::endl; 
+        }, "ordered");
     }
 
     
