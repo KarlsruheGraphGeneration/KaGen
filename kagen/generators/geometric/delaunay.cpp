@@ -24,7 +24,9 @@ PGeneratorConfig
 Delaunay2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
     // EnsurePowerOfTwoCommunicatorSize(config, size);
-    EnsureOneChunkPerPE(config, size);
+
+    // I think this is only needed in this case
+    if (size > 1) EnsureOneChunkPerPE(config, size);
 
     return NormalizeParametersCommon(config, 3, output);
 }
