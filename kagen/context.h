@@ -138,6 +138,7 @@ struct PGeneratorConfig {
     double        rmat_c     = Graph500RMATDefaults::c;
     bool          directed   = false;
     bool          permute    = false; // Permute node vertices
+    bool          streaming  = false; 
 
     double max_vertex_imbalance = 0.1; // RGG, RDG, RHG
 

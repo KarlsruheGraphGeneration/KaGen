@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
             for (kagen::SInt v : neighbors) {
                 std::cout << " " << v; 
             }
-            std::cout << std::endl; 
+            std::cout << std::endl;
         }, "ordered");
     }
 

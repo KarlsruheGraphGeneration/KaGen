@@ -21,6 +21,7 @@ StreamingGenerator::StreamingGenerator(const std::string& options, const PEID ch
     const PEID streaming_size = chunks_per_pe * size_;
     const PEID streaming_rank = chunks_per_pe * rank_;
 
+    config_.streaming       = true; 
     config_                  = factory_->NormalizeParameters(config_, streaming_rank, streaming_size, rank_ == 0);
     next_streaming_chunk_    = 0;
     streaming_chunks_per_pe_ = config_.k / size_;

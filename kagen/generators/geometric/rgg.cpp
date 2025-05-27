@@ -117,6 +117,12 @@ PGeneratorConfig NormalizeParametersCommon(
         throw ConfigurationError("generator configuration infeasible (negative radius)");
     }
 
+    if (config.streaming) {
+        if (config.k >= 1/(config.r*config.r)) {
+            throw ConfigurationError("Radius does not match the given number of chunks");
+        } 
+    }
+
     return config;
 }
 } // namespace
