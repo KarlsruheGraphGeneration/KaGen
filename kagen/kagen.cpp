@@ -827,8 +827,8 @@ void KaGen::SetDefaults() {
     return primary_edges.size() + secondary_edges.size();
 }
 
-sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm, const bool sequential)
-    : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm, sequential)) {}
+sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
+    : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm)) {}
 
 sKaGen::~sKaGen() = default;
 
@@ -836,8 +836,8 @@ VertexRange sKaGen::EstimateVertexRange(const PEID pe) const {
     return generator_->EstimateVertexRange(pe);
 }
 
-void sKaGen::Initialize(const bool sequential) {
-    generator_->Initialize(sequential);
+void sKaGen::Initialize() {
+    generator_->Initialize();
 }
 
 [[nodiscard]] StreamedGraph sKaGen::Next() {

@@ -563,7 +563,7 @@ public:
      * @param comm The MPI communicator to be used.
      * @param sequential tells KaGen to use one single PE
      */
-    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm, const bool sequential);
+    sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
 
     ~sKaGen();
 
@@ -573,7 +573,7 @@ public:
      * This function must be called before the first call to Continue().
      * Depending on the generator, this function may run for a long time.
      */
-    void Initialize(const bool sequential);
+    void Initialize();
 
     /*!
      * @return Next chunk of the graph.
@@ -588,8 +588,9 @@ public:
     /*!
     * This function streams the next vertex and loads the neighbors in the vector
     * If the current chunk is empty it calls 'Next()'
+    * Can be done via iterator object over current chunk using Next and Continue
     */
-    void getNextVertex(SInt vertex, std::vector<SInt>& neighbors);
+    void getNextVertex();
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;

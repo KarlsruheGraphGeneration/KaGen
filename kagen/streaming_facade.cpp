@@ -11,7 +11,7 @@
 #include <numeric>
 
 namespace kagen {
-StreamingGenerator::StreamingGenerator(const std::string& options, const PEID chunks_per_pe, MPI_Comm comm, const bool sequential)
+StreamingGenerator::StreamingGenerator(const std::string& options, const PEID chunks_per_pe, MPI_Comm comm)
     : config_(CreateConfigFromString(options)),
       comm_(comm),
       factory_(CreateGeneratorFactory(config_.generator)) {
@@ -24,7 +24,6 @@ StreamingGenerator::StreamingGenerator(const std::string& options, const PEID ch
     config_                  = factory_->NormalizeParameters(config_, streaming_rank, streaming_size, rank_ == 0);
     next_streaming_chunk_    = 0;
     streaming_chunks_per_pe_ = config_.k / size_;
-    sequential_ = sequential; 
 }
 
 VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
@@ -42,9 +41,9 @@ VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
 /*!
 * Probably most of this is unnecessary if there is only one PE because then all edges are local edes
 */
-void StreamingGenerator::Initialize(const bool sequential) {
+void StreamingGenerator::Initialize() {
 
-    if (!sequential) {
+    if (size_ != 1) {
         nonlocal_edges_.clear();
         nonlocal_edges_.resize(streaming_chunks_per_pe_);
 
@@ -224,7 +223,7 @@ StreamedGraph StreamingGenerator::Next() {
     StreamedGraph sgraph = {
         .vertex_range    = graph.vertex_range,
         .primary_edges   = std::move(graph.edges),
-        .secondary_edges = sequential_
+        .secondary_edges = (size_ == 1)
             ? std::vector<std::pair<SInt, SInt>>{} // no non-local edges if only one PE
             : std::move(nonlocal_edges_[next_streaming_chunk_]),
     };

@@ -30,9 +30,9 @@ int main(int argc, char* argv[]) {
     
     const bool sequentialGeneration = true; 
 
-    kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD, true);
+    kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
     
-    gen.Initialize(true);
+    gen.Initialize();
 
     // this already works so gives me the expected range
     kagen::VertexRange my_expected_vertex_range = gen.EstimateVertexRange();

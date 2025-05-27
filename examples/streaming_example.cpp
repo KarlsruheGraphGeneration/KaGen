@@ -27,11 +27,9 @@ int main(int argc, char* argv[]) {
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
     }
-    
-    const bool sequentialGeneration = false; 
 
-    kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD, false);
-    gen.Initialize(false);
+    kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
+    gen.Initialize();
 
     kagen::VertexRange my_expected_vertex_range = gen.EstimateVertexRange();
 
