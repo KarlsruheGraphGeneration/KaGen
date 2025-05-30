@@ -217,8 +217,8 @@ endif ()
 
 ################################################################################
 
-add_library(KaGen::KaGen ALIAS kagen)
-add_library(KaGen::cKaGen ALIAS kagen) # @deprecated, use KaGen::KaGen
+add_library(KaGen::KaGen ALIAS KaGen)
+add_library(KaGen::cKaGen ALIAS KaGen) # @deprecated, use KaGen::KaGen
 
 ################################################################################
 
@@ -248,12 +248,12 @@ install(
     COMPONENT KaGen_Development
 )
 
-set(KAGEN_INSTALL_TARGETS kagen morton)
+set(KAGEN_INSTALL_TARGETS KaGen morton)
 if (KAGEN_USE_XXHASH)
   list(APPEND KAGEN_INSTALL_TARGETS xxhash)
 endif ()
 if (KAGEN_BUILD_APPS)
-  list(APPEND KAGEN_INSTALL_TARGETS KaGen)
+  list(APPEND KAGEN_INSTALL_TARGETS KaGenApp)
 endif ()
 
 install(
