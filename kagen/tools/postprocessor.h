@@ -38,5 +38,5 @@ void RedistributeEdgesByVertexRange(Edgelist& edge_list, VertexRange vertex_rang
  * @param comm The MPI communicator.
  * @return The vertex range assigned to this PE.
  */
-VertexRange RedistributeEdgesRoundRobin(Edgelist32& source, Edgelist& destination, SInt n, MPI_Comm comm);
+VertexRange RedistributeEdgesRoundRobin(Edgelist& source, Edgelist& destination, SInt n, MPI_Comm comm);
 } // namespace kagen
