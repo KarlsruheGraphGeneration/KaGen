@@ -12,6 +12,4 @@ add_executable(KaGen KaGen.cpp)
 target_link_libraries(KaGen PRIVATE kagen)
 target_compile_features(KaGen PRIVATE cxx_std_17)
 
-install(TARGETS KaGen DESTINATION bin)
-
 add_subdirectory(tools)
