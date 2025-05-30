@@ -8,13 +8,12 @@ if (KAGEN_USE_BUNDLED_GTEST)
     FetchContent_Declare(googletest
         SYSTEM
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.12.1)
+        GIT_TAG release-1.12.1
+        EXCLUDE_FROM_ALL)
     FetchContent_MakeAvailable(googletest)
 else ()
     find_package(GTest REQUIRED)
 endif ()
-
-set_property(DIRECTORY "${googletest_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL YES)
 
 include(GoogleTest)
 include(cmake/KaTestrophe.cmake)
