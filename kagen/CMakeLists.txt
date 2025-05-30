@@ -17,21 +17,16 @@ if (NOT CGAL_FOUND)
 endif ()
 
 # If we do not have MKL, exclude MKL headers
-if (NOT SAMPLING_HAVE_MKL)
+if (NOT MKL_FOUND)
     list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "mkl.*")
 endif ()
 
-add_library(kagen OBJECT ${KAGEN_SOURCE_FILES})
-target_compile_features(kagen PRIVATE cxx_std_17)
-target_link_libraries(kagen PUBLIC ${KAGEN_LINK_LIBRARIES})
-target_include_directories(kagen PUBLIC ${PROJECT_SOURCE_DIR})
-target_include_directories(kagen PRIVATE ${KAGEN_INCLUDE_DIRS})
-target_compile_options(kagen PRIVATE ${KAGEN_WARNING_FLAGS})
+add_library(KaGen ${KAGEN_SOURCE_FILES})
+target_compile_features(KaGen PRIVATE cxx_std_17)
+target_link_libraries(KaGen PUBLIC ${KAGEN_LINK_LIBRARIES})
+target_include_directories(KaGen PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+target_include_directories(KaGen PRIVATE ${KAGEN_INCLUDE_DIRS})
+target_compile_options(KaGen PRIVATE ${KAGEN_WARNING_FLAGS})
 
 # Allow library users to include kagen.h without kagen/ prefix
-target_include_directories(kagen INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-
-if (INSTALL_KAGEN)
-    install(TARGETS kagen DESTINATION lib)
-    install(FILES kagen.h DESTINATION include)
-endif ()
+target_include_directories(KaGen INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
