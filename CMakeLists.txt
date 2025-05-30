@@ -32,6 +32,7 @@ option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
 option(KAGEN_BUILD_APPS "Build binaries." ON)
+option(KAGEN_BUILD_TOOLS "Build tools." ON)
 option(KAGEN_BUILD_EXAMPLES "Build examples." ON)
 
 option(INSTALL_KAGEN "Install KaGen." ON)
