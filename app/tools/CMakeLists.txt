@@ -28,15 +28,15 @@ add_executable(upsb2kargb upsb2kargb.cpp)
 target_include_directories(upsb2kargb PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(chkgraph chkgraph.cpp)
-target_link_libraries(chkgraph PRIVATE kagen)
+target_link_libraries(chkgraph PRIVATE KaGen::KaGen)
 target_include_directories(chkgraph PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(graphstats graphstats.cpp)
-target_link_libraries(graphstats PRIVATE kagen)
+target_link_libraries(graphstats PRIVATE KaGen::KaGen)
 target_include_directories(graphstats PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(pangraph pangraph.cpp)
-target_link_libraries(pangraph PRIVATE kagen)
+target_link_libraries(pangraph PRIVATE KaGen::KaGen)
 target_include_directories(pangraph PRIVATE ${PROJECT_SOURCE_DIR})
 
 install(TARGETS upsb2kargb graphstats chkgraph pangraph

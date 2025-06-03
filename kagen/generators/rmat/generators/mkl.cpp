@@ -5,10 +5,10 @@
  *
  * Copyright (C) 2018 Lorenz Hübschle-Schneider <lorenz@4z2.de>
  ******************************************************************************/
-
 #ifdef RMAT_HAVE_MKL
+#include "mkl.hpp"
 
-    #include "mkl.hpp"
+#include <cstdio>
 
 namespace rmat {
 namespace generators {

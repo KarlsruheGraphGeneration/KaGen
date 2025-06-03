@@ -7,11 +7,14 @@
 #
 # All rights reserved. Published under the BSD-2 license in the LICENSE file.
 ################################################################################
-
 cmake_minimum_required(VERSION 3.16)
-project(kagen LANGUAGES C CXX)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
+
+project(kagen
+    VERSION 1.0.3
+    DESCRIPTION "Communication-free Massively Distributed Graph Generators"
+    HOMEPAGE_URL "https://github.com/KarlsruheGraphGeneration/KaGen")
 set(CMAKE_CXX_STANDARD 20)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 ################################################################################
 
@@ -23,23 +26,16 @@ option(KAGEN_USE_SPARSEHASH "Build with Google Sparsehash. If turned off, fall b
 option(KAGEN_USE_FAST_MATH "Use -ffast-math." OFF)
 option(KAGEN_USE_MKL "Build with Intel MKL random generator." OFF)
 option(KAGEN_USE_XXHASH "Build with xxHash. If turned off, path permutation will not be available." ON)
+option(KAGEN_USE_BUNDLED_GTEST "Use bundled GoogleTest (downloaded at configure time via FetchContent)." ON)
 
 option(KAGEN_WARNINGS_ARE_ERRORS "Make compiler warnings compiler errors." OFF)
 
 option(KAGEN_BUILD_TESTS "Build unit tests." OFF)
 option(KAGEN_BUILD_APPS "Build binaries." ON)
+option(KAGEN_BUILD_TOOLS "Build tools." ON)
 option(KAGEN_BUILD_EXAMPLES "Build examples." ON)
 
 option(INSTALL_KAGEN "Install KaGen." ON)
-
-################################################################################
-
-include(FetchContent) 
-
-FetchContent_Declare(googletest
-    SYSTEM 
-    GIT_REPOSITORY https://github.com/google/googletest.git 
-    GIT_TAG release-1.12.1)
 
 ################################################################################
 
@@ -124,7 +120,7 @@ endif ()
 # libmorton
 ###############################################################################
 add_library(morton INTERFACE)
-target_include_directories(morton SYSTEM INTERFACE extlib/libmorton/include)
+target_include_directories(morton SYSTEM INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/extlib/libmorton/include>)
 list(APPEND KAGEN_LINK_LIBRARIES morton)
 
 ###############################################################################
@@ -172,14 +168,16 @@ if (KAGEN_USE_CGAL)
     set(CGAL_DO_NOT_WARN_ABOUT_CMAKE_BUILD_TYPE TRUE CACHE BOOL "Do not warn about Debug mode")
     set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "Force CGAL to maintain CMAKE flags")
     find_package(CGAL QUIET)
+
     if (CGAL_FOUND)
-      add_definitions(-DKAGEN_CGAL_FOUND)
-      if (${CGAL_VERSION} VERSION_GREATER_EQUAL 5)
-	list(APPEND KAGEN_LINK_LIBRARIES CGAL::CGAL)
-      else()
-        include(${CGAL_USE_FILE})
-      endif()
+        add_definitions(-DKAGEN_CGAL_FOUND)
+        if (${CGAL_VERSION} VERSION_GREATER_EQUAL 5)
+            list(APPEND KAGEN_LINK_LIBRARIES CGAL::CGAL)
+        else()
+            include(${CGAL_USE_FILE})
+        endif()
     else ()
+        set(KAGEN_USE_CGAL OFF CACHE BOOL "" FORCE)
         message(STATUS "Could not find the CGAL library: Random Delaunay Graphs will not be available")
     endif ()
 endif ()
@@ -189,6 +187,7 @@ endif ()
 ###############################################################################
 if (KAGEN_USE_MKL)
     find_package(MKL)
+
     if (MKL_FOUND)
         message(STATUS "Building with MKL")
         list(APPEND KAGEN_INCLUDE_DIRS ${MKL_INCLUDE_DIR})
@@ -219,8 +218,8 @@ endif ()
 
 ################################################################################
 
-add_library(KaGen::KaGen ALIAS kagen)
-add_library(KaGen::cKaGen ALIAS kagen) # @deprecated, use KaGen::KaGen
+add_library(KaGen::KaGen ALIAS KaGen)
+add_library(KaGen::cKaGen ALIAS KaGen) # @deprecated, use KaGen::KaGen
 
 ################################################################################
 
@@ -229,3 +228,81 @@ if (KAGEN_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
 
+################################################################################
+
+if (NOT INSTALL_KAGEN)
+    return()
+endif ()
+
+# If the installation prefix is not set by the user for Unix builds,
+# assign a default value to ensure GNUInstallDirs selects the correct paths.
+if (UNIX AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "/usr/" CACHE STRING "" FORCE)
+endif ()
+
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+
+install(
+    FILES ${PROJECT_SOURCE_DIR}/kagen/kagen.h
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    COMPONENT KaGen_Development
+)
+
+set(KAGEN_INSTALL_TARGETS KaGen morton)
+if (KAGEN_USE_XXHASH)
+  list(APPEND KAGEN_INSTALL_TARGETS xxhash)
+endif ()
+if (KAGEN_BUILD_APPS)
+  list(APPEND KAGEN_INSTALL_TARGETS KaGenApp)
+endif ()
+
+install(
+    TARGETS ${KAGEN_INSTALL_TARGETS}
+    EXPORT KaGenTargets
+    RUNTIME COMPONENT KaGen_Runtime
+    LIBRARY COMPONENT KaGen_Runtime NAMELINK_COMPONENT KaGen_Development
+    ARCHIVE COMPONENT KaGen_Development
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+
+# Allow package maintainers to freely override the path for the configs
+set(
+    KAGEN_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/KaGen"
+    CACHE STRING "CMake package config location relative to the install prefix"
+)
+set_property(CACHE KAGEN_INSTALL_CMAKEDIR PROPERTY TYPE PATH)
+mark_as_advanced(KAGEN_INSTALL_CMAKEDIR)
+
+install(
+    FILES
+        ${PROJECT_SOURCE_DIR}/cmake/modules/FindMKL.cmake
+        ${PROJECT_SOURCE_DIR}/cmake/modules/FindSparsehash.cmake
+    DESTINATION ${KAGEN_INSTALL_CMAKEDIR}
+    COMPONENT KaGen_Development
+)
+
+configure_file(${PROJECT_SOURCE_DIR}/cmake/KaGenConfig.cmake.in KaGenConfig.cmake @ONLY)
+install(
+    FILES ${PROJECT_BINARY_DIR}/KaGenConfig.cmake
+    DESTINATION ${KAGEN_INSTALL_CMAKEDIR}
+    COMPONENT KaGen_Development
+)
+
+write_basic_package_version_file(
+    "KaGenConfigVersion.cmake"
+    VERSION ${PACKAGE_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+install(
+    FILES ${PROJECT_BINARY_DIR}/KaGenConfigVersion.cmake
+    DESTINATION ${KAGEN_INSTALL_CMAKEDIR}
+    COMPONENT KaGen_Development
+)
+
+install(
+    EXPORT KaGenTargets
+    NAMESPACE KaGen::
+    DESTINATION ${KAGEN_INSTALL_CMAKEDIR}
+    COMPONENT KaGen_Development
+)
