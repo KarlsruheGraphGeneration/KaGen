@@ -150,7 +150,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"gnp-directed", GeneratorType::GNP_DIRECTED},
         {"gnp_directed", GeneratorType::GNP_DIRECTED},
         {"gnp-undirected", GeneratorType::GNP_UNDIRECTED},
-        {"gnp-undirected", GeneratorType::GNP_UNDIRECTED},
+        {"gnp_undirected", GeneratorType::GNP_UNDIRECTED},
         {"rgg2d", GeneratorType::RGG_2D},
         {"rgg3d", GeneratorType::RGG_3D},
 #ifdef KAGEN_CGAL_FOUND
