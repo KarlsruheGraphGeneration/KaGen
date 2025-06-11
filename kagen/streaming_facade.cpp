@@ -234,11 +234,17 @@ StreamedGraph StreamingGenerator::Next() {
         }
     }
 
-    
+    /*
     if (graph.edges.empty()) {
         ++next_streaming_chunk_;
         return Next();
     } 
+    */
+
+    if (my_vertex_ranges_[next_streaming_chunk_].first == my_vertex_ranges_[next_streaming_chunk_].second) {
+        ++next_streaming_chunk_;
+        return Next();
+    }
       
 
     StreamedGraph sgraph = {
