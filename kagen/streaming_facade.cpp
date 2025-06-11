@@ -44,7 +44,7 @@ VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
 */
 void StreamingGenerator::Initialize() {
 
-    if (size_ != 1) {
+    //if (size_ != 1) {
         nonlocal_edges_.clear();
         nonlocal_edges_.resize(streaming_chunks_per_pe_);
 
@@ -76,6 +76,8 @@ void StreamingGenerator::Initialize() {
                 });
 
                 my_vertex_ranges_[chunk] = graph.vertex_range;
+
+                std::cout << my_vertex_ranges_[chunk].first << " , " << my_vertex_ranges_[chunk].second << std::endl;  
 
                 // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
                 // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
@@ -126,7 +128,7 @@ void StreamingGenerator::Initialize() {
 
             ExchangeNonlocalEdges();
         }
-    }
+    //}
 
     next_streaming_chunk_ = 0;
 }
@@ -216,13 +218,31 @@ StreamedGraph StreamingGenerator::Next() {
         };
     }
     Graph graph = CreateGenerator(next_streaming_chunk_)->Generate(GraphRepresentation::EDGE_LIST)->Take();
+
+    my_vertex_ranges_[next_streaming_chunk_] = graph.vertex_range;
+    // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
+    // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
+    // @todo: this assumes that there is at least one none-empty chunk on each PE ...
+    if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first == std::numeric_limits<SInt>::max()) {
+        my_vertex_ranges_[next_streaming_chunk_].first = my_vertex_ranges_[next_streaming_chunk_].second = my_vertex_ranges_[next_streaming_chunk_ - 1].second;
+    } else if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first != std::numeric_limits<SInt>::max()) {
+        for (PEID prev_chunk = next_streaming_chunk_ - 1;
+            prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
+            --prev_chunk) {
+            my_vertex_ranges_[prev_chunk].first = my_vertex_ranges_[prev_chunk].second =
+                my_vertex_ranges_[next_streaming_chunk_].first;
+        }
+    }
+
+    
     if (graph.edges.empty()) {
         ++next_streaming_chunk_;
         return Next();
-    }   
+    } 
+      
 
     StreamedGraph sgraph = {
-        .vertex_range    = graph.vertex_range,
+        .vertex_range    = my_vertex_ranges_[next_streaming_chunk_],
         .primary_edges   = std::move(graph.edges),
         .secondary_edges = (size_ == 1)
             ? std::vector<std::pair<SInt, SInt>>{} // no non-local edges if only one PE

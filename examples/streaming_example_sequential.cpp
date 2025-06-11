@@ -46,13 +46,15 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating " << std::flush;
     }
 
+    long unsigned int nrOfEdges = 0; 
     while (gen.Continue()) {
         const kagen::StreamedGraph graph = gen.Next();
 
         graph.ForEachNode([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
             std::cout << u << ":"; 
             for (kagen::SInt v : neighbors) {
-                std::cout << " " << v; 
+                std::cout << " " << v;
+                nrOfEdges++;  
             }
             std::cout << std::endl;
         }, kagen::NodeStreamingMode::ordered);
@@ -64,6 +66,6 @@ int main(int argc, char* argv[]) {
         std::cout << "Waiting for other PEs ..." << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
-
+    std::cout << "Number of Edges: " << nrOfEdges << std::endl; 
     MPI_Finalize();
 }
