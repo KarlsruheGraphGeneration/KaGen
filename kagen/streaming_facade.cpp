@@ -265,20 +265,4 @@ StreamedGraph StreamingGenerator::Next() {
 bool StreamingGenerator::Continue() const {
     return next_streaming_chunk_ < streaming_chunks_per_pe_;
 }
-
-void StreamingGenerator::streamNodes(const std::function<void(SInt, const std::vector<SInt>&)>& fn, StreamingMode mode) {
-    while (Continue()) {
-        const StreamedGraph graph = Next();
-
-        graph.ForEachNode(fn, mode);
-    }
-}
-
-void StreamingGenerator::streamEdges(const std::function<void(const SInt, const SInt)>& fn, StreamingMode mode) {
-    while (Continue()) {
-        const StreamedGraph graph = Next();
-
-        graph.ForEachEdge(fn, mode);
-    }
-}
 } // namespace kagen

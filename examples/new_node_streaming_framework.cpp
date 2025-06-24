@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     //} 
     //outFile << numNodes << std::endl; 
 
-    gen.streamNodes([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
+    gen.StreamNodes([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
         std::cout << u << ":";
         for (kagen::SInt v : neighbors) {
             std::cout << v << " ";

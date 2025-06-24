@@ -851,12 +851,4 @@ void sKaGen::Initialize() {
 [[nodiscard]] bool sKaGen::Continue() {
     return generator_->Continue();
 }
-
-void sKaGen::streamNodes(const std::function<void(SInt, const std::vector<SInt>&)>& fn, StreamingMode mode) {
-    return generator_->streamNodes(fn, mode);
-}
-
-void sKaGen::streamEdges(const std::function<void(const SInt, const SInt)>& fn, StreamingMode mode) {
-    return generator_->streamEdges(fn, mode);
-}
 } // namespace kagen

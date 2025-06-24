@@ -648,12 +648,26 @@ public:
     /*!
     * Streams the vertices and their neighborhoods one by one.
     */
-    void streamNodes(const std::function<void(SInt, const std::vector<SInt>&)>& fn, StreamingMode mode);
+    template <typename NodeStreamer>
+    void StreamNodes(NodeStreamer&& streamer, StreamingMode mode) {
+        while(Continue()) {
+            const StreamedGraph& graph = Next();
+
+            graph.ForEachNode(streamer, mode);
+        }
+    }
 
     /*!
      * Stream the edges of the graph one by one.
      */
-    void streamEdges(const std::function<void(const SInt, const SInt)>& fn, StreamingMode mode);
+    template <typename EdgeStreamer>
+    void StreamEdges(EdgeStreamer&& streamer, StreamingMode mode) {
+        while (Continue()) {
+            const StreamedGraph& graph = Next(); 
+
+            graph.ForEachEdge(streamer, mode); 
+        }
+    }
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;
