@@ -223,6 +223,8 @@ StreamedGraph StreamingGenerator::Next() {
     // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
     // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
     // @todo: this assumes that there is at least one none-empty chunk on each PE ...
+    // Currently, if the chunk is empty, this means that the correspoding vertices have no edges. Hence, 
+    // can just report the vertex range without any edges I guess.
     if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first == std::numeric_limits<SInt>::max()) {
         my_vertex_ranges_[next_streaming_chunk_].first = my_vertex_ranges_[next_streaming_chunk_].second = my_vertex_ranges_[next_streaming_chunk_ - 1].second;
     } else if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first != std::numeric_limits<SInt>::max()) {
@@ -233,13 +235,6 @@ StreamedGraph StreamingGenerator::Next() {
                 my_vertex_ranges_[next_streaming_chunk_].first;
         }
     }
-
-    /*
-    if (graph.edges.empty()) {
-        ++next_streaming_chunk_;
-        return Next();
-    } 
-    */
 
     if (my_vertex_ranges_[next_streaming_chunk_].first == my_vertex_ranges_[next_streaming_chunk_].second) {
         ++next_streaming_chunk_;

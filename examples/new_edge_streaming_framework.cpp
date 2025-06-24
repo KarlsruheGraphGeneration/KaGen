@@ -13,16 +13,15 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (argc < 4) {
+    if (argc < 3) {
         if (rank == 0) {
-            std::cout << "Usage: ./streaming_example <graph> <chunks = 32> <numNodes>" << std::endl;
+            std::cout << "Usage: ./streaming_example <graph> <chunks = 32>" << std::endl;
         }
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     const std::string graph   = argv[1];
     const kagen::PEID chunks  = std::atoi(argv[2]);
-    const kagen::SInt numNodes = std::atoi(argv[3]);
 
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
@@ -47,17 +46,11 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating " << std::flush;
     }
 
-long unsigned int nrOfEdges = 0;
-std::ofstream outFile("streamOut.txt");
-if (!outFile) {
-  std::cout << "Error: Could not open file for writing." << std::endl; 
-  return 1; 
-} 
-outFile << numNodes << std::endl; 
+    long unsigned int nrOfEdges = 0;
 
-gen.streamEdges([&](const kagen::SInt u, const kagen::SInt v) {
-  std::cout << "(" << u << "," << v << ")" << std::endl;
-}, kagen::StreamingMode::all);
+    gen.streamEdges([&](const kagen::SInt u, const kagen::SInt v) {
+      std::cout << "(" << u << "," << v << ")" << std::endl;
+    }, kagen::StreamingMode::all);
 
     
     if (rank == 0) {

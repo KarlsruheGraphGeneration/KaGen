@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating " << std::flush;
     }
 
-    //std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
+    std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
 
     while (gen.Continue()) {
         const kagen::StreamedGraph graph = gen.Next();
@@ -51,9 +51,8 @@ int main(int argc, char* argv[]) {
         graph.ForEachEdge([&](const auto from, const auto to) {
             local_edges.push_back(from);
             local_edges.push_back(to);
-            std::cout << "(" << from << "," << to << ")" << std::endl; 
         }, kagen::StreamingMode::all);
-        //out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
+        out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
         local_edges.clear();
 
         if (rank == 0) {

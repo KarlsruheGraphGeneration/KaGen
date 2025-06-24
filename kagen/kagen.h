@@ -530,7 +530,7 @@ struct StreamedGraph {
         std::size_t           primary_idx   = 0;
         std::size_t           secondary_idx = 0;
         std::pair<SInt, SInt> prev          = {0, 0};
-        //std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
+
         for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
             while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
                 const auto &current = primary_edges[primary_idx];
