@@ -566,7 +566,7 @@ struct StreamedGraph {
     void ForEachNode(NodeConsumer&& consumer, StreamingMode mode) const {
         std::size_t primary_idx = 0; 
         std::size_t secondary_idx = 0; 
-        std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
+        //std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
         std::vector<SInt> neighbors; 
         for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
             std::pair<SInt, SInt> prev = {0, 0}; 

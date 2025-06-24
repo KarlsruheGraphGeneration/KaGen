@@ -47,22 +47,22 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating " << std::flush;
     }
 
-long unsigned int nrOfEdges = 0;
-std::ofstream outFile("streamOut.txt");
-if (!outFile) {
-  std::cout << "Error: Could not open file for writing." << std::endl; 
-  return 1; 
-} 
-outFile << numNodes << std::endl; 
+    long unsigned int nrOfEdges = 0;
+    //std::ofstream outFile("streamOut.txt");
+    //if (!outFile) {
+    //  std::cout << "Error: Could not open file for writing." << std::endl; 
+    //  return 1; 
+    //} 
+    //outFile << numNodes << std::endl; 
 
-gen.streamNodes([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
-    //outFile << u << ":";
-    for (kagen::SInt v : neighbors) {
-        outFile << v << " ";
-        nrOfEdges++;
-    }
-    outFile << "\n";
-}, kagen::StreamingMode::ordered);
+    gen.streamNodes([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
+        std::cout << u << ":";
+        for (kagen::SInt v : neighbors) {
+            std::cout << v << " ";
+            nrOfEdges++;
+        }
+        std::cout << "\n";
+    }, kagen::StreamingMode::ordered);
 
     
     if (rank == 0) {

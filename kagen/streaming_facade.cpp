@@ -77,7 +77,7 @@ void StreamingGenerator::Initialize() {
 
                 my_vertex_ranges_[chunk] = graph.vertex_range;
 
-                std::cout << my_vertex_ranges_[chunk].first << " , " << my_vertex_ranges_[chunk].second << std::endl;  
+                //std::cout << my_vertex_ranges_[chunk].first << " , " << my_vertex_ranges_[chunk].second << std::endl;  
 
                 // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
                 // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
