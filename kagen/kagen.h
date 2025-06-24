@@ -10,6 +10,7 @@
     #include <unordered_map>
     #include <utility>
     #include <vector>
+    #include <functional>
 #endif
 
 #include <mpi.h>
@@ -183,7 +184,7 @@ std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGenera
 
 std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator);
 
-enum class NodeStreamingMode {
+enum class StreamingMode {
     all, 
     ordered,
 };
@@ -525,7 +526,7 @@ struct StreamedGraph {
     Edgelist    secondary_edges;
 
     template <typename EdgeConsumer>
-    void ForEachEdge(EdgeConsumer&& consumer) const {
+    void ForEachEdge(EdgeConsumer&& consumer, StreamingMode mode) const {
         std::size_t           primary_idx   = 0;
         std::size_t           secondary_idx = 0;
         std::pair<SInt, SInt> prev          = {0, 0};
@@ -534,7 +535,9 @@ struct StreamedGraph {
             while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
                 const auto &current = primary_edges[primary_idx];
                 if (prev != current) [[unlikely]] {
-                    consumer(current.first, current.second);
+                    if (mode == StreamingMode::all || (mode == StreamingMode::ordered && current.second < u)) {
+                        consumer(current.first, current.second);
+                    }
                     prev = current;
                 }
 
@@ -544,7 +547,9 @@ struct StreamedGraph {
             while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
                 const auto &current = secondary_edges[secondary_idx];
                 if (prev != current) [[unlikely]] {
-                    consumer(current.first, current.second);
+                     if (mode == StreamingMode::all || (mode == StreamingMode::ordered && current.second < u)) {
+                        consumer(current.first, current.second);
+                    }
                     prev = current;
                 }
 
@@ -558,7 +563,7 @@ struct StreamedGraph {
     * If "ordered", the neighborhood will contain only neighbors that were already generated. 
     */
     template <typename NodeConsumer>
-    void ForEachNode(NodeConsumer&& consumer, NodeStreamingMode mode) const {
+    void ForEachNode(NodeConsumer&& consumer, StreamingMode mode) const {
         std::size_t primary_idx = 0; 
         std::size_t secondary_idx = 0; 
         std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
@@ -569,10 +574,10 @@ struct StreamedGraph {
             while(primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
                 const auto& current = primary_edges[primary_idx]; 
                 if (prev != current) {
-                    if (mode == NodeStreamingMode::all) {
+                    if (mode == StreamingMode::all) {
                         neighbors.push_back(current.second); 
                         prev = current;  
-                    } else if (mode == NodeStreamingMode::ordered) {
+                    } else if (mode == StreamingMode::ordered) {
                         if (current.second < u) neighbors.push_back(current.second); 
                         prev = current; 
                     } else {
@@ -585,10 +590,10 @@ struct StreamedGraph {
             while(secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
                 const auto& current = secondary_edges[secondary_idx]; 
                 if (prev != current) {
-                    if (mode == NodeStreamingMode::all) {
+                    if (mode == StreamingMode::all) {
                         neighbors.push_back(current.second); 
                         prev = current; 
-                    } else if (mode == NodeStreamingMode::ordered) {
+                    } else if (mode == StreamingMode::ordered) {
                         if (current.second < u) neighbors.push_back(current.second); 
                         prev = current; 
                     } else {
@@ -639,6 +644,16 @@ public:
      * @return True if generation is not finished, false otherwise.
      */
     [[nodiscard]] bool Continue();
+
+    /*!
+    * Streams the vertices and their neighborhoods one by one.
+    */
+    void streamNodes(const std::function<void(SInt, const std::vector<SInt>&)>& fn, StreamingMode mode);
+
+    /*!
+     * Stream the edges of the graph one by one.
+     */
+    void streamEdges(const std::function<void(const SInt, const SInt)>& fn, StreamingMode mode);
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;

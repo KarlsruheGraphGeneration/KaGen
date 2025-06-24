@@ -19,6 +19,10 @@ public:
 
     [[nodiscard]] StreamedGraph Next();
     [[nodiscard]] bool          Continue() const;
+    
+    void streamNodes(const std::function<void(SInt, const std::vector<SInt>&)>& fn, StreamingMode mode);
+
+    void streamEdges(const std::function<void(const SInt, const SInt)>& fn, StreamingMode mode); 
 
 private:
     std::unique_ptr<Generator> CreateGenerator(PEID chunk);
@@ -43,4 +47,5 @@ private:
     std::vector<VertexRange> my_vertex_ranges_;
     std::vector<Edgelist>    nonlocal_edges_;
 };
+
 } // namespace kagen

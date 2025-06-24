@@ -21,3 +21,9 @@ target_link_libraries(example_streaming PRIVATE KaGen::KaGen)
 
 add_executable(example_streaming_sequential streaming_example_sequential.cpp)
 target_link_libraries(example_streaming_sequential PRIVATE KaGen::KaGen)
+
+add_executable(new_node_streaming_framework new_node_streaming_framework.cpp)
+target_link_libraries(new_node_streaming_framework PRIVATE KaGen::KaGen)
+
+add_executable(new_edge_streaming_framework new_edge_streaming_framework.cpp)
+target_link_libraries(new_edge_streaming_framework PRIVATE KaGen::KaGen)

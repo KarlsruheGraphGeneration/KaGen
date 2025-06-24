@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
                 nrOfEdges++;  
             }
             std::cout << std::endl;
-        }, kagen::NodeStreamingMode::ordered);
+        }, kagen::StreamingMode::ordered);
     }
 
     
