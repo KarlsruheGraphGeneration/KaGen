@@ -10,7 +10,6 @@
     #include <unordered_map>
     #include <utility>
     #include <vector>
-    #include <functional>
 #endif
 
 #include <mpi.h>
