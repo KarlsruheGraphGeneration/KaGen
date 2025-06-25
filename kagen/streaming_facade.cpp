@@ -43,9 +43,6 @@ VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
     return ComputeRange(config_.n, size_, pe);
 }
 
-/*!
-* Probably most of this is unnecessary if there is only one PE because then all edges are local edes
-*/
 void StreamingGenerator::Initialize() {
 
     //if (size_ != 1) {
