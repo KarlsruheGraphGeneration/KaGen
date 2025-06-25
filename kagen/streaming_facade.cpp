@@ -25,6 +25,10 @@ StreamingGenerator::StreamingGenerator(const std::string& options, const PEID ch
     config_                  = factory_->NormalizeParameters(config_, streaming_rank, streaming_size, rank_ == 0);
     next_streaming_chunk_    = 0;
     streaming_chunks_per_pe_ = config_.k / size_;
+
+    if (config_.generator == GeneratorType::RMAT || config_.generator == GeneratorType::KRONECKER) {
+        throw ConfigurationError("generator type not supported in streaming mode");
+    }
 }
 
 VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {

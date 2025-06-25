@@ -27,8 +27,6 @@ int main(int argc, char* argv[]) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
     }
     
-    const bool sequentialGeneration = true; 
-
     kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
     
     gen.Initialize();

@@ -38,8 +38,6 @@ int main(int argc, char* argv[]) {
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
     }
-    
-    const bool sequentialGeneration = true; 
 
     kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
     
