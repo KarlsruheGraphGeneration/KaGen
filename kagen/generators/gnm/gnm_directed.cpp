@@ -13,7 +13,14 @@ GNMDirected::GNMDirected(const PGeneratorConfig& config, const PEID rank, const 
       rank_(rank),
       size_(size),
       rng_(config),
-      edges_per_node_(config_.self_loops ? config_.n : config_.n - 1) {}
+      edges_per_node_(config_.self_loops ? config_.n : config_.n - 1) {
+
+    if (config_.streaming) {
+        if (config_.k > config_.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
+}
 
 void GNMDirected::GenerateEdgeList() {
     // Chunk distribution

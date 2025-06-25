@@ -12,7 +12,14 @@ GNPUndirected::GNPUndirected(const PGeneratorConfig& config, const PEID rank, co
     : config_(config),
       rank_(rank),
       size_(size),
-      rng_(config) {}
+      rng_(config) {
+
+    if (config_.streaming) {
+        if (config_.k > config_.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    } 
+}
 
 void GNPUndirected::GenerateEdgeList() {
     // Chunk distribution

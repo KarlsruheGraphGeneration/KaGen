@@ -16,7 +16,13 @@ GNMUndirected<BigInt>::GNMUndirected(const PGeneratorConfig& config, const PEID 
     : config_(config),
       rank_(rank),
       size_(size),
-      rng_(config) {}
+      rng_(config) {
+    if (config_.streaming) {
+        if (config_.k > config_.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
+}
 
 template <typename BigInt>
 void GNMUndirected<BigInt>::GenerateEdgeList() {

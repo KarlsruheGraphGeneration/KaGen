@@ -64,9 +64,10 @@ int main(int argc, char* argv[]) {
     //  return 1; 
     //} 
     //outFile << numNodes << std::endl; 
-
+    long unsigned int local_nr_of_nodes = 0; 
     gen.StreamNodes([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
         std::cout << u << ":";
+        local_nr_of_nodes++;
         for (kagen::SInt v : neighbors) {
             std::cout << v << " ";
             nrOfEdges++;
@@ -74,16 +75,20 @@ int main(int argc, char* argv[]) {
         std::cout << "\n";
     }, kagen::StreamingMode::ordered);
 
-    
     if (rank == 0) {
         std::cout << std::endl;
         std::cout << "Waiting for other PEs ..." << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "Number of Edges: " << nrOfEdges << std::endl; 
+    long unsigned int global_nr_of_edges = 0; 
+    long unsigned int global_nr_of_nodes = 0;
+    MPI_Reduce(&nrOfEdges, &global_nr_of_edges, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD); 
+    MPI_Reduce(&local_nr_of_nodes, &global_nr_of_nodes, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD); 
     long maxRSS = getMaxRSS();
     if (rank == 0) {
         std::cout << "Max RSS: " << maxRSS << " KB" << std::endl;
+        std::cout << "Global number of edges: " << global_nr_of_edges << std::endl;
+        std::cout << "Global number of nodes: " << global_nr_of_nodes << std::endl;
     }
     MPI_Finalize();
 }
