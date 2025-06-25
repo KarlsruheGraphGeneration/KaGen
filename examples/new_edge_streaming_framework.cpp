@@ -5,18 +5,6 @@
 #include <iomanip>
 #include <iostream>
 #include <numeric>
-#include <sys/resource.h>
-
-long getMaxRSS() {
-    struct rusage usage;
-
-    if (getrusage(RUSAGE_SELF, &usage) == 0) {
-        return usage.ru_maxrss; // in kilobytes
-    } else {
-      std::cout << "Error getting resource usage information." << std::endl;
-    }
-    return -1; // error
-}
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
@@ -72,9 +60,5 @@ int main(int argc, char* argv[]) {
     }
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Number of Edges: " << nrOfEdges << std::endl; 
-    long maxRSS = getMaxRSS();
-    if (rank == 0) {
-        std::cout << "Max RSS: " << maxRSS << " KB" << std::endl;
-    }
     MPI_Finalize();
 }

@@ -45,91 +45,87 @@ VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
 
 void StreamingGenerator::Initialize() {
 
-    //if (size_ != 1) {
-        nonlocal_edges_.clear();
-        nonlocal_edges_.resize(streaming_chunks_per_pe_);
+    nonlocal_edges_.clear();
+    nonlocal_edges_.resize(streaming_chunks_per_pe_);
 
-        my_vertex_ranges_.clear();
-        my_vertex_ranges_.resize(streaming_chunks_per_pe_);
+    my_vertex_ranges_.clear();
+    my_vertex_ranges_.resize(streaming_chunks_per_pe_);
 
-        if (!initialized_) {
-            if (rank_ == ROOT && !config_.quiet) {
-                std::cout << "Initializaing " << std::flush;
-            }
-
-            initialized_ = true;
-            vertex_distribution_.resize(size_ + 1);
-
-            SInt max_nonlocal_edges = 0; // PE-level max. nonlocal edges
-            SInt num_nonlocal_edges = 0; // Total number of nonlocal edges
-            SInt num_local_edges    = 0; // Total number of local edges
-            SInt max_local_edges    = 0; // Chunk-level max local edges
-
-            for (PEID chunk = 0; chunk < streaming_chunks_per_pe_; ++chunk) {
-                auto generator = CreateGenerator(chunk);
-                generator->Generate(GraphRepresentation::EDGE_LIST);
-
-                auto  nonlocal_edges = generator->TakeNonlocalEdges();
-                Graph graph          = generator->Take();
-
-                std::sort(nonlocal_edges.begin(), nonlocal_edges.end(), [](const auto& lhs, const auto& rhs) {
-                    return lhs.first < rhs.first;
-                });
-
-                my_vertex_ranges_[chunk] = graph.vertex_range;
-
-                //std::cout << my_vertex_ranges_[chunk].first << " , " << my_vertex_ranges_[chunk].second << std::endl;  
-
-                // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
-                // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
-                // @todo: this assumes that there is at least one none-empty chunk on each PE ...
-                if (chunk > 0 && my_vertex_ranges_[chunk].first == std::numeric_limits<SInt>::max()) {
-                    my_vertex_ranges_[chunk].first = my_vertex_ranges_[chunk].second = my_vertex_ranges_[chunk - 1].second;
-                } else if (chunk > 0 && my_vertex_ranges_[chunk].first != std::numeric_limits<SInt>::max()) {
-                    for (PEID prev_chunk = chunk - 1;
-                        prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
-                        --prev_chunk) {
-                        my_vertex_ranges_[prev_chunk].first = my_vertex_ranges_[prev_chunk].second =
-                            my_vertex_ranges_[chunk].first;
-                    }
-                }
-
-                nonlocal_edges_[chunk] = std::move(nonlocal_edges);
-                max_nonlocal_edges += nonlocal_edges_[chunk].size();
-                num_nonlocal_edges += nonlocal_edges_[chunk].size();
-                num_local_edges += graph.edges.size();
-                max_local_edges = std::max(max_local_edges, static_cast<SInt>(graph.edges.size()));
-
-                if (rank_ == ROOT && !config_.quiet) {
-                    std::cout << "." << std::flush;
-                }
-            }
-
-            MPI_Allreduce(MPI_IN_PLACE, &max_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
-            MPI_Allreduce(MPI_IN_PLACE, &num_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
-            MPI_Allreduce(MPI_IN_PLACE, &num_local_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
-            MPI_Allreduce(MPI_IN_PLACE, &max_local_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
-
-            vertex_distribution_[rank_]     = my_vertex_ranges_.front().first;
-            vertex_distribution_[rank_ + 1] = my_vertex_ranges_.back().second;
-            MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vertex_distribution_.data() + 1, 1, KAGEN_MPI_SINT, comm_);
-
-            if (rank_ == ROOT && !config_.quiet) {
-                std::cout << std::endl;
-                std::cout << "Total number of local edges:      " << num_local_edges << std::endl;
-                std::cout << "Maximum number of local edges:    " << max_local_edges << " = " << std::fixed
-                        << std::setprecision(3) << 16 * max_local_edges / 1024.0 / 1024.0 << " MB" << std::endl;
-                std::cout << "Total number of nonlocal edges:   " << num_nonlocal_edges << " = " << std::fixed
-                        << std::setprecision(3) << 16 * num_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
-                std::cout << "Maximum number of nonlocal edges: " << max_nonlocal_edges << " = " << std::fixed
-                        << std::setprecision(3) << 16 * max_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
-                std::cout << "Memory peak:                      roughly "
-                        << 16 * (max_local_edges + max_nonlocal_edges) / 1024.0 / 1024.0 << " MB" << std::endl;
-            }
-
-            ExchangeNonlocalEdges();
+    if (!initialized_) {
+        if (rank_ == ROOT && !config_.quiet) {
+            std::cout << "Initializaing " << std::flush;
         }
-    //}
+
+        initialized_ = true;
+        vertex_distribution_.resize(size_ + 1);
+
+        SInt max_nonlocal_edges = 0; // PE-level max. nonlocal edges
+        SInt num_nonlocal_edges = 0; // Total number of nonlocal edges
+        SInt num_local_edges    = 0; // Total number of local edges
+        SInt max_local_edges    = 0; // Chunk-level max local edges
+
+        for (PEID chunk = 0; chunk < streaming_chunks_per_pe_; ++chunk) {
+            auto generator = CreateGenerator(chunk);
+            generator->Generate(GraphRepresentation::EDGE_LIST);
+
+            auto  nonlocal_edges = generator->TakeNonlocalEdges();
+            Graph graph          = generator->Take();
+
+            std::sort(nonlocal_edges.begin(), nonlocal_edges.end(), [](const auto& lhs, const auto& rhs) {
+                return lhs.first < rhs.first;
+            });
+
+            my_vertex_ranges_[chunk] = graph.vertex_range; 
+
+            // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
+            // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
+            // @todo: this assumes that there is at least one none-empty chunk on each PE ...
+            if (chunk > 0 && my_vertex_ranges_[chunk].first == std::numeric_limits<SInt>::max()) {
+                my_vertex_ranges_[chunk].first = my_vertex_ranges_[chunk].second = my_vertex_ranges_[chunk - 1].second;
+            } else if (chunk > 0 && my_vertex_ranges_[chunk].first != std::numeric_limits<SInt>::max()) {
+                for (PEID prev_chunk = chunk - 1;
+                    prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
+                    --prev_chunk) {
+                    my_vertex_ranges_[prev_chunk].first = my_vertex_ranges_[prev_chunk].second =
+                        my_vertex_ranges_[chunk].first;
+                }
+            }
+
+            nonlocal_edges_[chunk] = std::move(nonlocal_edges);
+            max_nonlocal_edges += nonlocal_edges_[chunk].size();
+            num_nonlocal_edges += nonlocal_edges_[chunk].size();
+            num_local_edges += graph.edges.size();
+            max_local_edges = std::max(max_local_edges, static_cast<SInt>(graph.edges.size()));
+
+            if (rank_ == ROOT && !config_.quiet) {
+                std::cout << "." << std::flush;
+            }
+        }
+
+        MPI_Allreduce(MPI_IN_PLACE, &max_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
+        MPI_Allreduce(MPI_IN_PLACE, &num_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
+        MPI_Allreduce(MPI_IN_PLACE, &num_local_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
+        MPI_Allreduce(MPI_IN_PLACE, &max_local_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
+
+        vertex_distribution_[rank_]     = my_vertex_ranges_.front().first;
+        vertex_distribution_[rank_ + 1] = my_vertex_ranges_.back().second;
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vertex_distribution_.data() + 1, 1, KAGEN_MPI_SINT, comm_);
+
+        if (rank_ == ROOT && !config_.quiet) {
+            std::cout << std::endl;
+            std::cout << "Total number of local edges:      " << num_local_edges << std::endl;
+            std::cout << "Maximum number of local edges:    " << max_local_edges << " = " << std::fixed
+                    << std::setprecision(3) << 16 * max_local_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+            std::cout << "Total number of nonlocal edges:   " << num_nonlocal_edges << " = " << std::fixed
+                    << std::setprecision(3) << 16 * num_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+            std::cout << "Maximum number of nonlocal edges: " << max_nonlocal_edges << " = " << std::fixed
+                    << std::setprecision(3) << 16 * max_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+            std::cout << "Memory peak:                      roughly "
+                    << 16 * (max_local_edges + max_nonlocal_edges) / 1024.0 / 1024.0 << " MB" << std::endl;
+        }
+
+        ExchangeNonlocalEdges();
+    }
 
     next_streaming_chunk_ = 0;
 }
