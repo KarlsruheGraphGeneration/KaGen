@@ -17,6 +17,15 @@ PGeneratorConfig NormalizeParametersCommon(PGeneratorConfig config, const double
         }
     }
 
+    if (config.streaming) {
+        if (config.k < 1) {
+            throw ConfigurationError("Number of chunks must be at least 1");
+        }
+        if (config.k > config.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
+
     return config;
 }
 } // namespace
@@ -24,7 +33,9 @@ PGeneratorConfig
 Delaunay2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
     // EnsurePowerOfTwoCommunicatorSize(config, size);
-    EnsureOneChunkPerPE(config, size);
+
+    // I think this is only needed in this case
+    if (size > 1) EnsureOneChunkPerPE(config, size);
 
     return NormalizeParametersCommon(config, 3, output);
 }

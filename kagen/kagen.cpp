@@ -144,9 +144,13 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
     return {
         {"gnm-directed", GeneratorType::GNM_DIRECTED},
+        {"gnm_directed", GeneratorType::GNM_DIRECTED},
         {"gnm-undirected", GeneratorType::GNM_UNDIRECTED},
+        {"gnm_undirected", GeneratorType::GNM_UNDIRECTED},
         {"gnp-directed", GeneratorType::GNP_DIRECTED},
+        {"gnp_directed", GeneratorType::GNP_DIRECTED},
         {"gnp-undirected", GeneratorType::GNP_UNDIRECTED},
+        {"gnp_undirected", GeneratorType::GNP_UNDIRECTED},
         {"rgg2d", GeneratorType::RGG_2D},
         {"rgg3d", GeneratorType::RGG_3D},
 #ifdef KAGEN_CGAL_FOUND

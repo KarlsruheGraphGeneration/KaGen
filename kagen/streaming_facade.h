@@ -43,4 +43,5 @@ private:
     std::vector<VertexRange> my_vertex_ranges_;
     std::vector<Edgelist>    nonlocal_edges_;
 };
+
 } // namespace kagen

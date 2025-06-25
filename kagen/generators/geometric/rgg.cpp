@@ -88,6 +88,7 @@ PGeneratorConfig NormalizeParametersCommon(
     // - Number of edges
     // - Radius
     // If number of nodes or radius is missing, compute it from the other two values
+    // We have to make sure that in streaming mode the radius is not smaller than 1/k^2, where k is the number of chunks throw error if not 
     if (config.r == 0.0) {
         if (config.n == 0 || config.m == 0) {
             throw ConfigurationError("at least two parameters out of {n, m, r} must be nonzero");
@@ -114,6 +115,14 @@ PGeneratorConfig NormalizeParametersCommon(
 
     if (config.r < 0) {
         throw ConfigurationError("generator configuration infeasible (negative radius)");
+    }
+    if (config.streaming) {
+        if (config.k < 1) {
+            throw ConfigurationError("Number of chunks must be at least 1");
+        }
+        if (config.k > config.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
     }
 
     return config;

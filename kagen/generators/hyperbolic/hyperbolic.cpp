@@ -36,6 +36,15 @@ HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
         }
     }
 
+    if (config.streaming) {
+        if (config.k < 1) {
+            throw ConfigurationError("Number of chunks must be at least 1");
+        }
+        if (config.k > config.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
+
     const HPFloat alpha = (config.plexp - 1) / 2;
     if (!PGGeometry<HPFloat>::TestTargetRadius(config.n, config.n + config.avg_degree / 2, alpha)) {
         using namespace std::string_literals;

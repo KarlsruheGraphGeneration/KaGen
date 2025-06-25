@@ -17,6 +17,12 @@ RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     cell_size_       = config_.r + (chunk_size_ - cells_per_dim_ * config_.r) / cells_per_dim_;
     target_r_        = config_.r * config_.r;
 
+    if (config_.streaming) {
+        if (config_.k > 1/(config_.r * config_.r)) {
+            throw ConfigurationError("Radius does not match the given number of chunks");
+        } 
+    }
+
     InitDatastructures();
 }
 

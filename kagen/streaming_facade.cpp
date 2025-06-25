@@ -21,9 +21,14 @@ StreamingGenerator::StreamingGenerator(const std::string& options, const PEID ch
     const PEID streaming_size = chunks_per_pe * size_;
     const PEID streaming_rank = chunks_per_pe * rank_;
 
+    config_.streaming       = true; 
     config_                  = factory_->NormalizeParameters(config_, streaming_rank, streaming_size, rank_ == 0);
     next_streaming_chunk_    = 0;
     streaming_chunks_per_pe_ = config_.k / size_;
+
+    if (config_.generator == GeneratorType::RMAT || config_.generator == GeneratorType::KRONECKER) {
+        throw ConfigurationError("generator type not supported in streaming mode");
+    }
 }
 
 VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
@@ -39,6 +44,7 @@ VertexRange StreamingGenerator::EstimateVertexRange(PEID pe) const {
 }
 
 void StreamingGenerator::Initialize() {
+
     nonlocal_edges_.clear();
     nonlocal_edges_.resize(streaming_chunks_per_pe_);
 
@@ -69,7 +75,7 @@ void StreamingGenerator::Initialize() {
                 return lhs.first < rhs.first;
             });
 
-            my_vertex_ranges_[chunk] = graph.vertex_range;
+            my_vertex_ranges_[chunk] = graph.vertex_range; 
 
             // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
             // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
@@ -78,8 +84,8 @@ void StreamingGenerator::Initialize() {
                 my_vertex_ranges_[chunk].first = my_vertex_ranges_[chunk].second = my_vertex_ranges_[chunk - 1].second;
             } else if (chunk > 0 && my_vertex_ranges_[chunk].first != std::numeric_limits<SInt>::max()) {
                 for (PEID prev_chunk = chunk - 1;
-                     prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
-                     --prev_chunk) {
+                    prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
+                    --prev_chunk) {
                     my_vertex_ranges_[prev_chunk].first = my_vertex_ranges_[prev_chunk].second =
                         my_vertex_ranges_[chunk].first;
                 }
@@ -109,13 +115,13 @@ void StreamingGenerator::Initialize() {
             std::cout << std::endl;
             std::cout << "Total number of local edges:      " << num_local_edges << std::endl;
             std::cout << "Maximum number of local edges:    " << max_local_edges << " = " << std::fixed
-                      << std::setprecision(3) << 16 * max_local_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+                    << std::setprecision(3) << 16 * max_local_edges / 1024.0 / 1024.0 << " MB" << std::endl;
             std::cout << "Total number of nonlocal edges:   " << num_nonlocal_edges << " = " << std::fixed
-                      << std::setprecision(3) << 16 * num_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+                    << std::setprecision(3) << 16 * num_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
             std::cout << "Maximum number of nonlocal edges: " << max_nonlocal_edges << " = " << std::fixed
-                      << std::setprecision(3) << 16 * max_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
+                    << std::setprecision(3) << 16 * max_nonlocal_edges / 1024.0 / 1024.0 << " MB" << std::endl;
             std::cout << "Memory peak:                      roughly "
-                      << 16 * (max_local_edges + max_nonlocal_edges) / 1024.0 / 1024.0 << " MB" << std::endl;
+                    << 16 * (max_local_edges + max_nonlocal_edges) / 1024.0 / 1024.0 << " MB" << std::endl;
         }
 
         ExchangeNonlocalEdges();
@@ -208,17 +214,37 @@ StreamedGraph StreamingGenerator::Next() {
             .secondary_edges = {},
         };
     }
-
     Graph graph = CreateGenerator(next_streaming_chunk_)->Generate(GraphRepresentation::EDGE_LIST)->Take();
-    if (graph.edges.empty()) {
+
+    my_vertex_ranges_[next_streaming_chunk_] = graph.vertex_range;
+    // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
+    // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
+    // @todo: this assumes that there is at least one none-empty chunk on each PE ...
+    // Currently, if the chunk is empty, this means that the correspoding vertices have no edges. Hence, 
+    // can just report the vertex range without any edges I guess.
+    if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first == std::numeric_limits<SInt>::max()) {
+        my_vertex_ranges_[next_streaming_chunk_].first = my_vertex_ranges_[next_streaming_chunk_].second = my_vertex_ranges_[next_streaming_chunk_ - 1].second;
+    } else if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first != std::numeric_limits<SInt>::max()) {
+        for (PEID prev_chunk = next_streaming_chunk_ - 1;
+            prev_chunk >= 0 && my_vertex_ranges_[prev_chunk].first == std::numeric_limits<SInt>::max();
+            --prev_chunk) {
+            my_vertex_ranges_[prev_chunk].first = my_vertex_ranges_[prev_chunk].second =
+                my_vertex_ranges_[next_streaming_chunk_].first;
+        }
+    }
+
+    if (my_vertex_ranges_[next_streaming_chunk_].first == my_vertex_ranges_[next_streaming_chunk_].second) {
         ++next_streaming_chunk_;
         return Next();
     }
+      
 
     StreamedGraph sgraph = {
-        .vertex_range    = graph.vertex_range,
+        .vertex_range    = my_vertex_ranges_[next_streaming_chunk_],
         .primary_edges   = std::move(graph.edges),
-        .secondary_edges = std::move(nonlocal_edges_[next_streaming_chunk_]),
+        .secondary_edges = (size_ == 1)
+            ? std::vector<std::pair<SInt, SInt>>{} // no non-local edges if only one PE
+            : std::move(nonlocal_edges_[next_streaming_chunk_]),
     };
 
     if (!std::is_sorted(sgraph.primary_edges.begin(), sgraph.primary_edges.end())) {

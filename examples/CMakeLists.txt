@@ -16,5 +16,14 @@ target_link_libraries(example_cpp_options_string PRIVATE KaGen::KaGen)
 add_executable(example_c_options_string options_string_c_example.c)
 target_link_libraries(example_c_options_string PRIVATE KaGen::KaGen)
 
-add_executable(example_streaming streaming_example.cpp)
-target_link_libraries(example_streaming PRIVATE KaGen::KaGen)
+add_executable(example_chunk_streaming_edges example_chunk_streaming_edges.cpp)
+target_link_libraries(example_chunk_streaming_edges PRIVATE KaGen::KaGen)
+
+add_executable(example_chunk_streaming_nodes example_chunk_streaming_nodes.cpp)
+target_link_libraries(example_chunk_streaming_nodes PRIVATE KaGen::KaGen)
+
+add_executable(example_node_streaming example_node_streaming.cpp)
+target_link_libraries(example_node_streaming PRIVATE KaGen::KaGen)
+
+add_executable(example_edge_streaming example_edge_streaming.cpp)
+target_link_libraries(example_edge_streaming PRIVATE KaGen::KaGen)

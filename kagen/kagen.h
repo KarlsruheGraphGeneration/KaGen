@@ -183,6 +183,11 @@ std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGenera
 
 std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator);
 
+enum class StreamingMode {
+    ALL, 
+    ORDERED,
+};
+
 } // namespace kagen
 #endif
 
@@ -520,7 +525,7 @@ struct StreamedGraph {
     Edgelist    secondary_edges;
 
     template <typename EdgeConsumer>
-    void ForEachEdge(EdgeConsumer&& consumer) const {
+    void ForEachEdge(EdgeConsumer&& consumer, const StreamingMode mode) const {
         std::size_t           primary_idx   = 0;
         std::size_t           secondary_idx = 0;
         std::pair<SInt, SInt> prev          = {0, 0};
@@ -529,7 +534,9 @@ struct StreamedGraph {
             while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
                 const auto &current = primary_edges[primary_idx];
                 if (prev != current) [[unlikely]] {
-                    consumer(current.first, current.second);
+                    if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
+                        consumer(current.first, current.second);
+                    }
                     prev = current;
                 }
 
@@ -539,12 +546,64 @@ struct StreamedGraph {
             while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
                 const auto &current = secondary_edges[secondary_idx];
                 if (prev != current) [[unlikely]] {
-                    consumer(current.first, current.second);
+                     if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
+                        consumer(current.first, current.second);
+                    }
                     prev = current;
                 }
 
                 ++secondary_idx;
             }
+        }
+    }
+    /*
+    * There are two modes: "all" and "ordered".
+    * If "all", the neighborhood will contain every neighbor.
+    * If "ordered", the neighborhood will contain only neighbors that were already generated. 
+    */
+    template <typename NodeConsumer>
+    void ForEachNode(NodeConsumer&& consumer, const StreamingMode mode) const {
+        std::size_t primary_idx = 0; 
+        std::size_t secondary_idx = 0; 
+        //std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
+        std::vector<SInt> neighbors; 
+        for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
+            std::pair<SInt, SInt> prev = {0, 0}; 
+            
+            while(primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
+                const auto& current = primary_edges[primary_idx]; 
+                if (prev != current) {
+                    if (mode == StreamingMode::ALL) {
+                        neighbors.push_back(current.second); 
+                        prev = current;  
+                    } else if (mode == StreamingMode::ORDERED) {
+                        if (current.second < u) neighbors.push_back(current.second); 
+                        prev = current; 
+                    } else {
+                        throw std::invalid_argument("Mode not supported");
+                    }
+                }
+                ++primary_idx; 
+            }
+
+            while(secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
+                const auto& current = secondary_edges[secondary_idx]; 
+                if (prev != current) {
+                    if (mode == StreamingMode::ALL) {
+                        neighbors.push_back(current.second); 
+                        prev = current; 
+                    } else if (mode == StreamingMode::ORDERED) {
+                        if (current.second < u) neighbors.push_back(current.second); 
+                        prev = current; 
+                    } else {
+                        throw std::invalid_argument("Mode not supported");
+                    }
+                }
+                ++secondary_idx; 
+            }
+
+            consumer(u, neighbors); 
+            neighbors.clear();
         }
     }
 
@@ -561,6 +620,7 @@ public:
      * @param options The options string to be passed to KaGen, e.g, `rhg;N=10;M=12`.
      * @param chunks Number of chunks *per PE* that generation will be split into.
      * @param comm The MPI communicator to be used.
+     * @param sequential tells KaGen to use one single PE
      */
     sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm);
 
@@ -583,6 +643,30 @@ public:
      * @return True if generation is not finished, false otherwise.
      */
     [[nodiscard]] bool Continue();
+
+    /*!
+    * Streams the vertices and their neighborhoods one by one.
+    */
+    template <typename NodeStreamer>
+    void StreamNodes(NodeStreamer&& streamer, const StreamingMode mode) {
+        while(Continue()) {
+            const StreamedGraph& graph = Next();
+
+            graph.ForEachNode(std::forward<NodeStreamer>(streamer), mode);
+        }
+    }
+
+    /*!
+     * Stream the edges of the graph one by one.
+     */
+    template <typename EdgeStreamer>
+    void StreamEdges(EdgeStreamer&& streamer, const StreamingMode mode) {
+        while (Continue()) {
+            const StreamedGraph& graph = Next(); 
+
+            graph.ForEachEdge(std::forward<EdgeStreamer>(streamer), mode);
+        }
+    }
 
 private:
     std::unique_ptr<class StreamingGenerator> generator_;

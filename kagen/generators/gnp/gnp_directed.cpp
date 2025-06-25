@@ -18,6 +18,12 @@ GNPDirected::GNPDirected(const PGeneratorConfig& config, const PEID rank, const 
         edges_per_node = config_.n - 1;
     else
         edges_per_node = config_.n;
+
+    if (config_.streaming) {
+        if (config_.k > config_.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
 }
 
 void GNPDirected::GenerateEdgeList() {
@@ -31,7 +37,7 @@ void GNPDirected::GenerateEdgeList() {
 
     start_node_ = start_chunk * nodes_per_chunk + std::min(start_chunk, remaining_nodes);
     end_node_   = end_chunk * nodes_per_chunk + std::min(end_chunk, remaining_nodes);
-    num_nodes_  = end_node_ - start_node_ - 1;
+    num_nodes_  = end_node_ - start_node_;
 
     // Generate chunks
     SInt current_node = start_node_;
