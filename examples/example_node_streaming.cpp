@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
             nrOfEdges++;
         }
         std::cout << "\n";
-    }, kagen::StreamingMode::ordered);
+    }, kagen::StreamingMode::ORDERED);
 
     if (rank == 0) {
         std::cout << std::endl;

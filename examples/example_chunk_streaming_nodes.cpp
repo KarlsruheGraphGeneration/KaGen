@@ -13,58 +13,57 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (argc < 4) {
+    if (argc < 3) {
         if (rank == 0) {
-            std::cout << "Usage: ./streaming_example <graph> <chunks = 32> <out-dir>" << std::endl;
+            std::cout << "Usage: ./streaming_example <graph> <chunks = 32>" << std::endl;
         }
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     const std::string graph   = argv[1];
     const kagen::PEID chunks  = std::atoi(argv[2]);
-    const std::string out_dir = argv[3];
 
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
     }
-
+    
     kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
+    
     gen.Initialize();
 
+    // this already works so gives me the expected range
     kagen::VertexRange my_expected_vertex_range = gen.EstimateVertexRange();
+
 
     if (rank == 0) {
         for (int pe = 0; pe < size; ++pe) {
             std::cout << "Vertices on PE " << std::setw(3) << pe << ": [" << gen.EstimateVertexRange(pe).first << ", "
                       << gen.EstimateVertexRange(pe).second << ")" << std::endl;
-        }
+    }
 
         std::cout << "Generating " << std::flush;
     }
 
-    std::ofstream out(out_dir + "/" + std::to_string(rank) + ".edges", std::ios_base::trunc);
-
+    long unsigned int nrOfEdges = 0; 
     while (gen.Continue()) {
         const kagen::StreamedGraph graph = gen.Next();
 
-        std::vector<kagen::SInt> local_edges;
-        graph.ForEachEdge([&](const auto from, const auto to) {
-            local_edges.push_back(from);
-            local_edges.push_back(to);
-        }, kagen::StreamingMode::all);
-        out.write(reinterpret_cast<const char*>(local_edges.data()), local_edges.size() * sizeof(kagen::SInt));
-        local_edges.clear();
-
-        if (rank == 0) {
-            std::cout << "." << std::flush;
-        }
+        graph.ForEachNode([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
+            std::cout << u << ":"; 
+            for (kagen::SInt v : neighbors) {
+                std::cout << " " << v;
+                nrOfEdges++;  
+            }
+            std::cout << std::endl;
+        }, kagen::StreamingMode::ORDERED);
     }
 
+    
     if (rank == 0) {
         std::cout << std::endl;
         std::cout << "Waiting for other PEs ..." << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
-
+    std::cout << "Number of Edges: " << nrOfEdges << std::endl; 
     MPI_Finalize();
 }

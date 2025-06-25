@@ -496,6 +496,23 @@ KaGen gen(MPI_COMM_WORLD);
 Graph graph = gen.GenerateFromOptionString("file;filename=<...>;input_format=<...>;distribution=<...>");
 ```
 
+---
+
+## Streaming Graph Generators
+Most of the generators can be used in a streaming setting. In this case, the graph can be streamed edge by edge or vertex by vertex together with its neighborhood. One can stream only edges from larger to smaller ID or all edges that have been generated in the corresponding chunk. 
+
+#### Library
+Use option strings to give the generator the necessary information about the chosen model.
+Additionally, give the generator the number of chunks in which the graph generation should be split.
+```c++
+sKaGen gen("rgg2d;n=1000;r=0.2", 4, MPI_COMM_WORLD); 
+gen.Initialize();
+```
+
+Further examples are shown in the `examples` folder, see e.g. `examples/example_node_streaming.cpp`.
+
+---
+
 ## Tools
 
 Tools can be installed via `cmake --install build --component tools`. The following tools are included: 

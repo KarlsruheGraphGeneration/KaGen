@@ -184,8 +184,8 @@ std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGenera
 std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator);
 
 enum class StreamingMode {
-    all, 
-    ordered,
+    ALL, 
+    ORDERED,
 };
 
 } // namespace kagen
@@ -525,7 +525,7 @@ struct StreamedGraph {
     Edgelist    secondary_edges;
 
     template <typename EdgeConsumer>
-    void ForEachEdge(EdgeConsumer&& consumer, StreamingMode mode) const {
+    void ForEachEdge(EdgeConsumer&& consumer, const StreamingMode mode) const {
         std::size_t           primary_idx   = 0;
         std::size_t           secondary_idx = 0;
         std::pair<SInt, SInt> prev          = {0, 0};
@@ -534,7 +534,7 @@ struct StreamedGraph {
             while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
                 const auto &current = primary_edges[primary_idx];
                 if (prev != current) [[unlikely]] {
-                    if (mode == StreamingMode::all || (mode == StreamingMode::ordered && current.second < u)) {
+                    if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
                         consumer(current.first, current.second);
                     }
                     prev = current;
@@ -546,7 +546,7 @@ struct StreamedGraph {
             while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
                 const auto &current = secondary_edges[secondary_idx];
                 if (prev != current) [[unlikely]] {
-                     if (mode == StreamingMode::all || (mode == StreamingMode::ordered && current.second < u)) {
+                     if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
                         consumer(current.first, current.second);
                     }
                     prev = current;
@@ -562,7 +562,7 @@ struct StreamedGraph {
     * If "ordered", the neighborhood will contain only neighbors that were already generated. 
     */
     template <typename NodeConsumer>
-    void ForEachNode(NodeConsumer&& consumer, StreamingMode mode) const {
+    void ForEachNode(NodeConsumer&& consumer, const StreamingMode mode) const {
         std::size_t primary_idx = 0; 
         std::size_t secondary_idx = 0; 
         //std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
@@ -573,10 +573,10 @@ struct StreamedGraph {
             while(primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
                 const auto& current = primary_edges[primary_idx]; 
                 if (prev != current) {
-                    if (mode == StreamingMode::all) {
+                    if (mode == StreamingMode::ALL) {
                         neighbors.push_back(current.second); 
                         prev = current;  
-                    } else if (mode == StreamingMode::ordered) {
+                    } else if (mode == StreamingMode::ORDERED) {
                         if (current.second < u) neighbors.push_back(current.second); 
                         prev = current; 
                     } else {
@@ -589,10 +589,10 @@ struct StreamedGraph {
             while(secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
                 const auto& current = secondary_edges[secondary_idx]; 
                 if (prev != current) {
-                    if (mode == StreamingMode::all) {
+                    if (mode == StreamingMode::ALL) {
                         neighbors.push_back(current.second); 
                         prev = current; 
-                    } else if (mode == StreamingMode::ordered) {
+                    } else if (mode == StreamingMode::ORDERED) {
                         if (current.second < u) neighbors.push_back(current.second); 
                         prev = current; 
                     } else {
@@ -648,11 +648,11 @@ public:
     * Streams the vertices and their neighborhoods one by one.
     */
     template <typename NodeStreamer>
-    void StreamNodes(NodeStreamer&& streamer, StreamingMode mode) {
+    void StreamNodes(NodeStreamer&& streamer, const StreamingMode mode) {
         while(Continue()) {
             const StreamedGraph& graph = Next();
 
-            graph.ForEachNode(streamer, mode);
+            graph.ForEachNode(std::forward<NodeStreamer>(streamer), mode);
         }
     }
 
@@ -660,11 +660,11 @@ public:
      * Stream the edges of the graph one by one.
      */
     template <typename EdgeStreamer>
-    void StreamEdges(EdgeStreamer&& streamer, StreamingMode mode) {
+    void StreamEdges(EdgeStreamer&& streamer, const StreamingMode mode) {
         while (Continue()) {
             const StreamedGraph& graph = Next(); 
 
-            graph.ForEachEdge(streamer, mode); 
+            graph.ForEachEdge(std::forward<EdgeStreamer>(streamer), mode);
         }
     }
 

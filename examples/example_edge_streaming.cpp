@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     if (rank == 0) {
         std::cout << "Graph: " << graph << ", chunks: " << chunks << std::endl;
     }
-    
+
     kagen::sKaGen gen(graph, chunks, MPI_COMM_WORLD);
     
     gen.Initialize();
@@ -44,19 +44,14 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating " << std::flush;
     }
 
-    long unsigned int nrOfEdges = 0; 
-    while (gen.Continue()) {
-        const kagen::StreamedGraph graph = gen.Next();
+    long unsigned int nrOfEdges = 0;
 
-        graph.ForEachNode([&](kagen::SInt u, const std::vector<kagen::SInt>& neighbors) {
-            std::cout << u << ":"; 
-            for (kagen::SInt v : neighbors) {
-                std::cout << " " << v;
-                nrOfEdges++;  
-            }
-            std::cout << std::endl;
-        }, kagen::StreamingMode::ordered);
-    }
+    gen.StreamEdges([&](const kagen::SInt u, const kagen::SInt v) {
+      //std::cout << "(" << u << "," << v << ")" << std::endl;
+      kagen::SInt source = u; 
+      kagen::SInt target = v;
+      nrOfEdges++;
+    }, kagen::StreamingMode::ORDERED);
 
     
     if (rank == 0) {
