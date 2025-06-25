@@ -33,6 +33,14 @@ BarabassiFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID 
             std::cout << "Setting number of vertices to " << config.n << std::endl;
         }
     }
+    if (config.streaming) {
+        if (config.k < 1) {
+            throw ConfigurationError("Number of chunks must be at least 1");
+        }
+        if (config.k > config.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
 
     // External memory mode does not call Finalize()
     config.external.fix_reverse_edges = !config.directed;

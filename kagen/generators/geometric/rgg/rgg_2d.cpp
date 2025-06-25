@@ -20,7 +20,7 @@ RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     if (config_.streaming) {
         if (config_.k > 1/(config_.r * config_.r)) {
             throw ConfigurationError("Radius does not match the given number of chunks");
-        }
+        } 
     }
 
     InitDatastructures();

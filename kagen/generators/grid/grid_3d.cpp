@@ -34,6 +34,14 @@ Grid3DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID siz
         }
     }
 
+    if (config.streaming) {
+        if (config.k < 1) {
+            throw ConfigurationError("Number of chunks must be at least 1");
+        }
+        if (config.k > config.n) {
+            throw ConfigurationError("Number of chunks must not exceed number of nodes");
+        }
+    }
     return config;
 }
 
