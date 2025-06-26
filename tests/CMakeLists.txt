@@ -1,9 +1,20 @@
 # Copy test data to build directory
 file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# Fetch googletest 
-FetchContent_MakeAvailable(googletest)
-set_property(DIRECTORY "${googletest_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL YES)
+# Fetch googletest
+if (KAGEN_USE_BUNDLED_GTEST)
+    include(FetchContent)
+
+    FetchContent_Declare(googletest
+        SYSTEM
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG release-1.12.1
+        EXCLUDE_FROM_ALL)
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+else ()
+    find_package(GTest REQUIRED)
+endif ()
 
 include(GoogleTest)
 include(cmake/KaTestrophe.cmake)

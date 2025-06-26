@@ -1,4 +1,3 @@
-#pragma once
 /*******************************************************************************
 !  Copyright(C) 2003-2013 Intel Corporation. All Rights Reserved.
 !
@@ -23,8 +22,10 @@
 !  suppliers or licensors in any way.
 !
 !******************************************************************************/
+#ifdef SAMPLING_HAVE_MKL
+#include "mkl.hpp"
 
-#include <stdlib.h>
+#include <cstdio>
 
 namespace sampling {
 namespace rng {
@@ -453,3 +454,5 @@ void CheckVslError(int num)
 
 } // namespace rng
 } // namespace sampling
+
+#endif // SAMPLING_HAVE_MKL

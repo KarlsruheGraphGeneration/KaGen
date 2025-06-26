@@ -11,16 +11,19 @@
     #define SAMPLING_RNG_MKL_HEADER
 
     #ifdef SAMPLING_HAVE_MKL
-
-        #include "kagen/sampling/rng/errcheck.inc"
+        #include <limits>
+        #include <vector>
 
         #include <mkl.h>
         #include <mkl_vsl.h>
 
-        #include <limits>
+        #include "kagen/tlx/attribute_always_inline.hpp"
+        #include "kagen/tlx/likely.hpp"
 
 namespace sampling {
 namespace rng {
+
+void CheckVslError(int);
 
 /*!
  * MKL generator wrapper
