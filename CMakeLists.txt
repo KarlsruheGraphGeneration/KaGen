@@ -97,7 +97,7 @@ if (KAGEN_USE_MARCH_NATIVE)
     include(CheckCXXCompilerFlag)
     check_cxx_compiler_flag("-march=native" KAGEN_HAS_MARCH_NATIVE)
     if(KAGEN_HAS_MARCH_NATIVE)
-        list(APPEND CMAKE_CXX_FLAGS "-march=native")
+        add_compile_options(-march=native)
     endif ()
 endif ()
 
@@ -108,12 +108,12 @@ string(REGEX REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE
 
 # Enable UndefinedBehaviorSanitizer
 if (OFF)
-    list(APPEND CMAKE_CXX_FLAGS "-fsanitize=undefined")
+    add_compile_options(-fsanitize=undefined)
 endif ()
 
 # Use -ffast-math
 if (KAGEN_USE_FAST_MATH)
-    list(APPEND CMAKE_CXX_FLAGS "-ffast-math")
+    add_compile_options(-ffast-match)
 endif ()
 
 ###############################################################################
