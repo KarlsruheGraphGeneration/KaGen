@@ -17,7 +17,7 @@
 #include <stddef.h>
 
 #define KAGEN_VERSION_MAJOR 1
-#define KAGEN_VERSION_MINOR 1
+#define KAGEN_VERSION_MINOR 2
 #define KAGEN_VERSION_PATCH 0
 
 #ifdef __cplusplus
