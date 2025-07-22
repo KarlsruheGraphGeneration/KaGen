@@ -328,10 +328,19 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         return generic_get_or_default(option, default_value, [](const std::string& value) { return value; });
     };
 
+    auto get_power_of_two_or_default = [&](const std::string& log_option, const std::string& option,
+                                           const SInt default_value = 0) {
+        if (options.count(log_option)) {
+            return 1ull << get_sint_or_default(log_option); // default value never used
+        }
+        return get_sint_or_default(option, default_value);
+    };
+
     config.generator   = type;
-    config.n           = get_sint_or_default("n", 1ull << get_sint_or_default("N"));
-    config.m           = get_sint_or_default("m", 1ull << get_sint_or_default("M"));
+    config.n           = get_power_of_two_or_default("N", "n");
+    config.m           = get_power_of_two_or_default("M", "m");
     config.k           = get_sint_or_default("k");
+    config.seed        = get_sint_or_default("seed", config.seed);
     config.p           = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
     config.r           = get_hpfloat_or_default("radius", get_hpfloat_or_default("r"));
     config.plexp       = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
