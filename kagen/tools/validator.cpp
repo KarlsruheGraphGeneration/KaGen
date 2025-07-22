@@ -70,7 +70,9 @@ bool ValidateGraph(
     // Validation in CSR representation is currently not implemented, so we convert to it to edge list
     if (graph.representation == GraphRepresentation::CSR) {
         graph.edges       = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
+        graph.representation = GraphRepresentation::EDGE_LIST;
         const bool result = ValidateGraph(graph, allow_self_loops, allow_directed_graphs, allow_multi_edges, comm);
+        graph.representation = GraphRepresentation::CSR;
         { [[maybe_unused]] auto tmp = std::move(graph.edges); } // Free edge list
         return result;
     }
