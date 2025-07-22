@@ -509,8 +509,21 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
     MPI_Comm_size(comm, &size);
 
     std::vector<IDX> distribution(size + 1);
-    distribution[rank + 1] = graph.vertex_range.second;
+    if (graph.vertex_range.first == graph.vertex_range.second) {
+        distribution[rank + 1] = std::numeric_limits<IDX>::max();
+    } else {
+        distribution[rank + 1] = graph.vertex_range.second;
+    }
+    
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, distribution.data() + 1, 1, idx_mpi_type, comm);
+    if (distribution[0] == std::numeric_limits<IDX>::max()) {
+        distribution[0] = 0;
+    }
+    for (std::size_t i = 1; i < size + 1; i++) {
+        if (distribution[i] == std::numeric_limits<IDX>::max()) {
+	  distribution[i] = distribution[i - 1];
+	}
+    }
 
     return distribution;
 }
