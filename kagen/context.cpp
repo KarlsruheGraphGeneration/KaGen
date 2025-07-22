@@ -331,7 +331,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     auto get_power_of_two_or_default = [&](const std::string& log_option, const std::string& option,
                                            const SInt default_value = 0) {
         if (options.count(log_option)) {
-            return 1ull << get_sint_or_default(log_option) // default value never used
+            return 1ull << get_sint_or_default(log_option); // default value never used
         }
         return get_sint_or_default(option, default_value);
     };
