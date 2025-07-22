@@ -519,7 +519,7 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
     if (distribution[0] == std::numeric_limits<IDX>::max()) {
         distribution[0] = 0;
     }
-    for (std::size_t i = 1; i < size + 1; i++) {
+    for (int i = 1; i < size + 1; i++) {
         if (distribution[i] == std::numeric_limits<IDX>::max()) {
 	  distribution[i] = distribution[i - 1];
 	}
