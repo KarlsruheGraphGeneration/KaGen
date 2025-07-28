@@ -9,7 +9,6 @@
 
 using namespace kagen;
 
-
 template <typename Transformer>
 void transform_vertices(std::vector<kagen::testing::SrcDstEdgeWeight>& weighted_edges, Transformer&& op) {
     for (auto& [src, dst, _]: weighted_edges) {
@@ -54,6 +53,120 @@ void test_equality_of_permuted_graph(SSInt n_from_config, const Graph& permuted_
     std::sort(gathered_permuted_graph_edges.begin(), gathered_permuted_graph_edges.end());
 
     EXPECT_EQ(gathered_graph_edges, gathered_permuted_graph_edges);
+
+    // test whether vertex weights were permuted correctly
+    std::vector<SSInt> vertex_weights(gathered_permuted_graph.vertex_weights.size(), 0);
+    for (std::size_t i = 0; i < vertex_weights.size(); ++i) {
+        vertex_weights[permute(i)] = gathered_permuted_graph.vertex_weights[i];
+    }
+    EXPECT_EQ(gathered_graph.vertex_weights, vertex_weights);
+}
+
+TEST(GraphPermutation, check_applied_permutation_rgg2d_edgelist_with_vtx_weights) {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    const SInt n = 16'000;
+    const SInt m = 64'000;
+
+    kagen::KaGen generator(comm);
+    generator.UseEdgeListRepresentation();
+    generator.ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    generator.ConfigureVertexWeightGeneration(VertexWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    auto graph = generator.GenerateRGG2D_NM(n, m);
+    generator.EnableVertexPermutation();
+    auto permuted_graph = generator.GenerateRGG2D_NM(n, m);
+
+    test_distribution_of_edges(n, permuted_graph);
+    test_equality_of_permuted_graph(n, permuted_graph, graph);
+}
+
+TEST(GraphPermutation, check_applied_permutation_rgg2d_csr_with_vtx_weights) {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    const SInt n = 16'000;
+    const SInt m = 64'000;
+
+    kagen::KaGen generator(comm);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    generator.ConfigureVertexWeightGeneration(VertexWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    auto graph = generator.GenerateRGG2D_NM(n, m);
+    generator.EnableVertexPermutation();
+    auto permuted_graph = generator.GenerateRGG2D_NM(n, m);
+
+    test_distribution_of_edges(n, permuted_graph);
+    test_equality_of_permuted_graph(n, permuted_graph, graph);
+}
+
+TEST(GraphPermutation, check_applied_permutation_rgg2d_edgelist_sparse_with_vtx_weights) {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    const SInt n = 16'000;
+    const SInt m = 4'000;
+
+    kagen::KaGen generator(comm);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    generator.ConfigureVertexWeightGeneration(VertexWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    auto graph = generator.GenerateRGG2D_NM(n, m);
+    generator.EnableVertexPermutation();
+    auto permuted_graph = generator.GenerateRGG2D_NM(n, m);
+
+    test_distribution_of_edges(n, permuted_graph);
+    test_equality_of_permuted_graph(n, permuted_graph, graph);
+}
+
+TEST(GraphPermutation, check_applied_permutation_rgg2d_csr_sparse_with_vtx_weights) {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    const SInt n = 16'000;
+    const SInt m = 4'000;
+
+    kagen::KaGen generator(comm);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    generator.ConfigureVertexWeightGeneration(VertexWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    auto graph = generator.GenerateRGG2D_NM(n, m);
+    generator.EnableVertexPermutation();
+    auto permuted_graph = generator.GenerateRGG2D_NM(n, m);
+
+    test_distribution_of_edges(n, permuted_graph);
+    test_equality_of_permuted_graph(n, permuted_graph, graph);
+}
+
+TEST(GraphPermutation, check_applied_permutation_gnm_edgelist_sparse_with_vtx_weights) {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    const SInt n = 16'000;
+    const SInt m = 4'000;
+
+    kagen::KaGen generator(comm);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    generator.ConfigureVertexWeightGeneration(VertexWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    auto graph = generator.GenerateUndirectedGNM(n, m);
+    generator.EnableVertexPermutation();
+    auto permuted_graph = generator.GenerateUndirectedGNM(n, m);
+
+    test_distribution_of_edges(n, permuted_graph);
+    test_equality_of_permuted_graph(n, permuted_graph, graph);
+}
+
+TEST(GraphPermutation, check_applied_permutation_gnm_csr_sparse_with_vtx_weights) {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    const SInt n = 16'000;
+    const SInt m = 4'000;
+
+    kagen::KaGen generator(comm);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(EdgeWeightGeneratorType::UNIFORM_RANDOM, 1, 100'000'000);
+    auto graph = generator.GenerateUndirectedGNM(n, m);
+    generator.EnableVertexPermutation();
+    auto permuted_graph = generator.GenerateUndirectedGNM(n, m);
+
+    test_distribution_of_edges(n, permuted_graph);
+    test_equality_of_permuted_graph(n, permuted_graph, graph);
 }
 
 TEST(GraphPermutation, check_applied_permutation_rgg2d_edgelist) {
