@@ -193,6 +193,12 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "--vertexweights-range-end", config.vertex_weights.weight_range_end,
         "(Excluded) end of weight range to be used for vertex weights.");
 
+    // Permute Options
+    app.add_flag(
+        "--permute", config.permute,
+        "Enables the permuation of vertices. If enabled the graph is permuted following a pseudo-random "
+        "permutation.");
+
     { // Options string
         auto* cmd = app.add_subcommand(
             "options",
@@ -337,10 +343,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_flag(
             "--periodic", config.periodic,
             "Enables the periodic boundary condition. If enabled the generated path is a cycle.");
-        cmd->add_flag(
-            "--permute", config.permute,
-            "Enables the permuation of vertices. If enabled the path is permuted following a pseudo-random "
-            "permutation.");
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);
