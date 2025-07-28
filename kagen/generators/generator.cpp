@@ -3,10 +3,10 @@
 #include "kagen/context.h"
 #include "kagen/edgeweight_generators/default_generator.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
+#include "kagen/edgeweight_generators/euclidean_distance_generator.h"
 #include "kagen/edgeweight_generators/hashing_based_generator.h"
 #include "kagen/edgeweight_generators/uniform_random_generator.h"
 #include "kagen/edgeweight_generators/voiding_generator.h"
-#include "kagen/edgeweight_generators/euclidean_distance_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
 #include "kagen/vertexweight_generators/default_generator.h"
@@ -105,22 +105,37 @@ auto ApplyPermutationAndComputeSendBuffersEdgeList(
     }
     std::unordered_map<PEID, std::vector<SInt>>  send_buffers;
     std::unordered_map<PEID, std::vector<SSInt>> edge_weights_send_buffers;
+    std::unordered_map<PEID, std::vector<SSInt>> vertex_weights_send_buffers;
 
-    bool has_edge_weights = graph.NumberOfLocalEdges() == 0 || !graph.edge_weights.empty();
+    bool has_vertex_weights = !graph.vertex_weights.empty();
+    bool has_edge_weights   = graph.NumberOfLocalEdges() == 0 || !graph.edge_weights.empty();
+
+    if (has_vertex_weights) {
+        for (std::size_t i = 0; i < graph.NumberOfLocalVertices(); ++i) {
+            const SInt          global_id          = graph.vertex_range.first + i;
+            const SInt          permuted_global_id = permute(global_id);
+            const SSInt         weight             = graph.vertex_weights[i];
+            const PEID          target_pe          = FindPEInRange(permuted_global_id, recv_ranges);
+            std::vector<SSInt>& weights_send_buf   = vertex_weights_send_buffers[target_pe];
+            weights_send_buf.push_back(permuted_global_id);
+            weights_send_buf.push_back(weight);
+        }
+    }
 
     for (std::size_t i = 0; i < edges.size(); ++i) {
-        const auto& [src, dst]               = edges[i];
-        const PEID          target_pe        = FindPEInRange(src, recv_ranges);
-        std::vector<SInt>&  send_buf         = send_buffers[target_pe];
-        std::vector<SSInt>& weights_send_buf = edge_weights_send_buffers[target_pe];
+        const auto& [src, dst]       = edges[i];
+        const PEID         target_pe = FindPEInRange(src, recv_ranges);
+        std::vector<SInt>& send_buf  = send_buffers[target_pe];
         send_buf.push_back(src);
         send_buf.push_back(dst);
         // [Permuted_Src_Id, Degree, EdgeWeights]
         if (has_edge_weights) {
+            std::vector<SSInt>& weights_send_buf = edge_weights_send_buffers[target_pe];
             weights_send_buf.push_back(graph.edge_weights[i]);
         }
     }
-    return std::make_tuple(std::move(send_buffers), std::move(edge_weights_send_buffers));
+    return std::make_tuple(
+        std::move(send_buffers), std::move(edge_weights_send_buffers), std::move(vertex_weights_send_buffers));
 }
 
 template <typename Permutator>
@@ -134,18 +149,19 @@ auto ApplyPermutationAndComputeSendBuffersCSR(
 
     std::unordered_map<PEID, std::vector<SInt>>  send_buffers;
     std::unordered_map<PEID, std::vector<SSInt>> edge_weights_send_buffers;
+    std::unordered_map<PEID, std::vector<SSInt>> vertex_weights_send_buffers;
 
-    bool has_edge_weights = graph.NumberOfLocalEdges() == 0 || !graph.edge_weights.empty();
+    bool has_edge_weights   = graph.NumberOfLocalEdges() == 0 || !graph.edge_weights.empty();
+    bool has_vertex_weights = !graph.vertex_weights.empty();
 
     for (std::size_t i = 0; i + 1 < graph.xadj.size(); ++i) {
-        const SInt          degree             = graph.xadj[i + 1] - graph.xadj[i];
-        const SInt          global_id          = graph.vertex_range.first + i;
-        const SInt          permuted_global_id = permute(global_id);
-        const PEID          target_pe          = FindPEInRange(permuted_global_id, recv_ranges);
-        std::vector<SInt>&  send_buf           = send_buffers[target_pe];
-        std::vector<SSInt>& weights_send_buf   = edge_weights_send_buffers[target_pe];
-        auto                edge_begin_offset  = graph.xadj[i];
-        auto                edge_end_offset    = graph.xadj[i + 1];
+        const SInt         degree             = graph.xadj[i + 1] - graph.xadj[i];
+        const SInt         global_id          = graph.vertex_range.first + i;
+        const SInt         permuted_global_id = permute(global_id);
+        const PEID         target_pe          = FindPEInRange(permuted_global_id, recv_ranges);
+        std::vector<SInt>& send_buf           = send_buffers[target_pe];
+        auto               edge_begin_offset  = graph.xadj[i];
+        auto               edge_end_offset    = graph.xadj[i + 1];
         // [Permuted_Src_Id, Degree, [Permuted_Dst_Ids]] with #Permuted_Dst_Ids = Degree
         send_buf.push_back(permuted_global_id);
         send_buf.push_back(degree);
@@ -153,14 +169,22 @@ auto ApplyPermutationAndComputeSendBuffersCSR(
             send_buf.end(), permuted_adjncy.begin() + edge_begin_offset, permuted_adjncy.begin() + edge_end_offset);
         // [Permuted_Src_Id, Degree, EdgeWeights]
         if (has_edge_weights) {
+            std::vector<SSInt>& weights_send_buf = edge_weights_send_buffers[target_pe];
             weights_send_buf.push_back(permuted_global_id);
             weights_send_buf.push_back(degree);
             weights_send_buf.insert(
                 weights_send_buf.end(), graph.edge_weights.begin() + edge_begin_offset,
                 graph.edge_weights.begin() + edge_end_offset);
         }
+        // [Permuted_Src_Id, VertexWeight]
+        if (has_vertex_weights) {
+            std::vector<SSInt>& vertex_weights_send_buf = vertex_weights_send_buffers[target_pe];
+            vertex_weights_send_buf.push_back(permuted_global_id);
+            vertex_weights_send_buf.push_back(graph.vertex_weights[i]);
+        }
     }
-    return std::make_tuple(std::move(send_buffers), std::move(edge_weights_send_buffers));
+    return std::make_tuple(
+        std::move(send_buffers), std::move(edge_weights_send_buffers), std::move(vertex_weights_send_buffers));
 }
 
 template <typename Permutator>
@@ -178,7 +202,8 @@ auto ApplyPermutationAndComputeSendBuffers(
 }
 
 [[maybe_unused]] inline auto ConstructPermutedGraphCSR(
-    VertexRange recv_range, const std::vector<SInt>& recv_edges, const std::vector<SSInt>& recv_edge_weights) {
+    VertexRange recv_range, const std::vector<SInt>& recv_edges, const std::vector<SSInt>& recv_edge_weights,
+    const std::vector<SSInt>& recv_vertex_weights) {
     std::size_t       num_local_vertices = recv_range.second - recv_range.first;
     std::vector<SInt> degree_count(num_local_vertices, 0);
 
@@ -207,24 +232,27 @@ auto ApplyPermutationAndComputeSendBuffers(
         cur_pos += 1 + degree + 1;
     }
     // compute edge weights for received graph
-    EdgeWeights edge_weights(num_local_edges);
-    if (!recv_edge_weights.empty()) {
-        for (std::size_t cur_pos = 0; cur_pos < recv_edge_weights.size();) {
-            const SInt global_src_id = static_cast<SInt>(recv_edge_weights[cur_pos]);
-            const SInt degree        = static_cast<SInt>(recv_edge_weights[cur_pos + 1]);
-            const SInt local_src_id  = global_src_id - recv_range.first;
-            std::copy_n(recv_edge_weights.begin() + cur_pos + 2, degree, edge_weights.begin() + xadj[local_src_id]);
-            // forward to next received src vertex
-            cur_pos += 1 + degree + 1;
-        }
+    EdgeWeights edge_weights(recv_edge_weights.empty() ? 0 : num_local_edges);
+    for (std::size_t cur_pos = 0; cur_pos < recv_edge_weights.size();) {
+        const SInt global_src_id = static_cast<SInt>(recv_edge_weights[cur_pos]);
+        const SInt degree        = static_cast<SInt>(recv_edge_weights[cur_pos + 1]);
+        const SInt local_src_id  = global_src_id - recv_range.first;
+        std::copy_n(recv_edge_weights.begin() + cur_pos + 2, degree, edge_weights.begin() + xadj[local_src_id]);
+        // forward to next received src vertex
+        cur_pos += 1 + degree + 1;
     }
-
-    // TODO handle vertex weights
-    return std::make_tuple(std::move(xadj), std::move(adjncy), std::move(edge_weights));
+    std::vector<SSInt> vertex_weights(recv_vertex_weights.size() / 2, 0);
+    for (std::size_t i = 0; i < recv_vertex_weights.size(); i += 2) {
+        const auto global_src_id     = recv_vertex_weights[i];
+        const auto local_src_id      = global_src_id - recv_range.first;
+        vertex_weights[local_src_id] = recv_vertex_weights[i + 1];
+    }
+    return std::make_tuple(std::move(xadj), std::move(adjncy), std::move(edge_weights), std::move(vertex_weights));
 }
 
 [[maybe_unused]] inline auto ConstructPermutedGraphEdgeList(
-    VertexRange recv_range, const std::vector<SInt>& recv_edges, const std::vector<SSInt>& recv_edge_weights) {
+    VertexRange recv_range, const std::vector<SInt>& recv_edges, const std::vector<SSInt>& recv_edge_weights,
+    const std::vector<SSInt>& recv_vertex_weights) {
     std::size_t       num_local_vertices = recv_range.second - recv_range.first;
     std::vector<SInt> degree(num_local_vertices, 0);
     int               rank;
@@ -248,15 +276,17 @@ auto ApplyPermutationAndComputeSendBuffers(
         }
         ++write_idx[local_src_id];
     }
-    return std::make_tuple(std::move(edgelist), std::move(edge_weights));
+    std::vector<SSInt> vertex_weights(recv_vertex_weights.size() / 2, 0);
+    for (std::size_t i = 0; i < recv_vertex_weights.size(); i += 2) {
+        const auto global_id     = recv_vertex_weights[i];
+        const auto local_id      = global_id - recv_range.first;
+        vertex_weights[local_id] = recv_vertex_weights[i + 1];
+    }
+    return std::make_tuple(std::move(edgelist), std::move(edge_weights), std::move(vertex_weights));
 }
 } // namespace
 
 void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config, [[maybe_unused]] MPI_Comm comm) {
-    if (!graph_.vertex_weights.empty())
-        throw std::runtime_error(
-            "Graph is vertex weight but this is not yet supported by the vertex permutation routine!");
-
 #ifdef KAGEN_XXHASH_FOUND
     int size = -1;
     int rank = -1;
@@ -279,25 +309,29 @@ void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config,
     VertexRange              recv_range{begin_vertices, end_vertices};
     std::vector<VertexRange> recv_ranges = AllgatherVertexRange(recv_range, comm);
 
-    auto [send_buffers, edge_weight_send_buffers] = ApplyPermutationAndComputeSendBuffers(graph_, recv_ranges, permute);
-    auto recv_edges        = ExchangeMessageBuffers(std::move(send_buffers), KAGEN_MPI_SINT, comm);
-    auto recv_edge_weights = ExchangeMessageBuffers(std::move(edge_weight_send_buffers), KAGEN_MPI_SSINT, comm);
+    auto [send_buffers, edge_weight_send_buffers, vertex_weight_send_buffers] =
+        ApplyPermutationAndComputeSendBuffers(graph_, recv_ranges, permute);
+    auto recv_edges          = ExchangeMessageBuffers(std::move(send_buffers), KAGEN_MPI_SINT, comm);
+    auto recv_edge_weights   = ExchangeMessageBuffers(std::move(edge_weight_send_buffers), KAGEN_MPI_SSINT, comm);
+    auto recv_vertex_weights = ExchangeMessageBuffers(std::move(vertex_weight_send_buffers), KAGEN_MPI_SSINT, comm);
 
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST: {
-            auto [permuted_edgelist, permuted_edge_weights] =
-                ConstructPermutedGraphEdgeList(recv_range, recv_edges, recv_edge_weights);
-            graph_.edges        = std::move(permuted_edgelist);
-            graph_.edge_weights = std::move(permuted_edge_weights);
+            auto [permuted_edgelist, permuted_edge_weights, permuted_vertex_weights] =
+                ConstructPermutedGraphEdgeList(recv_range, recv_edges, recv_edge_weights, recv_vertex_weights);
+            graph_.edges          = std::move(permuted_edgelist);
+            graph_.edge_weights   = std::move(permuted_edge_weights);
+            graph_.vertex_weights = std::move(permuted_vertex_weights);
             break;
         }
         case GraphRepresentation::CSR: {
-            auto [permuted_xadj, permuted_adjncy, permuted_edge_weights] =
-                ConstructPermutedGraphCSR(recv_range, recv_edges, recv_edge_weights);
+            auto [permuted_xadj, permuted_adjncy, permuted_edge_weights, permuted_vertex_weights] =
+                ConstructPermutedGraphCSR(recv_range, recv_edges, recv_edge_weights, recv_vertex_weights);
 
-            graph_.xadj         = std::move(permuted_xadj);
-            graph_.adjncy       = std::move(permuted_adjncy);
-            graph_.edge_weights = std::move(permuted_edge_weights);
+            graph_.xadj           = std::move(permuted_xadj);
+            graph_.adjncy         = std::move(permuted_adjncy);
+            graph_.edge_weights   = std::move(permuted_edge_weights);
+            graph_.vertex_weights = std::move(permuted_vertex_weights);
             break;
         }
     }
