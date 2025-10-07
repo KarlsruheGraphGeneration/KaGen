@@ -88,7 +88,8 @@ PGeneratorConfig NormalizeParametersCommon(
     // - Number of edges
     // - Radius
     // If number of nodes or radius is missing, compute it from the other two values
-    // We have to make sure that in streaming mode the radius is not smaller than 1/k^2, where k is the number of chunks throw error if not 
+    // We have to make sure that in streaming mode the radius is not smaller than 1/k^2, where k is the number of chunks
+    // throw error if not
     if (config.r == 0.0) {
         if (config.n == 0 || config.m == 0) {
             throw ConfigurationError("at least two parameters out of {n, m, r} must be nonzero");
@@ -131,9 +132,18 @@ PGeneratorConfig NormalizeParametersCommon(
 
 PGeneratorConfig
 RGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
-    EnsureSquarePowerOfTwoChunkSize(config, size, output);
+    using namespace std::string_literals;
 
-    return NormalizeParametersCommon(config, &ApproxRadius2D, &ApproxNumNodes2D, output);
+    EnsureSquarePowerOfTwoChunkSize(config, size, output);
+    config = NormalizeParametersCommon(config, &ApproxRadius2D, &ApproxNumNodes2D, output);
+
+    if (config.k > 1.0 / (config.r * config.r)) {
+        throw ConfigurationError(
+            "number of chunks (="s + std::to_string(config.k)
+            + ") must be smaller than 1/radius^2 (=" + std::to_string(1.0 / (config.r * config.r)) + ")");
+    }
+
+    return config;
 }
 
 std::unique_ptr<Generator>

@@ -66,7 +66,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
     PGeneratorConfig config;
     try {
         config = factory->NormalizeParameters(config_template, rank, size, output_info);
-    } catch (ConfigurationError& ex) {
+    } catch (const kagen::ConfigurationError& ex) {
         if (output_error) {
             std::cerr << "Error: " << ex.what() << "\n";
         }
