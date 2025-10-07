@@ -107,8 +107,15 @@ protected:
             return;
 
         // Stop if no nodes remain
-        if (n <= 0 || n > config_.n)
+        if (n <= 0 || n > config_.n) {
+            if (IsLocalChunk(chunk_id)) {
+                if (start_node_ > offset) {
+                    start_node_ = offset;
+                }
+            }
+
             return;
+        }
 
         SInt chunk_row, chunk_column;
         Decode(chunk_id, chunk_column, chunk_row);
