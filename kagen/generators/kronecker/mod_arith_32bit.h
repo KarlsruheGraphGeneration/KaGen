@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+namespace kagen::kronecker {
 /* Various modular arithmetic operations for modulus 2^31-1 (0x7FFFFFFF).
  * These may need to be tweaked to get acceptable performance on some platforms
  * (especially ones without conditional moves). */
@@ -137,5 +138,5 @@ static inline uint_fast32_t mod_mac_y(uint_fast32_t sum, uint_fast32_t a) {
     assert(result == mod_mac(sum, a, 104480));
     return result;
 }
-
+} // namespace kagen::kronecker
 #endif /* MOD_ARITH_32BIT_H */

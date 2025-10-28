@@ -17,6 +17,7 @@
  * These may need to be tweaked to get acceptable performance on some platforms
  * (especially ones without conditional moves). */
 
+namespace kagen::kronecker {
 static inline uint_fast32_t mod_add(uint_fast32_t a, uint_fast32_t b) {
     assert(a <= 0x7FFFFFFE);
     assert(b <= 0x7FFFFFFE);
@@ -72,7 +73,8 @@ static inline uint_fast32_t mod_mac4(
     assert(g <= 0x7FFFFFFE);
     assert(h <= 0x7FFFFFFE);
     return (
-        uint_fast32_t)(((uint_fast64_t)a * b + (uint_fast64_t)c * d + (uint_fast64_t)e * f + (uint_fast64_t)g * h + sum) % 0x7FFFFFFF);
+        uint_fast32_t)(((uint_fast64_t)a * b + (uint_fast64_t)c * d + (uint_fast64_t)e * f + (uint_fast64_t)g * h + sum)
+                       % 0x7FFFFFFF);
 }
 
 /* The two constants x and y are special cases because they are easier to
@@ -91,5 +93,6 @@ static inline uint_fast32_t mod_mul_y(uint_fast32_t a) {
 static inline uint_fast32_t mod_mac_y(uint_fast32_t sum, uint_fast32_t a) {
     return mod_mac(sum, a, 104480);
 }
+} // namespace kagen::kronecker
 
 #endif /* MOD_ARITH_64BIT_H */
