@@ -34,10 +34,6 @@
     #define OMP(x_)
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 namespace kagen::kronecker {
 // void* xrealloc(void* p, size_t nbytes); /* In utils.c */
 // uint_fast64_t random_up_to(mrg_state* st, uint_fast64_t n);
@@ -50,9 +46,5 @@ void make_mrg_seed(uint64_t userseed1, uint64_t userseed2, uint_fast32_t* seed) 
     seed[4] = (uint32_t)((userseed2 >> 60) << 4) + (uint32_t)(userseed1 >> 60) + 1;
 }
 } // namespace kagen::kronecker
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* UTILS_H */
