@@ -28,10 +28,7 @@
 /* See notes at top of splittable_mrg.c for information on this          */
 /* implementation.                                                       */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+namespace kagen::kronecker {
 typedef struct mrg_state {
     uint_fast32_t z1, z2, z3, z4, z5;
 } mrg_state;
@@ -50,9 +47,11 @@ static void mrg_orig_step(mrg_state* state) { /* Use original A, not fully optim
     state->z2             = state->z1;
     state->z1             = new_elt;
 }
+} // namespace kagen::kronecker
 
 #include "mrg_transitions.c"
 
+namespace kagen::kronecker {
 /* Returns integer value in [0, 2^31-1) using original transition matrix */
 inline uint_fast32_t mrg_get_uint_orig(mrg_state* state) {
     mrg_orig_step(state);
@@ -125,8 +124,6 @@ mrg_skip(mrg_state* state, uint_least64_t exponent_high, uint_least64_t exponent
     }
 }
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace kagen::kronecker
 
 #endif /* SPLITTABLE_MRG_H */

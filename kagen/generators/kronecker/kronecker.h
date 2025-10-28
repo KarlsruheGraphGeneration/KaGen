@@ -15,10 +15,13 @@
 #include "kagen/generators/graph500_generator.h"
 #include "kagen/sampling/hash.hpp"
 
+namespace kagen {
+
+namespace kronecker {
 // forward declaration
 struct mrg_state;
+} // namespace kronecker
 
-namespace kagen {
 class KroneckerFactory : public GeneratorFactory {
 public:
     PGeneratorConfig NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, bool output) const final;
@@ -43,7 +46,7 @@ private:
     SInt    num_edges_;
     int64_t scramble1_, scramble2_;
 
-    int Bernoulli(mrg_state* st, int level, int nlevels);
+    int Bernoulli(kronecker::mrg_state* st, int level, int nlevels);
 
     /* Reverse bits in a number; this should be optimized for performance
      * (including using bit- or byte-reverse intrinsics if your platform has them).
@@ -55,6 +58,6 @@ private:
     int64_t Scramble(int64_t v0);
 
     /* Make a single graph edge using a pre-set MRG state. */
-    void GenerateEdge(int64_t n, int level, mrg_state* st);
+    void GenerateEdge(int64_t n, int level, kronecker::mrg_state* st);
 };
 } // namespace kagen

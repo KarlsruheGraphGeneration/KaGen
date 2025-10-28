@@ -59,35 +59,35 @@ Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID
 
 void Kronecker::GenerateEdgeList() {
     uint_fast32_t seed[5];
-    make_mrg_seed(sampling::Spooky::hash((config_.seed + 1) * size_), sampling::Spooky::hash(rank_), seed);
+    kronecker::make_mrg_seed(sampling::Spooky::hash((config_.seed + 1) * size_), sampling::Spooky::hash(rank_), seed);
 
-    mrg_state state;
+    kronecker::mrg_state state;
 
-    mrg_seed(&state, seed);
+    kronecker::mrg_seed(&state, seed);
 
     [[maybe_unused]] uint64_t scramble1_, scramble2_; /* Values for scrambling */
     {
-        mrg_state new_state = state;
-        mrg_skip(&new_state, 50, 7, 0);
-        scramble1_ = mrg_get_uint_orig(&new_state);
+        kronecker::mrg_state new_state = state;
+        kronecker::mrg_skip(&new_state, 50, 7, 0);
+        scramble1_ = kronecker::mrg_get_uint_orig(&new_state);
         scramble1_ *= UINT64_C(0xFFFFFFFF);
-        scramble1_ += mrg_get_uint_orig(&new_state);
-        scramble2_ = mrg_get_uint_orig(&new_state);
+        scramble1_ += kronecker::mrg_get_uint_orig(&new_state);
+        scramble2_ = kronecker::mrg_get_uint_orig(&new_state);
         scramble2_ *= UINT64_C(0xFFFFFFFF);
-        scramble2_ += mrg_get_uint_orig(&new_state);
+        scramble2_ += kronecker::mrg_get_uint_orig(&new_state);
     }
 
 #ifdef _OPENMP
     #pragma omp parallel for
 #endif
     for (SInt i = 0; i < num_edges_; ++i) {
-        mrg_state new_state = state;
-        mrg_skip(&new_state, 0, (uint64_t)i, 0);
+        kronecker::mrg_state new_state = state;
+        kronecker::mrg_skip(&new_state, 0, (uint64_t)i, 0);
         GenerateEdge(config_.n, 0, &new_state);
     }
 }
 
-int Kronecker::Bernoulli(mrg_state* st, int level, int nlevels) {
+int Kronecker::Bernoulli(kronecker::mrg_state* st, int level, int nlevels) {
 #if SPK_NOISE_LEVEL == 0
     /* Avoid warnings */
     (void)level;
@@ -96,10 +96,10 @@ int Kronecker::Bernoulli(mrg_state* st, int level, int nlevels) {
     /* Generate a pseudorandom number in the range [0, INITIATOR_DENOMINATOR)
      * without modulo bias. */
     static const uint32_t limit = (UINT32_C(0x7FFFFFFF) % INITIATOR_DENOMINATOR);
-    uint32_t              val   = mrg_get_uint_orig(st);
+    uint32_t              val   = kronecker::mrg_get_uint_orig(st);
     if (/* Unlikely */ val < limit) {
         do {
-            val = mrg_get_uint_orig(st);
+            val = kronecker::mrg_get_uint_orig(st);
         } while (val < limit);
     }
 #if SPK_NOISE_LEVEL == 0
@@ -194,7 +194,7 @@ inline int64_t Kronecker::Scramble(int64_t v0) {
 }
 
 /* Make a single graph edge using a pre-set MRG state. */
-void Kronecker::GenerateEdge(int64_t n, int level, mrg_state* st) {
+void Kronecker::GenerateEdge(int64_t n, int level, kronecker::mrg_state* st) {
     int64_t base_src = 0, base_tgt = 0;
     while (n > 1) {
         int square     = Bernoulli(st, level, log_n_);
