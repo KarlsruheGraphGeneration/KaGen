@@ -134,7 +134,6 @@ if (KAGEN_USE_XXHASH)
     message(STATUS "Building with xxHash")
 
     set(${PROJECT_NAME}_XXHASH_DIR "${CMAKE_CURRENT_LIST_DIR}/extlib/xxHash")
-    set(BUILD_SHARED_LIBS OFF)
     set(XXHASH_BUILD_ENABLE_INLINE_API ON)
     set(XXHASH_BUILD_XXHSUM OFF)
     add_subdirectory("${${PROJECT_NAME}_XXHASH_DIR}/cmake_unofficial" EXCLUDE_FROM_ALL)
