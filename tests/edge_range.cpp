@@ -147,74 +147,84 @@ TEST_P(EdgeRangeTestFixture, iterate_sparse_csr_representation) {
     EXPECT_THAT(iterators, Pointwise(EdgeIndexMatches(), expected_indices));
 }
 
-void check_bidirectional_iteration(const Graph& graph) {
-    Edgelist edgelist = graph.edges;
-    if (graph.representation == GraphRepresentation::CSR) {
-        edgelist = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
-    }
+TEST_P(EdgeRangeTestFixture, bidirectional_iteration_edgelist) {
+    using ::testing::ElementsAreArray;
+
+    auto [name, generate] = GetParam();
+    const SInt n = 100;
+    const SInt m = 10 * n;
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseEdgeListRepresentation();
+    Graph graph = generate(generator, n, m);
+
+    Edgelist expected = graph.edges;
     EdgeRange edge_range(graph);
 
-    if (edgelist.empty()) {
+    if (expected.empty()) {
         return;
     }
 
-    // Forward then backward iteration
-    {
-        std::vector<EdgeRange::Edge> forward_edges;
-        for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
-            forward_edges.push_back(*it);
-        }
-
-        std::vector<EdgeRange::Edge> backward_edges;
-        auto it = edge_range.end();
-        while (it != edge_range.begin()) {
-            --it;
-            backward_edges.push_back(*it);
-        }
-
-        std::reverse(backward_edges.begin(), backward_edges.end());
-        EXPECT_EQ(forward_edges.size(), backward_edges.size());
-        for (std::size_t i = 0; i < forward_edges.size(); ++i) {
-            EXPECT_EQ(forward_edges[i], backward_edges[i]);
-        }
+    // Forward then backward iteration - edges should match when reversed
+    std::vector<EdgeRange::Edge> forward_edges(edge_range.begin(), edge_range.end());
+    std::vector<EdgeRange::Edge> backward_edges;
+    auto it = edge_range.end();
+    while (it != edge_range.begin()) {
+        --it;
+        backward_edges.push_back(*it);
     }
+    std::reverse(backward_edges.begin(), backward_edges.end());
+    EXPECT_THAT(backward_edges, ElementsAreArray(forward_edges));
 
     // Mixed forward and backward iteration
-    {
-        auto it = edge_range.begin();
-        ++it;
-        ++it;
-        auto edge1 = *it;
-        --it;
-        auto edge2 = *it;
-        ++it;
-        EXPECT_EQ(*it, edge1);
-        EXPECT_EQ(edge2, edgelist[1]);
-    }
+    auto it2 = edge_range.begin();
+    ++it2;
+    ++it2;
+    auto edge_at_2 = *it2;
+    --it2;
+    auto edge_at_1 = *it2;
+    ++it2;
+    EXPECT_EQ(*it2, edge_at_2);
+    EXPECT_EQ(edge_at_1, expected[1]);
 }
 
-TEST(EdgeRangeTest, bidirectional_iteration_edgelist) {
-    kagen::KaGen generator(MPI_COMM_WORLD);
-    generator.UseEdgeListRepresentation();
+TEST_P(EdgeRangeTestFixture, bidirectional_iteration_csr) {
+    using ::testing::ElementsAreArray;
+
+    auto [name, generate] = GetParam();
     const SInt n = 100;
     const SInt m = 10 * n;
-    
-    kagen::Graph graph = generator.GenerateUndirectedGNM(n, m);
-    check_bidirectional_iteration(graph);
-    
-    graph = generator.GenerateRGG2D_NM(n, m);
-    check_bidirectional_iteration(graph);
-}
 
-TEST(EdgeRangeTest, bidirectional_iteration_csr) {
     kagen::KaGen generator(MPI_COMM_WORLD);
     generator.UseCSRRepresentation();
-    const SInt n = 100;
-    const SInt m = 10 * n;
-    
-    kagen::Graph graph = generator.GenerateUndirectedGNM(n, m);
-    check_bidirectional_iteration(graph);
-    
-    graph = generator.GenerateRGG2D_NM(n, m);
-    check_bidirectional_iteration(graph);
+    Graph graph = generate(generator, n, m);
+
+    Edgelist expected = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
+    EdgeRange edge_range(graph);
+
+    if (expected.empty()) {
+        return;
+    }
+
+    // Forward then backward iteration - edges should match when reversed
+    std::vector<EdgeRange::Edge> forward_edges(edge_range.begin(), edge_range.end());
+    std::vector<EdgeRange::Edge> backward_edges;
+    auto it = edge_range.end();
+    while (it != edge_range.begin()) {
+        --it;
+        backward_edges.push_back(*it);
+    }
+    std::reverse(backward_edges.begin(), backward_edges.end());
+    EXPECT_THAT(backward_edges, ElementsAreArray(forward_edges));
+
+    // Mixed forward and backward iteration
+    auto it2 = edge_range.begin();
+    ++it2;
+    ++it2;
+    auto edge_at_2 = *it2;
+    --it2;
+    auto edge_at_1 = *it2;
+    ++it2;
+    EXPECT_EQ(*it2, edge_at_2);
+    EXPECT_EQ(edge_at_1, expected[1]);
 }
