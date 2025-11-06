@@ -29,8 +29,15 @@ auto get_random_generator(int rank) {
 
 struct EdgeHasher {
     using Edge = std::pair<SInt, SInt>;
+    inline void hash_combine(std::size_t& seed, std::size_t v) const noexcept {
+        seed ^= v + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
+    }
     size_t operator()(const Edge& edge) const noexcept {
-        return edge.first ^ (edge.second << 1);
+        std::size_t h1   = std::hash<std::uint64_t>{}(static_cast<uint64_t>(edge.first));
+        std::size_t h2   = std::hash<std::uint64_t>{}(static_cast<uint64_t>(edge.second));
+        std::size_t seed = h1;
+        hash_combine(seed, h2);
+	return seed;
     }
 };
 
