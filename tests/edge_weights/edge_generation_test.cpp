@@ -3,7 +3,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "edge_range.h"
+#include "kagen/edge_range.h"
 #include "tests/gather.h"
 #include "tests/utils.h"
 #include "tools/geometry.h"
