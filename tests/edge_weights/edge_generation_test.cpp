@@ -90,67 +90,34 @@ void check_euclidean_weights(const Graph& graph, double max_distance, const Weig
 }
 
 // Test fixture for uniform random weight tests
-struct UniformWeightTestFixture
-    : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc, GraphRepresentation>> {};
+struct UniformWeightTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc>> {};
 
 INSTANTIATE_TEST_SUITE_P(
     UniformWeightTests, UniformWeightTestFixture,
     ::testing::Values(
-        std::make_tuple(
-            "GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateUndirectedGNM(n, m); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "RGG2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG2D_NM(n, m); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "RGG3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG3D_NM(n, m); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "RHG", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRHG_NM(2.6, n, m); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "Grid2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateGrid2D_NM(n, m); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "Grid3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateGrid3D_NM(n, m); }),
-            GraphRepresentation::EDGE_LIST),
-        std::make_tuple(
-            "GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateUndirectedGNM(n, m); }),
-            GraphRepresentation::CSR),
-        std::make_tuple(
-            "RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19); }),
-            GraphRepresentation::CSR),
-        std::make_tuple(
-            "RGG2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG2D_NM(n, m); }),
-            GraphRepresentation::CSR),
-        std::make_tuple(
-            "RGG3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG3D_NM(n, m); }),
-            GraphRepresentation::CSR),
-        std::make_tuple(
-            "RHG", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRHG_NM(2.6, n, m); }),
-            GraphRepresentation::CSR),
-        std::make_tuple(
-            "Grid2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateGrid2D_NM(n, m); }),
-            GraphRepresentation::CSR),
-        std::make_tuple(
-            "Grid3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateGrid3D_NM(n, m); }),
-            GraphRepresentation::CSR)),
-    [](const ::testing::TestParamInfo<UniformWeightTestFixture::ParamType>& info) {
-        std::string         name = std::get<0>(info.param);
-        GraphRepresentation repr = std::get<2>(info.param);
-        return name + (repr == GraphRepresentation::EDGE_LIST ? "_EdgeList" : "_CSR");
-    });
+        std::make_tuple("GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+                            return gen.GenerateUndirectedGNM(n, m);
+                        })),
+        std::make_tuple("RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+                            return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19);
+                        })),
+        std::make_tuple("RGG2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG2D_NM(n, m); })),
+        std::make_tuple("RGG3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG3D_NM(n, m); })),
+        std::make_tuple("RHG", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRHG_NM(2.6, n, m); })),
+        std::make_tuple("Grid2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+                            return gen.GenerateGrid2D_NM(n, m);
+                        })),
+        std::make_tuple("Grid3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+                            return gen.GenerateGrid3D_NM(n, m);
+                        }))),
+    [](const ::testing::TestParamInfo<UniformWeightTestFixture::ParamType>& info) { return std::get<0>(info.param); });
 
 TEST_P(UniformWeightTestFixture, weights_in_range_edgelist_representation) {
-    std::string         name     = std::get<0>(GetParam());
-    GeneratorFunc       generate = std::get<1>(GetParam());
-    GraphRepresentation repr     = std::get<2>(GetParam());
-    const SInt          n        = 1000;
-    const SInt          m        = 16 * n;
-    const WeightRange   weight_range{1, 100};
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
 
     kagen::KaGen generator(MPI_COMM_WORLD);
     generator.UseEdgeListRepresentation();
@@ -162,12 +129,11 @@ TEST_P(UniformWeightTestFixture, weights_in_range_edgelist_representation) {
 }
 
 TEST_P(UniformWeightTestFixture, weights_in_range_csr_representation) {
-    std::string         name     = std::get<0>(GetParam());
-    GeneratorFunc       generate = std::get<1>(GetParam());
-    GraphRepresentation repr     = std::get<2>(GetParam());
-    const SInt          n        = 1000;
-    const SInt          m        = 16 * n;
-    const WeightRange   weight_range{1, 100};
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
 
     kagen::KaGen generator(MPI_COMM_WORLD);
     generator.UseCSRRepresentation();
@@ -179,12 +145,11 @@ TEST_P(UniformWeightTestFixture, weights_in_range_csr_representation) {
 }
 
 TEST_P(UniformWeightTestFixture, correct_backedge_weights_edgelist_representation) {
-    std::string         name     = std::get<0>(GetParam());
-    GeneratorFunc       generate = std::get<1>(GetParam());
-    GraphRepresentation repr     = std::get<2>(GetParam());
-    const SInt          n        = 1000;
-    const SInt          m        = 16 * n;
-    const WeightRange   weight_range{1, 100};
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
 
     kagen::KaGen generator(MPI_COMM_WORLD);
     generator.UseEdgeListRepresentation();
@@ -196,12 +161,11 @@ TEST_P(UniformWeightTestFixture, correct_backedge_weights_edgelist_representatio
 }
 
 TEST_P(UniformWeightTestFixture, correct_backedge_weights_csr_representation) {
-    std::string         name     = std::get<0>(GetParam());
-    GeneratorFunc       generate = std::get<1>(GetParam());
-    GraphRepresentation repr     = std::get<2>(GetParam());
-    const SInt          n        = 1000;
-    const SInt          m        = 16 * n;
-    const WeightRange   weight_range{1, 100};
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
 
     kagen::KaGen generator(MPI_COMM_WORLD);
     generator.UseCSRRepresentation();
@@ -215,52 +179,49 @@ TEST_P(UniformWeightTestFixture, correct_backedge_weights_csr_representation) {
 // Test fixture for Euclidean weight tests
 struct EuclideanWeightTestFixture
     : public ::testing::TestWithParam<
-          std::tuple<std::string, std::function<Graph(KaGen&, SInt, double)>, GraphRepresentation, bool>> {};
+          std::tuple<std::string, std::function<Graph(KaGen&, SInt, double)>, bool>> {};
 
 INSTANTIATE_TEST_SUITE_P(
     EuclideanWeightTests, EuclideanWeightTestFixture,
     ::testing::Values(
-        std::make_tuple(
-            "RGG2D", std::function<Graph(KaGen&, SInt, double)>([](KaGen& gen, SInt n, double r) {
-                return gen.GenerateRGG2D(n, r, true);
-            }),
-            GraphRepresentation::EDGE_LIST, true),
-        std::make_tuple(
-            "RGG3D", std::function<Graph(KaGen&, SInt, double)>([](KaGen& gen, SInt n, double r) {
-                return gen.GenerateRGG3D(n, r, true);
-            }),
-            GraphRepresentation::EDGE_LIST, false),
-        std::make_tuple(
-            "RGG2D", std::function<Graph(KaGen&, SInt, double)>([](KaGen& gen, SInt n, double r) {
-                return gen.GenerateRGG2D(n, r, true);
-            }),
-            GraphRepresentation::CSR, true),
-        std::make_tuple(
-            "RGG3D", std::function<Graph(KaGen&, SInt, double)>([](KaGen& gen, SInt n, double r) {
-                return gen.GenerateRGG3D(n, r, true);
-            }),
-            GraphRepresentation::CSR, false)),
+        std::make_tuple("RGG2D", std::function<Graph(KaGen&, SInt, double)>([](KaGen& gen, SInt n, double r) {
+                            return gen.GenerateRGG2D(n, r, true);
+                        }), true),
+        std::make_tuple("RGG3D", std::function<Graph(KaGen&, SInt, double)>([](KaGen& gen, SInt n, double r) {
+                            return gen.GenerateRGG3D(n, r, true);
+                        }), false)),
     [](const ::testing::TestParamInfo<EuclideanWeightTestFixture::ParamType>& info) {
-        std::string         name = std::get<0>(info.param);
-        GraphRepresentation repr = std::get<2>(info.param);
-        return name + (repr == GraphRepresentation::EDGE_LIST ? "_EdgeList" : "_CSR");
+        return std::get<0>(info.param) + "is_2d_" + std::to_string(std::get<2>(info.param));
     });
 
-TEST_P(EuclideanWeightTestFixture, euclidean_weights) {
-    std::string         name     = std::get<0>(GetParam());
-    auto                generate = std::get<1>(GetParam());
-    GraphRepresentation repr     = std::get<2>(GetParam());
-    bool                is_2d    = std::get<3>(GetParam());
-    const SInt          n        = 1000;
-    const double        radius   = 0.05;
-    const WeightRange   weight_range{1, 1'000'000'000};
+TEST_P(EuclideanWeightTestFixture, euclidean_weights_edgelist_representation) {
+    std::string       name     = std::get<0>(GetParam());
+    auto              generate = std::get<1>(GetParam());
+    bool              is_2d    = std::get<2>(GetParam());
+    const SInt        n        = 1000;
+    const double      radius   = 0.05;
+    const WeightRange weight_range{1, 1'000'000'000};
 
     kagen::KaGen generator(MPI_COMM_WORLD);
-    if (repr == GraphRepresentation::EDGE_LIST) {
-        generator.UseEdgeListRepresentation();
-    } else {
-        generator.UseCSRRepresentation();
-    }
+    generator.UseEdgeListRepresentation();
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE, weight_range.first, weight_range.second);
+
+    Graph graph = generate(generator, n, radius);
+    check_euclidean_weights(graph, radius, weight_range, is_2d);
+    check_weights_range(graph, weight_range);
+}
+
+TEST_P(EuclideanWeightTestFixture, euclidean_weights_csr_representation) {
+    std::string       name     = std::get<0>(GetParam());
+    auto              generate = std::get<1>(GetParam());
+    bool              is_2d    = std::get<2>(GetParam());
+    const SInt        n        = 1000;
+    const double      radius   = 0.05;
+    const WeightRange weight_range{1, 1'000'000'000};
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE, weight_range.first, weight_range.second);
 
