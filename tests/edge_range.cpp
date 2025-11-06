@@ -17,6 +17,17 @@ using namespace kagen;
 
 using GeneratorFunc = std::function<Graph(KaGen&, SInt, SInt)>;
 
+MATCHER(HasConsecutiveEdgeIndices, "") {
+    std::size_t expected_idx = 0;
+    for (auto it = arg.begin(); it != arg.end(); ++it, ++expected_idx) {
+        if (it.edge_index() != expected_idx) {
+            *result_listener << "edge at position " << expected_idx << " has edge_index() = " << it.edge_index();
+            return false;
+        }
+    }
+    return true;
+}
+
 struct EdgeRangeTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc>> {};
 
 INSTANTIATE_TEST_SUITE_P(
@@ -49,11 +60,7 @@ TEST_P(EdgeRangeTestFixture, iterate_edgelist_representation) {
 
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
-    
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
-    }
+    EXPECT_THAT(edge_range, HasConsecutiveEdgeIndices());
 }
 
 TEST_P(EdgeRangeTestFixture, iterate_sparse_edgelist_representation) {
@@ -72,11 +79,7 @@ TEST_P(EdgeRangeTestFixture, iterate_sparse_edgelist_representation) {
 
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
-    
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
-    }
+    EXPECT_THAT(edge_range, HasConsecutiveEdgeIndices());
 }
 
 TEST_P(EdgeRangeTestFixture, iterate_csr_representation) {
@@ -95,11 +98,7 @@ TEST_P(EdgeRangeTestFixture, iterate_csr_representation) {
 
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
-    
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
-    }
+    EXPECT_THAT(edge_range, HasConsecutiveEdgeIndices());
 }
 
 TEST_P(EdgeRangeTestFixture, iterate_sparse_csr_representation) {
@@ -118,9 +117,5 @@ TEST_P(EdgeRangeTestFixture, iterate_sparse_csr_representation) {
 
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
-    
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
-    }
+    EXPECT_THAT(edge_range, HasConsecutiveEdgeIndices());
 }
