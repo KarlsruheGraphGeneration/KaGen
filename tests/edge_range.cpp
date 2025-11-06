@@ -2,6 +2,7 @@
 
 #include "kagen/kagen.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "tests/gather.h"
@@ -12,28 +13,25 @@
 using namespace kagen;
 
 void check_edge_range(const Graph& graph) {
+    using ::testing::ElementsAreArray;
+
     Edgelist edgelist = graph.edges;
     if (graph.representation == GraphRepresentation::CSR) {
         edgelist = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
     }
     EdgeRange edge_range(graph);
 
-    {
-        std::size_t expected_index = 0;
-        for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
-            auto edge = *it;
-            EXPECT_EQ(it.edge_index(), expected_index);
-            EXPECT_EQ(*it, edge);
-            ++expected_index;
-        }
-    }
+    // Collect edges from edge_range into a vector for comparison
+    std::vector<EdgeRange::Edge> edges_from_range(edge_range.begin(), edge_range.end());
 
-    {
-        EXPECT_EQ(edge_range.size(), edgelist.size());
-        for (std::size_t i = 0; auto elem: edge_range) {
-            EXPECT_EQ(elem, edgelist[i]);
-            ++i;
-        }
+    // Check that edge_range produces the same edges as edgelist
+    EXPECT_THAT(edges_from_range, ElementsAreArray(edgelist));
+
+    // Check that edge indices are consecutive starting from 0
+    std::size_t expected_index = 0;
+    for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+        EXPECT_EQ(it.edge_index(), expected_index);
+        ++expected_index;
     }
 }
 
