@@ -42,16 +42,16 @@ std::pair<SInt, SInt> get_canonical_order(std::pair<SInt, SInt> const& edge) {
     } else {
         return std::make_pair(v, u);
     }
-};
+}
 
 bool is_canonically_ordered(SInt u, SInt v) {
     return u < v;
-};
+}
 
 template <typename Edge>
 bool is_canonically_ordered(Edge const& edge) {
     return is_canonically_ordered(std::get<0>(edge), std::get<1>(edge));
-};
+}
 
 struct EdgeData {
     SInt  u;
