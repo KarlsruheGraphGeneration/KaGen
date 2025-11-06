@@ -5,6 +5,7 @@
 #include "tests/gather.h"
 #include "tests/utils.h"
 #include "tools/geometry.h"
+#include <map>
 
 using namespace kagen;
 using WeightRange = std::pair<SInt, SInt>;
@@ -17,6 +18,48 @@ void check_weights_range(const Graph& graph, const WeightRange& range) {
     EXPECT_EQ(graph.NumberOfLocalEdges(), graph.edge_weights.size());
     for (const auto& weight: graph.edge_weights) {
         EXPECT_TRUE(is_in_weight_range(weight, range));
+    }
+}
+
+void check_backedge_weight(const Graph& local_graph) {
+    auto const graph = kagen::testing::GatherGraph(local_graph);
+    EXPECT_EQ(graph.NumberOfLocalEdges(), graph.edge_weights.size());
+    if (graph.NumberOfLocalEdges() == 0) {
+        return;
+    }
+
+    auto check_or_insert_edge = [](auto& map, SInt u, SInt v, SSInt weight) {
+        if (u > v) {
+            std::swap(u, v);
+        }
+        auto it = map.find(std::make_pair(u, v));
+        if (it != map.end()) {
+            EXPECT_EQ(it->second, weight);
+        } else {
+            map.emplace(std::make_pair(u, v), weight);
+        }
+    };
+    if (graph.representation == GraphRepresentation::EDGE_LIST) {
+        std::map<std::pair<SInt, SInt>, SSInt> edge_to_weight_map;
+        for (std::size_t i = 0; i < graph.NumberOfLocalEdges(); ++i) {
+            auto [u, v]       = graph.edges[i];
+            auto const weight = graph.edge_weights[i];
+            check_or_insert_edge(edge_to_weight_map, u, v, weight);
+        }
+        EXPECT_EQ(edge_to_weight_map.size() * 2, graph.NumberOfLocalEdges());
+    } else if (graph.representation == GraphRepresentation::CSR) {
+        std::size_t const                      n = graph.xadj.size() - 1;
+        std::map<std::pair<SInt, SInt>, SSInt> edge_to_weight_map;
+        for (std::size_t u_idx = 0; u_idx < n; ++u_idx) {
+            for (std::size_t offset = static_cast<std::size_t>(graph.xadj[u_idx]);
+                 offset < static_cast<std::size_t>(graph.xadj[u_idx + 1]); ++offset) {
+                SInt  u      = static_cast<SInt>(u_idx);
+                SInt  v      = static_cast<SInt>(graph.adjncy[offset]);
+                SSInt weight = static_cast<SSInt>(graph.edge_weights[offset]);
+                check_or_insert_edge(edge_to_weight_map, u, v, weight);
+            }
+        }
+        EXPECT_EQ(edge_to_weight_map.size() * 2, graph.NumberOfLocalEdges());
     }
 }
 
@@ -53,6 +96,46 @@ void check_euclidean_weights(const Graph& graph, double max_distance, const Weig
     for (const auto& [src, dst, w]: weighted_edge_list) {
         const auto expected_weight = compute_euclidean_distance(src, dst);
         EXPECT_EQ(w, expected_weight);
+    }
+}
+
+void check_backedge_weight(KaGen& generator, const WeightRange& weight_range) {
+    const SInt n = 1000;
+    const SInt m = 16 * n;
+    // GNM
+    {
+        kagen::Graph graph = generator.GenerateUndirectedGNM(n, m);
+        check_backedge_weight(graph);
+    }
+    // RMAT
+    {
+        kagen::Graph graph = generator.GenerateRMAT(n, m, 0.56, 0.19, 0.19);
+        check_backedge_weight(graph);
+    }
+    // RGG2D
+    {
+        kagen::Graph graph = generator.GenerateRGG2D_NM(n, m);
+        check_backedge_weight(graph);
+    }
+    // RGG3D
+    {
+        kagen::Graph graph = generator.GenerateRGG3D_NM(n, m);
+        check_backedge_weight(graph);
+    }
+    // RHG
+    {
+        kagen::Graph graph = generator.GenerateRHG_NM(2.6, n, m);
+        check_backedge_weight(graph);
+    }
+    // GRID2D
+    {
+        kagen::Graph graph = generator.GenerateGrid2D_NM(n, m);
+        check_backedge_weight(graph);
+    }
+    // GRID2D
+    {
+        kagen::Graph graph = generator.GenerateGrid3D_NM(n, m);
+        check_backedge_weight(graph);
     }
 }
 
@@ -133,6 +216,15 @@ TEST(EdgeWeightsTest, edge_weights_in_range_for_edge_list_representation) {
     check_weights_range(generator, weight_range);
 }
 
+TEST(EdgeWeightsTest, edge_weights_correct_backedge_for_edge_list_representation) {
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseEdgeListRepresentation();
+    const WeightRange weight_range{1, 100};
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
+    check_backedge_weight(generator, weight_range);
+}
+
 TEST(EdgeWeightsTest, edge_weights_in_range_for_CSR_representation) {
     kagen::KaGen generator(MPI_COMM_WORLD);
     generator.UseCSRRepresentation();
@@ -140,6 +232,14 @@ TEST(EdgeWeightsTest, edge_weights_in_range_for_CSR_representation) {
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
     check_weights_range(generator, weight_range);
+}
+TEST(EdgeWeightsTest, edge_weights_correct_backedge_for_csr_list_representation) {
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseCSRRepresentation();
+    const WeightRange weight_range{1, 100};
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
+    check_backedge_weight(generator, weight_range);
 }
 
 TEST(EdgeWeightsTest, euclidean_weights_edge_list_representation) {
