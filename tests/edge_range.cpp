@@ -7,7 +7,6 @@
 #include "tests/gather.h"
 #include "tests/utils.h"
 #include "tools/converter.h"
-#include "tools/geometry.h"
 
 using namespace kagen;
 
