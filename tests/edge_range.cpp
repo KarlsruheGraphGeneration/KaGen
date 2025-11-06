@@ -146,3 +146,75 @@ TEST_P(EdgeRangeTestFixture, iterate_sparse_csr_representation) {
     std::iota(expected_indices.begin(), expected_indices.end(), 0);
     EXPECT_THAT(iterators, Pointwise(EdgeIndexMatches(), expected_indices));
 }
+
+void check_bidirectional_iteration(const Graph& graph) {
+    Edgelist edgelist = graph.edges;
+    if (graph.representation == GraphRepresentation::CSR) {
+        edgelist = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
+    }
+    EdgeRange edge_range(graph);
+
+    if (edgelist.empty()) {
+        return;
+    }
+
+    // Forward then backward iteration
+    {
+        std::vector<EdgeRange::Edge> forward_edges;
+        for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+            forward_edges.push_back(*it);
+        }
+
+        std::vector<EdgeRange::Edge> backward_edges;
+        auto it = edge_range.end();
+        while (it != edge_range.begin()) {
+            --it;
+            backward_edges.push_back(*it);
+        }
+
+        std::reverse(backward_edges.begin(), backward_edges.end());
+        EXPECT_EQ(forward_edges.size(), backward_edges.size());
+        for (std::size_t i = 0; i < forward_edges.size(); ++i) {
+            EXPECT_EQ(forward_edges[i], backward_edges[i]);
+        }
+    }
+
+    // Mixed forward and backward iteration
+    {
+        auto it = edge_range.begin();
+        ++it;
+        ++it;
+        auto edge1 = *it;
+        --it;
+        auto edge2 = *it;
+        ++it;
+        EXPECT_EQ(*it, edge1);
+        EXPECT_EQ(edge2, edgelist[1]);
+    }
+}
+
+TEST(EdgeRangeTest, bidirectional_iteration_edgelist) {
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseEdgeListRepresentation();
+    const SInt n = 100;
+    const SInt m = 10 * n;
+    
+    kagen::Graph graph = generator.GenerateUndirectedGNM(n, m);
+    check_bidirectional_iteration(graph);
+    
+    graph = generator.GenerateRGG2D_NM(n, m);
+    check_bidirectional_iteration(graph);
+}
+
+TEST(EdgeRangeTest, bidirectional_iteration_csr) {
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseCSRRepresentation();
+    const SInt n = 100;
+    const SInt m = 10 * n;
+    
+    kagen::Graph graph = generator.GenerateUndirectedGNM(n, m);
+    check_bidirectional_iteration(graph);
+    
+    graph = generator.GenerateRGG2D_NM(n, m);
+    check_bidirectional_iteration(graph);
+}
