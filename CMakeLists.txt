@@ -18,6 +18,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 ################################################################################
 
+# we explicitly set this to OFF, so xxhash doesn't force users to build a shared library.
+option(BUILD_SHARED_LIBS "Build using shared libraries." OFF)
+
 option(KAGEN_NODEPS "Build KaGen without any dependencies." OFF)
 
 option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
