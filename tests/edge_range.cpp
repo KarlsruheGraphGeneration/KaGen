@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <numeric>
 #include <string>
 
 #include "tests/gather.h"
@@ -16,6 +17,11 @@
 using namespace kagen;
 
 using GeneratorFunc = std::function<Graph(KaGen&, SInt, SInt)>;
+
+MATCHER(EdgeIndexMatches, "") {
+    auto [iter, expected_idx] = arg;
+    return iter.edge_index() == expected_idx;
+}
 
 struct EdgeRangeTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc>> {};
 
@@ -35,6 +41,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(EdgeRangeTestFixture, iterate_edgelist_representation) {
     using ::testing::ElementsAreArray;
+    using ::testing::Pointwise;
 
     auto [name, generate] = GetParam();
     const SInt n = 1000;
@@ -50,14 +57,18 @@ TEST_P(EdgeRangeTestFixture, iterate_edgelist_representation) {
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
     
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
+    std::vector<EdgeRange::iterator> iterators;
+    for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+        iterators.push_back(it);
     }
+    std::vector<std::size_t> expected_indices(edge_range.size());
+    std::iota(expected_indices.begin(), expected_indices.end(), 0);
+    EXPECT_THAT(iterators, Pointwise(EdgeIndexMatches(), expected_indices));
 }
 
 TEST_P(EdgeRangeTestFixture, iterate_sparse_edgelist_representation) {
     using ::testing::ElementsAreArray;
+    using ::testing::Pointwise;
 
     auto [name, generate] = GetParam();
     const SInt n = 1000;
@@ -73,14 +84,18 @@ TEST_P(EdgeRangeTestFixture, iterate_sparse_edgelist_representation) {
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
     
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
+    std::vector<EdgeRange::iterator> iterators;
+    for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+        iterators.push_back(it);
     }
+    std::vector<std::size_t> expected_indices(edge_range.size());
+    std::iota(expected_indices.begin(), expected_indices.end(), 0);
+    EXPECT_THAT(iterators, Pointwise(EdgeIndexMatches(), expected_indices));
 }
 
 TEST_P(EdgeRangeTestFixture, iterate_csr_representation) {
     using ::testing::ElementsAreArray;
+    using ::testing::Pointwise;
 
     auto [name, generate] = GetParam();
     const SInt n = 1000;
@@ -96,14 +111,18 @@ TEST_P(EdgeRangeTestFixture, iterate_csr_representation) {
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
     
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
+    std::vector<EdgeRange::iterator> iterators;
+    for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+        iterators.push_back(it);
     }
+    std::vector<std::size_t> expected_indices(edge_range.size());
+    std::iota(expected_indices.begin(), expected_indices.end(), 0);
+    EXPECT_THAT(iterators, Pointwise(EdgeIndexMatches(), expected_indices));
 }
 
 TEST_P(EdgeRangeTestFixture, iterate_sparse_csr_representation) {
     using ::testing::ElementsAreArray;
+    using ::testing::Pointwise;
 
     auto [name, generate] = GetParam();
     const SInt n = 1000;
@@ -119,8 +138,11 @@ TEST_P(EdgeRangeTestFixture, iterate_sparse_csr_representation) {
     // Check edges match and indices are consecutive
     EXPECT_THAT(std::vector(edge_range.begin(), edge_range.end()), ElementsAreArray(expected));
     
-    std::size_t idx = 0;
-    for (auto it = edge_range.begin(); it != edge_range.end(); ++it, ++idx) {
-        EXPECT_EQ(it.edge_index(), idx);
+    std::vector<EdgeRange::iterator> iterators;
+    for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+        iterators.push_back(it);
     }
+    std::vector<std::size_t> expected_indices(edge_range.size());
+    std::iota(expected_indices.begin(), expected_indices.end(), 0);
+    EXPECT_THAT(iterators, Pointwise(EdgeIndexMatches(), expected_indices));
 }
