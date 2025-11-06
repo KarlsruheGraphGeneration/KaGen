@@ -67,7 +67,7 @@ void check_edge_range(KaGen& generator, SInt n, SInt m) {
         kagen::Graph graph = generator.GenerateGrid2D_NM(n, m);
         check_edge_range(graph);
     }
-    // GRID2D
+    // GRID3D
     {
         kagen::Graph graph = generator.GenerateGrid3D_NM(n, m);
         check_edge_range(graph);
