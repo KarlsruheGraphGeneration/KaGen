@@ -12,7 +12,6 @@
 #include "tests/gather.h"
 #include "tests/utils.h"
 #include "tools/converter.h"
-#include "tools/geometry.h"
 
 using namespace kagen;
 
@@ -24,6 +23,7 @@ MATCHER(EdgeIndexMatches, "") {
 }
 
 struct EdgeRangeTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc>> {};
+
 
 INSTANTIATE_TEST_SUITE_P(
     EdgeRangeTests, EdgeRangeTestFixture,
