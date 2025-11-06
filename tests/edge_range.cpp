@@ -5,6 +5,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <numeric>
+
 #include "tests/gather.h"
 #include "tests/utils.h"
 #include "tools/converter.h"
@@ -27,12 +29,17 @@ void check_edge_range(const Graph& graph) {
     // Check that edge_range produces the same edges as edgelist
     EXPECT_THAT(edges_from_range, ElementsAreArray(edgelist));
 
-    // Check that edge indices are consecutive starting from 0
-    std::size_t expected_index = 0;
+    // Collect edge indices to verify they are consecutive starting from 0
+    std::vector<std::size_t> edge_indices;
     for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
-        EXPECT_EQ(it.edge_index(), expected_index);
-        ++expected_index;
+        edge_indices.push_back(it.edge_index());
     }
+
+    // Generate expected indices: [0, 1, 2, ..., n-1]
+    std::vector<std::size_t> expected_indices(edge_indices.size());
+    std::iota(expected_indices.begin(), expected_indices.end(), 0);
+
+    EXPECT_THAT(edge_indices, ElementsAreArray(expected_indices));
 }
 
 void check_edge_range(KaGen& generator, SInt n, SInt m) {
