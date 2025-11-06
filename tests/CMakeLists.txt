@@ -75,5 +75,5 @@ kagen_add_test(test_permutation
         CORES 1 2 4)
 
 kagen_add_test(test_edge_range
-        FILES edge_range.cpp 
+        FILES edge_range.cpp
         CORES 1)
