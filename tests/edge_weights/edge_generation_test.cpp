@@ -195,7 +195,6 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 TEST_P(EuclideanWeightTestFixture, euclidean_weights_edgelist_representation) {
-    std::string       name     = std::get<0>(GetParam());
     auto              generate = std::get<1>(GetParam());
     bool              is_2d    = std::get<2>(GetParam());
     const SInt        n        = 1000;
