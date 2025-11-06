@@ -95,7 +95,6 @@ void GenerateEdgeWeightsImpl(
 
     for (const auto& edge: edge_range) {
         if (is_canonically_ordered(edge)) {
-            // auto edge = std::make_pair(u_global, v_global);
             auto it = edge_to_weight_map.find(edge);
             if (it == edge_to_weight_map.end()) {
                 const SSInt weight = weight_dist(gen);
