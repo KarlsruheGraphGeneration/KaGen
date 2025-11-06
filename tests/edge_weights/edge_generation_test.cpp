@@ -42,7 +42,7 @@ void check_backedge_weight(const Graph& local_graph) {
         if (it != map.end()) {
             EXPECT_EQ(it->second, weight);
         } else {
-            map.emplace(std::make_pair(u, v), weight);
+            map.emplace(edge, weight);
         }
     };
 
