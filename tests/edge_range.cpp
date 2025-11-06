@@ -22,9 +22,6 @@ TEST(EdgeRangeTest, iterate_edgelist_representation) {
 
     auto check = [](const Graph& graph) {
         Edgelist expected = graph.edges;
-        if (graph.representation == GraphRepresentation::CSR) {
-            expected = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
-        }
         EdgeRange edge_range(graph);
 
         // Check edges match and indices are consecutive
@@ -55,9 +52,6 @@ TEST(EdgeRangeTest, iterate_sparse_edgelist_representation) {
 
     auto check = [](const Graph& graph) {
         Edgelist expected = graph.edges;
-        if (graph.representation == GraphRepresentation::CSR) {
-            expected = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
-        }
         EdgeRange edge_range(graph);
 
         // Check edges match and indices are consecutive
