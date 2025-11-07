@@ -31,10 +31,10 @@ SSInt HashingBasedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
     #endif
     return hash_in_range + config_.weight_range_begin;
 #else  // KAGEN_XXHASH_FOUND
-    // ((void)u);
-    // ((void)v);
-    // throw std::runtime_error("xxHash is required for hashing based edge weights");
-    return -1;
+    ((void)u);
+    ((void)v);
+    throw std::runtime_error("xxHash is required for hashing based edge weights");
 #endif // KAGEN_XXHASH_FOUND
+    return -1;
 }
 } // namespace kagen

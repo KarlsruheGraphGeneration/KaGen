@@ -113,7 +113,6 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<GeneralEdgeWeightTestFixture::ParamType>& info) { return std::get<0>(info.param); });
 
 TEST_P(GeneralEdgeWeightTestFixture, uniform_weights_in_range_edgelist_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -129,7 +128,6 @@ TEST_P(GeneralEdgeWeightTestFixture, uniform_weights_in_range_edgelist_represent
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, uniform_weights_in_range_csr_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -145,7 +143,6 @@ TEST_P(GeneralEdgeWeightTestFixture, uniform_weights_in_range_csr_representation
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, uniform_correct_backedge_weights_edgelist_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -161,7 +158,6 @@ TEST_P(GeneralEdgeWeightTestFixture, uniform_correct_backedge_weights_edgelist_r
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, uniform_correct_backedge_weights_csr_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -177,7 +173,6 @@ TEST_P(GeneralEdgeWeightTestFixture, uniform_correct_backedge_weights_csr_repres
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, hashing_based_weights_in_range_edgelist_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -193,7 +188,6 @@ TEST_P(GeneralEdgeWeightTestFixture, hashing_based_weights_in_range_edgelist_rep
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, hashing_based_weights_in_range_csr_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -209,7 +203,6 @@ TEST_P(GeneralEdgeWeightTestFixture, hashing_based_weights_in_range_csr_represen
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, hashing_based_correct_backedge_weights_edgelist_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
@@ -225,7 +218,6 @@ TEST_P(GeneralEdgeWeightTestFixture, hashing_based_correct_backedge_weights_edge
 }
 
 TEST_P(GeneralEdgeWeightTestFixture, hashing_based_correct_backedge_weights_csr_representation) {
-    std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
     const SInt        m        = 16 * n;
