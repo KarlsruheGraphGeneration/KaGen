@@ -67,7 +67,7 @@ CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, c
         case EdgeWeightGeneratorType::VOIDING:
             return std::make_unique<VoidingEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::HASHING_BASED:
-            return std::make_unique<HashingBasedEdgeWeightGenerator>(weight_config);
+            return std::make_unique<HashingBasedEdgeWeightGenerator>(weight_config, vertex_range);
         case EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE:
             return std::make_unique<EuclideanDistanceEdgeWeightGenerator>(weight_config);
         case EdgeWeightGeneratorType::UNIFORM_RANDOM:

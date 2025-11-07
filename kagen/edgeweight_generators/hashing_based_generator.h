@@ -7,7 +7,7 @@
 namespace kagen {
 class HashingBasedEdgeWeightGenerator : public PerEdgeWeightGenerator<HashingBasedEdgeWeightGenerator> {
 public:
-    HashingBasedEdgeWeightGenerator(EdgeWeightConfig config);
+    HashingBasedEdgeWeightGenerator(EdgeWeightConfig config, VertexRange vertex_range);
 
     SSInt GenerateEdgeWeight(SInt u, SInt v);
 

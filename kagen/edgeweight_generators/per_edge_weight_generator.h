@@ -1,5 +1,7 @@
 #pragma once
 
+#include "kagen/context.h"
+#include "kagen/edge_range.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
 #include "kagen/kagen.h"
 
@@ -7,24 +9,28 @@ namespace kagen {
 template <typename Derived>
 class PerEdgeWeightGenerator : public EdgeWeightGenerator {
 public:
-    void GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) final {
-        weights.reserve(edgelist.size());
+    PerEdgeWeightGenerator(VertexRange vertex_range) :
+          vertex_range_{vertex_range} {}
 
-        for (const auto& [u, v]: edgelist) {
-            SSInt weight = static_cast<Derived*>(this)->GenerateEdgeWeight(u, v);
-            weights.push_back(weight);
-        }
+    void GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) final {
+        EdgeRange edge_range(edgelist);
+        GenerateEdgeWeightsImpl(edge_range, weights);
     }
 
     void GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy, EdgeWeights& weights) final {
-        weights.reserve(adjncy.size());
+        EdgeRange edge_range(xadj, adjncy, vertex_range_);
+        GenerateEdgeWeightsImpl(edge_range, weights);
+    }
 
-        for (SInt u = 0; u + 1 < xadj.size(); ++u) {
-            for (SInt e = xadj[u]; e < xadj[u + 1]; ++e) {
-                SInt  v      = adjncy[e];
-                SSInt weight = static_cast<Derived*>(this)->GenerateEdgeWeight(u, v);
-                weights.push_back(weight);
-            }
+private:
+    VertexRange vertex_range_;
+
+    void GenerateEdgeWeightsImpl(EdgeRange range, EdgeWeights& weights) {
+        weights.reserve(range.size());
+        for (auto it = range.begin(); it != range.end(); ++it) {
+            auto [u, v]  = *it;
+            SSInt weight = static_cast<Derived*>(this)->GenerateEdgeWeight(u, v);
+            weights.push_back(weight);
         }
     }
 };
