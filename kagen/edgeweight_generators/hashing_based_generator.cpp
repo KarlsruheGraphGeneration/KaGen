@@ -3,6 +3,8 @@
 #include "kagen/context.h"
 #include "kagen/kagen.h"
 
+#include <array>
+
 #ifdef KAGEN_XXHASH_FOUND
     #include "xxhash.h"
 #else // KAGEN_XXHASH_FOUND
@@ -10,19 +12,29 @@
 #endif // KAGEN_XXHASH_FOUND
 
 namespace kagen {
-HashingBasedEdgeWeightGenerator::HashingBasedEdgeWeightGenerator(EdgeWeightConfig config) : config_(config) {}
+HashingBasedEdgeWeightGenerator::HashingBasedEdgeWeightGenerator(EdgeWeightConfig config, VertexRange vertex_range)
+    : PerEdgeWeightGenerator(vertex_range),
+      config_(config) {}
 
 SSInt HashingBasedEdgeWeightGenerator::GenerateEdgeWeight(SInt u, SInt v) {
 #ifdef KAGEN_XXHASH_FOUND
-    const SInt  hash1 = XXH64(&u, 1, 0);
-    const SInt  hash2 = XXH64(&v, 1, 0);
-    const SSInt combined =
-        (hash1 ^ hash2) % (config_.weight_range_end - config_.weight_range_begin) + config_.weight_range_begin;
-    return combined;
+    if (u > v) {
+        std::swap(u, v);
+    }
+    std::array<SInt, 2> buf{u, v};
+    const SInt          range = config_.weight_range_end - config_.weight_range_begin;
+    const SInt          hash  = XXH64(buf.data(), sizeof(buf), 0);
+    #if defined(__SIZEOF_INT128__)
+    const SInt hash_in_range = (static_cast<__uint128_t>(hash) * range >> 64);
+    #else
+    const SInt hash_in_range = hash % range;
+    #endif
+    return hash_in_range + config_.weight_range_begin;
 #else  // KAGEN_XXHASH_FOUND
-    ((void)u);
-    ((void)v);
-    throw std::runtime_error("xxHash is required for hashing based edge weights");
+    // ((void)u);
+    // ((void)v);
+    // throw std::runtime_error("xxHash is required for hashing based edge weights");
+    return -1;
 #endif // KAGEN_XXHASH_FOUND
 }
 } // namespace kagen

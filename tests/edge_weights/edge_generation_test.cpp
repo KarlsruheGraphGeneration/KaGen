@@ -90,10 +90,10 @@ void check_euclidean_weights(const Graph& graph, double max_distance, const Weig
 }
 
 // Test fixture for uniform random weight tests
-struct UniformWeightTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc>> {};
+struct GeneralEdgeWeightTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc>> {};
 
 INSTANTIATE_TEST_SUITE_P(
-    UniformWeightTests, UniformWeightTestFixture,
+    GeneralEdgeWeightTests, GeneralEdgeWeightTestFixture,
     ::testing::Values(
         std::make_tuple("GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
                             return gen.GenerateUndirectedGNM(n, m);
@@ -110,9 +110,9 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple("Grid3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
                             return gen.GenerateGrid3D_NM(n, m);
                         }))),
-    [](const ::testing::TestParamInfo<UniformWeightTestFixture::ParamType>& info) { return std::get<0>(info.param); });
+    [](const ::testing::TestParamInfo<GeneralEdgeWeightTestFixture::ParamType>& info) { return std::get<0>(info.param); });
 
-TEST_P(UniformWeightTestFixture, weights_in_range_edgelist_representation) {
+TEST_P(GeneralEdgeWeightTestFixture, uniform_weights_in_range_edgelist_representation) {
     std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
@@ -128,7 +128,7 @@ TEST_P(UniformWeightTestFixture, weights_in_range_edgelist_representation) {
     check_weights_range(graph, weight_range);
 }
 
-TEST_P(UniformWeightTestFixture, weights_in_range_csr_representation) {
+TEST_P(GeneralEdgeWeightTestFixture, uniform_weights_in_range_csr_representation) {
     std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
@@ -144,7 +144,7 @@ TEST_P(UniformWeightTestFixture, weights_in_range_csr_representation) {
     check_weights_range(graph, weight_range);
 }
 
-TEST_P(UniformWeightTestFixture, correct_backedge_weights_edgelist_representation) {
+TEST_P(GeneralEdgeWeightTestFixture, uniform_correct_backedge_weights_edgelist_representation) {
     std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
@@ -160,7 +160,7 @@ TEST_P(UniformWeightTestFixture, correct_backedge_weights_edgelist_representatio
     check_backedge_weight(graph);
 }
 
-TEST_P(UniformWeightTestFixture, correct_backedge_weights_csr_representation) {
+TEST_P(GeneralEdgeWeightTestFixture, uniform_correct_backedge_weights_csr_representation) {
     std::string       name     = std::get<0>(GetParam());
     GeneratorFunc     generate = std::get<1>(GetParam());
     const SInt        n        = 1000;
@@ -171,6 +171,70 @@ TEST_P(UniformWeightTestFixture, correct_backedge_weights_csr_representation) {
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
+
+    Graph graph = generate(generator, n, m);
+    check_backedge_weight(graph);
+}
+
+TEST_P(GeneralEdgeWeightTestFixture, hashing_based_weights_in_range_edgelist_representation) {
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseEdgeListRepresentation();
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::HASHING_BASED, weight_range.first, weight_range.second);
+
+    Graph graph = generate(generator, n, m);
+    check_weights_range(graph, weight_range);
+}
+
+TEST_P(GeneralEdgeWeightTestFixture, hashing_based_weights_in_range_csr_representation) {
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::HASHING_BASED, weight_range.first, weight_range.second);
+
+    Graph graph = generate(generator, n, m);
+    check_weights_range(graph, weight_range);
+}
+
+TEST_P(GeneralEdgeWeightTestFixture, hashing_based_correct_backedge_weights_edgelist_representation) {
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseEdgeListRepresentation();
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::HASHING_BASED, weight_range.first, weight_range.second);
+
+    Graph graph = generate(generator, n, m);
+    check_backedge_weight(graph);
+}
+
+TEST_P(GeneralEdgeWeightTestFixture, hashing_based_correct_backedge_weights_csr_representation) {
+    std::string       name     = std::get<0>(GetParam());
+    GeneratorFunc     generate = std::get<1>(GetParam());
+    const SInt        n        = 1000;
+    const SInt        m        = 16 * n;
+    const WeightRange weight_range{1, 100};
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseCSRRepresentation();
+    generator.ConfigureEdgeWeightGeneration(
+        kagen::EdgeWeightGeneratorType::HASHING_BASED, weight_range.first, weight_range.second);
 
     Graph graph = generate(generator, n, m);
     check_backedge_weight(graph);
