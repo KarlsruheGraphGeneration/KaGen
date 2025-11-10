@@ -45,6 +45,7 @@
 #pragma once
 
 #include "kagen/context.h"
+#include "kagen/io.h"
 #include "kagen/io/graph_format.h"
 
 #include <fstream>
@@ -78,16 +79,29 @@ public:
 
     bool Write(const int pass, const std::string& filename) final;
 
+    template <typename VertexId, typename VertexWeight, typename EdgeWeight>
+    bool WriteFromCSR(
+        const int pass, const std::string& filename, const XadjArray& xadj, const std::vector<VertexId>& adjncy,
+        const std::vector<VertexWeight>* vertex_weights = nullptr,
+        const std::vector<EdgeWeight>*   edge_weights   = nullptr);
+
 private:
-    void WriteHeader(const std::string& filename);
+    const std::size_t buffer_chunk_size_ = 1024 * 1024;
+    void              WriteHeader(const std::string& filename);
 
     void WriteOffsets(const std::string& filename);
+    void WriteOffsets(const std::string& filename, const XadjArray& xadj);
 
     void WriteEdges(const std::string& filename);
 
-    void WriteVertexWeights(const std::string& filename);
+    template <typename T, typename OnDiskT>
+    void WriteInChunks(std::vector<T> const& data, std::ofstream& out) const;
 
-    void WriteEdgeWeights(const std::string& filename);
+    template <typename T>
+    void WriteAdjncyArray(const std::string& filename, const std::vector<T>& adjncy_array) const;
+
+    template <typename T>
+    void WriteWeights(const std::string& filename, const std::vector<T>& data, bool use_32_bits) const;
 };
 
 class ParhipReader : public GraphReader {
@@ -118,5 +132,77 @@ public:
 
     std::unique_ptr<GraphWriter>
     CreateWriter(const OutputGraphConfig& config, Graph& graph, GraphInfo info, PEID rank, PEID size) const final;
+};
+
+template <typename VertexId, typename VertexWeight, typename EdgeWeight>
+bool ParhipWriter::WriteFromCSR(
+    const int pass, const std::string& filename, const XadjArray& xadj, const std::vector<VertexId>& adjncy,
+    const std::vector<VertexWeight>* vertex_weights, const std::vector<EdgeWeight>* edge_weights) {
+    switch (pass) {
+        case 0:
+            WriteHeader(filename);
+            WriteOffsets(filename, xadj);
+            return true;
+
+        case 1:
+            WriteAdjncyArray(filename, adjncy);
+            return info_.has_vertex_weights || info_.has_edge_weights;
+
+        case 2:
+            if (info_.has_vertex_weights) {
+                WriteWeights<VertexWeight>(filename, *vertex_weights, config_.vwgt_width == 32);
+            } else {
+                WriteWeights<EdgeWeight>(filename, *edge_weights, config_.adjwgt_width == 32);
+            }
+            return info_.has_vertex_weights && info_.has_edge_weights;
+
+        case 3:
+            if (info_.has_edge_weights) {
+                WriteWeights(filename, *edge_weights, config_.adjwgt_width == 32);
+            }
+            return false;
+    }
+    return false;
+}
+
+template <typename T, typename OnDiskT>
+void ParhipWriter::WriteInChunks(std::vector<T> const& data, std::ofstream& out) const {
+    std::vector<std::uint64_t> buf;
+    buf.reserve(std::min<std::size_t>(buffer_chunk_size_, data.size()));
+    for (std::size_t pos = 0, N = data.size(); pos < N; pos += buffer_chunk_size_) {
+        const std::size_t cnt = std::min<std::size_t>(buffer_chunk_size_, N - pos);
+        buf.clear();
+        buf.resize(cnt);
+        for (std::size_t i = 0; i < cnt; ++i) {
+            buf[i] = static_cast<OnDiskT>(data[pos + i]);
+        }
+        out.write(reinterpret_cast<const char*>(buf.data()), buf.size() * sizeof(OnDiskT));
+    }
+}
+
+template <typename T>
+void ParhipWriter::WriteAdjncyArray(const std::string& filename, const std::vector<T>& adjncy_array) const {
+    std::ofstream out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::app);
+    if (!out)
+        throw IOError("Failed to open file " + filename + " for writing");
+    if (config_.vtx_width == 32) {
+        WriteInChunks<T, std::uint32_t>(adjncy_array, out);
+    } else {
+        WriteInChunks<T, std::uint64_t>(adjncy_array, out);
+    }
+}
+
+template <typename T>
+void ParhipWriter::WriteWeights(const std::string& filename, const std::vector<T>& data, bool use_32_bits) const {
+    static_assert(std::is_integral<T>::value, "On disk weight type must be integral");
+
+    std::ofstream out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::app);
+    if (!out)
+        throw IOError("Failed to open file " + filename + " for writing");
+    if (use_32_bits) {
+        WriteInChunks<T, std::int32_t>(data, out);
+    } else {
+        WriteInChunks<T, std::int64_t>(data, out);
+    }
 };
 } // namespace kagen

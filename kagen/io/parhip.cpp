@@ -69,13 +69,38 @@ void ParhipWriter::WriteHeader(const std::string& filename) {
     // Header
     if (rank_ == ROOT && config_.header != OutputHeader::NEVER) {
         std::ofstream  out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
-        const ParhipID version =
-            BuildVersion(info_.has_vertex_weights, info_.has_edge_weights, false, config_.width == 32, false, false);
+        const ParhipID version = BuildVersion(
+            info_.has_vertex_weights, info_.has_edge_weights, false, config_.vtx_width == 32, false,
+            config_.adjwgt_width == 32);
         const ParhipID global_n = info_.global_n;
         const ParhipID global_m = info_.global_m;
         out.write(reinterpret_cast<const char*>(&version), sizeof(ParhipID));
         out.write(reinterpret_cast<const char*>(&global_n), sizeof(ParhipID));
         out.write(reinterpret_cast<const char*>(&global_m), sizeof(ParhipID));
+    }
+}
+
+void ParhipWriter::WriteOffsets(const std::string& filename, const XadjArray& xadj) {
+    const std::uint64_t           vtx_width_in_byte = (config_.vtx_width == 32) ? 4 : 8;
+    std::vector<parhip::ParhipID> xadj_in_file(info_.local_n + 1);
+    const std::uint64_t           header_size             = 3 * sizeof(parhip::ParhipID);
+    const std::uint64_t           xadj_offset_size        = (info_.global_n + 1) * sizeof(parhip::ParhipID);
+    const std::uint64_t           prev_adjncy_offset_size = (info_.offset_m) * vtx_width_in_byte;
+    std::uint64_t                 cur_offset              = header_size + xadj_offset_size + prev_adjncy_offset_size;
+    for (std::uint64_t v = 0; v <= info_.local_n; ++v) {
+        xadj_in_file[v] = static_cast<parhip::ParhipID>(cur_offset + xadj[v] * vtx_width_in_byte);
+    }
+
+    std::ofstream out(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::app);
+    if (!out)
+        throw IOError("Failed to open file " + filename + " for writing");
+
+    // Case distinction: the last offset acts as a guardian and should only be written by the last PE
+    if (rank_ + 1 == size_) {
+        out.write(reinterpret_cast<const char*>(xadj_in_file.data()), xadj_in_file.size() * sizeof(parhip::ParhipID));
+    } else {
+        out.write(
+            reinterpret_cast<const char*>(xadj_in_file.data()), (xadj_in_file.size() - 1) * sizeof(parhip::ParhipID));
     }
 }
 
@@ -138,29 +163,19 @@ void WriteEdgesImpl(std::ofstream& out, const Edgelist& edges) {
 
 void ParhipWriter::WriteEdges(const std::string& filename) {
     std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-    if (config_.width == 32) {
+    if (config_.vtx_width == 32) {
         WriteEdgesImpl<std::uint32_t>(out, graph_.edges);
     } else {
         WriteEdgesImpl<ParhipID>(out, graph_.edges);
     }
 }
 
-void ParhipWriter::WriteVertexWeights(const std::string& filename) {
-    std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-    out.write(
-        reinterpret_cast<const char*>(graph_.vertex_weights.data()),
-        graph_.vertex_weights.size() * sizeof(ParhipWeight));
-}
-
-void ParhipWriter::WriteEdgeWeights(const std::string& filename) {
-    std::ofstream out(filename, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-    out.write(
-        reinterpret_cast<const char*>(graph_.edge_weights.data()), graph_.edge_weights.size() * sizeof(ParhipWeight));
-}
-
 bool ParhipWriter::Write(const int pass, const std::string& filename) {
     if (config_.distributed) {
         throw IOError("ParHiP format does not support distributed output");
+    }
+    if (graph_.representation == GraphRepresentation::CSR) {
+        return WriteFromCSR(pass, filename, graph_.xadj, graph_.adjncy, &graph_.vertex_weights, &graph_.edge_weights);
     }
 
     graph_.SortEdgelist();
@@ -181,14 +196,14 @@ bool ParhipWriter::Write(const int pass, const std::string& filename) {
 
         case 2:
             if (info_.has_vertex_weights) {
-                WriteVertexWeights(filename);
+                WriteWeights(filename, graph_.vertex_weights, sizeof(VertexWeights::value_type) == 4);
             } else {
-                WriteEdgeWeights(filename);
+                WriteWeights(filename, graph_.edge_weights, sizeof(EdgeWeights::value_type) == 4);
             }
             return info_.has_vertex_weights && info_.has_edge_weights;
 
         case 3:
-            WriteEdgeWeights(filename);
+            WriteWeights(filename, graph_.edge_weights, sizeof(EdgeWeights::value_type) == 4);
             return false;
     }
 
