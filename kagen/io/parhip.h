@@ -167,7 +167,7 @@ bool ParhipWriter::WriteFromCSR(
 
 template <typename T, typename OnDiskT>
 void ParhipWriter::WriteInChunks(std::vector<T> const& data, std::ofstream& out) const {
-    std::vector<std::uint64_t> buf;
+    std::vector<OnDiskT> buf;
     buf.reserve(std::min<std::size_t>(buffer_chunk_size_, data.size()));
     for (std::size_t pos = 0, N = data.size(); pos < N; pos += buffer_chunk_size_) {
         const std::size_t cnt = std::min<std::size_t>(buffer_chunk_size_, N - pos);
