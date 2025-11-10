@@ -29,8 +29,8 @@ ParhipID BuildVersion(
     const ParhipID vertex_weights_bit      = (static_cast<SInt>(has_vertex_weights) ^ 1) << 1;
     const ParhipID edge_id_width_bit       = static_cast<SInt>(has_32bit_edge_ids) << 2;
     const ParhipID vertex_id_width_bit     = static_cast<SInt>(has_32bit_vertex_ids) << 3;
-    const ParhipID vertex_weight_width_bit = static_cast<SInt>(has_32bit_vertex_weights) << 3;
-    const ParhipID edge_weight_width_bit   = static_cast<SInt>(has_32bit_edge_weights) << 4;
+    const ParhipID vertex_weight_width_bit = static_cast<SInt>(has_32bit_vertex_weights) << 4;
+    const ParhipID edge_weight_width_bit   = static_cast<SInt>(has_32bit_edge_weights) << 5;
 
     return vertex_weights_bit | edge_weights_bit | edge_id_width_bit | vertex_id_width_bit | vertex_weight_width_bit
            | edge_weight_width_bit;
