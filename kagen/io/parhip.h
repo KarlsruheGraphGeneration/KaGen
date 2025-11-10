@@ -204,5 +204,5 @@ void ParhipWriter::WriteWeights(const std::string& filename, const std::vector<T
     } else {
         WriteInChunks<T, std::int64_t>(data, out);
     }
-};
+}
 } // namespace kagen
