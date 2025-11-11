@@ -53,6 +53,11 @@ kagen_add_test(test_generic_file_generator
     FILES file/generic_file_generator_test.cpp
     CORES 1 2 3 4 8 16)
 
+kagen_add_test(test_parhip_reader_writer
+    FILES file/parhip_reader_writer.cpp
+    CORES 1 2 3 4 8)
+
+
 # Geometric Generator
 kagen_add_test(test_rgg2d
         FILES geometric/rgg2d_test.cpp
