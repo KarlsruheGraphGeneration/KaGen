@@ -160,6 +160,9 @@ inline Graph GatherEdgeLists(const Graph& local_graph) {
     GatherCoordinates2D(local_graph, global_graph);
     GatherCoordinates3D(local_graph, global_graph);
 
+    global_graph.vertex_range.first  = 0;
+    global_graph.vertex_range.second = local_graph.NumberOfGlobalVertices();
+
     return global_graph;
 }
 
@@ -206,6 +209,9 @@ inline Graph GatherCSR(const Graph& local_graph) {
     GatherWeights(local_graph, global_graph);
     GatherCoordinates2D(local_graph, global_graph);
     GatherCoordinates3D(local_graph, global_graph);
+
+    global_graph.vertex_range.first  = 0;
+    global_graph.vertex_range.second = local_graph.NumberOfGlobalVertices();
 
     return global_graph;
 }

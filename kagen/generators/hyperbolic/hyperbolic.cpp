@@ -131,7 +131,27 @@ Hyperbolic<Double>::Hyperbolic(const PGeneratorConfig& config, const PEID rank, 
 
 template <typename Double>
 void Hyperbolic<Double>::FinalizeEdgeList(MPI_Comm comm) {
-    // @todo use nonlocal_edges_ to implement this fix
+    int size;
+    int rank;
+    MPI_Comm_size(comm, &size);
+    MPI_Comm_rank(comm, &rank);
+
+    std::vector<SInt> distribution(size);
+    distribution[rank] = graph_.vertex_range.first;
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, distribution.data(), 1, KAGEN_MPI_SINT, comm);
+
+    graph_.vertex_range.second = (rank + 1 == size) ? config_.n : distribution[rank + 1];
+
+    if (config_.coordinates) {
+        const SInt real_n = graph_.vertex_range.second - graph_.vertex_range.first;
+        while (graph_.coordinates.first.size() < real_n) {
+            graph_.coordinates.first.emplace_back(-1.0, -1.0);
+        }
+    }
+
+    // ~~TODO use nonlocal_edges_ to implement fix the edges~~
+    // Actually that isn't enough, at some point we lose edges anyways presumable due to floating point inaccuracies
+    // So let's stick to the brute force way
     AddNonlocalReverseEdges(graph_.edges, graph_.edge_weights, graph_.vertex_range, comm);
 }
 
@@ -157,6 +177,26 @@ void Hyperbolic<Double>::GenerateEdgeList() {
         }
     }
 
+    SInt start_node = std::get<3>(chunks_[local_chunk_start_]);
+
+    if (config_.coordinates) {
+        graph_.coordinates.first.resize(num_nodes_);
+        for (SInt chunk_id = local_chunk_start_; chunk_id < local_chunk_end_; chunk_id++) {
+            for (SInt j = 0; j < total_annuli_; ++j) {
+                for (SInt k = 0; k < GridSizeForAnnulus(j); ++k) {
+                    SInt                 global_cell_id = ComputeGlobalCellId(j, chunk_id, k);
+                    std::vector<Vertex>& cell_vertices  = vertices_[global_cell_id];
+
+                    for (auto& vertex: cell_vertices) {
+                        auto& [angle, radius, x, y, gamma, id]    = vertex;
+                        graph_.coordinates.first[id - start_node] = {x, y};
+                        // PushCoordinate(x, y);
+                    }
+                }
+            }
+        }
+    }
+
     // if (rank_ == ROOT)
     //   std::cout << "generated vertices" << std::endl;
 
@@ -168,7 +208,7 @@ void Hyperbolic<Double>::GenerateEdgeList() {
         }
     }
 
-    const SInt start_node = std::get<3>(chunks_[local_chunk_start_]);
+    start_node = std::get<3>(chunks_[local_chunk_start_]);
     SetVertexRange(start_node, start_node + num_nodes_);
 }
 
@@ -372,11 +412,12 @@ void Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, 
         cell_vertices.emplace_back(angle, radius, x, y, gamma, offset + i);
         // if (rank_ == 2)
         //   printf("p %lld %f %f %d\n", offset + i, radius, angle, rank_);
+        // if ((start_node_ > offset + i) && (pe_min_phi_ <= angle && pe_max_phi_ > angle)) start_node_ = offset;
         if (pe_min_phi_ <= angle && pe_max_phi_ > angle) {
             num_nodes_++;
-            if (config_.coordinates) {
-                PushCoordinate(x, y);
-            }
+            // if (config_.coordinates) {
+            //     PushCoordinate(x, y);
+            // }
         }
     }
     std::get<3>(cell) = true;
@@ -449,7 +490,7 @@ void Hyperbolic<Double>::Query(
     right_processed_cell_  = cell_id;
 
     // Iterate over cell
-    if (search_down /* || !IsLocalChunk(chunk_id) */) // second condition should be always true?
+    if (search_down || !IsLocalChunk(chunk_id))
         GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
 
     bool found_nonlocal_chunk = false;
@@ -465,7 +506,7 @@ void Hyperbolic<Double>::Query(
             //   std::cout << "go right " << next_chunk_id << " " << annulus_id << " " << next_cell_id << std::endl;
             GenerateVertices(annulus_id, next_chunk_id, next_cell_id);
             found_nonlocal_chunk |= QueryRightNeighbor(
-                annulus_id, next_chunk_id, next_cell_id, q, std::abs(min_cell_phi - 0.0) < cell_eps_);
+                annulus_id, next_chunk_id, next_cell_id, q, std::abs(min_cell_phi - 0.0) < cell_eps_, search_down);
         }
 
         // Continue left
@@ -511,7 +552,7 @@ void Hyperbolic<Double>::Query(
 
 template <typename Double>
 bool Hyperbolic<Double>::QueryRightNeighbor(
-    const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase) {
+    const SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down) {
     /*bool out = false;
     if (std::get<5>(q) == 1280) {
         std::cout << "\tQueryRightNeighbor(" << annulus_id << ", " << chunk_id << ", " << cell_id << ", "
@@ -549,8 +590,11 @@ bool Hyperbolic<Double>::QueryRightNeighbor(
 
         // if ((false && search_down && IsLocalChunk(chunk_id) && min_cell_phi > std::get<0>(q)) ||
         // !IsLocalChunk(chunk_id))
-        if (!IsLocalChunk(chunk_id)) {
-            found_nonlocal_chunk = true;
+        //
+        if ((search_down && IsLocalChunk(chunk_id) && min_cell_phi > std::get<0>(q)) || !IsLocalChunk(chunk_id)) {
+            if (!IsLocalChunk(chunk_id)) {
+                found_nonlocal_chunk = true;
+            }
             GenerateGridEdges(annulus_id, chunk_id, cell_id, q);
         }
 
@@ -637,6 +681,10 @@ void Hyperbolic<Double>::GenerateGridEdges(
     if (current_annulus_ == annulus_id && current_chunk_ == chunk_id && current_cell_ == cell_id) {
         for (SInt j = 0; j < cell_vertices.size(); ++j) {
             const Vertex& v = cell_vertices[j];
+            // if (std::get<5>(q) == 9 || std::get<5>(v) == 9) {
+            //     std::cout << "Checking " << std::get<5>(q) << " <-> " << std::get<5>(v) << std::endl;
+            // }
+
             // Skip if larger angle or same angle and larger radius
             if (std::get<0>(v) > std::get<0>(q)
                 || (std::abs(std::get<0>(v) - std::get<0>(q)) < point_eps_ && std::get<1>(v) < std::get<1>(q)))
@@ -655,6 +703,11 @@ void Hyperbolic<Double>::GenerateGridEdges(
     else {
         for (SInt j = 0; j < cell_vertices.size(); ++j) {
             const Vertex& v = cell_vertices[j];
+
+            // if (std::get<5>(q) == 9 || std::get<5>(v) == 9) {
+            //     std::cout << "Checking " << std::get<5>(q) << " <-> " << std::get<5>(v) << std::endl;
+            // }
+
             if (PGGeometry<Double>::HyperbolicDistance(q, v) <= pdm_target_r_) {
                 /*
                 if ((std::get<5>(q) == 1280 && std::get<5>(v) == 1807)
