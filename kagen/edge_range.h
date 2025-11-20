@@ -21,7 +21,7 @@ public:
 
     class iterator {
     public:
-        using iterator_category = std::forward_iterator_tag;
+        using iterator_category = std::bidirectional_iterator_tag;
         using value_type        = Edge;
         using difference_type   = std::ptrdiff_t;
 
@@ -42,6 +42,10 @@ public:
 
         iterator operator++(int);
 
+        iterator& operator--();
+
+        iterator operator--(int);
+
         bool operator==(const iterator& other) const noexcept;
         bool operator!=(const iterator& other) const noexcept;
 
@@ -60,6 +64,7 @@ public:
         void load_current() noexcept;
         void init_csr_begin() noexcept;
         void advance_to_next_valid_csr() noexcept;
+        void retreat_to_prev_valid_csr() noexcept;
     };
 
     iterator begin() const noexcept;
