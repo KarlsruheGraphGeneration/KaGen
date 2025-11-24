@@ -260,12 +260,12 @@ struct Graph {
     }
 
 private:
-    template <typename To, typename From, std::enable_if_t<std::is_same_v<typename From::value_type, To>, bool> = true>
+    template <typename To, typename From, std::enable_if_t<std::is_same<typename From::value_type, To>::value, bool> = true>
     std::vector<To> TakeVector(From& from) {
         return std::move(from);
     }
 
-    template <typename To, typename From, std::enable_if_t<!std::is_same_v<typename From::value_type, To>, bool> = true>
+    template <typename To, typename From, std::enable_if_t<!std::is_same<typename From::value_type, To>::value, bool> = true>
     std::vector<To> TakeVector(From& from) {
         std::vector<To> copy(from.size());
         std::copy(from.begin(), from.end(), copy.begin());
