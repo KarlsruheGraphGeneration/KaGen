@@ -97,7 +97,6 @@ std::uint8_t most_significant_bit_set(const Data arg) {
     if constexpr (std::is_same_v<Data, unsigned int>) {
         leading_zeros = __builtin_clz(arg);
     } else if constexpr (std::is_same_v<Data, unsigned long>) {
-        log2 -= __builtin_clzl(arg);
         leading_zeros = __builtin_clzl(arg);
     } else {
         static_assert(std::is_same_v<Data, unsigned long long>);
