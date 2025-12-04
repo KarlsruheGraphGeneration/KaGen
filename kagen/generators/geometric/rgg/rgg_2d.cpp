@@ -1,5 +1,7 @@
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 
+#include <algorithm>
+
 #include "kagen/tools/geometry.h"
 
 namespace kagen {
@@ -152,7 +154,8 @@ void RGG2D::GenerateCells(const SInt chunk_id) {
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
         seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
         SInt    h             = sampling::Spooky::hash(seed);
-        SInt    cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
+        // due to potential floating point inaccuracies clamp probability
+        SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 0.1));
         LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
         LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
 
