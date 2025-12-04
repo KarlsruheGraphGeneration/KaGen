@@ -19,6 +19,7 @@
 #include "libmorton/morton2D.h"
 #include <tuple>
 #include <vector>
+#include <algorithm>
 
 namespace kagen {
 class Geometric2D : public virtual Generator, private EdgeListOnlyGenerator {
@@ -206,7 +207,8 @@ protected:
         for (SInt i = 0; i < cells_per_chunk_; ++i) {
             seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
             SInt    h             = sampling::Spooky::hash(seed);
-            SInt    cell_vertices = rng_.GenerateBinomial(h, n, cell_area / total_area);
+            // due to potential floating point inaccuracies clamp probability
+            SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 1.0));
             LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
             LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
             if (cell_vertices != 0) {

@@ -7,6 +7,7 @@
 #include "kagen/tools/postprocessor.h"
 
 #include <iostream>
+#include <algorithm>
 
 namespace kagen {
 PGeneratorConfig
@@ -188,7 +189,8 @@ void Hyperbolic<Double>::ComputeAnnuli(const SInt chunk_id) {
 
         // Variate
         SInt h = sampling::Spooky::hash(config_.seed + total_annuli_ * config_.k + chunk_id * total_annuli_ + i);
-        SInt n_annulus = rng_.GenerateBinomial(h, n, ring_area / total_area);
+        // due to potential floating point inaccuracies clamp probability
+        SInt n_annulus = rng_.GenerateBinomial(h, n, std::clamp(ring_area / total_area, Double {0.0}, Double{1.0}));
 
         // Push annuli_
         annuli_[ComputeGlobalChunkId(i - 1, chunk_id)] = std::make_tuple(n_annulus, min_r, max_r, false, offset);
@@ -294,7 +296,7 @@ void Hyperbolic<Double>::GenerateCells(const SInt annulus_id, SInt chunk_id) {
         if (!clique)
             seed = config_.seed + annulus_id * config_.k + chunk_id + i + config_.n;
         SInt h      = sampling::Spooky::hash(seed);
-        SInt n_cell = rng_.GenerateBinomial(h, n, grid_phi / total_phi);
+        SInt n_cell = rng_.GenerateBinomial(h, n, std::clamp(grid_phi / total_phi, Double{0.0}, Double{1.0}));
 
         SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, i);
         cells_[global_cell_id] =
