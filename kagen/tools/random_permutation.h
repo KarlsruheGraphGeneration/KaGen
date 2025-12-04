@@ -79,19 +79,30 @@ inline uint8_t most_significant_bit_set(Data bytes) {
     asm("bsr %1,%0" : "=r"(msb) : "r"(bytes));
     return asserting_cast<uint8_t>(msb);
 }*/
-template <typename Data>
+template <
+    typename Data, typename Enable = std::enable_if_t<
+                       std::is_same_v<Data, unsigned int> || std::is_same_v<Data, unsigned long>
+                       || std::is_same_v<Data, unsigned long long>>>
 std::uint8_t most_significant_bit_set(const Data arg) {
-    constexpr std::size_t arg_width = std::numeric_limits<Data>::digits;
-    auto                  log2      = static_cast<Data>(arg_width);
+    constexpr std::size_t width = std::numeric_limits<Data>::digits;
 
-    if constexpr (arg_width == std::numeric_limits<unsigned int>::digits) {
-        log2 -= __builtin_clz(arg);
-    } else {
-        static_assert(arg_width == std::numeric_limits<unsigned long>::digits, "unsupported data type width");
-        log2 -= __builtin_clzl(arg);
+
+    // __builtin_clz* is undefined for 0
+    if (arg == 0) {
+      return 0;
     }
 
-    return log2 - 1;
+    std::size_t leading_zeros = 0;
+
+    if constexpr (std::is_same_v<Data, unsigned int>) {
+        leading_zeros = __builtin_clz(arg);
+    } else if constexpr (std::is_same_v<Data, unsigned long>) {
+        leading_zeros = __builtin_clzl(arg);
+    } else {
+        static_assert(std::is_same_v<Data, unsigned long long>);
+        leading_zeros = __builtin_clzll(arg);
+    }
+    return asserting_cast<std::uint8_t>(width - leading_zeros - 1);
 }
 
 #define UNUSED(expr) (void)(expr)
