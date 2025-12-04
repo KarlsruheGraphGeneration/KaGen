@@ -84,6 +84,11 @@ std::uint8_t most_significant_bit_set(const Data arg) {
     constexpr std::size_t arg_width = std::numeric_limits<Data>::digits;
     auto                  log2      = static_cast<Data>(arg_width);
 
+    // __builtin_clz(l) is undefined for 0
+    if (arg == 0) {
+      return 0;
+    }
+
     if constexpr (arg_width == std::numeric_limits<unsigned int>::digits) {
         log2 -= __builtin_clz(arg);
     } else {
