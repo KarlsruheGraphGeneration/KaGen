@@ -16,24 +16,37 @@ Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID siz
             config.grid_y     = sqrt_n;
         }
     }
+    if (config.n == 0) {
+        config.n = config.grid_x * config.grid_y;
+    }
     if (config.p == 0) {
         if (config.m == 0) {
-            throw ConfigurationError("if p is not given, m must be nonzero");
+            throw ConfigurationError("if p is not given, m must be nonzero.");
+        } else if (config.grid_x == 1 && config.grid_y == 1) {
+            throw ConfigurationError("p is not given, and the resulting graph would have zero edges.");
         }
 
-        const SInt num_deg2_vertices = config.periodic ? 0 : 4;
-        const SInt num_deg3_vertices = config.periodic ? 0 : 2 * config.grid_x + 2 * config.grid_y - 4;
-        const SInt num_deg4_vertices = config.grid_x * config.grid_y - num_deg2_vertices - num_deg3_vertices;
+        SInt maxNumEdges = 0;
 
-        config.p = 2.0 * config.m / (4 * num_deg4_vertices + 3 * num_deg3_vertices + 2 * num_deg2_vertices);
+        if (config.grid_x == 1 || config.grid_y == 1) {
+            maxNumEdges = (config.grid_x == 1) ? 2*(config.grid_y - 1) : 2*(config.grid_x - 1);
+        } else {
+            const SInt num_deg2_vertices = 4;
+            const SInt num_deg3_vertices = 2 * config.grid_x + 2 * config.grid_y - 2*4;
+            const SInt num_deg4_vertices = config.grid_x * config.grid_y - num_deg2_vertices - num_deg3_vertices;
+            maxNumEdges = (4 * num_deg4_vertices + 3 * num_deg3_vertices + 2 * num_deg2_vertices);
+        }
+
+        config.p = 2.0 * config.m / maxNumEdges;
         if (output) {
             std::cout << "Setting edge probability to " << config.p << std::endl;
             if (config.p > 1) {
-                std::cerr << "Warning: configuration infeasible, too many edges\n";
+                throw ConfigurationError("Warning: configuration infeasible, too many edges");
             }
         }
     }
-
+    std::cout << "Number of nodes: " << config.n << " ; Expected: " << config.grid_x * config.grid_y << std::endl;
+    std::cout << "Number of chunks: " << config.k << std::endl;
     if (config.streaming) {
         if (config.k < 1) {
             throw ConfigurationError("Number of chunks must be at least 1");
