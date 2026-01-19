@@ -7,11 +7,15 @@ namespace kagen {
 PGeneratorConfig
 Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
-    if (config.grid_x == 0 && config.grid_y == 0) {
+    if (config.grid_x == 0 || config.grid_y == 0) { 
         if (config.n == 0) {
             throw ConfigurationError("either (x, y) or n must be nonzero");
         } else {
             const SInt sqrt_n = std::sqrt(config.n);
+            const bool is_perfect_square = (sqrt_n * sqrt_n == config.n);
+            if (!is_perfect_square && output) {
+                std::cerr << "Warning: n = " << config.n << " is not a perfect square; using grid " << sqrt_n << " x " << sqrt_n << " (" << sqrt_n * sqrt_n << " vertices)\n";
+            } 
             config.grid_x     = sqrt_n;
             config.grid_y     = sqrt_n;
         }
@@ -26,27 +30,31 @@ Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID siz
             throw ConfigurationError("p is not given, and the resulting graph would have zero edges.");
         }
 
-        SInt maxNumEdges = 0;
+        // directed
+        SInt max_directed_edges = 0;
 
         if (config.grid_x == 1 || config.grid_y == 1) {
-            maxNumEdges = (config.grid_x == 1) ? 2*(config.grid_y - 1) : 2*(config.grid_x - 1);
+            max_directed_edges = (config.grid_x == 1) ? 2 * (config.grid_y - 1) : 2 * (config.grid_x - 1);
         } else {
             const SInt num_deg2_vertices = 4;
-            const SInt num_deg3_vertices = 2 * config.grid_x + 2 * config.grid_y - 2*4;
+            const SInt num_deg3_vertices = 2 * config.grid_x + 2 * config.grid_y - 8;
             const SInt num_deg4_vertices = config.grid_x * config.grid_y - num_deg2_vertices - num_deg3_vertices;
-            maxNumEdges = (4 * num_deg4_vertices + 3 * num_deg3_vertices + 2 * num_deg2_vertices);
+            max_directed_edges = (4 * num_deg4_vertices + 3 * num_deg3_vertices + 2 * num_deg2_vertices);
         }
 
-        config.p = 2.0 * config.m / maxNumEdges;
+        if (max_directed_edges % 2 != 0) throw std::logic_error("Sum of degrees (directed edges) must be even.");
+
+        if (max_directed_edges == 0) throw ConfigurationError("If p is not given, the maximum number of possible edges must be non-zero.");
+
+        config.p = 2.0 * config.m / max_directed_edges;
         if (output) {
             std::cout << "Setting edge probability to " << config.p << std::endl;
             if (config.p > 1) {
-                throw ConfigurationError("Warning: configuration infeasible, too many edges");
+                throw ConfigurationError("Configuration infeasible, too many edges");
             }
         }
     }
-    std::cout << "Number of nodes: " << config.n << " ; Expected: " << config.grid_x * config.grid_y << std::endl;
-    std::cout << "Number of chunks: " << config.k << std::endl;
+
     if (config.streaming) {
         if (config.k < 1) {
             throw ConfigurationError("Number of chunks must be at least 1");
