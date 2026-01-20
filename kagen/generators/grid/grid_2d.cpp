@@ -19,9 +19,10 @@ Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID siz
         config.grid_y     = sqrt_n;
     } else if (config.n == 0 && config.grid_x > 0 && config.grid_y > 0) {
        config.n = config.grid_x * config.grid_y;
-    }
-    if (config.n != config.grid_x * config.grid_y) {
-        throw ConfigurationError("Dimensions do not fit number of vertices.");
+    } else {
+        if (config.n != config.grid_x * config.grid_y) {
+            throw ConfigurationError("Dimensions do not fit number of vertices.");
+        }        
     }
     if (config.p == 0) {
         if (config.m == 0) {
@@ -43,7 +44,7 @@ Grid2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID siz
         
         if (config.periodic) {
             const SInt deg = axis_neighbors(config.grid_x) + axis_neighbors(config.grid_y);
-            max_directed_edges = deg * config.n;
+            max_directed_edges = deg * config.grid_x * config.grid_y;
         } else {
             if (config.grid_x == 1 || config.grid_y == 1) {
                     max_directed_edges = (config.grid_x == 1) ? 2 * (config.grid_y - 1) : 2 * (config.grid_x - 1);
