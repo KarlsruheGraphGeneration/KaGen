@@ -346,7 +346,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);
-        params->require_option(1);
+        add_option_p(params);
         params->silent();
     }
 
