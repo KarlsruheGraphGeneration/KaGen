@@ -76,6 +76,7 @@ TEST_P(PathGeneratorTestFixture, path_generation_without_permutation) {
 
     PGeneratorConfig config;
     config.n = GetParam();
+    config.p = 1.0;
 
     PathDirected generator(config, rank, size);
     generator.Generate(GraphRepresentation::EDGE_LIST);
@@ -94,6 +95,7 @@ TEST_P(PathGeneratorTestFixture, path_generation_with_permutation) {
 
     PGeneratorConfig config;
     config.n       = GetParam();
+    config.p       = 1.0;
     config.permute = true;
 
     PathDirected generator(config, rank, size);
