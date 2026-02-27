@@ -144,8 +144,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << " / " << config.rmat_b << " / " << config.rmat_c << " / "
                 << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
             out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
-	    out << "  Graph type:                         "
-                << (config.directed ? "directed" : "undirected") << "\n";
+            out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
             break;
 
         case GeneratorType::IMAGE_MESH:
@@ -342,6 +341,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.k           = get_sint_or_default("k");
     config.seed        = get_sint_or_default("seed", config.seed);
     config.p           = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
+    config.perm_p      = get_hpfloat_or_default("permutation_prob", get_hpfloat_or_default("permutation_p"));
     config.r           = get_hpfloat_or_default("radius", get_hpfloat_or_default("r"));
     config.plexp       = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
     config.periodic    = get_bool_or_default("periodic");
@@ -404,7 +404,8 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         config.input_graph.distribution = distribution_it->second;
 
         config.input_graph.explicit_distribution_filename = get_string_or_default("explicit_distribution");
-        config.input_graph.explicit_distribution_is_prefix_sum = get_bool_or_default("explicit_distribution_is_prefix_sum");
+        config.input_graph.explicit_distribution_is_prefix_sum =
+            get_bool_or_default("explicit_distribution_is_prefix_sum");
 
         const auto        formats     = GetInputFormatMap();
         const std::string format_name = get_string_or_default("input_format", StringifyEnum(config.input_graph.format));
