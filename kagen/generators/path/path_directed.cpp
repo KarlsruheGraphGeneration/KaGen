@@ -33,7 +33,7 @@ public:
         offset_.assign(static_cast<std::size_t>(comm_size) + 1u, SInt{0});
         offset_[static_cast<std::size_t>(rank)] = local_size;
 
-	unsigned long long send_buf = rank;
+        unsigned long long send_buf = offset_[rank];
         MPI_Allgather(
             &send_buf, 1, MPI_UNSIGNED_LONG_LONG, offset_.data(), 1,
             MPI_UNSIGNED_LONG_LONG, comm);
