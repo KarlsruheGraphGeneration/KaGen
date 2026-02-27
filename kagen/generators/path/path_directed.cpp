@@ -228,9 +228,10 @@ struct PartialPermutator {
     void fill_finv_permuted(const auto& permutator) {
         fill_map(finv_map, [&](SInt x) { return permutator.finv(x); });
     }
-    PartialPermutator(SInt n, double permutation_ratio, VertexRange range, MPI_Comm comm) : comm_{comm}, range_{range} {
+    PartialPermutator(SInt n, double permutation_ratio, int seed, VertexRange range, MPI_Comm comm)
+        : comm_{comm},
+          range_{range} {
         MPI_Comm_rank(comm, &rank_);
-        std::cout << "permutator construction before ctor" << std::endl;
         auto              ranges     = AllgatherVertexRange(range, comm);
         SInt              local_size = range.second - range.first;
         std::vector<SInt> local_chunk(local_size);
@@ -250,10 +251,8 @@ struct PartialPermutator {
             to_local_permutation_index_map_.emplace(permutation_vertices_[i], i);
         }
 
-        // get global indices for permuted vertices
-
         auto permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(
-            permutation_distribution_.get_global_size() - 1, 0);
+            permutation_distribution_.get_global_size() - 1, static_cast<std::uint64_t>(seed));
         fill_f_permuted(permutator);
         fill_finv_permuted(permutator);
         for (SInt i = range_.first; i < range_.second; ++i) {
@@ -265,55 +264,6 @@ struct PartialPermutator {
             }
         }
 
-        std::stringstream sstr;
-        sstr << "rank: " << rank_ << " permuted vertices: \n";
-        for (const auto& v: permutation_vertices_) {
-            sstr << v << " ";
-        }
-        sstr << "\n";
-        sstr << "rank: " << rank_ << " permuted vertices: \n";
-        for (SInt i = 0; i < permutation_distribution_.get_global_size(); ++i) {
-            sstr << i << " f=" << permutator.f(i) << " finv=" << permutator.finv(i);
-            if (permutation_distribution_.is_local(permutator.f(i), rank_)) {
-                sstr << " fglobal=" << from_permutation_to_global(permutator.f(i));
-            }
-            if (permutation_distribution_.is_local(permutator.finv(i), rank_)) {
-                sstr << " finv_global=" << from_permutation_to_global(permutator.finv(i));
-            }
-            sstr << "\n";
-        }
-        sstr << "\n";
-        sstr << "rank: " << rank_ << "fmap: \n";
-        for (const auto& [x, value]: f_map) {
-            sstr << "[" << x << "->" << value << "]\n";
-        }
-        sstr << "rank: " << rank_ << "finv_map: \n";
-        for (const auto& [x, value]: finv_map) {
-            sstr << "[" << x << "->" << value << "]\n";
-        }
-        std::cout << sstr.str() << std::endl;
-
-        // struct Request {
-        //     SInt request;
-        //     PEID origin;
-        // };
-
-        // struct FReply {
-        //     SInt argument;
-        //     SInt compact_value;
-        //     SInt value;
-        // };
-
-        // std::cout << "permutator construction after init" << std::endl;
-
-        // std::stringstream sstr;
-        // sstr << "rank: " << rank << " ranges: ";
-        // for (const auto [b, e]: ranges) {
-        //     sstr << "[" << b << ", " << e << ") ";
-        // }
-        // sstr << "\n";
-        // sstr << "requests " << rank << ":";
-        //
         struct Request {
             SInt request;
             PEID origin;
@@ -342,48 +292,7 @@ struct PartialPermutator {
 
         for (const auto& [request, f_request]: recv_replies) {
             f_map.emplace(request, f_request);
-            sstr << "" << request << "->" << f_request << "]  ";
         }
-
-        // MPI_Datatype request_mpi_type;
-        // MPI_Type_contiguous(sizeof(Request), MPI_BYTE, &request_mpi_type);
-        // MPI_Type_commit(&request_mpi_type);
-        // auto recv_requests = ExchangeMessageBuffers(std::move(send_bufs_requests), request_mpi_type, comm);
-        // MPI_Type_free(&request_mpi_type);
-        // struct Reply {
-        //     SInt request;
-        //     SInt f_request;
-        // };
-        // sstr << "\nmake_replies: ";
-        // std::unordered_map<PEID, std::vector<Reply>> send_bufs_replies;
-        // for (const auto& [req, origin]: recv_requests) {
-        //     auto it = f_map.find(req);
-        //     if (it == f_map.end()) {
-        //         throw std::runtime_error("error");
-        //     }
-        //     auto f_value = it->second;
-        //     sstr << "(" << origin << " [" << req << ", " << f_value << "]) ";
-        //     send_bufs_replies[origin].emplace_back(req, f_value);
-        // }
-        // sstr << "\n";
-
-        // MPI_Datatype reply_mpi_type;
-        // MPI_Type_contiguous(sizeof(Reply), MPI_BYTE, &reply_mpi_type);
-        // MPI_Type_commit(&reply_mpi_type);
-        // auto recv_replies = ExchangeMessageBuffers(std::move(send_bufs_replies), reply_mpi_type, comm);
-        // MPI_Type_free(&reply_mpi_type);
-
-        // sstr << "\n";
-        // sstr << "rank " << rank << " inserted fmap: ";
-        // for (const auto& [request, f_request]: recv_replies) {
-        //     f_map.emplace(request, f_request);
-        //     sstr << "[" << request << "->" << f_request << "]  ";
-        // }
-        // sstr << "\n\n";
-        // for (SInt i = range.first; i < range.second; ++i) {
-        //     sstr << i << "-->" << f(i) << "\n";
-        // }
-        // std::cout << sstr.str() << std::endl;
     }
     SInt f(SInt x) {
         auto it = f_map.find(x);
@@ -417,6 +326,38 @@ struct PartialPermutator {
     std::unordered_map<SInt, SInt> finv_map;
 };
 
+class Permutator {
+public:
+    Permutator(PGeneratorConfig const& config, VertexRange range, MPI_Comm) {
+        if (config.perm_p > 0.0) {
+            partial_permutator  = PartialPermutator(config.n, config.perm_p, config.seed, range, MPI_COMM_WORLD);
+            use_partial_permute = true;
+        } else {
+            complete_permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(
+                config.n - 1, static_cast<std::uint64_t>(config.seed));
+        }
+    }
+    SInt f(SInt x) {
+        if (use_partial_permute) {
+            return partial_permutator->f(x);
+        } else {
+            return complete_permutator->f(x);
+        }
+    }
+    SInt finv(SInt x) {
+        if (use_partial_permute) {
+            return partial_permutator->finv(x);
+        } else {
+            return complete_permutator->finv(x);
+        }
+    }
+
+private:
+    bool                                                              use_partial_permute{false};
+    std::optional<PartialPermutator>                                  partial_permutator;
+    std::optional<random_permutation::FeistelPseudoRandomPermutation> complete_permutator;
+};
+
 PathDirected::PathDirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
@@ -440,12 +381,9 @@ void PathDirected::GenerateEdgeList() {
 
 #ifdef KAGEN_XXHASH_FOUND
     // auto permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(config_.n - 1, 0);
-    std::cout << "perm prob: " << config_.perm_p << std::endl;
-    auto permutator  = PartialPermutator(config_.n, config_.perm_p, graph_.vertex_range, MPI_COMM_WORLD);
-    auto permutator_ = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(config_.n - 1, 0);
+    Permutator permutator(config_, graph_.vertex_range, MPI_COMM_WORLD);
 #endif // KAGEN_XXHASH_FOUND
 
-    std::cout << "permutator constructed" << std::endl;
     for (SInt i = begin_nodes; i < end_nodes; ++i) {
         const auto [j, is_valid] = [&]() -> std::pair<SInt, bool> {
 #ifdef KAGEN_XXHASH_FOUND
