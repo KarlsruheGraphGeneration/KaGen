@@ -341,7 +341,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
     config.k           = get_sint_or_default("k");
     config.seed        = get_sint_or_default("seed", config.seed);
     config.p           = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
-    config.perm_p      = get_hpfloat_or_default("permutation_prob", get_hpfloat_or_default("permutation_p"));
+    config.perm_p      = get_hpfloat_or_default("permutation_prob", get_hpfloat_or_default("permutation_p", 1.0));
     config.r           = get_hpfloat_or_default("radius", get_hpfloat_or_default("r"));
     config.plexp       = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
     config.periodic    = get_bool_or_default("periodic");
