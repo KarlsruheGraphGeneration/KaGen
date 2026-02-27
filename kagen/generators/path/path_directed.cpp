@@ -329,7 +329,7 @@ struct PartialPermutator {
 class Permutator {
 public:
     Permutator(PGeneratorConfig const& config, VertexRange range, MPI_Comm) {
-        if (config.perm_p > 0.0) {
+        if (config.perm_p < 1.0) {
             partial_permutator  = PartialPermutator(config.n, config.perm_p, config.seed, range, MPI_COMM_WORLD);
             use_partial_permute = true;
         } else {

@@ -121,7 +121,7 @@ struct PGeneratorConfig {
     SInt          m          = 0;     // Number of edges
     SInt          k          = 0;     // Number of chunks
     double        p          = 0.0;   // Edge probability
-    double        perm_p     = 0.0;   // permutation probability
+    double        perm_p     = 1.0;   // permutation probability
     double        r          = 0.0;   // Edge radius
     bool          self_loops = false; // Allow self loops
     double        plexp      = 2.6;   // Power law exponent
