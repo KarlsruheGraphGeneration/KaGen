@@ -116,29 +116,33 @@ struct PGeneratorConfig {
     ExternalMemoryConfig external{};
 
     // Generator settings
-    GeneratorType generator;          // Generator type
-    SInt          n          = 0;     // Number of nodes
-    SInt          m          = 0;     // Number of edges
-    SInt          k          = 0;     // Number of chunks
-    double        p          = 0.0;   // Edge probability
-    double        r          = 0.0;   // Edge radius
-    bool          self_loops = false; // Allow self loops
-    double        plexp      = 2.6;   // Power law exponent
-    double        avg_degree = 0.0;   // Average degree
-    double        thres      = 0.0;   // Clique threshold (RHG)
-    bool          query_both = false; // Query strategy (RHG) -- should be set to false
-    SInt          min_degree = 0.0;   // Minimum degree (BA)
-    SInt          grid_x     = 0;     // Grid x dimension (Grid2D, Grid3D)
-    SInt          grid_y     = 0;     // Grid y dimension (Grid2D, Grid3D)
-    SInt          grid_z     = 0;     // Grid z dimension (Grid3D)
-    bool          periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
-    int           hp_floats  = 0;     // Use 80 bit floating point numbers for RHG generator, 0 for auto
-    double        rmat_a     = Graph500RMATDefaults::a;
-    double        rmat_b     = Graph500RMATDefaults::b;
-    double        rmat_c     = Graph500RMATDefaults::c;
-    bool          directed   = false;
-    bool          permute    = false; // Permute node vertices
-    bool          streaming  = false; 
+    GeneratorType     generator;          // Generator type
+    SInt              n          = 0;     // Number of nodes
+    SInt              m          = 0;     // Number of edges
+    SInt              k          = 0;     // Number of chunks
+    double            p          = 0.0;   // Edge probability
+    double            r          = 0.0;   // Edge radius
+    bool              self_loops = false; // Allow self loops
+    double            plexp      = 2.6;   // Power law exponent
+    double            avg_degree = 0.0;   // Average degree
+    double            thres      = 0.0;   // Clique threshold (RHG)
+    bool              query_both = false; // Query strategy (RHG) -- should be set to false
+    SInt              min_degree = 0.0;   // Minimum degree (BA)
+    SInt              grid_x     = 0;     // Grid x dimension (Grid2D, Grid3D)
+    SInt              grid_y     = 0;     // Grid y dimension (Grid2D, Grid3D)
+    SInt              grid_z     = 0;     // Grid z dimension (Grid3D)
+    bool              periodic   = false; // Use periodic boundary (Grid2D, Grid3D)
+    int               hp_floats  = 0;     // Use 80 bit floating point numbers for RHG generator, 0 for auto
+    double            rmat_a     = Graph500RMATDefaults::a;
+    double            rmat_b     = Graph500RMATDefaults::b;
+    double            rmat_c     = Graph500RMATDefaults::c;
+    bool              directed   = false;
+    bool              permute    = false; // Permute node vertices
+    bool              streaming  = false;
+    GraphDistribution distribution =
+        GraphDistribution::BALANCE_VERTICES; // experimental feature: not all generators support all distribution types
+                                             // and may resort to fall-back or fail when called with unsupported
+                                             // distribution types
 
     double max_vertex_imbalance = 0.1; // RGG, RDG, RHG
 

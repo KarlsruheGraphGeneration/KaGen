@@ -144,8 +144,7 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << " / " << config.rmat_b << " / " << config.rmat_c << " / "
                 << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
             out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
-	    out << "  Graph type:                         "
-                << (config.directed ? "directed" : "undirected") << "\n";
+            out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
             break;
 
         case GeneratorType::IMAGE_MESH:
@@ -404,7 +403,8 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         config.input_graph.distribution = distribution_it->second;
 
         config.input_graph.explicit_distribution_filename = get_string_or_default("explicit_distribution");
-        config.input_graph.explicit_distribution_is_prefix_sum = get_bool_or_default("explicit_distribution_is_prefix_sum");
+        config.input_graph.explicit_distribution_is_prefix_sum =
+            get_bool_or_default("explicit_distribution_is_prefix_sum");
 
         const auto        formats     = GetInputFormatMap();
         const std::string format_name = get_string_or_default("input_format", StringifyEnum(config.input_graph.format));
@@ -413,6 +413,16 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             throw std::runtime_error("invalid graph input format");
         }
         config.input_graph.format = format_it->second;
+    }
+    {
+        const auto        distributions = GetGraphDistributionMap();
+        const std::string distribution_name =
+            get_string_or_default("distribution", StringifyEnum(config.input_graph.distribution));
+        const auto distribution_it = distributions.find(distribution_name);
+        if (distribution_it == distributions.end()) {
+            throw std::runtime_error("invalid graph distribution");
+        }
+        config.distribution = distribution_it->second;
     }
 
     {
