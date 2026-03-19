@@ -1,6 +1,7 @@
 #include "kagen/tools/statistics.h"
 
 #include "kagen/definitions.h"
+#include "kagen/tools/utils.h"
 
 #include <mpi.h>
 
@@ -178,12 +179,7 @@ double ComputeEdgeLocality(const Edgelist& edges, const VertexRange vertex_range
     MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 
-    if (num_global_edges == 0) {
-        // Define edge locality for an empty graph explicitly to avoid division by zero.
-        return 1.0;
-    }
-
-    return 1.0 - static_cast<double>(num_global_cut_edges) / static_cast<double>(num_global_edges);
+    return 1.0 - DivideOrDefault(static_cast<double>(num_global_cut_edges), static_cast<double>(num_global_edges), 0.0);
 }
 
 SInt ComputeNumberOfGhostNodes(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {

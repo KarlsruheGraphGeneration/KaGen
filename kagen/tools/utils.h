@@ -6,8 +6,15 @@
 
 #include <limits>
 #include <numeric>
+#include <type_traits>
 
 namespace kagen {
+template <typename T>
+inline T DivideOrDefault(T dividend, T divisor, T default_value = static_cast<T>(0)) {
+    static_assert(std::is_arithmetic_v<T>, "SafeDivision requires an arithmetic type");
+    return divisor == static_cast<T>(0) ? default_value : dividend / divisor;
+}
+
 inline std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const PEID rank) {
     const SInt chunk = n / size;
     const SInt rem   = n % size;
