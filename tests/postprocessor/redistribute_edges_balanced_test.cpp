@@ -94,8 +94,9 @@ TEST_P(RedistributeEdgesBalancedFixture, PreservesEdgeSet) {
         return edges;
     }(input);
 
-    Edgelist redistributed_edges;
-    RedistributeEdgesBalanced(input, redistributed_edges, num_vertices, MPI_COMM_WORLD);
+    Edgelist    redistributed_edges;
+    const bool  remap_round_robin = true;
+    RedistributeEdgesBalanced(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
 
     Edgelist result = GatherAllEdges(redistributed_edges);
     std::sort(result.begin(), result.end());
@@ -117,7 +118,8 @@ TEST_P(RedistributeEdgesBalancedFixture, OwnershipInvariant) {
     MPI_Allreduce(MPI_IN_PLACE, &num_vertices, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
 
     Edgelist    redistributed_edges;
-    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, num_vertices, MPI_COMM_WORLD);
+    const bool  remap_round_robin = true;
+    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
 
     for (const auto& [u, v]: redistributed_edges) {
         EXPECT_GE(u, vr.first);
@@ -138,8 +140,9 @@ TEST_P(RedistributeEdgesBalancedFixture, NoDuplicatesInOutput) {
     SInt     num_vertices = graph.vertex_range.second;
     MPI_Allreduce(MPI_IN_PLACE, &num_vertices, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
 
-    Edgelist redistributed_edges;
-    RedistributeEdgesBalanced(input, redistributed_edges, num_vertices, MPI_COMM_WORLD);
+    Edgelist    redistributed_edges;
+    const bool  remap_round_robin = true;
+    RedistributeEdgesBalanced(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
 
     EXPECT_TRUE(std::is_sorted(redistributed_edges.begin(), redistributed_edges.end()));
     auto dup = std::adjacent_find(redistributed_edges.begin(), redistributed_edges.end());
@@ -158,8 +161,9 @@ TEST(RedistributeEdgesBalanced, PreservesEdgeSet_Star) {
     std::sort(expected.begin(), expected.end());
     expected.erase(std::unique(expected.begin(), expected.end()), expected.end());
 
-    Edgelist redistributed_edges;
-    RedistributeEdgesBalanced(input, redistributed_edges, n, MPI_COMM_WORLD);
+    Edgelist    redistributed_edges;
+    const bool  remap_round_robin = true;
+    RedistributeEdgesBalanced(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
 
     Edgelist result = GatherAllEdges(redistributed_edges);
     std::sort(result.begin(), result.end());
@@ -171,7 +175,8 @@ TEST(RedistributeEdgesBalanced, OwnershipInvariant_Star) {
     const SInt  n     = 100;
     Edgelist    input = BuildStarOnPE0(n);
     Edgelist    redistributed_edges;
-    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, n, MPI_COMM_WORLD);
+    const bool  remap_round_robin = true;
+    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
 
     for (const auto& [u, v]: redistributed_edges) {
         EXPECT_GE(u, vr.first);
@@ -186,7 +191,8 @@ TEST(RedistributeEdgesBalanced, EmptyInput) {
     Edgelist   input;
     Edgelist   redistributed_edges;
 
-    RedistributeEdgesBalanced(input, redistributed_edges, n, MPI_COMM_WORLD);
+    const bool remap_round_robin = true;
+    RedistributeEdgesBalanced(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
 
     EXPECT_TRUE(redistributed_edges.empty());
 }
@@ -207,7 +213,8 @@ TEST(RedistributeEdgesBalanced, SingleEdge) {
     std::sort(expected.begin(), expected.end());
 
     Edgelist    redistributed_edges;
-    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, n, MPI_COMM_WORLD);
+    const bool  remap_round_robin = true;
+    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
 
     Edgelist result = GatherAllEdges(redistributed_edges);
     std::sort(result.begin(), result.end());

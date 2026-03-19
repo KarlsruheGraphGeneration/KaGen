@@ -146,16 +146,7 @@ VertexRange RedistributeEdgesRoundRobin(Edgelist& source, Edgelist& destination,
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
 
-    // Remove vertex distribution (round-robin)
-    const SInt num_vertices_per_pe = n / size;
-    const SInt remaining_vertices  = n % size;
-
-    std::vector<SInt> distribution(size + 1);
-    for (PEID pe = 0; pe < size; ++pe) {
-        distribution[pe] = num_vertices_per_pe + (static_cast<SInt>(pe) < remaining_vertices);
-    }
-    std::exclusive_scan(distribution.begin(), distribution.end(), distribution.begin(), 0);
-    distribution.back() = n;
+    std::vector<SInt> distribution = ComputeBalancedVertexDistribution(n, comm);
 
     // Find number of edges for each PE
     auto compute_owner = [&](const SInt id) {
@@ -219,36 +210,40 @@ VertexRange RedistributeEdgesRoundRobin(Edgelist& source, Edgelist& destination,
     return {distribution[rank], distribution[rank + 1]};
 }
 
-std::vector<SInt> RoundRobinRemapping(Edgelist& edges, const SInt n, MPI_Comm comm) {
+std::vector<SInt> ComputeBalancedVertexDistribution(const SInt n, MPI_Comm comm) {
     PEID size;
-    PEID rank;
     MPI_Comm_size(comm, &size);
-    MPI_Comm_rank(comm, &rank);
 
-    // Remove vertex distribution (round-robin)
     const SInt num_vertices_per_pe = n / size;
     const SInt remaining_vertices  = n % size;
 
-    std::vector<SInt> vertex_rr_distribution(size + 1);
+    std::vector<SInt> distribution(size + 1);
     for (PEID pe = 0; pe < size; ++pe) {
-        vertex_rr_distribution[pe] = num_vertices_per_pe + (static_cast<SInt>(pe) < remaining_vertices);
+        distribution[pe] = num_vertices_per_pe + (static_cast<SInt>(pe) < remaining_vertices);
     }
-    std::exclusive_scan(
-        vertex_rr_distribution.begin(), vertex_rr_distribution.end(), vertex_rr_distribution.begin(), 0);
-    vertex_rr_distribution.back() = n;
+    std::exclusive_scan(distribution.begin(), distribution.end(), distribution.begin(), 0);
+    distribution.back() = n;
 
-    // Find number of edges for each PE
+    return distribution;
+}
+
+std::vector<SInt> RoundRobinRemapping(Edgelist& edges, const SInt n, MPI_Comm comm) {
+    PEID size;
+    MPI_Comm_size(comm, &size);
+
+    std::vector<SInt> distribution = ComputeBalancedVertexDistribution(n, comm);
+
     auto compute_owner = [&](const SInt id) {
         return id % size;
     };
     auto compute_remap = [&](const SInt id) {
-        return vertex_rr_distribution[compute_owner(id)] + id / size;
+        return distribution[compute_owner(id)] + id / size;
     };
     for (auto& [u, v]: edges) {
         u = compute_remap(u);
         v = compute_remap(v);
     }
-    return vertex_rr_distribution;
+    return distribution;
 }
 
 class Distribution {
@@ -270,6 +265,11 @@ public:
         return distribution_;
     }
 
+    SInt local_count(PEID rank) const {
+        assert(rank + 1 < static_cast<int>(distribution_.size()));
+        return distribution_[rank + 1] - distribution_[rank];
+    }
+
     VertexRange get_vertex_range(PEID rank) const {
         assert(rank + 1 < static_cast<int>(distribution_.size()));
         return VertexRange{distribution_[rank], distribution_[rank + 1]};
@@ -279,26 +279,15 @@ private:
     std::vector<SInt> distribution_;
 };
 
-std::vector<SInt> ComputeBalancedEdgesRoundRobin(
-    Edgelist const& edges, const std::vector<SInt>& vertex_distribution, const SInt n, MPI_Comm comm) {
+std::vector<SInt>
+ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& vertex_distribution, MPI_Comm comm) {
     PEID size;
     PEID rank;
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
 
-    auto compute_owner = [&](SInt v) -> int {
-        // upper_bound returns iterator to first element > v
-        auto it = std::upper_bound(vertex_distribution.begin(), vertex_distribution.end(), v);
-        assert(it != vertex_distribution.end());
-        PEID pe = static_cast<int>(it - vertex_distribution.begin() - 1);
-        return pe;
-    };
-
-    auto compute_local_index = [&](SInt v, int rank) -> SInt {
-        // upper_bound returns iterator to first element > v
-        assert(v >= vertex_distribution[rank]);
-        return v - vertex_distribution[rank];
-    };
+    const SInt   n = vertex_distribution.back();
+    Distribution input_dist(vertex_distribution);
 
     std::unordered_map<SInt, SInt> partial_degree;
     for (const auto& [u, v]: edges) {
@@ -308,7 +297,7 @@ std::vector<SInt> ComputeBalancedEdgesRoundRobin(
     // Compute send_counts and send_displs
     std::vector<int> send_counts(size);
     for (const auto& [u, degree]: partial_degree) {
-        send_counts[compute_owner(u)] += 2;
+        send_counts[input_dist.compute_owner(u)] += 2;
     }
 
     std::vector<int> send_displs(size);
@@ -317,7 +306,7 @@ std::vector<SInt> ComputeBalancedEdgesRoundRobin(
     std::vector<SInt> sendbuf(send_displs.back() + send_counts.back());
 
     for (const auto& [u, degree]: partial_degree) {
-        auto& pos        = write_offsets[compute_owner(u)];
+        auto& pos        = write_offsets[input_dist.compute_owner(u)];
         sendbuf[pos]     = u;
         sendbuf[pos + 1] = degree;
         pos += 2;
@@ -336,13 +325,13 @@ std::vector<SInt> ComputeBalancedEdgesRoundRobin(
         recv_displs.data(), KAGEN_MPI_SINT, comm);
     partial_degree.clear();
     SInt              total_degree = 0;
-    SInt              local_n      = n / size + (rank < static_cast<int>(n % size));
+    const SInt        local_n      = input_dist.local_count(rank);
     std::vector<SInt> local_degree(local_n, 0);
     for (std::size_t i = 0; i < recvbuf.size(); i += 2) {
         const SInt u      = recvbuf[i];
         const SInt degree = recvbuf[i + 1];
         total_degree += degree;
-        local_degree[compute_local_index(u, rank)] += degree;
+        local_degree[input_dist.compute_local_index(u, rank)] += degree;
     }
 
     SInt prefix_sum = 0;
@@ -399,14 +388,20 @@ std::vector<SInt> ComputeBalancedEdgesRoundRobin(
     return edge_balanced_distribution;
 }
 
-VertexRange RedistributeEdgesBalanced(Edgelist& source, Edgelist& destination, const SInt n, MPI_Comm comm) {
+VertexRange RedistributeEdgesBalanced(
+    Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, MPI_Comm comm) {
     {
         std::sort(source.begin(), source.end());
         auto it = std::unique(source.begin(), source.end());
         source.erase(it, source.end());
     }
-    auto              vertex_distribution        = RoundRobinRemapping(source, n, comm);
-    std::vector<SInt> edge_balanced_distribution = ComputeBalancedEdgesRoundRobin(source, vertex_distribution, n, comm);
+    std::vector<SInt> vertex_distribution;
+    if (remap_round_robin) {
+        vertex_distribution = RoundRobinRemapping(source, n, comm);
+    } else {
+        vertex_distribution = ComputeBalancedVertexDistribution(n, comm);
+    }
+    std::vector<SInt> edge_balanced_distribution = ComputeBalancedEdgeDistribution(source, vertex_distribution, comm);
     Distribution      dist(edge_balanced_distribution);
 
     PEID size;

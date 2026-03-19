@@ -291,6 +291,8 @@ void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, co
     const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range, comm);
     const double ghost_node_fraction    = 1.0 * global_num_ghost_nodes / (global_num_nodes + global_num_ghost_nodes);
 
+    const auto ranges = AllgatherVertexRange(vertex_range, comm);
+
     // Print on root
     if (root) {
         std::cout << "Density: " << std::fixed << std::setprecision(4) << density << "\n";
@@ -322,6 +324,9 @@ void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, co
                   << std::endl;
         std::cout << "  There are " << global_num_nodes << " real vertices and " << global_num_ghost_nodes
                   << " ghost vertices" << std::endl;
+        for (const auto& range: ranges) {
+            std::cout << "[" << range.first << ", " << range.second << ")" << std::endl;
+        }
     }
 }
 } // namespace kagen
