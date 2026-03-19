@@ -23,22 +23,27 @@ void AddNonlocalReverseEdges(Edgelist& edge_list, EdgeWeights& edge_weights, Ver
  * @param edge_list The edge list to redistribute.
  * @param vertex_range The vertex range assigned to this PE.
  * @param comm The MPI communicator.
+ * @param use_binary_search If true, use binary search for PE lookup (faster for many PEs).
  */
-void RedistributeEdgesByVertexRange(Edgelist& edge_list, VertexRange vertex_range, MPI_Comm comm);
+void RedistributeEdgesByVertexRange(
+    Edgelist& edge_list, VertexRange vertex_range, MPI_Comm comm, bool use_binary_search = false);
 
 /**
- * @brief Assigns vertices round-robin to PEs and redistributes the edges accordingly.
- * More precisely, this function assigns vertex `v` to PE `v mod <nproc>`, relabels the vertices, and
- * migrates the edges accordingly.
- * **Note:** In order to do so, both edge lists are sorted and duplicate edges are removed.
+ * @brief Redistributes the edges such that each PE owns a contiguous range of vertices.
+ * The source edge list is sorted, deduplicated, and consumed by this call.
  *
- * @param source The edge list to redistribute.
+ * @param source The edge list to redistribute (sorted, deduplicated, and consumed by this call).
  * @param destination The edge list to store the redistributed edges in.
  * @param n The number of vertices in the graph.
+ * @param remap_round_robin If true, vertices are first remapped round-robin (vertex v is assigned
+ *        to PE v % size) before redistribution. This breaks correlation between vertex ID structure and
+ *        PE assignment, which is important for generators like R-MAT where low-numbered vertices
+ *        have disproportionately high degrees. If false, the consecutive balanced vertex distribution
+ *        [0, n/p), [n/p, 2n/p), ... is used directly without remapping vertex IDs.
  * @param comm The MPI communicator.
  * @return The vertex range assigned to this PE.
  */
-VertexRange RedistributeEdgesRoundRobin(Edgelist& source, Edgelist& destination, SInt n, MPI_Comm comm);
+VertexRange RedistributeEdges(Edgelist& source, Edgelist& destination, SInt n, bool remap_round_robin, MPI_Comm comm);
 
 /**
  * @brief Computes a balanced vertex distribution where each PE gets n/p consecutive vertices.
@@ -62,14 +67,18 @@ std::vector<SInt> RoundRobinRemapping(Edgelist& edges, SInt n, MPI_Comm comm);
 
 /**
  * @brief Redistributes edges to balance the number of edges per PE.
- * Vertices are first remapped round-robin, then reassigned to PEs to equalize edge counts.
- * Both source and destination edge lists are sorted and deduplicated.
+ * First, vertices are assigned to PEs according to a vertex distribution. Then, the vertex
+ * distribution is refined so that each PE owns approximately the same number of edges.
+ * The source edge list is sorted, deduplicated, and consumed by this call.
  *
- * @param source The edge list to redistribute (consumed by this call).
+ * @param source The edge list to redistribute (sorted, deduplicated, and consumed by this call).
  * @param destination The edge list to store the redistributed edges in.
  * @param n The number of vertices in the graph.
- * @param remap_round_robin If true, vertices are first remapped round-robin before balancing.
- *        If false, the existing consecutive vertex distribution is used directly.
+ * @param remap_round_robin If true, vertices are first remapped round-robin (vertex v is assigned
+ *        to PE v % size) before balancing. This breaks correlation between vertex ID structure and
+ *        PE assignment, which is important for generators like R-MAT where low-numbered vertices
+ *        have disproportionately high degrees. If false, the consecutive balanced vertex distribution
+ *        [0, n/p), [n/p, 2n/p), ... is used directly without remapping vertex IDs.
  * @param comm The MPI communicator.
  * @return The vertex range assigned to this PE after redistribution.
  */

@@ -87,6 +87,10 @@ kagen_add_test(test_find_pe_in_range
         FILES utils/find_pe_in_range_test.cpp
         CORES 1)
 
-kagen_add_test(test_redistribute_edges_balanced
-        FILES postprocessor/redistribute_edges_balanced_test.cpp
+kagen_add_test(test_redistribute_edges
+        FILES postprocessor/redistribute_edges_test.cpp
+        CORES 1 2 4)
+
+kagen_add_test(test_rmat_distribution
+        FILES rmat/rmat_distribution_test.cpp
         CORES 1 2 4)

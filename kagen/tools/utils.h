@@ -186,4 +186,9 @@ inline void RemoveDuplicates(Edgelist& edges, EdgeWeights& edge_weights) {
     }
 }
 
+inline void SortAndRemoveDuplicates(Edgelist& edges) {
+    std::sort(edges.begin(), edges.end());
+    edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
+}
+
 } // namespace kagen
