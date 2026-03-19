@@ -180,12 +180,12 @@ public:
         assert(it != distribution_.end());
         PEID pe = static_cast<int>(it - distribution_.begin() - 1);
         return pe;
-    };
+    }
 
     SInt compute_local_index(SInt v, PEID rank) const {
         assert(distribution_[rank] <= v && v < distribution_[rank + 1]);
         return v - distribution_[rank];
-    };
+    }
 
     auto const& get_underlying_dist() const {
         return distribution_;
@@ -336,7 +336,8 @@ VertexRange RedistributeEdgesBalanced(
     return vertex_range;
 }
 
-VertexRange RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, MPI_Comm comm) {
+VertexRange
+RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, MPI_Comm comm) {
     SortAndRemoveDuplicates(source);
     std::vector<SInt> distribution;
     if (remap_round_robin) {
