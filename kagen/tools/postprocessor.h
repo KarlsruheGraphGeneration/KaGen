@@ -39,4 +39,27 @@ void RedistributeEdgesByVertexRange(Edgelist& edge_list, VertexRange vertex_rang
  * @return The vertex range assigned to this PE.
  */
 VertexRange RedistributeEdgesRoundRobin(Edgelist& source, Edgelist& destination, SInt n, MPI_Comm comm);
+
+/**
+ * @brief Remaps vertex IDs using a round-robin assignment and returns the resulting vertex distribution.
+ *
+ * @param edges The edge list whose vertex IDs are remapped in-place.
+ * @param n The number of vertices in the graph.
+ * @param comm The MPI communicator.
+ * @return The vertex distribution array (size + 1 entries).
+ */
+std::vector<SInt> RoundRobinRemapping(Edgelist& edges, SInt n, MPI_Comm comm);
+
+/**
+ * @brief Redistributes edges to balance the number of edges per PE.
+ * Vertices are first remapped round-robin, then reassigned to PEs to equalize edge counts.
+ * Both source and destination edge lists are sorted and deduplicated.
+ *
+ * @param source The edge list to redistribute (consumed by this call).
+ * @param destination The edge list to store the redistributed edges in.
+ * @param n The number of vertices in the graph.
+ * @param comm The MPI communicator.
+ * @return The vertex range assigned to this PE after redistribution.
+ */
+VertexRange RedistributeEdgesBalanced(Edgelist& source, Edgelist& destination, SInt n, MPI_Comm comm);
 } // namespace kagen
