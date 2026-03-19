@@ -114,8 +114,8 @@ void RedistributeEdgesByVertexRange(
     local_edges.reserve(local_edges.size() + total_recv_count / 2);
 
     MPI_Alltoallv(
-        send_buf.data(), send_counts.data(), send_displs.data(), MPI_UNSIGNED_LONG_LONG, recv_buf.data(),
-        recv_counts.data(), recv_displs.data(), MPI_UNSIGNED_LONG_LONG, comm);
+        send_buf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_buf.data(),
+        recv_counts.data(), recv_displs.data(), KAGEN_MPI_SINT, comm);
     {
         [[maybe_unused]] auto _clear = std::move(send_buf);
     }
