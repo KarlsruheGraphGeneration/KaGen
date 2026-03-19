@@ -40,9 +40,7 @@ struct RMATDistributionFixture : public ::testing::TestWithParam<DistributionPar
 
 INSTANTIATE_TEST_SUITE_P(
     RMATDistributionTests, RMATDistributionFixture,
-    ::testing::Combine(
-        ::testing::Values("balance-vertices", "balance-edges"),
-        ::testing::Values(0.5, 4.0, 16.0)),
+    ::testing::Combine(::testing::Values("balance-vertices", "balance-edges"), ::testing::Values(0.5, 4.0, 16.0)),
     [](const ::testing::TestParamInfo<DistributionParam>& info) {
         std::string name = std::get<0>(info.param);
         std::replace(name.begin(), name.end(), '-', '_');
@@ -60,7 +58,8 @@ TEST_P(RMATDistributionFixture, OwnershipInvariant) {
 
     Graph graph = GenerateRMATWithDistribution(distribution, n, m, seed);
 
-    for (const auto& [u, v]: graph.edges) {
+    for (const auto& edge: graph.edges) {
+        auto u = edge.first;
         EXPECT_GE(u, graph.vertex_range.first);
         EXPECT_LT(u, graph.vertex_range.second);
     }
@@ -85,8 +84,7 @@ TEST_P(RMATDistributionFixture, NoDuplicates) {
 struct RMATCrossDistributionFixture : public ::testing::TestWithParam<double> {};
 
 INSTANTIATE_TEST_SUITE_P(
-    RMATCrossDistributionTests, RMATCrossDistributionFixture,
-    ::testing::Values(0.5, 4.0, 16.0),
+    RMATCrossDistributionTests, RMATCrossDistributionFixture, ::testing::Values(0.5, 4.0, 16.0),
     [](const ::testing::TestParamInfo<double>& info) {
         std::string factor = std::to_string(info.param);
         std::replace(factor.begin(), factor.end(), '.', 'p');
@@ -95,10 +93,10 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 TEST_P(RMATCrossDistributionFixture, EdgeSetIdenticalAcrossDistributions) {
-    const SInt n      = 1024;
+    const SInt   n      = 1024;
     const double factor = GetParam();
-    const SInt m                = static_cast<SInt>(factor * n);
-    const int  seed   = 42;
+    const SInt   m      = static_cast<SInt>(factor * n);
+    const int    seed   = 42;
 
     Graph graph_bv = GenerateRMATWithDistribution("balance-vertices", n, m, seed);
     Graph graph_be = GenerateRMATWithDistribution("balance-edges", n, m, seed);

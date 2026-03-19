@@ -1,7 +1,6 @@
 #include "kagen/tools/utils.h"
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 using namespace kagen;
 

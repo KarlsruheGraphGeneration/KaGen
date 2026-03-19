@@ -58,10 +58,12 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_tuple("RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
                                 return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19);
                             })),
-            std::make_tuple(
-                "RGG2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRGG2D_NM(n, m); })),
-            std::make_tuple(
-                "RHG", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRHG_NM(2.8, n, m); })),
+            std::make_tuple("RGG2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+                                return gen.GenerateRGG2D_NM(n, m);
+                            })),
+            std::make_tuple("RHG", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+                                return gen.GenerateRHG_NM(2.8, n, m);
+                            })),
             std::make_tuple("Grid2D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
                                 return gen.GenerateGrid2D_N(n, 1.0);
                             }))),
@@ -76,8 +78,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(RedistributeEdgesFixture, PreservesEdgeSet) {
     auto [gen_pair, redist_pair, remap_round_robin] = GetParam();
-    auto [gen_name, generate]                       = gen_pair;
-    auto [redist_name, redistribute]                = redist_pair;
+    auto generate                                   = std::get<1>(gen_pair);
+    auto redistribute                               = std::get<1>(redist_pair);
 
     const SInt n = 1000;
     const SInt m = 4 * n;
@@ -128,9 +130,9 @@ TEST_P(RedistributeEdgesFixture, OwnershipInvariant) {
     Edgelist    redistributed_edges;
     VertexRange vr = redistribute(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
 
-    for (const auto& [u, v]: redistributed_edges) {
-        EXPECT_GE(u, vr.first);
-        EXPECT_LT(u, vr.second);
+    for (const auto& edge: redistributed_edges) {
+        EXPECT_GE(edge.first, vr.first);
+        EXPECT_LT(edge.first, vr.second);
     }
 }
 
@@ -177,7 +179,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(RedistributeEdgesSimpleFixture, PreservesEdgeSet_Star) {
     auto [redist_pair, remap_round_robin] = GetParam();
-    auto [redist_name, redistribute]      = redist_pair;
+    auto redistribute                     = std::get<1>(redist_pair);
 
     const SInt n     = 100;
     Edgelist   input = BuildStarOnPE0(n);
@@ -208,9 +210,9 @@ TEST_P(RedistributeEdgesSimpleFixture, OwnershipInvariant_Star) {
     Edgelist    redistributed_edges;
     VertexRange vr = redistribute(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
 
-    for (const auto& [u, v]: redistributed_edges) {
-        EXPECT_GE(u, vr.first);
-        EXPECT_LT(u, vr.second);
+    for (const auto& edge: redistributed_edges) {
+        EXPECT_GE(edge.first, vr.first);
+        EXPECT_LT(edge.first, vr.second);
     }
 }
 
@@ -255,8 +257,8 @@ TEST_P(RedistributeEdgesSimpleFixture, SingleEdge) {
 
     EXPECT_EQ(expected, result);
 
-    for (const auto& [u, v]: redistributed_edges) {
-        EXPECT_GE(u, vr.first);
-        EXPECT_LT(u, vr.second);
+    for (const auto& edge: redistributed_edges) {
+        EXPECT_GE(edge.first, vr.first);
+        EXPECT_LT(edge.first, vr.second);
     }
 }
