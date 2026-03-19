@@ -23,6 +23,5 @@ void Graph500Generator::FinalizeEdgeList(MPI_Comm comm) {
             graph_.vertex_range = RedistributeEdges(local_edges_, graph_.edges, n, remap_round_robin, comm);
             break;
     }
-    SortAndRemoveDuplicates(graph_.edges);
 }
 } // namespace kagen

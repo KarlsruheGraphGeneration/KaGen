@@ -128,9 +128,7 @@ void RedistributeEdgesByVertexRange(
     }
 
     // Deduplicate edges
-    std::sort(local_edges.begin(), local_edges.end());
-    auto it = std::unique(local_edges.begin(), local_edges.end());
-    local_edges.erase(it, local_edges.end());
+    SortAndRemoveDuplicates(local_edges);
 
     // Set original edge list to new edge list
     std::swap(local_edges, edge_list);
