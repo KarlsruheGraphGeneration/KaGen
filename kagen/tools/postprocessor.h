@@ -36,9 +36,7 @@ void RedistributeEdgesByVertexRange(
  * @param destination The edge list to store the redistributed edges in.
  * @param n The number of vertices in the graph.
  * @param remap_round_robin If true, vertices are first remapped round-robin (vertex v is assigned
- *        to PE v % size) before redistribution. This breaks correlation between vertex ID structure and
- *        PE assignment, which is important for generators like R-MAT where low-numbered vertices
- *        have disproportionately high degrees. If false, the consecutive balanced vertex distribution
+ *        to PE v % size) before balancing. If false, the consecutive balanced vertex distribution
  *        [0, n/p), [n/p, 2n/p), ... is used directly without remapping vertex IDs.
  * @param comm The MPI communicator.
  * @return The vertex range assigned to this PE.
@@ -75,9 +73,7 @@ std::vector<SInt> RoundRobinRemapping(Edgelist& edges, SInt n, MPI_Comm comm);
  * @param destination The edge list to store the redistributed edges in.
  * @param n The number of vertices in the graph.
  * @param remap_round_robin If true, vertices are first remapped round-robin (vertex v is assigned
- *        to PE v % size) before balancing. This breaks correlation between vertex ID structure and
- *        PE assignment, which is important for generators like R-MAT where low-numbered vertices
- *        have disproportionately high degrees. If false, the consecutive balanced vertex distribution
+ *        to PE v % size) before balancing. If false, the consecutive balanced vertex distribution
  *        [0, n/p), [n/p, 2n/p), ... is used directly without remapping vertex IDs.
  * @param comm The MPI communicator.
  * @return The vertex range assigned to this PE after redistribution.
