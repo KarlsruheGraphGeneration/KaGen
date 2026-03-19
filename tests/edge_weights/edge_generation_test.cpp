@@ -107,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple("Grid2D", GeneratorFunc([](KaGen& gen, SInt n, SInt /*m*/) {
                             return gen.GenerateGrid2D_N(n, 1.0);
                         })),
-        std::make_tuple("Grid3D", GeneratorFunc([](KaGen& gen, SInt n, SInt m) {
+        std::make_tuple("Grid3D", GeneratorFunc([](KaGen& gen, SInt n, SInt /*m*/) {
                             return gen.GenerateGrid3D_N(n, 1.0);
                         }))),
     [](const ::testing::TestParamInfo<GeneralEdgeWeightTestFixture::ParamType>& info) { return std::get<0>(info.param); });
