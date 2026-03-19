@@ -1,6 +1,7 @@
 #include "kagen/tools/statistics.h"
 
 #include "kagen/definitions.h"
+#include "kagen/tools/utils.h"
 
 #include <mpi.h>
 
@@ -166,9 +167,9 @@ std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, const VertexRange ver
     return global_bins;
 }
 
-double ComputeEdgeLocalicty(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
+double ComputeEdgeLocality(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
     const SInt num_local_cut_edges = std::count_if(edges.begin(), edges.end(), [&vertex_range](const auto& edge) {
-        return std::get<0>(edge) < vertex_range.first || std::get<1>(edge) >= vertex_range.second;
+        return std::get<1>(edge) < vertex_range.first || std::get<1>(edge) >= vertex_range.second;
     });
     const SInt num_local_edges     = edges.size();
 
@@ -178,7 +179,7 @@ double ComputeEdgeLocalicty(const Edgelist& edges, const VertexRange vertex_rang
     MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
     MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
 
-    return 1.0 - 1.0 * num_global_cut_edges / num_global_edges;
+    return 1.0 - DivideOrDefault(static_cast<double>(num_global_cut_edges), static_cast<double>(num_global_edges), 0.0);
 }
 
 SInt ComputeNumberOfGhostNodes(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
@@ -286,7 +287,7 @@ void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, co
     const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range, comm);
 
     // Compute locality statistics
-    const double edge_locality          = ComputeEdgeLocalicty(edges, vertex_range, comm);
+    const double edge_locality          = ComputeEdgeLocality(edges, vertex_range, comm);
     const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range, comm);
     const double ghost_node_fraction    = 1.0 * global_num_ghost_nodes / (global_num_nodes + global_num_ghost_nodes);
 
