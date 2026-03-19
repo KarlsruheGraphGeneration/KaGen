@@ -75,13 +75,14 @@ inline PEID FindPEInRange(const SInt node, const std::vector<VertexRange>& range
 }
 
 inline PEID FindPEInRangeWithBinarySearch(const SInt node, const std::vector<VertexRange>& ranges) {
-    auto it = std::upper_bound(ranges.begin(), ranges.end(), node, [](SInt value, const std::pair<SInt, SInt>& range) {
-        return range.first <= value && value < range.second;
+    // Find first range whose .second > node
+    auto it = std::upper_bound(ranges.begin(), ranges.end(), node, [](SInt value, const VertexRange& range) {
+        return value < range.second;
     });
-    if (it == ranges.end()) {
-        return -1;
+    if (it != ranges.end() && it->first <= node && node < it->second) {
+        return std::distance(ranges.begin(), it);
     }
-    return std::distance(ranges.begin(), it);
+    return -1;
 }
 
 inline std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
