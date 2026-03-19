@@ -11,7 +11,7 @@
 namespace kagen {
 template <typename T>
 inline T DivideOrDefault(T dividend, T divisor, T default_value = static_cast<T>(0)) {
-    static_assert(std::is_arithmetic_v<T>, "SafeDivision requires an arithmetic type");
+    static_assert(std::is_arithmetic_v<T>, "DivideOrDefault requires an arithmetic type");
     return divisor == static_cast<T>(0) ? default_value : dividend / divisor;
 }
 
