@@ -29,7 +29,7 @@ DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, SInt global_num_n
 
 std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
 
-double ComputeEdgeLocalicty(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+double ComputeEdgeLocality(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
 
 SInt ComputeNumberOfGhostNodes(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
 
