@@ -283,22 +283,40 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
 
 std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
     return {
-        {"root", GraphDistribution::ROOT},
         {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
         {"balance-edges", GraphDistribution::BALANCE_EDGES},
-        {"explicit", GraphDistribution::EXPLICIT},
     };
 }
 
 std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
     switch (distribution) {
-        case GraphDistribution::ROOT:
-            return out << "root";
         case GraphDistribution::BALANCE_VERTICES:
             return out << "balance-vertices";
         case GraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
-        case GraphDistribution::EXPLICIT:
+    }
+
+    return out << "<invalid>";
+}
+
+std::unordered_map<std::string, InputGraphDistribution> GetInputGraphDistributionMap() {
+    return {
+        {"root", InputGraphDistribution::ROOT},
+        {"balance-vertices", InputGraphDistribution::BALANCE_VERTICES},
+        {"balance-edges", InputGraphDistribution::BALANCE_EDGES},
+        {"explicit", InputGraphDistribution::EXPLICIT},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, InputGraphDistribution distribution) {
+    switch (distribution) {
+        case InputGraphDistribution::ROOT:
+            return out << "root";
+        case InputGraphDistribution::BALANCE_VERTICES:
+            return out << "balance-vertices";
+        case InputGraphDistribution::BALANCE_EDGES:
+            return out << "balance-edges";
+        case InputGraphDistribution::EXPLICIT:
             return out << "explicit";
     }
 
@@ -805,7 +823,7 @@ Graph KaGen::GenerateRMAT(
     return GenerateInMemory(*config_, representation_, comm_);
 }
 
-Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution) {
+Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const InputGraphDistribution distribution) {
     config_->generator                = GeneratorType::FILE;
     config_->input_graph.filename     = filename;
     config_->input_graph.format       = format;

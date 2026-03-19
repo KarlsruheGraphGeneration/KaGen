@@ -42,7 +42,7 @@ struct ImageMeshConfig {
 struct InputGraphConfig {
     std::string       filename                            = "";
     FileFormat        format                              = FileFormat::EXTENSION;
-    GraphDistribution distribution                        = GraphDistribution::BALANCE_VERTICES;
+    InputGraphDistribution distribution                        = InputGraphDistribution::BALANCE_VERTICES;
     std::string       explicit_distribution_filename      = "";
     bool              explicit_distribution_is_prefix_sum = false;
     int               width                               = 64;

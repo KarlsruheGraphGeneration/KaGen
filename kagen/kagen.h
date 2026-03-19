@@ -156,15 +156,24 @@ std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap()
 std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 
 enum class GraphDistribution {
+    BALANCE_VERTICES,
+    BALANCE_EDGES,
+};
+
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
+
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
+
+enum class InputGraphDistribution {
     ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
     EXPLICIT,
 };
 
-std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
+std::unordered_map<std::string, InputGraphDistribution> GetInputGraphDistributionMap();
 
-std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
+std::ostream& operator<<(std::ostream& out, InputGraphDistribution distribution);
 
 enum class EdgeWeightGeneratorType {
     DEFAULT,
@@ -481,7 +490,7 @@ public:
 
     Graph GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
 
-    Graph ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution);
+    Graph ReadFromFile(std::string const& filename, const FileFormat format, const InputGraphDistribution distribution);
 
 private:
     void SetDefaults();

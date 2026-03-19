@@ -16,24 +16,12 @@ void Graph500Generator::FinalizeEdgeList(MPI_Comm comm) {
 
     const bool remap_round_robin = true;
     switch (config_.distribution) {
-        case kagen::GraphDistribution::BALANCE_EDGES: {
+        case kagen::GraphDistribution::BALANCE_EDGES:
             graph_.vertex_range = RedistributeEdgesBalanced(local_edges_, graph_.edges, n, remap_round_robin, comm);
             break;
-        }
-        case kagen::GraphDistribution::BALANCE_VERTICES: {
+        case kagen::GraphDistribution::BALANCE_VERTICES:
             graph_.vertex_range = RedistributeEdges(local_edges_, graph_.edges, n, remap_round_robin, comm);
             break;
-        }
-        case kagen::GraphDistribution::EXPLICIT:
-            throw std::runtime_error("not supported");
-            break;
-        case kagen::GraphDistribution::ROOT:
-            throw std::runtime_error("not supported");
-            break;
-        default: {
-            graph_.vertex_range = RedistributeEdges(local_edges_, graph_.edges, n, remap_round_robin, comm);
-            break;
-        }
     }
     SortAndRemoveDuplicates(graph_.edges);
 }

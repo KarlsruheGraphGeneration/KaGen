@@ -151,7 +151,7 @@ GraphFragment ReadGraphFragment(
     const auto [n, m] = reader.ReadSize();
 
     if (reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
-        && config.distribution == GraphDistribution::BALANCE_EDGES) {
+        && config.distribution == InputGraphDistribution::BALANCE_EDGES) {
         throw std::invalid_argument("not implemented");
     }
 
@@ -164,7 +164,7 @@ GraphFragment ReadGraphFragment(
     SInt to_edge = std::numeric_limits<SInt>::max();
 
     switch (config.distribution) {
-        case GraphDistribution::ROOT: {
+        case InputGraphDistribution::ROOT: {
             if (rank == 0) {
                 from    = 0;
                 to_node = n;
@@ -175,19 +175,19 @@ GraphFragment ReadGraphFragment(
             break;
         }
 
-        case GraphDistribution::BALANCE_VERTICES: {
+        case InputGraphDistribution::BALANCE_VERTICES: {
             std::tie(from, to_node) = ComputeRange(n, size, rank);
             break;
         }
 
-        case GraphDistribution::BALANCE_EDGES: {
+        case InputGraphDistribution::BALANCE_EDGES: {
             const auto edge_range = ComputeRange(m, size, rank);
             from                  = reader.FindNodeByEdge(edge_range.first);
             to_edge               = edge_range.second;
             break;
         }
 
-        case GraphDistribution::EXPLICIT: {
+        case InputGraphDistribution::EXPLICIT: {
             auto distribution = ReadExplicitVertexDistribution(
                 config.explicit_distribution_filename, config.explicit_distribution_is_prefix_sum);
             from    = distribution[rank];
