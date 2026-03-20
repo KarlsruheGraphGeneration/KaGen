@@ -24,26 +24,26 @@ const char* GRAPH_WITH_COMMENTS = "tests/data/graphs/with_comments";
 using namespace kagen;
 
 struct GenericGeneratorTestFixture
-    : public ::testing::TestWithParam<std::tuple<FileFormat, InputGraphDistribution, GraphRepresentation>> {};
+    : public ::testing::TestWithParam<std::tuple<FileFormat, GraphDistribution, GraphRepresentation>> {};
 
 INSTANTIATE_TEST_SUITE_P(
     GenericGeneratorTest, GenericGeneratorTestFixture,
     ::testing::Values(
-        std::make_tuple(FileFormat::METIS, InputGraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(FileFormat::METIS, InputGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
-        std::make_tuple(FileFormat::METIS, InputGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(FileFormat::METIS, InputGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
-        std::make_tuple(FileFormat::PARHIP, InputGraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(FileFormat::PARHIP, InputGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
-        std::make_tuple(FileFormat::PARHIP, InputGraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
-        std::make_tuple(FileFormat::PARHIP, InputGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
 
-        std::make_tuple(FileFormat::PARHIP, InputGraphDistribution::ROOT, GraphRepresentation::CSR),
-        std::make_tuple(FileFormat::METIS, InputGraphDistribution::ROOT, GraphRepresentation::CSR)));
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::ROOT, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::METIS, GraphDistribution::ROOT, GraphRepresentation::CSR)));
 
 namespace {
 inline Graph ReadStaticGraph(
-    const std::string& filename, const InputGraphDistribution distribution, const FileFormat format,
+    const std::string& filename, const GraphDistribution distribution, const FileFormat format,
     const GraphRepresentation representation) {
     PGeneratorConfig config;
 
@@ -74,7 +74,7 @@ inline Graph ReadStaticGraph(
 }
 
 inline Graph ReadStaticGraphOnRoot(
-    const std::string& filename, const InputGraphDistribution distribution, const FileFormat format,
+    const std::string& filename, const GraphDistribution distribution, const FileFormat format,
     const GraphRepresentation representation) {
     PEID rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

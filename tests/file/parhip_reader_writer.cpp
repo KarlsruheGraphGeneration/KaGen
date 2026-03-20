@@ -30,7 +30,7 @@ MATCHER_P(EqualWeights, graph, "") {
 }
 
 struct ParhipReadWriteTestFixture
-    : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc, InputGraphDistribution, GraphRepresentation>> {
+    : public ::testing::TestWithParam<std::tuple<std::string, GeneratorFunc, GraphDistribution, GraphRepresentation>> {
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -38,25 +38,25 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         std::make_tuple(
             "GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateUndirectedGNM(n, m); }),
-            InputGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+            GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(
             "RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19); }),
-            InputGraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
+            GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(
             "GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateUndirectedGNM(n, m); }),
-            InputGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+            GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
         std::make_tuple(
             "RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19); }),
-            InputGraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+            GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
         std::make_tuple(
             "GNM", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateUndirectedGNM(n, m); }),
-            InputGraphDistribution::ROOT, GraphRepresentation::CSR),
+            GraphDistribution::ROOT, GraphRepresentation::CSR),
         std::make_tuple(
             "RMAT", GeneratorFunc([](KaGen& gen, SInt n, SInt m) { return gen.GenerateRMAT(n, m, 0.56, 0.19, 0.19); }),
-            InputGraphDistribution::ROOT, GraphRepresentation::CSR)),
+            GraphDistribution::ROOT, GraphRepresentation::CSR)),
     [](const ::testing::TestParamInfo<ParhipReadWriteTestFixture::ParamType>& info) -> std::string {
         const std::string gen  = std::get<0>(info.param);
-        const int         dist = static_cast<std::underlying_type_t<InputGraphDistribution>>(std::get<2>(info.param));
+        const int         dist = static_cast<std::underlying_type_t<GraphDistribution>>(std::get<2>(info.param));
         const int         rep  = static_cast<std::underlying_type_t<GraphRepresentation>>(std::get<3>(info.param));
         return gen + "_" + std::to_string(dist) + "_" + std::to_string(rep);
     });

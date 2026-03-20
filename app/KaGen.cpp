@@ -398,8 +398,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("-a", config.rmat_a, "Probability for block a");
         cmd->add_option("-b", config.rmat_b, "Probability for block b");
         cmd->add_option("-c", config.rmat_c, "Probability for block c");
-        cmd->add_option("--distribution", config.distribution)
-            ->transform(CLI::CheckedTransformer(GetGraphDistributionMap()).description(""))
+        cmd->add_option("--redistribution", config.redistribution)
+            ->transform(CLI::CheckedTransformer(GetGraphRedistributionMap()).description(""))
             ->description(R"(How to distribute the generated graph across PEs:
   - balance-vertices: assign roughly the same number of vertices to each PE
   - balance-edges:    assign roughly the same number of edges to each PE)");
@@ -445,7 +445,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
             ->required()
             ->check(CLI::ExistingFile);
         cmd->add_option("--distribution", config.input_graph.distribution)
-            ->transform(CLI::CheckedTransformer(GetInputGraphDistributionMap()).description(""))
+            ->transform(CLI::CheckedTransformer(GetGraphDistributionMap()).description(""))
             ->description(R"(The following options for how to distribute the static graph across PEs are available:
   - balance-vertices: assign roughly the same number of nodes to each PE
   - balance-edges:    assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>

@@ -393,7 +393,7 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         }
         config.input_graph.filename = filename;
 
-        const auto        input_distributions = GetInputGraphDistributionMap();
+        const auto        input_distributions = GetGraphDistributionMap();
         const std::string distribution_name =
             get_string_or_default("distribution", StringifyEnum(config.input_graph.distribution));
         const auto distribution_it = input_distributions.find(distribution_name);
@@ -415,14 +415,14 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         config.input_graph.format = format_it->second;
     }
     {
-        const auto        distributions = GetGraphDistributionMap();
+        const auto        distributions = GetGraphRedistributionMap();
         const std::string distribution_name =
-            get_string_or_default("distribution", StringifyEnum(config.distribution));
+            get_string_or_default("redistribution", StringifyEnum(config.redistribution));
         const auto distribution_it = distributions.find(distribution_name);
         if (distribution_it == distributions.end()) {
             throw std::runtime_error("invalid graph distribution");
         }
-        config.distribution = distribution_it->second;
+        config.redistribution = distribution_it->second;
     }
 
     {

@@ -281,42 +281,42 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
+std::unordered_map<std::string, GraphRedistribution> GetGraphRedistributionMap() {
     return {
-        {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
-        {"balance-edges", GraphDistribution::BALANCE_EDGES},
+        {"balance-vertices", GraphRedistribution::BALANCE_VERTICES},
+        {"balance-edges", GraphRedistribution::BALANCE_EDGES},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
+std::ostream& operator<<(std::ostream& out, GraphRedistribution distribution) {
     switch (distribution) {
-        case GraphDistribution::BALANCE_VERTICES:
+        case GraphRedistribution::BALANCE_VERTICES:
             return out << "balance-vertices";
-        case GraphDistribution::BALANCE_EDGES:
+        case GraphRedistribution::BALANCE_EDGES:
             return out << "balance-edges";
     }
 
     return out << "<invalid>";
 }
 
-std::unordered_map<std::string, InputGraphDistribution> GetInputGraphDistributionMap() {
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
     return {
-        {"root", InputGraphDistribution::ROOT},
-        {"balance-vertices", InputGraphDistribution::BALANCE_VERTICES},
-        {"balance-edges", InputGraphDistribution::BALANCE_EDGES},
-        {"explicit", InputGraphDistribution::EXPLICIT},
+        {"root", GraphDistribution::ROOT},
+        {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
+        {"balance-edges", GraphDistribution::BALANCE_EDGES},
+        {"explicit", GraphDistribution::EXPLICIT},
     };
 }
 
-std::ostream& operator<<(std::ostream& out, InputGraphDistribution distribution) {
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
     switch (distribution) {
-        case InputGraphDistribution::ROOT:
+        case GraphDistribution::ROOT:
             return out << "root";
-        case InputGraphDistribution::BALANCE_VERTICES:
+        case GraphDistribution::BALANCE_VERTICES:
             return out << "balance-vertices";
-        case InputGraphDistribution::BALANCE_EDGES:
+        case GraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
-        case InputGraphDistribution::EXPLICIT:
+        case GraphDistribution::EXPLICIT:
             return out << "explicit";
     }
 
@@ -823,7 +823,7 @@ Graph KaGen::GenerateRMAT(
     return GenerateInMemory(*config_, representation_, comm_);
 }
 
-Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const InputGraphDistribution distribution) {
+Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution) {
     config_->generator                = GeneratorType::FILE;
     config_->input_graph.filename     = filename;
     config_->input_graph.format       = format;

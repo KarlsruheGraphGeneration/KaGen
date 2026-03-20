@@ -155,25 +155,25 @@ std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap()
 
 std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 
-enum class GraphDistribution {
+enum class GraphRedistribution {
     BALANCE_VERTICES,
     BALANCE_EDGES,
 };
 
-std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
+std::unordered_map<std::string, GraphRedistribution> GetGraphRedistributionMap();
 
-std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
+std::ostream& operator<<(std::ostream& out, GraphRedistribution distribution);
 
-enum class InputGraphDistribution {
+enum class GraphDistribution {
     ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
     EXPLICIT,
 };
 
-std::unordered_map<std::string, InputGraphDistribution> GetInputGraphDistributionMap();
+std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap();
 
-std::ostream& operator<<(std::ostream& out, InputGraphDistribution distribution);
+std::ostream& operator<<(std::ostream& out, GraphDistribution distribution);
 
 enum class EdgeWeightGeneratorType {
     DEFAULT,
@@ -194,7 +194,7 @@ std::unordered_map<std::string, VertexWeightGeneratorType> GetVertexWeightGenera
 std::ostream& operator<<(std::ostream& out, VertexWeightGeneratorType generator);
 
 enum class StreamingMode {
-    ALL, 
+    ALL,
     ORDERED,
 };
 
@@ -269,12 +269,14 @@ struct Graph {
     }
 
 private:
-    template <typename To, typename From, std::enable_if_t<std::is_same<typename From::value_type, To>::value, bool> = true>
+    template <
+        typename To, typename From, std::enable_if_t<std::is_same<typename From::value_type, To>::value, bool> = true>
     std::vector<To> TakeVector(From& from) {
         return std::move(from);
     }
 
-    template <typename To, typename From, std::enable_if_t<!std::is_same<typename From::value_type, To>::value, bool> = true>
+    template <
+        typename To, typename From, std::enable_if_t<!std::is_same<typename From::value_type, To>::value, bool> = true>
     std::vector<To> TakeVector(From& from) {
         std::vector<To> copy(from.size());
         std::copy(from.begin(), from.end(), copy.begin());
@@ -315,8 +317,8 @@ public:
     void EnableAdvancedStatistics();
 
     /*!
-     * If enabled, KaGen will apply a FeistelPermutation to the vertices of the generated graph and rearrange vertices/edges accordingly.
-     * This will remove locality from the generated graph.
+     * If enabled, KaGen will apply a FeistelPermutation to the vertices of the generated graph and rearrange
+     * vertices/edges accordingly. This will remove locality from the generated graph.
      */
     void EnableVertexPermutation();
 
@@ -490,7 +492,7 @@ public:
 
     Graph GenerateRMAT(SInt n, SInt m, LPFloat a, LPFloat b, LPFloat c, bool directed = false, bool self_loops = false);
 
-    Graph ReadFromFile(std::string const& filename, const FileFormat format, const InputGraphDistribution distribution);
+    Graph ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution);
 
 private:
     void SetDefaults();
@@ -524,15 +526,15 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
     } else {
         distribution[rank + 1] = graph.vertex_range.second;
     }
-    
+
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, distribution.data() + 1, 1, idx_mpi_type, comm);
     if (distribution[0] == std::numeric_limits<IDX>::max()) {
         distribution[0] = 0;
     }
     for (int i = 1; i < size + 1; i++) {
         if (distribution[i] == std::numeric_limits<IDX>::max()) {
-	  distribution[i] = distribution[i - 1];
-	}
+            distribution[i] = distribution[i - 1];
+        }
     }
 
     return distribution;
@@ -555,7 +557,7 @@ struct StreamedGraph {
 
         for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
             while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
-                const auto &current = primary_edges[primary_idx];
+                const auto& current = primary_edges[primary_idx];
                 if (prev != current) [[unlikely]] {
                     if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
                         consumer(current.first, current.second);
@@ -567,9 +569,9 @@ struct StreamedGraph {
             }
 
             while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
-                const auto &current = secondary_edges[secondary_idx];
+                const auto& current = secondary_edges[secondary_idx];
                 if (prev != current) [[unlikely]] {
-                     if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
+                    if (mode == StreamingMode::ALL || (mode == StreamingMode::ORDERED && current.second < u)) {
                         consumer(current.first, current.second);
                     }
                     prev = current;
@@ -580,52 +582,54 @@ struct StreamedGraph {
         }
     }
     /*
-    * There are two modes: "all" and "ordered".
-    * If "all", the neighborhood will contain every neighbor.
-    * If "ordered", the neighborhood will contain only neighbors that were already generated. 
-    */
+     * There are two modes: "all" and "ordered".
+     * If "all", the neighborhood will contain every neighbor.
+     * If "ordered", the neighborhood will contain only neighbors that were already generated.
+     */
     template <typename NodeConsumer>
     void ForEachNode(NodeConsumer&& consumer, const StreamingMode mode) const {
-        std::size_t primary_idx = 0; 
-        std::size_t secondary_idx = 0; 
-        //std::cout << vertex_range.first << " " << vertex_range.second << std::endl; 
-        std::vector<SInt> neighbors; 
+        std::size_t primary_idx   = 0;
+        std::size_t secondary_idx = 0;
+        // std::cout << vertex_range.first << " " << vertex_range.second << std::endl;
+        std::vector<SInt> neighbors;
         for (SInt u = vertex_range.first; u < vertex_range.second; ++u) {
-            std::pair<SInt, SInt> prev = {0, 0}; 
-            
-            while(primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
-                const auto& current = primary_edges[primary_idx]; 
+            std::pair<SInt, SInt> prev = {0, 0};
+
+            while (primary_idx < primary_edges.size() && primary_edges[primary_idx].first == u) {
+                const auto& current = primary_edges[primary_idx];
                 if (prev != current) {
                     if (mode == StreamingMode::ALL) {
-                        neighbors.push_back(current.second); 
-                        prev = current;  
+                        neighbors.push_back(current.second);
+                        prev = current;
                     } else if (mode == StreamingMode::ORDERED) {
-                        if (current.second < u) neighbors.push_back(current.second); 
-                        prev = current; 
+                        if (current.second < u)
+                            neighbors.push_back(current.second);
+                        prev = current;
                     } else {
                         throw std::invalid_argument("Mode not supported");
                     }
                 }
-                ++primary_idx; 
+                ++primary_idx;
             }
 
-            while(secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
-                const auto& current = secondary_edges[secondary_idx]; 
+            while (secondary_idx < secondary_edges.size() && secondary_edges[secondary_idx].first == u) {
+                const auto& current = secondary_edges[secondary_idx];
                 if (prev != current) {
                     if (mode == StreamingMode::ALL) {
-                        neighbors.push_back(current.second); 
-                        prev = current; 
+                        neighbors.push_back(current.second);
+                        prev = current;
                     } else if (mode == StreamingMode::ORDERED) {
-                        if (current.second < u) neighbors.push_back(current.second); 
-                        prev = current; 
+                        if (current.second < u)
+                            neighbors.push_back(current.second);
+                        prev = current;
                     } else {
                         throw std::invalid_argument("Mode not supported");
                     }
                 }
-                ++secondary_idx; 
+                ++secondary_idx;
             }
 
-            consumer(u, neighbors); 
+            consumer(u, neighbors);
             neighbors.clear();
         }
     }
@@ -668,11 +672,11 @@ public:
     [[nodiscard]] bool Continue();
 
     /*!
-    * Streams the vertices and their neighborhoods one by one.
-    */
+     * Streams the vertices and their neighborhoods one by one.
+     */
     template <typename NodeStreamer>
     void StreamNodes(NodeStreamer&& streamer, const StreamingMode mode) {
-        while(Continue()) {
+        while (Continue()) {
             const StreamedGraph& graph = Next();
 
             graph.ForEachNode(std::forward<NodeStreamer>(streamer), mode);
@@ -685,7 +689,7 @@ public:
     template <typename EdgeStreamer>
     void StreamEdges(EdgeStreamer&& streamer, const StreamingMode mode) {
         while (Continue()) {
-            const StreamedGraph& graph = Next(); 
+            const StreamedGraph& graph = Next();
 
             graph.ForEachEdge(std::forward<EdgeStreamer>(streamer), mode);
         }

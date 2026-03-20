@@ -15,11 +15,11 @@ void Graph500Generator::FinalizeEdgeList(MPI_Comm comm) {
     const SInt n     = 1ull << log_n;
 
     const bool remap_round_robin = true;
-    switch (config_.distribution) {
-        case kagen::GraphDistribution::BALANCE_EDGES:
+    switch (config_.redistribution) {
+        case kagen::GraphRedistribution::BALANCE_EDGES:
             graph_.vertex_range = RedistributeEdgesBalanced(local_edges_, graph_.edges, n, remap_round_robin, comm);
             break;
-        case kagen::GraphDistribution::BALANCE_VERTICES:
+        case kagen::GraphRedistribution::BALANCE_VERTICES:
             graph_.vertex_range = RedistributeEdges(local_edges_, graph_.edges, n, remap_round_robin, comm);
             break;
     }
