@@ -114,8 +114,8 @@ void RedistributeEdgesByVertexRange(
     local_edges.reserve(local_edges.size() + total_recv_count / 2);
 
     MPI_Alltoallv(
-        send_buf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_buf.data(),
-        recv_counts.data(), recv_displs.data(), KAGEN_MPI_SINT, comm);
+        send_buf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_buf.data(), recv_counts.data(),
+        recv_displs.data(), KAGEN_MPI_SINT, comm);
     {
         [[maybe_unused]] auto _clear = std::move(send_buf);
     }
@@ -213,15 +213,16 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
     const SInt   n = vertex_distribution.back();
     Distribution input_dist(vertex_distribution);
 
+    // Count out-degree of each source vertex from the local edge list
     std::unordered_map<SInt, SInt> partial_degree;
     for (const auto& [u, v]: edges) {
         ++partial_degree[u];
     }
 
-    // Compute send_counts and send_displs
+    // Pack (vertex, degree) pairs into a send buffer, grouped by owning PE
     std::vector<int> send_counts(size);
     for (const auto& [u, degree]: partial_degree) {
-        send_counts[input_dist.compute_owner(u)] += 2;
+        send_counts[input_dist.compute_owner(u)] += 2; // 2 SInts per entry: vertex + degree
     }
 
     std::vector<int> send_displs(size);
@@ -236,18 +237,19 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
         pos += 2;
     }
 
-    // Exchange send_counts + send_displs
+    // Send partial degrees to the PE that owns each vertex
     std::vector<int> recv_counts(size);
     MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
     std::vector<int> recv_displs(size);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
 
-    // Exchange edges
     std::vector<SInt> recvbuf(recv_counts.back() + recv_displs.back());
     MPI_Alltoallv(
         sendbuf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recvbuf.data(), recv_counts.data(),
         recv_displs.data(), KAGEN_MPI_SINT, comm);
     partial_degree.clear();
+
+    // Aggregate partial degrees from all PEs into the total degree for each owned vertex
     SInt              total_degree = 0;
     const SInt        local_n      = input_dist.local_count(rank);
     std::vector<SInt> local_degree(local_n, 0);
@@ -258,6 +260,7 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
         local_degree[input_dist.compute_local_index(u, rank)] += degree;
     }
 
+    // Compute prefix sum of degrees across PEs and total edge count m
     SInt prefix_sum = 0;
     MPI_Exscan(&total_degree, &prefix_sum, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     if (rank == 0) {
@@ -271,6 +274,10 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
         dist[0] = 0;
         return dist;
     }
+
+    // Find vertex breakpoints that split the edge set into ~equal-sized buckets (one per PE).
+    // Walk through owned vertices in global order; whenever the cumulative degree crosses
+    // a bucket boundary, record that vertex as a breakpoint in the new distribution.
     std::vector<SInt> breakpoints;
     SInt              cur_sum = prefix_sum;
     assert(size > 0); // size = 0 is not possible in MPI code
@@ -290,6 +297,7 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
         }
         cur_sum += local_degree[i];
     }
+    // Gather all locally computed breakpoints into the global edge-balanced distribution
     std::vector<SInt> edge_balanced_distribution;
     {
         std::vector<int> recvcounts(size, 0);
@@ -306,6 +314,7 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
             breakpoints.data(), local_len, KAGEN_MPI_SINT, edge_balanced_distribution.data(), recvcounts.data(),
             displs.data(), KAGEN_MPI_SINT, comm);
     }
+    // Pad with n if fewer than size+1 breakpoints were found (low-degree graphs)
     for (std::size_t i = edge_balanced_distribution.size(); i < static_cast<SInt>(size + 1); ++i) {
         edge_balanced_distribution.push_back(n);
     }

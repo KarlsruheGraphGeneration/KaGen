@@ -113,7 +113,7 @@ TEST_P(RedistributeEdgesFixture, PreservesEdgeSet) {
 
 TEST_P(RedistributeEdgesFixture, OwnershipInvariant) {
     auto [gen_pair, redist_pair, remap_round_robin] = GetParam();
-    auto [gen_name, generate]                       = gen_pair;
+    auto generate                                   = std::get<1>(gen_pair);
     auto [redist_name, redistribute]                = redist_pair;
 
     const SInt n = 1000;
@@ -138,7 +138,7 @@ TEST_P(RedistributeEdgesFixture, OwnershipInvariant) {
 
 TEST_P(RedistributeEdgesFixture, NoDuplicatesInOutput) {
     auto [gen_pair, redist_pair, remap_round_robin] = GetParam();
-    auto [gen_name, generate]                       = gen_pair;
+    auto generate                                   = std::get<1>(gen_pair);
     auto [redist_name, redistribute]                = redist_pair;
 
     const SInt n = 1000;
@@ -203,7 +203,7 @@ TEST_P(RedistributeEdgesSimpleFixture, PreservesEdgeSet_Star) {
 
 TEST_P(RedistributeEdgesSimpleFixture, OwnershipInvariant_Star) {
     auto [redist_pair, remap_round_robin] = GetParam();
-    auto [redist_name, redistribute]      = redist_pair;
+    auto redistribute                     = std::get<1>(redist_pair);
 
     const SInt  n     = 100;
     Edgelist    input = BuildStarOnPE0(n);
@@ -218,7 +218,7 @@ TEST_P(RedistributeEdgesSimpleFixture, OwnershipInvariant_Star) {
 
 TEST_P(RedistributeEdgesSimpleFixture, EmptyInput) {
     auto [redist_pair, remap_round_robin] = GetParam();
-    auto [redist_name, redistribute]      = redist_pair;
+    auto redistribute                     = std::get<1>(redist_pair);
 
     const SInt n = 100;
     Edgelist   input;
@@ -231,7 +231,7 @@ TEST_P(RedistributeEdgesSimpleFixture, EmptyInput) {
 
 TEST_P(RedistributeEdgesSimpleFixture, SingleEdge) {
     auto [redist_pair, remap_round_robin] = GetParam();
-    auto [redist_name, redistribute]      = redist_pair;
+    auto redistribute                     = std::get<1>(redist_pair);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
