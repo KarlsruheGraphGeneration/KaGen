@@ -398,6 +398,11 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("-a", config.rmat_a, "Probability for block a");
         cmd->add_option("-b", config.rmat_b, "Probability for block b");
         cmd->add_option("-c", config.rmat_c, "Probability for block c");
+        cmd->add_option("--redistribution", config.redistribution)
+            ->transform(CLI::CheckedTransformer(GetGraphRedistributionMap()).description(""))
+            ->description(R"(How to distribute the generated graph across PEs:
+  - balance-vertices: assign roughly the same number of vertices to each PE
+  - balance-edges:    assign roughly the same number of edges to each PE)");
     }
 
     { // ImageMesh

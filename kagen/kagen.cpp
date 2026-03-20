@@ -281,6 +281,24 @@ std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model) {
     return out << "<invalid>";
 }
 
+std::unordered_map<std::string, GraphRedistribution> GetGraphRedistributionMap() {
+    return {
+        {"balance-vertices", GraphRedistribution::BALANCE_VERTICES},
+        {"balance-edges", GraphRedistribution::BALANCE_EDGES},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, GraphRedistribution distribution) {
+    switch (distribution) {
+        case GraphRedistribution::BALANCE_VERTICES:
+            return out << "balance-vertices";
+        case GraphRedistribution::BALANCE_EDGES:
+            return out << "balance-edges";
+    }
+
+    return out << "<invalid>";
+}
+
 std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
     return {
         {"root", GraphDistribution::ROOT},
