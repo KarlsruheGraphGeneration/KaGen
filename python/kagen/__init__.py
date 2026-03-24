@@ -7,7 +7,7 @@ generation for various random graph models.
 
 from ._kagen import KaGen, Graph, has_cgal
 
-__version__ = "1.2.2"
+__version__ = "1.2.3"
 
 
 def describe():
