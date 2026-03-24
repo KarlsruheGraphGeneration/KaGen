@@ -51,6 +51,7 @@ jobs:
         CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64 cp314-manylinux_x86_64"
         CIBW_SKIP: "*-musllinux*"
         CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+        CIBW_ENABLE: cpython-prerelease
 
         # Install GMP/MPFR and download header-only CGAL + modern Boost
         # (system Boost in manylinux_2_28 is too old for CGAL + C++20)
