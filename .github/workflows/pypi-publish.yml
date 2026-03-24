@@ -48,26 +48,21 @@ jobs:
       uses: pypa/cibuildwheel@v2.22
       env:
         # Build for CPython 3.10-3.14 on Linux x86_64
-        CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64 cp314-manylinux_x86_64"
+        CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64"
         CIBW_SKIP: "*-musllinux*"
 
         # Install system dependencies inside the manylinux container
         CIBW_BEFORE_ALL_LINUX: >
-          yum install -y gmp-devel boost-devel ||
-          apk add gmp-dev boost-dev ||
-          apt-get update && apt-get install -y libgmp-dev libboost-dev
+          (yum install -y gmp-devel boost-devel 2>/dev/null ||
+           dnf install -y gmp-devel boost-devel 2>/dev/null ||
+           apk add gmp-dev boost-dev 2>/dev/null ||
+           (apt-get update && apt-get install -y libgmp-dev libboost-dev)) &&
+          curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
+          mv /tmp/CGAL-5.6.2 /tmp/cgal-header
 
-        # CGAL is header-only (>= 5); download at build time
+        # CGAL is header-only (>= 5); point CMake at the downloaded headers
         CIBW_ENVIRONMENT: >
-          CGAL_DIR=/tmp/cgal
-          CMAKE_ARGS="-DCGAL_DIR=/tmp/cgal/lib/cmake/CGAL"
-
-        CIBW_BEFORE_BUILD: >
-          pip install scikit-build-core pybind11 numpy &&
-          if [ ! -d /tmp/cgal ]; then
-            curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
-            mv /tmp/CGAL-5.6.2 /tmp/cgal;
-          fi
+          CMAKE_ARGS="-DCGAL_DIR=/tmp/cgal-header/lib/cmake/CGAL"
 
         # Quick smoke test after wheel build
         CIBW_TEST_REQUIRES: numpy pytest
