@@ -53,10 +53,10 @@ jobs:
 
         # Install system dependencies inside the manylinux container
         CIBW_BEFORE_ALL_LINUX: >
-          (yum install -y gmp-devel boost-devel 2>/dev/null ||
-           dnf install -y gmp-devel boost-devel 2>/dev/null ||
-           apk add gmp-dev boost-dev 2>/dev/null ||
-           (apt-get update && apt-get install -y libgmp-dev libboost-dev)) &&
+          (yum install -y gmp-devel mpfr-devel boost-devel 2>/dev/null ||
+           dnf install -y gmp-devel mpfr-devel boost-devel 2>/dev/null ||
+           apk add gmp-dev mpfr-dev boost-dev 2>/dev/null ||
+           (apt-get update && apt-get install -y libgmp-dev libmpfr-dev libboost-dev)) &&
           curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
           mv /tmp/CGAL-5.6.2 /tmp/cgal-header
 
