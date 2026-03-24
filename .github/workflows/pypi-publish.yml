@@ -48,20 +48,19 @@ jobs:
       uses: pypa/cibuildwheel@v2.22
       env:
         # Build for CPython 3.10-3.13 on manylinux_2_28 (AlmaLinux 8)
-        # manylinux_2_28 has Boost >= 1.66, GMP, MPFR available via dnf
         CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64"
         CIBW_SKIP: "*-musllinux*"
         CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
 
-        # Install system dependencies inside the manylinux_2_28 container (AlmaLinux 8 / dnf)
+        # Install GMP/MPFR and download header-only CGAL + modern Boost
+        # (system Boost in manylinux_2_28 is too old for CGAL + C++20)
         CIBW_BEFORE_ALL_LINUX: >
-          dnf install -y gmp-devel mpfr-devel boost-devel &&
+          dnf install -y gmp-devel mpfr-devel &&
           curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
-          mv /tmp/CGAL-5.6.2 /tmp/cgal-header
+          curl -L https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.gz | tar -xz -C /tmp
 
-        # CGAL is header-only (>= 5); point CMake at the downloaded headers
         CIBW_ENVIRONMENT: >
-          CMAKE_ARGS="-DCGAL_DIR=/tmp/cgal-header/lib/cmake/CGAL"
+          CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
 
         # Quick smoke test after wheel build
         CIBW_TEST_REQUIRES: numpy pytest
