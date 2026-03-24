@@ -1,0 +1,116 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Publish target'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+jobs:
+  build-sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Build sdist
+      run: pipx run build --sdist
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: dist/*.tar.gz
+
+  build-wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.22
+      env:
+        # Build for CPython 3.10-3.14 on Linux x86_64
+        CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64 cp314-manylinux_x86_64"
+        CIBW_SKIP: "*-musllinux*"
+
+        # Install system dependencies inside the manylinux container
+        CIBW_BEFORE_ALL_LINUX: >
+          yum install -y gmp-devel boost-devel ||
+          apk add gmp-dev boost-dev ||
+          apt-get update && apt-get install -y libgmp-dev libboost-dev
+
+        # CGAL is header-only (>= 5); download at build time
+        CIBW_ENVIRONMENT: >
+          CGAL_DIR=/tmp/cgal
+          CMAKE_ARGS="-DCGAL_DIR=/tmp/cgal/lib/cmake/CGAL"
+
+        CIBW_BEFORE_BUILD: >
+          pip install scikit-build-core pybind11 numpy &&
+          if [ ! -d /tmp/cgal ]; then
+            curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
+            mv /tmp/CGAL-5.6.2 /tmp/cgal;
+          fi
+
+        # Quick smoke test after wheel build
+        CIBW_TEST_REQUIRES: numpy pytest
+        CIBW_TEST_COMMAND: >
+          python -c "import kagen; g = kagen.generate_undirected_gnm(100, 500, seed=42); assert g.num_edges() == 1000"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}
+        path: ./wheelhouse/*.whl
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [build-sdist, build-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+    environment: testpypi
+    permissions:
+      id-token: write
+
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
+
+    - uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build-sdist, build-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
+
+    - uses: pypa/gh-action-pypi-publish@release/v1
