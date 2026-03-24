@@ -88,8 +88,12 @@ jobs:
 
     - name: Build wheel
       run: |
-        pip install scikit-build-core pybind11 numpy
-        pip wheel . --no-deps -w dist/
+        pip install scikit-build-core pybind11 numpy auditwheel patchelf
+        pip wheel . --no-deps -w /tmp/raw-wheels/
+
+    - name: Repair wheel (manylinux tag)
+      run: |
+        auditwheel repair /tmp/raw-wheels/*.whl --plat manylinux_2_35_x86_64 -w dist/
 
     - name: Smoke test
       run: |
