@@ -75,6 +75,7 @@ jobs:
           CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
 
         CIBW_ENVIRONMENT_MACOS: >
+          MACOSX_DEPLOYMENT_TARGET=14.0
           CMAKE_PREFIX_PATH=$(brew --prefix)
           CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
 
@@ -159,6 +160,7 @@ jobs:
     - name: Build wheel
       run: |
         export PATH="/opt/python314/bin:$PATH"
+        export MACOSX_DEPLOYMENT_TARGET=14.0
         export CMAKE_PREFIX_PATH="$(brew --prefix)"
         export CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
         pip3 install scikit-build-core pybind11 numpy delocate
