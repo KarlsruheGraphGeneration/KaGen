@@ -71,6 +71,8 @@ jobs:
   build-wheel-314:
     name: Build wheel (Python 3.14)
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64:latest
     steps:
     - uses: actions/checkout@v4
       with:
@@ -78,32 +80,37 @@ jobs:
 
     - name: Install system dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libcgal-dev libgmp-dev libmpfr-dev libboost-dev
+        dnf install -y gmp-devel mpfr-devel
+        curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp
+        curl -L https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.gz | tar -xz -C /tmp
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.14-dev'
-        allow-prereleases: true
+    - name: Install Python 3.14 from source
+      run: |
+        dnf install -y gcc-c++ make openssl-devel libffi-devel bzip2-devel xz-devel zlib-devel sqlite-devel
+        curl -L https://www.python.org/ftp/python/3.14.0/Python-3.14.0a7.tgz | tar -xz -C /tmp
+        cd /tmp/Python-3.14.0a7
+        ./configure --prefix=/opt/python314 --enable-optimizations --with-ensurepip=install
+        make -j$(nproc)
+        make install
+        /opt/python314/bin/python3 -m pip install --upgrade pip
 
     - name: Build wheel
       run: |
-        pip install scikit-build-core pybind11 numpy auditwheel patchelf
-        pip wheel . --no-deps -w /tmp/raw-wheels/
-
-    - name: Repair wheel (manylinux tag)
-      run: |
-        auditwheel repair /tmp/raw-wheels/*.whl --plat manylinux_2_35_x86_64 -w dist/
+        export PATH="/opt/python314/bin:$PATH"
+        export CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
+        pip3 install scikit-build-core pybind11 numpy auditwheel patchelf
+        pip3 wheel . --no-deps -w /tmp/raw-wheels/
+        auditwheel repair /tmp/raw-wheels/*.whl --plat manylinux_2_28_x86_64 -w /tmp/dist/
 
     - name: Smoke test
       run: |
-        pip install dist/*.whl
-        python -c "import kagen; g = kagen.generate_undirected_gnm(100, 500, seed=42); assert g.num_edges() == 1000"
+        /opt/python314/bin/pip3 install /tmp/dist/*.whl
+        /opt/python314/bin/python3 -c "import kagen; g = kagen.generate_undirected_gnm(100, 500, seed=42); assert g.num_edges() == 1000"
 
     - uses: actions/upload-artifact@v4
       with:
         name: wheels-py314
-        path: dist/*.whl
+        path: /tmp/dist/*.whl
 
   publish-testpypi:
     name: Publish to TestPyPI
