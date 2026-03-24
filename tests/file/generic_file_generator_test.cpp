@@ -1,10 +1,13 @@
-#include "kagen/comm/mpi_comm.h"
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 #include "tests/gather.h"
 #include <numeric>
@@ -64,7 +67,11 @@ inline Graph ReadStaticGraph(
     config.input_graph.distribution = distribution;
     config.input_graph.format       = format;
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     PEID size = comm.Size();
     PEID rank = comm.Rank();
 
@@ -77,7 +84,11 @@ inline Graph ReadStaticGraph(
 inline Graph ReadStaticGraphOnRoot(
     const std::string& filename, const GraphDistribution distribution, const FileFormat format,
     const GraphRepresentation representation) {
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     PEID rank = comm.Rank();
 
     if (rank == 0) {
@@ -218,8 +229,13 @@ TEST_P(GenericGeneratorTestFixture, reads_empty_graph) {
 TEST_P(GenericGeneratorTestFixture, ignores_comments) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(GRAPH_WITH_COMMENTS, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
 
     switch (representation) {
         case GraphRepresentation::CSR:
@@ -236,8 +252,13 @@ TEST_P(GenericGeneratorTestFixture, ignores_comments) {
 TEST_P(GenericGeneratorTestFixture, loads_unweighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(UNWEIGHTED_K3, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectK3(global_graph);
     EXPECT_TRUE(global_graph.vertex_weights.empty());
     EXPECT_TRUE(global_graph.edge_weights.empty());
@@ -246,8 +267,13 @@ TEST_P(GenericGeneratorTestFixture, loads_unweighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(EDGE_WEIGHTED_K3, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectK3(global_graph);
     EXPECT_TRUE(global_graph.vertex_weights.empty());
     EXPECT_FALSE(global_graph.edge_weights.empty());
@@ -256,8 +282,13 @@ TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(VERTEX_WEIGHTED_K3, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectK3(global_graph);
     EXPECT_FALSE(global_graph.vertex_weights.empty());
     EXPECT_TRUE(global_graph.edge_weights.empty());
@@ -266,8 +297,13 @@ TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(WEIGHTED_K3, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectK3(global_graph);
     EXPECT_FALSE(global_graph.vertex_weights.empty());
     EXPECT_FALSE(global_graph.edge_weights.empty());
@@ -276,8 +312,13 @@ TEST_P(GenericGeneratorTestFixture, loads_weighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(VERTEX_WEIGHTED_P2, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectP2(global_graph);
     EXPECT_FALSE(global_graph.vertex_weights.empty());
     EXPECT_TRUE(global_graph.edge_weights.empty());
@@ -286,8 +327,13 @@ TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_P2) {
 TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(EDGE_WEIGHTED_P2, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectP2(global_graph);
     EXPECT_TRUE(global_graph.vertex_weights.empty());
     EXPECT_FALSE(global_graph.edge_weights.empty());
@@ -296,8 +342,13 @@ TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_P2) {
 TEST_P(GenericGeneratorTestFixture, loads_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(WEIGHTED_P2, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
     ExpectP2(global_graph);
     EXPECT_FALSE(global_graph.vertex_weights.empty());
     EXPECT_FALSE(global_graph.edge_weights.empty());
@@ -306,8 +357,13 @@ TEST_P(GenericGeneratorTestFixture, loads_weighted_P2) {
 TEST_P(GenericGeneratorTestFixture, loads_large_weights) {
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     const auto local_graph  = ReadStaticGraph(LARGE_WEIGHTS, distribution, format, representation);
-    const auto global_graph = kagen::testing::GatherGraph(local_graph);
+    const auto global_graph = kagen::testing::GatherGraph(local_graph, comm);
 
     switch (representation) {
         case GraphRepresentation::CSR:
@@ -330,11 +386,15 @@ TEST_P(GenericGeneratorTestFixture, loads_real_world_graph) {
     using namespace ::testing;
     const auto [format, distribution, representation] = GetParam();
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm mpi_world;
+#endif
     PEID rank = mpi_world.Rank();
 
     const auto local_graph  = ReadStaticGraph(REAL_WORLD_GRAPH, distribution, format, representation);
-    auto       global_graph = kagen::testing::GatherGraph(local_graph);
+    auto       global_graph = kagen::testing::GatherGraph(local_graph, mpi_world);
 
     switch (representation) {
         case GraphRepresentation::CSR:

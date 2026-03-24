@@ -1,25 +1,32 @@
 if (NOT DEFINED KATESTROPHE_INCLUDED)
     set(KATESTROPHE_INCLUDED TRUE)
 
-    # sets the provided output variable KAMPING_OVERSUBSCRIBE_FLAG to the flags required to run mpiexec with
-    # more MPI ranks than cores available
-    function(katestrophe_has_oversubscribe KATESTROPHE_OVERSUBSCRIBE_FLAG)
-        string(FIND ${MPI_CXX_LIBRARY_VERSION_STRING} "OpenMPI" SEARCH_POSITION1)
-        string(FIND ${MPI_CXX_LIBRARY_VERSION_STRING} "Open MPI" SEARCH_POSITION2)
-        # only Open MPI seems to require the --oversubscribe flag
-        # MPICH and Intel don't know it but silently run commands with more ranks than cores available
-        if (${SEARCH_POSITION1} EQUAL -1 AND ${SEARCH_POSITION2} EQUAL -1)
-            set("${KATESTROPHE_OVERSUBSCRIBE_FLAG}" "" PARENT_SCOPE)
-        else ()
-            # We are using Open MPI
-            set("${KATESTROPHE_OVERSUBSCRIBE_FLAG}" "--oversubscribe" PARENT_SCOPE)
-        endif ()
-    endfunction()
-    katestrophe_has_oversubscribe(MPIEXEC_OVERSUBSCRIBE_FLAG)
+    if (NOT KAGEN_NOMPI)
+        # sets the provided output variable KAMPING_OVERSUBSCRIBE_FLAG to the flags required to run mpiexec with
+        # more MPI ranks than cores available
+        function(katestrophe_has_oversubscribe KATESTROPHE_OVERSUBSCRIBE_FLAG)
+            string(FIND ${MPI_CXX_LIBRARY_VERSION_STRING} "OpenMPI" SEARCH_POSITION1)
+            string(FIND ${MPI_CXX_LIBRARY_VERSION_STRING} "Open MPI" SEARCH_POSITION2)
+            # only Open MPI seems to require the --oversubscribe flag
+            # MPICH and Intel don't know it but silently run commands with more ranks than cores available
+            if (${SEARCH_POSITION1} EQUAL -1 AND ${SEARCH_POSITION2} EQUAL -1)
+                set("${KATESTROPHE_OVERSUBSCRIBE_FLAG}" "" PARENT_SCOPE)
+            else ()
+                # We are using Open MPI
+                set("${KATESTROPHE_OVERSUBSCRIBE_FLAG}" "--oversubscribe" PARENT_SCOPE)
+            endif ()
+        endfunction()
+        katestrophe_has_oversubscribe(MPIEXEC_OVERSUBSCRIBE_FLAG)
+    endif ()
 
     # register the test main class
     add_library(mpi-gtest-main EXCLUDE_FROM_ALL "${CMAKE_CURRENT_LIST_DIR}/mpi_gtest_main.cc")
-    target_link_libraries(mpi-gtest-main PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock)
+    if (KAGEN_NOMPI)
+        target_link_libraries(mpi-gtest-main PUBLIC GTest::gtest GTest::gmock)
+        target_compile_definitions(mpi-gtest-main PUBLIC KAGEN_NOMPI)
+    else ()
+        target_link_libraries(mpi-gtest-main PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock)
+    endif ()
 
     # keep the cache clean
     mark_as_advanced(
@@ -61,16 +68,25 @@ if (NOT DEFINED KATESTROPHE_INCLUDED)
                 "CORES"
                 ${ARGN}
         )
-        if (NOT KATESTROPHE_CORES)
-            set(KATESTROPHE_CORES ${MPIEXEC_MAX_NUMPROCS})
-        endif ()
-        foreach (p ${KATESTROPHE_CORES})
-            set(TEST_NAME "${KATESTROPHE_TEST_TARGET}.${p}cores")
-            set(MPI_EXEC_COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${p} ${MPIEXEC_OVERSUBSCRIBE_FLAG} ${MPIEXEC_PREFLAGS})
+        if (KAGEN_NOMPI)
+            # In NOMPI mode: run the test directly (no mpiexec), always with 1 "core"
+            set(TEST_NAME "${KATESTROPHE_TEST_TARGET}.1cores")
             add_test(
                 NAME "${TEST_NAME}"
-                COMMAND ${MPI_EXEC_COMMAND} $<TARGET_FILE:${KATESTROPHE_TEST_TARGET}>
+                COMMAND $<TARGET_FILE:${KATESTROPHE_TEST_TARGET}>
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-        endforeach ()
+        else ()
+            if (NOT KATESTROPHE_CORES)
+                set(KATESTROPHE_CORES ${MPIEXEC_MAX_NUMPROCS})
+            endif ()
+            foreach (p ${KATESTROPHE_CORES})
+                set(TEST_NAME "${KATESTROPHE_TEST_TARGET}.${p}cores")
+                set(MPI_EXEC_COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${p} ${MPIEXEC_OVERSUBSCRIBE_FLAG} ${MPIEXEC_PREFLAGS})
+                add_test(
+                    NAME "${TEST_NAME}"
+                    COMMAND ${MPI_EXEC_COMMAND} $<TARGET_FILE:${KATESTROPHE_TEST_TARGET}>
+                    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+            endforeach ()
+        endif ()
     endfunction()
 endif ()

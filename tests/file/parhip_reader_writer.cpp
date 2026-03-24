@@ -1,10 +1,13 @@
-#include "kagen/comm/mpi_comm.h"
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 #include "io/parhip.h"
 #include "tests/gather.h"
@@ -65,7 +68,11 @@ INSTANTIATE_TEST_SUITE_P(
 namespace {
 template <typename Write>
 void write_graph(Write&& write, int rank, int size) {
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     bool continue_write = false;
     int  round          = 0;
     do {
@@ -104,12 +111,17 @@ TEST_P(ParhipReadWriteTestFixture, default_write_read_in_parhip_format) {
     const SInt                 n           = 1000;
     const SInt                 m           = 16 * n;
     const WeightRange          weight_range{1, 100};
-    kagen::MPIComm             comm(MPI_COMM_WORLD);
-    int                        rank = comm.Rank();
-    int                        size = comm.Size();
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    kagen::KaGen   generator(comm.GetMPIComm());
+#else
+    kagen::SeqComm comm;
+    kagen::KaGen   generator(MPI_COMM_WORLD);
+#endif
+    int rank = comm.Rank();
+    int size = comm.Size();
 
     // setup
-    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
@@ -130,8 +142,8 @@ TEST_P(ParhipReadWriteTestFixture, default_write_read_in_parhip_format) {
     const auto read_graph =
         generator.GenerateFromOptionString("type=file;filename=" + config.filename + ";edgeweights_generator=default");
 
-    const auto total_generated_graph = kagen::testing::GatherGraph(generated_graph);
-    const auto total_read_graph      = kagen::testing::GatherGraph(read_graph);
+    const auto total_generated_graph = kagen::testing::GatherGraph(generated_graph, comm);
+    const auto total_read_graph      = kagen::testing::GatherGraph(read_graph, comm);
     EXPECT_THAT(total_read_graph, EqualAdjacenyStructure(total_generated_graph));
     EXPECT_THAT(total_read_graph, EqualWeights(total_generated_graph));
 }
@@ -143,12 +155,17 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format) {
     const SInt                 n           = 1000;
     const SInt                 m           = 16 * n;
     const WeightRange          weight_range{1, 100};
-    kagen::MPIComm             comm(MPI_COMM_WORLD);
-    int                        rank = comm.Rank();
-    int                        size = comm.Size();
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    kagen::KaGen   generator(comm.GetMPIComm());
+#else
+    kagen::SeqComm comm;
+    kagen::KaGen   generator(MPI_COMM_WORLD);
+#endif
+    int rank = comm.Rank();
+    int size = comm.Size();
 
     // setup
-    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
@@ -171,8 +188,8 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format) {
     const auto read_graph =
         generator.GenerateFromOptionString("type=file;filename=" + config.filename + ";edgeweights_generator=default");
 
-    const auto total_generated_graph = kagen::testing::GatherGraph(generated_graph);
-    const auto total_read_graph      = kagen::testing::GatherGraph(read_graph);
+    const auto total_generated_graph = kagen::testing::GatherGraph(generated_graph, comm);
+    const auto total_read_graph      = kagen::testing::GatherGraph(read_graph, comm);
     EXPECT_THAT(total_read_graph, EqualAdjacenyStructure(total_generated_graph));
     EXPECT_THAT(total_read_graph, EqualWeights(total_generated_graph));
 }
@@ -184,12 +201,17 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format_32bit_ed
     const SInt                 n           = 1000;
     const SInt                 m           = 16 * n;
     const WeightRange          weight_range{1, 100};
-    kagen::MPIComm             comm(MPI_COMM_WORLD);
-    int                        rank = comm.Rank();
-    int                        size = comm.Size();
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    kagen::KaGen   generator(comm.GetMPIComm());
+#else
+    kagen::SeqComm comm;
+    kagen::KaGen   generator(MPI_COMM_WORLD);
+#endif
+    int rank = comm.Rank();
+    int size = comm.Size();
 
     // setup
-    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
@@ -214,8 +236,8 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format_32bit_ed
     generator.UseCSRRepresentation();
     const auto read_graph =
         generator.GenerateFromOptionString("type=file;filename=" + config.filename + ";edgeweights_generator=default");
-    const auto total_generated_graph = kagen::testing::GatherGraph(generated_graph);
-    const auto total_read_graph      = kagen::testing::GatherGraph(read_graph);
+    const auto total_generated_graph = kagen::testing::GatherGraph(generated_graph, comm);
+    const auto total_read_graph      = kagen::testing::GatherGraph(read_graph, comm);
     EXPECT_THAT(total_read_graph, EqualAdjacenyStructure(total_generated_graph));
     EXPECT_THAT(total_read_graph.edge_weights, ::testing::Each(size));
     EXPECT_TRUE(total_read_graph.vertex_weights.empty());

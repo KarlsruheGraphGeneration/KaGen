@@ -61,11 +61,10 @@ if (KAGEN_BUILD_PYTHON)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif ()
 
-# In NOMPI mode tests and examples need real MPI; apps and tools are fine.
+# In NOMPI mode examples need real MPI; apps, tools and tests are fine.
 if (KAGEN_NOMPI)
     message(STATUS "Building without MPI (apps/tools use SeqComm instead)")
     set(KAGEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(KAGEN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 endif ()
 
 # Prohibit in-source builds

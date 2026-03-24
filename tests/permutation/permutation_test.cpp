@@ -1,3 +1,8 @@
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/kagen.h"
 
 #include <gtest/gtest.h>
@@ -18,9 +23,12 @@ void transform_vertices(std::vector<kagen::testing::SrcDstEdgeWeight>& weighted_
 }
 
 void test_distribution_of_edges(SSInt n_from_config, const Graph& permuted_graph) {
-    int      size;
-    MPI_Comm comm = MPI_COMM_WORLD;
-    MPI_Comm_size(comm, &size);
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm_obj(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm_obj;
+#endif
+    int size = comm_obj.Size();
 
     // vertices should be split equally
     const SInt n_local = permuted_graph.NumberOfLocalVertices();
@@ -35,9 +43,14 @@ void test_distribution_of_edges(SSInt n_from_config, const Graph& permuted_graph
 }
 
 void test_equality_of_permuted_graph(SSInt n_from_config, const Graph& permuted_graph, const Graph& graph) {
-    auto gathered_graph                = kagen::testing::GatherGraph(graph);
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm_obj(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm_obj;
+#endif
+    auto gathered_graph                = kagen::testing::GatherGraph(graph, comm_obj);
     auto gathered_graph_edges          = kagen::testing::ConvertToWeightedEdgelist(gathered_graph);
-    auto gathered_permuted_graph       = kagen::testing::GatherGraph(permuted_graph);
+    auto gathered_permuted_graph       = kagen::testing::GatherGraph(permuted_graph, comm_obj);
     auto gathered_permuted_graph_edges = kagen::testing::ConvertToWeightedEdgelist(gathered_permuted_graph);
 
     // we do not want the 'random' permutation to be the ID

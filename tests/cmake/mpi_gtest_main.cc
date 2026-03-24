@@ -7,6 +7,17 @@
  *
  ******************************************************************************/
 
+#ifdef KAGEN_NOMPI
+
+#include <gtest/gtest.h>
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
+#else
+
 #include <stdexcept>
 
 #include <gtest/gtest.h>
@@ -45,3 +56,5 @@ int main(int argc, char** argv) {
 
     return result;
 }
+
+#endif // KAGEN_NOMPI

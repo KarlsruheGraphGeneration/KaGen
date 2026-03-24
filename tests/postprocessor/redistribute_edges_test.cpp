@@ -1,9 +1,12 @@
-#include "kagen/comm/mpi_comm.h"
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/kagen.h"
 #include "kagen/tools/postprocessor.h"
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 #include "../gather.h"
 #include <algorithm>
@@ -24,12 +27,21 @@ static Graph MakeEdgeListGraph(const Edgelist& edges) {
 }
 
 static Edgelist GatherAllEdges(const Edgelist& local_edges) {
-    return kagen::testing::GatherEdgeLists(MakeEdgeListGraph(local_edges)).edges;
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
+    return kagen::testing::GatherEdgeLists(MakeEdgeListGraph(local_edges), comm).edges;
 }
 
 // Build a star graph (vertex 0 connected to all others, both directions) with all edges on PE 0.
 static Edgelist BuildStarOnPE0(SInt n) {
+#ifndef KAGEN_NOMPI
     kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm mpi_world;
+#endif
     int rank = mpi_world.Rank();
     Edgelist edges;
     if (rank == 0) {
@@ -85,8 +97,13 @@ TEST_P(RedistributeEdgesFixture, PreservesEdgeSet) {
     const SInt n = 1000;
     const SInt m = 4 * n;
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
     kagen::KaGen generator(comm.GetMPIComm());
+#else
+    kagen::SeqComm comm;
+    kagen::KaGen   generator(MPI_COMM_WORLD);
+#endif
     generator.UseEdgeListRepresentation();
     Graph graph = generate(generator, n, m);
 
@@ -121,8 +138,13 @@ TEST_P(RedistributeEdgesFixture, OwnershipInvariant) {
     const SInt n = 1000;
     const SInt m = 4 * n;
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
     kagen::KaGen generator(comm.GetMPIComm());
+#else
+    kagen::SeqComm comm;
+    kagen::KaGen   generator(MPI_COMM_WORLD);
+#endif
     generator.UseEdgeListRepresentation();
     Graph graph = generate(generator, n, m);
 
@@ -147,8 +169,13 @@ TEST_P(RedistributeEdgesFixture, NoDuplicatesInOutput) {
     const SInt n = 1000;
     const SInt m = 4 * n;
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
     kagen::KaGen generator(comm.GetMPIComm());
+#else
+    kagen::SeqComm comm;
+    kagen::KaGen   generator(MPI_COMM_WORLD);
+#endif
     generator.UseEdgeListRepresentation();
     Graph graph = generate(generator, n, m);
 
@@ -188,7 +215,11 @@ TEST_P(RedistributeEdgesSimpleFixture, PreservesEdgeSet_Star) {
     const SInt n     = 100;
     Edgelist   input = BuildStarOnPE0(n);
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     Edgelist reference = input;
     if (remap_round_robin) {
         RoundRobinRemapping(reference, n, comm);
@@ -213,7 +244,11 @@ TEST_P(RedistributeEdgesSimpleFixture, OwnershipInvariant_Star) {
     const SInt  n     = 100;
     Edgelist    input = BuildStarOnPE0(n);
     Edgelist    redistributed_edges;
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     VertexRange vr = redistribute(input, redistributed_edges, n, remap_round_robin, comm);
 
     for (const auto& edge: redistributed_edges) {
@@ -230,7 +265,11 @@ TEST_P(RedistributeEdgesSimpleFixture, EmptyInput) {
     Edgelist   input;
     Edgelist   redistributed_edges;
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     redistribute(input, redistributed_edges, n, remap_round_robin, comm);
 
     EXPECT_TRUE(redistributed_edges.empty());
@@ -240,7 +279,11 @@ TEST_P(RedistributeEdgesSimpleFixture, SingleEdge) {
     auto [redist_pair, remap_round_robin] = GetParam();
     auto redistribute                     = std::get<1>(redist_pair);
 
+#ifndef KAGEN_NOMPI
     kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
     int rank = comm.Rank();
 
     const SInt n = 10;

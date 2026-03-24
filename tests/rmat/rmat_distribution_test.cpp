@@ -1,7 +1,11 @@
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/kagen.h"
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 #include "../gather.h"
 #include <algorithm>
@@ -18,7 +22,12 @@ static Graph MakeEdgeListGraph(const Edgelist& edges) {
 }
 
 static Edgelist GatherSortedDeduplicatedEdges(const Edgelist& local_edges) {
-    Edgelist edges = kagen::testing::GatherEdgeLists(MakeEdgeListGraph(local_edges)).edges;
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
+    Edgelist edges = kagen::testing::GatherEdgeLists(MakeEdgeListGraph(local_edges), comm).edges;
     std::sort(edges.begin(), edges.end());
     edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
     return edges;

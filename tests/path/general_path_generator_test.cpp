@@ -1,4 +1,8 @@
-#include "kagen/comm/mpi_comm.h"
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/generators/path/path_directed.h"
 
@@ -70,7 +74,11 @@ void WalkPath(const kagen::Graph& graph, kagen::SInt n) {
 
 TEST_P(PathGeneratorTestFixture, path_generation_without_permutation) {
     using namespace kagen;
+#ifndef KAGEN_NOMPI
     kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm mpi_world;
+#endif
     PEID size = mpi_world.Size();
     PEID rank = mpi_world.Rank();
 
@@ -80,14 +88,18 @@ TEST_P(PathGeneratorTestFixture, path_generation_without_permutation) {
     PathDirected generator(config, rank, size);
     generator.Generate(GraphRepresentation::EDGE_LIST);
     generator.Finalize(mpi_world);
-    const Graph graph = kagen::testing::GatherGraph(generator.Take());
+    const Graph graph = kagen::testing::GatherGraph(generator.Take(), mpi_world);
 
     WalkPath(graph, config.n);
 }
 
 TEST_P(PathGeneratorTestFixture, path_generation_with_permutation) {
     using namespace kagen;
+#ifndef KAGEN_NOMPI
     kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm mpi_world;
+#endif
     PEID size = mpi_world.Size();
     PEID rank = mpi_world.Rank();
 
@@ -98,7 +110,7 @@ TEST_P(PathGeneratorTestFixture, path_generation_with_permutation) {
     PathDirected generator(config, rank, size);
     generator.Generate(GraphRepresentation::EDGE_LIST);
     generator.Finalize(mpi_world);
-    const Graph graph = kagen::testing::GatherGraph(generator.Take());
+    const Graph graph = kagen::testing::GatherGraph(generator.Take(), mpi_world);
 
     WalkPath(graph, config.n);
 }

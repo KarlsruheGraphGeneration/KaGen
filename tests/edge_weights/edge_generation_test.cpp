@@ -1,3 +1,8 @@
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/kagen.h"
 
 #include <gmock/gmock.h>
@@ -26,7 +31,12 @@ void check_weights_range(const Graph& graph, const WeightRange& range) {
 }
 
 void check_backedge_weight(const Graph& local_graph) {
-    auto const graph = kagen::testing::GatherGraph(local_graph);
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
+    auto const graph = kagen::testing::GatherGraph(local_graph, comm);
     EdgeRange  edge_range(graph);
     EXPECT_EQ(edge_range.size(), graph.edge_weights.size());
     if (graph.NumberOfLocalEdges() == 0) {
@@ -54,7 +64,12 @@ void check_backedge_weight(const Graph& local_graph) {
 }
 
 void check_euclidean_weights(const Graph& graph, double max_distance, const WeightRange& range, bool is_2d) {
-    auto global_graph       = kagen::testing::GatherGraph(graph);
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm comm;
+#endif
+    auto global_graph       = kagen::testing::GatherGraph(graph, comm);
     auto weighted_edge_list = kagen::testing::ConvertToWeightedEdgelist(global_graph);
 
     auto get_squard_distance = [&](SInt src, SInt dst) {

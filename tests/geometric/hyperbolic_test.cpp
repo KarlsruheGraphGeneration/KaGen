@@ -1,4 +1,8 @@
-#include "kagen/comm/mpi_comm.h"
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
@@ -11,11 +15,10 @@
 using namespace kagen;
 
 namespace {
-void validate_graph(const Graph& local_graph, const PGeneratorConfig& config) {
-    Graph global_graph = kagen::testing::GatherEdgeLists(local_graph);
+void validate_graph(const Graph& local_graph, const PGeneratorConfig& config, kagen::Comm& comm) {
+    Graph global_graph = kagen::testing::GatherEdgeLists(local_graph, comm);
 
-    kagen::MPIComm mpi_world(MPI_COMM_WORLD);
-    PEID rank = mpi_world.Rank();
+    PEID rank = comm.Rank();
 
     if (rank == 0) {
         EXPECT_EQ(config.n, global_graph.coordinates.first.size());
@@ -41,16 +44,20 @@ void test_configuration(const SInt n, const double avg_degree, const double plex
     config.coordinates = true;
 
     HyperbolicFactory factory;
-    kagen::MPIComm    mpi_world(MPI_COMM_WORLD);
-    PEID              size = mpi_world.Size();
-    PEID              rank = mpi_world.Rank();
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+#else
+    kagen::SeqComm mpi_world;
+#endif
+    PEID size = mpi_world.Size();
+    PEID rank = mpi_world.Rank();
     config         = factory.NormalizeParameters(config, rank, size, false);
     auto generator = factory.Create(config, rank, size);
     generator->Generate(GraphRepresentation::EDGE_LIST);
     generator->Finalize(mpi_world);
     const auto local_graph = generator->Take();
 
-    validate_graph(local_graph, config);
+    validate_graph(local_graph, config, mpi_world);
 }
 } // namespace
 
