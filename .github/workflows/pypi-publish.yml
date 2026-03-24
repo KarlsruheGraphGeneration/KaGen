@@ -32,13 +32,8 @@ jobs:
         path: dist/*.tar.gz
 
   build-wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-
+    name: Build wheels (cibuildwheel)
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
       with:
@@ -46,14 +41,12 @@ jobs:
 
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.22
-      with:
-        allow-prereleases: true
       env:
-        # Build for CPython 3.10-3.14 on manylinux_2_28 (AlmaLinux 8)
-        CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64 cp314-manylinux_x86_64"
+        # Build for CPython 3.10-3.13 on manylinux_2_28 (AlmaLinux 8)
+        # Python 3.14 is built separately below (not yet in cibuildwheel)
+        CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64"
         CIBW_SKIP: "*-musllinux*"
         CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-        CIBW_ENABLE: cpython-prerelease
 
         # Install GMP/MPFR and download header-only CGAL + modern Boost
         # (system Boost in manylinux_2_28 is too old for CGAL + C++20)
@@ -72,12 +65,45 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: wheels-${{ matrix.os }}
+        name: wheels-cibuildwheel
         path: ./wheelhouse/*.whl
+
+  build-wheel-314:
+    name: Build wheel (Python 3.14)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libcgal-dev libgmp-dev libmpfr-dev libboost-dev
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.14-dev'
+        allow-prereleases: true
+
+    - name: Build wheel
+      run: |
+        pip install scikit-build-core pybind11 numpy
+        pip wheel . --no-deps -w dist/
+
+    - name: Smoke test
+      run: |
+        pip install dist/*.whl
+        python -c "import kagen; g = kagen.generate_undirected_gnm(100, 500, seed=42); assert g.num_edges() == 1000"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: wheels-py314
+        path: dist/*.whl
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [build-sdist, build-wheels]
+    needs: [build-sdist, build-wheels, build-wheel-314]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
     environment: testpypi
@@ -96,7 +122,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [build-sdist, build-wheels]
+    needs: [build-sdist, build-wheels, build-wheel-314]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
     environment: pypi
