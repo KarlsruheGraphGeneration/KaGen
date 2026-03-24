@@ -1,8 +1,8 @@
 #include "kagen/tools/postprocessor.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/tools/utils.h"
-
-#include <mpi.h>
 
 #include <algorithm>
 #include <cassert>
@@ -13,10 +13,8 @@
 namespace kagen {
 
 void AddNonlocalReverseEdges(
-    Edgelist& edge_list, EdgeWeights& edge_weights, const VertexRange vertex_range, MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    Edgelist& edge_list, EdgeWeights& edge_weights, const VertexRange vertex_range, Comm& comm) {
+    PEID rank = comm.Rank();
 
     const auto ranges           = AllgatherVertexRange(vertex_range, comm);
     const bool has_edge_weights = !edge_weights.empty();
@@ -40,7 +38,7 @@ void AddNonlocalReverseEdges(
 
     {
         // exchange edges
-        auto recv_buf = ExchangeMessageBuffers(message_buffers_edges, MPI_UINT64_T, comm);
+        auto recv_buf = ExchangeMessageBuffers(message_buffers_edges, comm);
 
         for (std::size_t i = 0; i < recv_buf.size(); i += 2) {
             edge_list.emplace_back(recv_buf[i + 1], recv_buf[i]);
@@ -48,7 +46,7 @@ void AddNonlocalReverseEdges(
     }
     {
         // exchange weights
-        auto recv_buf = ExchangeMessageBuffers(message_buffers_weights, MPI_INT64_T, comm);
+        auto recv_buf = ExchangeMessageBuffers(message_buffers_weights, comm);
 
         for (std::size_t i = 0; i < recv_buf.size(); ++i) {
             edge_weights.emplace_back(recv_buf[i]);
@@ -61,10 +59,9 @@ void AddNonlocalReverseEdges(
 }
 
 void RedistributeEdgesByVertexRange(
-    Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm, bool use_binary_search) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    Edgelist& edge_list, const VertexRange vertex_range, Comm& comm, bool use_binary_search) {
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
 
     const auto ranges = AllgatherVertexRange(vertex_range, comm);
     const auto from   = ranges[rank].first;
@@ -83,7 +80,7 @@ void RedistributeEdgesByVertexRange(
         }
     }
 
-    // Exchange edges
+    // Exchange edges — flatten pairs to SInt then use UNSIGNED_LONG_LONG alltoallv
     std::vector<SInt> recv_buf;
     std::vector<SInt> send_buf;
     std::vector<int>  send_counts(size);
@@ -96,7 +93,7 @@ void RedistributeEdgesByVertexRange(
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
     const SInt total_send_count = send_displs.back() + send_counts.back();
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+    comm.Alltoall(send_counts.data(), 1, CommDatatype::INT, recv_counts.data(), 1, CommDatatype::INT);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
     const SInt total_recv_count = recv_displs.back() + recv_counts.back();
 
@@ -113,9 +110,9 @@ void RedistributeEdgesByVertexRange(
     recv_buf.resize(total_recv_count);
     local_edges.reserve(local_edges.size() + total_recv_count / 2);
 
-    MPI_Alltoallv(
-        send_buf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_buf.data(), recv_counts.data(),
-        recv_displs.data(), KAGEN_MPI_SINT, comm);
+    comm.Alltoallv(
+        send_buf.data(), send_counts.data(), send_displs.data(), CommDatatype::UNSIGNED_LONG_LONG, recv_buf.data(),
+        recv_counts.data(), recv_displs.data(), CommDatatype::UNSIGNED_LONG_LONG);
     {
         [[maybe_unused]] auto _clear = std::move(send_buf);
     }
@@ -134,9 +131,8 @@ void RedistributeEdgesByVertexRange(
     std::swap(local_edges, edge_list);
 }
 
-std::vector<SInt> ComputeBalancedVertexDistribution(const SInt n, MPI_Comm comm) {
-    PEID size;
-    MPI_Comm_size(comm, &size);
+std::vector<SInt> ComputeBalancedVertexDistribution(const SInt n, Comm& comm) {
+    PEID size = comm.Size();
 
     const SInt num_vertices_per_pe = n / size;
     const SInt remaining_vertices  = n % size;
@@ -151,9 +147,8 @@ std::vector<SInt> ComputeBalancedVertexDistribution(const SInt n, MPI_Comm comm)
     return distribution;
 }
 
-std::vector<SInt> RoundRobinRemapping(Edgelist& edges, const SInt n, MPI_Comm comm) {
-    PEID size;
-    MPI_Comm_size(comm, &size);
+std::vector<SInt> RoundRobinRemapping(Edgelist& edges, const SInt n, Comm& comm) {
+    PEID size = comm.Size();
 
     std::vector<SInt> distribution = ComputeBalancedVertexDistribution(n, comm);
 
@@ -204,11 +199,9 @@ private:
 };
 
 std::vector<SInt>
-ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& vertex_distribution, MPI_Comm comm) {
-    PEID size;
-    PEID rank;
-    MPI_Comm_size(comm, &size);
-    MPI_Comm_rank(comm, &rank);
+ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& vertex_distribution, Comm& comm) {
+    PEID size = comm.Size();
+    PEID rank = comm.Rank();
 
     const SInt   n = vertex_distribution.back();
     Distribution input_dist(vertex_distribution);
@@ -239,14 +232,14 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
 
     // Send partial degrees to the PE that owns each vertex
     std::vector<int> recv_counts(size);
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+    comm.Alltoall(send_counts.data(), 1, CommDatatype::INT, recv_counts.data(), 1, CommDatatype::INT);
     std::vector<int> recv_displs(size);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
 
     std::vector<SInt> recvbuf(recv_counts.back() + recv_displs.back());
-    MPI_Alltoallv(
-        sendbuf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recvbuf.data(), recv_counts.data(),
-        recv_displs.data(), KAGEN_MPI_SINT, comm);
+    comm.Alltoallv(
+        sendbuf.data(), send_counts.data(), send_displs.data(), CommDatatype::UNSIGNED_LONG_LONG, recvbuf.data(),
+        recv_counts.data(), recv_displs.data(), CommDatatype::UNSIGNED_LONG_LONG);
     partial_degree.clear();
 
     // Aggregate partial degrees from all PEs into the total degree for each owned vertex
@@ -262,12 +255,12 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
 
     // Compute prefix sum of degrees across PEs and total edge count m
     SInt prefix_sum = 0;
-    MPI_Exscan(&total_degree, &prefix_sum, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    comm.Exscan(&total_degree, &prefix_sum, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
     if (rank == 0) {
         prefix_sum = 0;
     }
     SInt m = total_degree;
-    MPI_Allreduce(MPI_IN_PLACE, &m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    comm.Allreduce(COMM_IN_PLACE, &m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
 
     if (m == 0) {
         std::vector<SInt> dist(size + 1, n);
@@ -276,33 +269,32 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
     }
 
     // Find vertex breakpoints that split the edge set into ~equal-sized buckets (one per PE).
-    // Walk through owned vertices in global order; whenever the cumulative degree crosses
-    // a bucket boundary, record that vertex as a breakpoint in the new distribution.
     std::vector<SInt> breakpoints;
     SInt              cur_sum = prefix_sum;
-    assert(size > 0); // size = 0 is not possible in MPI code
+    assert(size > 0);
     SInt bucket_size_remainder = m % size;
     SInt bucket_size           = std::max(
         static_cast<SInt>(1),
-        m / size + static_cast<SInt>(bucket_size_remainder != 0)); // all PEs get one extra edge except for the last one
+        m / size + static_cast<SInt>(bucket_size_remainder != 0));
     if (rank == 0) {
         breakpoints.push_back(0);
     }
     for (std::size_t i = 0; i < local_degree.size(); ++i) {
         SInt degree = local_degree[i];
-        SInt low    = (cur_sum + bucket_size - 1) / bucket_size; // ceil(cur_sum / bucket_size)
+        SInt low    = (cur_sum + bucket_size - 1) / bucket_size;
         SInt start  = std::max(static_cast<SInt>(1), low);
         for (std::size_t j = start * bucket_size; j < cur_sum + degree; j += bucket_size) {
             breakpoints.push_back(i + vertex_distribution[rank]);
         }
         cur_sum += local_degree[i];
     }
+
     // Gather all locally computed breakpoints into the global edge-balanced distribution
     std::vector<SInt> edge_balanced_distribution;
     {
         std::vector<int> recvcounts(size, 0);
         int              local_len = static_cast<int>(breakpoints.size());
-        MPI_Allgather(&local_len, 1, MPI_INT, recvcounts.data(), 1, MPI_INT, comm);
+        comm.Allgather(&local_len, 1, CommDatatype::INT, recvcounts.data(), 1, CommDatatype::INT);
         std::vector<int> displs(size, 0);
         int              total = 0;
         for (int i = 0; i < size; ++i) {
@@ -310,9 +302,9 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
             total += recvcounts[i];
         }
         edge_balanced_distribution.resize(total);
-        MPI_Allgatherv(
-            breakpoints.data(), local_len, KAGEN_MPI_SINT, edge_balanced_distribution.data(), recvcounts.data(),
-            displs.data(), KAGEN_MPI_SINT, comm);
+        comm.Allgatherv(
+            breakpoints.data(), local_len, CommDatatype::UNSIGNED_LONG_LONG, edge_balanced_distribution.data(),
+            recvcounts.data(), displs.data(), CommDatatype::UNSIGNED_LONG_LONG);
     }
     // Pad with n if fewer than size+1 breakpoints were found (low-degree graphs)
     for (std::size_t i = edge_balanced_distribution.size(); i < static_cast<SInt>(size + 1); ++i) {
@@ -322,7 +314,7 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
 }
 
 VertexRange RedistributeEdgesBalanced(
-    Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, MPI_Comm comm) {
+    Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, Comm& comm) {
     SortAndRemoveDuplicates(source);
     std::vector<SInt> vertex_distribution;
     if (remap_round_robin) {
@@ -333,8 +325,7 @@ VertexRange RedistributeEdgesBalanced(
     std::vector<SInt> edge_balanced_distribution = ComputeBalancedEdgeDistribution(source, vertex_distribution, comm);
     Distribution      dist(edge_balanced_distribution);
 
-    PEID rank;
-    MPI_Comm_rank(comm, &rank);
+    PEID rank = comm.Rank();
 
     VertexRange vertex_range = dist.get_vertex_range(rank);
     RedistributeEdgesByVertexRange(source, vertex_range, comm, true);
@@ -344,7 +335,7 @@ VertexRange RedistributeEdgesBalanced(
 }
 
 VertexRange
-RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, MPI_Comm comm) {
+RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, Comm& comm) {
     SortAndRemoveDuplicates(source);
     std::vector<SInt> distribution;
     if (remap_round_robin) {
@@ -353,8 +344,7 @@ RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool re
         distribution = ComputeBalancedVertexDistribution(n, comm);
     }
 
-    PEID rank;
-    MPI_Comm_rank(comm, &rank);
+    PEID rank = comm.Rank();
     VertexRange vertex_range = {distribution[rank], distribution[rank + 1]};
 
     RedistributeEdgesByVertexRange(source, vertex_range, comm, true);

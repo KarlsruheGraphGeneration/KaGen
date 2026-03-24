@@ -2,7 +2,6 @@
 
 #include "kagen/io/graph_format.h"
 
-#include <mpi.h>
 
 #include <string>
 

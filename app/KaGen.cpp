@@ -6,12 +6,16 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+    #include <mpi.h>
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/external_memory_facade.h"
 #include "kagen/in_memory_facade.h"
-
-#include <mpi.h>
 
 #include "CLI11.h"
 #include <iostream>
@@ -19,9 +23,11 @@
 using namespace kagen;
 
 void PrintVersion() {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank == ROOT) {
+#ifndef KAGEN_NOMPI
+    MPIComm mpi_comm(MPI_COMM_WORLD);
+    if (mpi_comm.Rank() == ROOT)
+#endif
+    {
         std::cout << BuildDescription() << std::endl;
     }
 }
@@ -162,6 +168,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     stats_group->silent();
 
     // Generator parameters
+    app.add_option("-t,--threads", config.num_threads, "Number of threads per MPI process")
+        ->capture_default_str();
     app.add_option("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
     app.add_option(
         "--automatic-num-chunks-imbalance-threshold", config.max_vertex_imbalance,
@@ -527,7 +535,9 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 }
 
 int main(int argc, char* argv[]) {
+#ifndef KAGEN_NOMPI
     MPI_Init(&argc, &argv);
+#endif
 
     // Parse parameters
     PGeneratorConfig config;
@@ -546,11 +556,20 @@ int main(int argc, char* argv[]) {
         config.output_graph.extension = true;
     }
 
+#ifndef KAGEN_NOMPI
+    MPIComm comm(MPI_COMM_WORLD);
+#else
+    SeqComm comm;
+#endif
     if (config.external.num_chunks > 1) {
-        GenerateExternalMemoryToDisk(config, MPI_COMM_WORLD);
+        GenerateExternalMemoryToDisk(config, comm);
     } else {
-        GenerateInMemoryToDisk(config, MPI_COMM_WORLD);
+        GenerateInMemoryToDisk(config, comm);
     }
 
+#ifndef KAGEN_NOMPI
     return MPI_Finalize();
+#else
+    return 0;
+#endif
 }

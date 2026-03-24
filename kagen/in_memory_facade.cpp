@@ -1,5 +1,8 @@
 #include "kagen/in_memory_facade.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
+#include "kagen/comm/hybrid_comm.h"
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/factories.h"
@@ -8,21 +11,20 @@
 #include "kagen/tools/statistics.h"
 #include "kagen/tools/validator.h"
 
-#include <mpi.h>
-
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <thread>
+#include <vector>
 
 namespace kagen {
-void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
-    PEID size, rank;
-    MPI_Comm_size(comm, &size);
-    MPI_Comm_rank(comm, &rank);
+void GenerateInMemoryToDisk(PGeneratorConfig config, Comm& comm) {
+    PEID size = comm.Size();
+    PEID rank = comm.Rank();
 
     auto graph = GenerateInMemory(config, GraphRepresentation::EDGE_LIST, comm);
 
-    const auto t_start_io = MPI_Wtime();
+    const auto t_start_io = comm.Wtime();
 
     const std::string base_filename = config.output_graph.filename;
     for (const FileFormat& format: config.output_graph.formats) {
@@ -42,7 +44,7 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
         }
     }
 
-    const auto t_end_io = MPI_Wtime();
+    const auto t_end_io = comm.Wtime();
 
     if (!config.quiet && rank == ROOT) {
         std::cout << "IO took " << std::fixed << std::setprecision(3) << t_end_io - t_start_io << " seconds"
@@ -50,10 +52,76 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     }
 }
 
-Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentation representation, MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentation representation, Comm& comm) {
+    // Threaded path: spawn num_threads virtual PEs within this real PE
+    if (config_template.num_threads > 1) {
+        const int  T            = config_template.num_threads;
+        const PEID real_rank = comm.Rank();
+
+        // Per-thread config: suppress output/stats/validation (done once on merged result)
+        PGeneratorConfig thread_config    = config_template;
+        thread_config.quiet               = true;
+        thread_config.statistics_level    = StatisticsLevel::NONE;
+        thread_config.validate_simple_graph = false;
+        thread_config.num_threads         = 1; // Prevent recursive threading
+
+        HybridCommShared         shared(T);
+        std::vector<Graph>       thread_graphs(T);
+        std::vector<std::thread> workers;
+        workers.reserve(T);
+        for (int t = 0; t < T; ++t) {
+            workers.emplace_back([&, t]() {
+                HybridComm hcomm(t, comm, shared);
+                thread_graphs[t] = GenerateInMemory(thread_config, representation, hcomm);
+            });
+        }
+        for (auto& w : workers) {
+            w.join();
+        }
+
+        Graph merged = std::move(thread_graphs[0]);
+        for (int t = 1; t < T; ++t) {
+            merged.Merge(std::move(thread_graphs[t]));
+        }
+
+        // Run post-generation steps (validation, statistics) on the merged graph using the real comm
+        if (config_template.validate_simple_graph) {
+            const bool output_error = real_rank == ROOT;
+            const bool output_info  = real_rank == ROOT && !config_template.quiet;
+            if (output_info) {
+                std::cout << "Validating graph ... " << std::flush;
+            }
+            bool success = ValidateGraph(merged, config_template.self_loops, config_template.directed, false, comm);
+            comm.Allreduce(COMM_IN_PLACE, &success, 1, CommDatatype::C_BOOL, CommOp::LOR);
+            if (!success) {
+                if (output_error) {
+                    std::cerr << "Error: graph validation failed\n";
+                }
+                comm.Abort(1);
+            } else if (output_info) {
+                std::cout << "OK" << std::endl;
+            }
+        }
+        if (!config_template.quiet) {
+            if (representation == GraphRepresentation::EDGE_LIST) {
+                if (config_template.statistics_level >= StatisticsLevel::BASIC) {
+                    PrintBasicStatistics(merged.edges, merged.vertex_range, real_rank == ROOT, comm);
+                }
+                if (config_template.statistics_level >= StatisticsLevel::ADVANCED) {
+                    PrintAdvancedStatistics(merged.edges, merged.vertex_range, real_rank == ROOT, comm);
+                }
+            } else {
+                if (config_template.statistics_level >= StatisticsLevel::BASIC) {
+                    PrintBasicStatistics(merged.xadj, merged.adjncy, merged.vertex_range, real_rank == ROOT, comm);
+                }
+            }
+        }
+
+        return merged;
+    }
+
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
 
     const bool output_error = rank == ROOT;
     const bool output_info  = rank == ROOT && !config_template.quiet;
@@ -70,19 +138,19 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         if (output_error) {
             std::cerr << "Error: " << ex.what() << "\n";
         }
-        MPI_Barrier(comm);
-        MPI_Abort(comm, 1);
+        comm.Barrier();
+        comm.Abort(1);
     }
 
     if (output_info) {
         std::cout << "Generating graph ... " << std::flush;
     }
 
-    const auto t_start_graphgen = MPI_Wtime();
+    const auto t_start_graphgen = comm.Wtime();
 
     auto generator = factory->Create(config, rank, size);
     generator->Generate(representation);
-    MPI_Barrier(comm);
+    comm.Barrier();
 
     if (output_info) {
         std::cout << "OK" << std::endl;
@@ -94,7 +162,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
     }
     if (!config.skip_postprocessing) {
         generator->Finalize(comm);
-        MPI_Barrier(comm);
+        comm.Barrier();
     }
     if (output_info) {
         std::cout << "OK" << std::endl;
@@ -110,12 +178,16 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         std::cout << "OK" << std::endl;
     }
 
-    const auto t_end_graphgen = MPI_Wtime();
+    const auto t_end_graphgen = comm.Wtime();
 
     if (!config.skip_postprocessing && !config.quiet) {
-        SInt num_global_edges_before, num_global_edges_after;
-        MPI_Reduce(&num_edges_before_finalize, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
-        MPI_Reduce(&num_edges_after_finalize, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+        SInt num_global_edges_before = 0, num_global_edges_after = 0;
+        comm.Reduce(
+            &num_edges_before_finalize, &num_global_edges_before, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM,
+            ROOT);
+        comm.Reduce(
+            &num_edges_after_finalize, &num_global_edges_after, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM,
+            ROOT);
 
         if (num_global_edges_before != num_global_edges_after && output_info) {
             std::cout << "The number of edges changed from " << num_global_edges_before << " to "
@@ -138,12 +210,12 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         }
 
         bool success = ValidateGraph(graph, config.self_loops, config.directed, false, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &success, 1, MPI_C_BOOL, MPI_LOR, comm);
+        comm.Allreduce(COMM_IN_PLACE, &success, 1, CommDatatype::C_BOOL, CommOp::LOR);
         if (!success) {
             if (output_error) {
                 std::cerr << "Error: graph validation failed\n";
             }
-            MPI_Abort(comm, 1);
+            comm.Abort(1);
         } else if (output_info) {
             std::cout << "OK" << std::endl;
         }

@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef GRAPH_GENERATOR_MPI
-    #include <mpi.h>
 #endif
 #ifdef GRAPH_GENERATOR_OMP
     #include <omp.h>

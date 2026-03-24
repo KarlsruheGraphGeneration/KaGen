@@ -1,9 +1,9 @@
 #include "kagen/tools/validator.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/tools/converter.h"
 #include "kagen/tools/utils.h"
-
-#include <mpi.h>
 
 #include <algorithm>
 #include <iostream>
@@ -11,10 +11,9 @@
 
 namespace kagen {
 
-bool ValidateVertexRanges(const Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
-    int rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+bool ValidateVertexRanges(const Edgelist& edge_list, const VertexRange vertex_range, Comm& comm) {
+    int rank = comm.Rank();
+    int size = comm.Size();
 
     const auto ranges = AllgatherVertexRange(vertex_range, comm);
 
@@ -66,7 +65,7 @@ bool ValidateVertexRanges(const Edgelist& edge_list, const VertexRange vertex_ra
 
 bool ValidateGraph(
     Graph& graph, const bool allow_self_loops, const bool allow_directed_graphs, const bool allow_multi_edges,
-    MPI_Comm comm) {
+    Comm& comm) {
     // Validation in CSR representation is currently not implemented, so we convert to it to edge list
     if (graph.representation == GraphRepresentation::CSR) {
         graph.edges       = BuildEdgeListFromCSR(graph.vertex_range, graph.xadj, graph.adjncy);
@@ -135,8 +134,8 @@ bool ValidateGraph(
 
     // Precompute offset for each node
     if (!allow_directed_graphs) {
-        int rank;
-        MPI_Comm_rank(comm, &rank);
+        int        rank   = comm.Rank();
+        int        size   = comm.Size();
         const auto [from, to] = ranges[rank];
 
         std::vector<SInt> node_offset(to - from + 1);
@@ -159,9 +158,6 @@ bool ValidateGraph(
         }
 
         // Check that there are reverse edges for edges across PEs
-        int size;
-        MPI_Comm_size(comm, &size);
-
         std::vector<std::vector<SInt>> message_buffers(size);
         for (const auto& [u, v, weight]: sorted_edges) {
             if (v < from || v >= to) {
@@ -179,27 +175,27 @@ bool ValidateGraph(
         std::vector<int>  send_displs(size);
         std::vector<int>  recv_displs(size);
         for (size_t i = 0; i < send_counts.size(); ++i) {
-            send_counts[i] = message_buffers[i].size();
+            send_counts[i] = static_cast<int>(message_buffers[i].size()) * static_cast<int>(sizeof(SInt));
         }
 
         std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
         const std::size_t total_send_count = send_displs.back() + send_counts.back();
-        MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+        comm.Alltoall(send_counts.data(), 1, CommDatatype::INT, recv_counts.data(), 1, CommDatatype::INT);
         std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
         const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
 
-        send_buf.reserve(total_send_count);
-        for (std::size_t i = 0; i < send_counts.size(); ++i) {
+        send_buf.reserve(total_send_count / sizeof(SInt));
+        for (std::size_t i = 0; i < message_buffers.size(); ++i) {
             for (const auto& elem: message_buffers[i]) {
                 send_buf.push_back(elem);
             }
             { [[maybe_unused]] auto clear = std::move(message_buffers[i]); }
         }
 
-        recv_buf.resize(total_recv_count);
-        MPI_Alltoallv(
-            send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
-            recv_displs.data(), MPI_UINT64_T, comm);
+        recv_buf.resize(total_recv_count / sizeof(SInt));
+        comm.Alltoallv(
+            send_buf.data(), send_counts.data(), send_displs.data(), CommDatatype::BYTE, recv_buf.data(),
+            recv_counts.data(), recv_displs.data(), CommDatatype::BYTE);
 
         for (std::size_t i = 0; i < recv_buf.size(); i += 3) {
             const SInt  u      = recv_buf[i];
@@ -222,18 +218,18 @@ bool ValidateGraph(
 
 bool ValidateGraphInplace(
     Graph& graph, const bool allow_self_loops, const bool allow_directed_graphs, const bool allow_multi_edges,
-    MPI_Comm comm) {
+    Comm& comm) {
     if (graph.representation == GraphRepresentation::CSR) {
         std::cerr << "not implemented";
-        MPI_Abort(comm, 1);
+        comm.Abort(1);
     }
     if (!graph.vertex_weights.empty()) {
         std::cerr << "not implemented";
-        MPI_Abort(comm, 1);
+        comm.Abort(1);
     }
     if (!graph.edge_weights.empty()) {
         std::cerr << "not implemented";
-        MPI_Abort(comm, 1);
+        comm.Abort(1);
     }
 
     auto& edges        = graph.edges;
@@ -272,8 +268,8 @@ bool ValidateGraphInplace(
 
     // Precompute offset for each node
     if (!allow_directed_graphs) {
-        int rank;
-        MPI_Comm_rank(comm, &rank);
+        int        rank   = comm.Rank();
+        int        size   = comm.Size();
         const auto [from, to] = ranges[rank];
 
         std::vector<SInt> node_offset(to - from + 1);
@@ -296,9 +292,6 @@ bool ValidateGraphInplace(
         }
 
         // Check that there are reverse edges for edges across PEs
-        int size;
-        MPI_Comm_size(comm, &size);
-
         std::vector<std::vector<SInt>> message_buffers(size);
         for (const auto& [u, v]: edges) {
             if (v < from || v >= to) {
@@ -315,27 +308,27 @@ bool ValidateGraphInplace(
         std::vector<int>  send_displs(size);
         std::vector<int>  recv_displs(size);
         for (size_t i = 0; i < send_counts.size(); ++i) {
-            send_counts[i] = message_buffers[i].size();
+            send_counts[i] = static_cast<int>(message_buffers[i].size()) * static_cast<int>(sizeof(SInt));
         }
 
         std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
         const std::size_t total_send_count = send_displs.back() + send_counts.back();
-        MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+        comm.Alltoall(send_counts.data(), 1, CommDatatype::INT, recv_counts.data(), 1, CommDatatype::INT);
         std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
         const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
 
-        send_buf.reserve(total_send_count);
-        for (std::size_t i = 0; i < send_counts.size(); ++i) {
+        send_buf.reserve(total_send_count / sizeof(SInt));
+        for (std::size_t i = 0; i < message_buffers.size(); ++i) {
             for (const auto& elem: message_buffers[i]) {
                 send_buf.push_back(elem);
             }
             { [[maybe_unused]] auto clear = std::move(message_buffers[i]); }
         }
 
-        recv_buf.resize(total_recv_count);
-        MPI_Alltoallv(
-            send_buf.data(), send_counts.data(), send_displs.data(), MPI_UINT64_T, recv_buf.data(), recv_counts.data(),
-            recv_displs.data(), MPI_UINT64_T, comm);
+        recv_buf.resize(total_recv_count / sizeof(SInt));
+        comm.Alltoallv(
+            send_buf.data(), send_counts.data(), send_displs.data(), CommDatatype::BYTE, recv_buf.data(),
+            recv_counts.data(), recv_displs.data(), CommDatatype::BYTE);
 
         for (std::size_t i = 0; i < recv_buf.size();) {
             const SInt u = recv_buf[i++];

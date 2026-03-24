@@ -1,9 +1,8 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
 #include "kagen/context.h"
 #include "kagen/kagen.h"
-
-#include <mpi.h>
 
 #include <memory>
 #include <string>
@@ -81,8 +80,8 @@ public:
 
 struct GraphInfo {
     GraphInfo() = default;
-    GraphInfo(const Graph& graph, MPI_Comm comm);
-    GraphInfo(const GraphInfo& local, MPI_Comm comm);
+    GraphInfo(const Graph& graph, Comm& comm);
+    GraphInfo(const GraphInfo& local, Comm& comm);
 
     SInt local_n            = 0;
     SInt local_m            = 0;

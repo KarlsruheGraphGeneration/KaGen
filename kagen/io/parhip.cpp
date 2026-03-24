@@ -3,7 +3,6 @@
 #include "kagen/definitions.h"
 #include "kagen/io.h"
 
-#include <mpi.h>
 
 #include <algorithm>
 #include <array>

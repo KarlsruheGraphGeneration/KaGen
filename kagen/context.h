@@ -111,6 +111,7 @@ struct PGeneratorConfig {
     StatisticsLevel statistics_level      = StatisticsLevel::BASIC;
     bool            skip_postprocessing   = false;
     bool            print_header          = true;
+    int             num_threads           = 1;     // Number of threads for intra-process parallelism
 
     // External memory mode settings
     ExternalMemoryConfig external{};

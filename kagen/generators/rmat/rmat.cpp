@@ -5,7 +5,6 @@
 #include "kagen/generators/rmat/generators/select.hpp"
 #include "kagen/generators/rmat/rmat_impl.hpp"
 
-#include <mpi.h>
 
 namespace kagen {
 PGeneratorConfig

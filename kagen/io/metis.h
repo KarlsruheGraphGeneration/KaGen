@@ -3,7 +3,6 @@
 #include "kagen/io/graph_format.h"
 #include "kagen/io/mmap_toker.h"
 
-#include <mpi.h>
 
 namespace kagen {
 class MetisWriter : public StandardGraphWriter {

@@ -1,12 +1,16 @@
 #include "app/CLI11.h"
 
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+    #include <mpi.h>
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/io.h"
 #include "kagen/tools/postprocessor.h"
 #include "kagen/tools/utils.h"
 #include "kagen/tools/validator.h"
-
-#include <mpi.h>
 
 #include <iostream>
 #include <limits>
@@ -14,9 +18,15 @@
 using namespace kagen;
 
 int main(int argc, char* argv[]) {
+#ifndef KAGEN_NOMPI
     MPI_Init(&argc, &argv);
-    const PEID rank = GetCommRank(MPI_COMM_WORLD);
-    const PEID size = GetCommSize(MPI_COMM_WORLD);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+#else
+    (void)argc; (void)argv;
+    kagen::SeqComm comm;
+#endif
+    const PEID rank = comm.Rank();
+    const PEID size = comm.Size();
 
     InputGraphConfig config;
 
@@ -84,11 +94,11 @@ int main(int argc, char* argv[]) {
         const auto [from, to] = ComputeRange(n, size, rank);
         graph = reader->Read(from, to, std::numeric_limits<SInt>::max(), GraphRepresentation::EDGE_LIST);
         if (reader->Deficits() & ReaderDeficits::UNKNOWN_NUM_VERTICES) {
-            n = FindNumberOfVerticesInEdgelist(graph.edges, MPI_COMM_WORLD);
+            n = FindNumberOfVerticesInEdgelist(graph.edges, comm);
         }
         if (reader->Deficits() & ReaderDeficits::UNKNOWN_NUM_EDGES) {
             m = graph.edges.size();
-            MPI_Allreduce(MPI_IN_PLACE, &m, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
+            comm.Allreduce(kagen::COMM_IN_PLACE, &m, 1, kagen::CommDatatype::UNSIGNED_LONG_LONG, kagen::CommOp::SUM);
         }
 
         if (reader->Deficits() & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
@@ -97,7 +107,7 @@ int main(int argc, char* argv[]) {
             }
 
             std::tie(graph.vertex_range.first, graph.vertex_range.second) = ComputeRange(n, size, rank);
-            RedistributeEdgesByVertexRange(graph.edges, graph.vertex_range, MPI_COMM_WORLD);
+            RedistributeEdgesByVertexRange(graph.edges, graph.vertex_range, comm);
         }
     } catch (const IOError& e) {
         if (!quiet) {
@@ -177,19 +187,21 @@ int main(int argc, char* argv[]) {
     }
 
     if (!has_edge_weights && !has_vertex_weights) {
-        has_warned |= !ValidateGraphInplace(graph, allow_self_loops, allow_directed, allow_multi_edges, MPI_COMM_WORLD);
+        has_warned |= !ValidateGraphInplace(graph, allow_self_loops, allow_directed, allow_multi_edges, comm);
     } else {
-        has_warned |= !ValidateGraph(graph, allow_self_loops, allow_directed, allow_multi_edges, MPI_COMM_WORLD);
+        has_warned |= !ValidateGraph(graph, allow_self_loops, allow_directed, allow_multi_edges, comm);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &has_warned, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
+    comm.Allreduce(kagen::COMM_IN_PLACE, &has_warned, 1, kagen::CommDatatype::C_BOOL, kagen::CommOp::LOR);
 
     if (!has_warned && !quiet && rank == 0) {
         std::cout << "Graph OK" << std::endl;
     }
 
     if (has_warned) {
-        MPI_Abort(MPI_COMM_WORLD, 1);
+        comm.Abort(1);
     }
+#ifndef KAGEN_NOMPI
     MPI_Finalize();
+#endif
     return has_warned;
 }

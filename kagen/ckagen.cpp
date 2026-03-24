@@ -1,6 +1,11 @@
-#include <mpi.h>
-
 #include "kagen.h"
+#include "kagen/comm/comm_types.h"
+#ifndef KAGEN_NOMPI
+    #include <mpi.h>
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 
 struct kagen_obj {
     kagen::KaGen* gen_ptr;
@@ -95,6 +100,10 @@ void kagen_enable_output(kagen_obj* gen, bool header) {
 void kagen_use_hp_floats(kagen_obj* gen, bool state) {
     gen->gen_ptr->UseHPFloats(state);
 }
+void kagen_set_num_threads(kagen_obj* gen, int threads) {
+    gen->gen_ptr->SetNumberOfThreads(threads);
+}
+
 void kagen_set_numer_of_chunks(kagen_obj* gen, unsigned long long k) {
     gen->gen_ptr->SetNumberOfChunks(k);
 }
@@ -342,10 +351,16 @@ void kagen_build_vertex_distribution(kagen_graph* result, kagen_index* dist, MPI
         return;
     }
 
-    kagen::PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
-    dist[0]        = 0;
-    dist[rank + 1] = result->result_ptr->vertex_range.second;
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, dist + 1, 1, MPI_UNSIGNED_LONG_LONG, comm);
+#ifndef KAGEN_NOMPI
+    kagen::MPIComm mcomm(comm);
+#else
+    (void)comm;
+    kagen::SeqComm mcomm;
+#endif
+    kagen::PEID rank = mcomm.Rank();
+    dist[0]          = 0;
+    dist[rank + 1]   = result->result_ptr->vertex_range.second;
+    mcomm.Allgather(
+        kagen::COMM_IN_PLACE, 0, kagen::CommDatatype::UNSIGNED_LONG_LONG, dist + 1, 1,
+        kagen::CommDatatype::UNSIGNED_LONG_LONG);
 }

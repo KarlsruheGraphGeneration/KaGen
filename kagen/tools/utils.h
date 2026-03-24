@@ -1,12 +1,15 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/kagen.h"
 
-#include <mpi.h>
-
+#include <cstring>
 #include <limits>
 #include <numeric>
 #include <type_traits>
+#include <unordered_map>
+#include <vector>
 
 namespace kagen {
 template <typename T>
@@ -23,25 +26,21 @@ inline std::pair<SInt, SInt> ComputeRange(const SInt n, const PEID size, const P
     return {from, to};
 }
 
-inline SInt FindNumberOfVerticesInEdgelist(const Edgelist& edges, MPI_Comm comm) {
+inline SInt FindNumberOfVerticesInEdgelist(const Edgelist& edges, Comm& comm) {
     SInt n = 0;
     for (const auto& [u, v]: edges) {
         n = std::max(n, std::max(u, v));
     }
-    MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
+    comm.Allreduce(COMM_IN_PLACE, &n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::MAX);
     return n + 1;
 }
 
-inline PEID GetCommRank(MPI_Comm comm) {
-    PEID rank;
-    MPI_Comm_rank(comm, &rank);
-    return rank;
+inline PEID GetCommRank(Comm& comm) {
+    return comm.Rank();
 }
 
-inline PEID GetCommSize(MPI_Comm comm) {
-    PEID size;
-    MPI_Comm_size(comm, &size);
-    return size;
+inline PEID GetCommSize(Comm& comm) {
+    return comm.Size();
 }
 
 template <typename T>
@@ -85,41 +84,48 @@ inline PEID FindPEInRangeWithBinarySearch(const SInt node, const std::vector<Ver
     return -1;
 }
 
-inline std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, MPI_Comm comm) {
-    int rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+inline std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_range, Comm& comm) {
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
 
     std::vector<VertexRange> ranges(static_cast<std::size_t>(size));
     ranges[static_cast<std::size_t>(rank)] = vertex_range;
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, ranges.data(), sizeof(VertexRange), MPI_BYTE, comm);
+    // Use BYTE-based allgather: each element is sizeof(VertexRange) bytes
+    comm.Allgather(
+        COMM_IN_PLACE, 0, CommDatatype::BYTE, ranges.data(), static_cast<int>(sizeof(VertexRange)),
+        CommDatatype::BYTE);
 
     return ranges;
 }
 
+// Exchange message buffers all-to-all using byte-based communication.
+// Each element of type T is sent as sizeof(T) bytes.
 template <typename T>
-std::vector<T> ExchangeMessageBuffers(
-    std::unordered_map<PEID, std::vector<T>> message_buffers, MPI_Datatype mpi_datatype, MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+std::vector<T> ExchangeMessageBuffers(std::unordered_map<PEID, std::vector<T>> message_buffers, Comm& comm) {
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
+
     std::vector<T>   send_buf;
     std::vector<T>   recv_buf;
     std::vector<int> send_counts(size);
     std::vector<int> recv_counts(size);
     std::vector<int> send_displs(size);
     std::vector<int> recv_displs(size);
-    for (size_t i = 0; i < send_counts.size(); ++i) {
+
+    for (size_t i = 0; i < static_cast<std::size_t>(size); ++i) {
         send_counts[i] = message_buffers[i].size();
     }
 
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
     const std::size_t total_send_count = send_displs.back() + send_counts.back();
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+
+    comm.Alltoall(send_counts.data(), 1, CommDatatype::INT, recv_counts.data(), 1, CommDatatype::INT);
+
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
     const std::size_t total_recv_count = recv_displs.back() + recv_counts.back();
+
     send_buf.reserve(total_send_count);
-    for (size_t i = 0; i < send_counts.size(); ++i) {
+    for (size_t i = 0; i < static_cast<std::size_t>(size); ++i) {
         for (const auto& elem: message_buffers[i]) {
             send_buf.push_back(elem);
         }
@@ -127,9 +133,22 @@ std::vector<T> ExchangeMessageBuffers(
         message_buffers[i].resize(0);
     }
     recv_buf.resize(total_recv_count);
-    MPI_Alltoallv(
-        send_buf.data(), send_counts.data(), send_displs.data(), mpi_datatype, recv_buf.data(), recv_counts.data(),
-        recv_displs.data(), mpi_datatype, comm);
+
+    // Convert element counts to byte counts for BYTE-based alltoallv
+    const int element_size = static_cast<int>(sizeof(T));
+    std::vector<int> send_counts_bytes(size), recv_counts_bytes(size);
+    std::vector<int> send_displs_bytes(size), recv_displs_bytes(size);
+    for (int i = 0; i < size; ++i) {
+        send_counts_bytes[i] = send_counts[i] * element_size;
+        recv_counts_bytes[i] = recv_counts[i] * element_size;
+        send_displs_bytes[i] = send_displs[i] * element_size;
+        recv_displs_bytes[i] = recv_displs[i] * element_size;
+    }
+
+    comm.Alltoallv(
+        send_buf.data(), send_counts_bytes.data(), send_displs_bytes.data(), CommDatatype::BYTE, recv_buf.data(),
+        recv_counts_bytes.data(), recv_displs_bytes.data(), CommDatatype::BYTE);
+
     send_buf.clear();
     send_buf.resize(0);
     return recv_buf;
@@ -139,9 +158,6 @@ template <typename Comparator = std::less<Edgelist::value_type>>
 inline void SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comparator cmp = Comparator{}) {
     if (!std::is_sorted(edges.begin(), edges.end(), cmp)) {
         const SInt num_local_edges = edges.size();
-        // If we have edge weights, sort them the same way as the edges
-        // This not very efficient; ideally, we should probably implement some kind of zip iterator to sort edges
-        // and edge weights without extra allocation / expensive permutation step (@todo)
         if (!edge_weights.empty()) {
             std::vector<EdgeWeights::value_type> indices(num_local_edges);
             std::iota(indices.begin(), indices.end(), 0);
@@ -161,7 +177,6 @@ inline void SortEdgesAndWeights(Edgelist& edges, EdgeWeights& edge_weights, Comp
 inline void RemoveDuplicates(Edgelist& edges, EdgeWeights& edge_weights) {
     const SInt num_local_edges = edges.size();
     if (!edge_weights.empty()) {
-        // TODO replace with zip view once C++23 is enabled
         using Edge   = typename Edgelist::value_type;
         using Weight = typename EdgeWeights::value_type;
 

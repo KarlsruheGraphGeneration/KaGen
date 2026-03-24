@@ -1,12 +1,16 @@
 #include "app/CLI11.h"
 #include "app/tools/strutils.h"
 
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+    #include <mpi.h>
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/io.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/utils.h"
-
-#include <mpi.h>
 
 #include <iostream>
 
@@ -217,7 +221,12 @@ Statistics ComputeStatistics(const Configuration& stats_config) {
     }
 
     if (stats_config.num_chunks == 1) {
-        const Graph graph = FinalizeGraphFragment(std::move(first_fragment), false, MPI_COMM_WORLD);
+#ifndef KAGEN_NOMPI
+        kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+#else
+        kagen::SeqComm mpi_world;
+#endif
+        const Graph graph = FinalizeGraphFragment(std::move(first_fragment), false, mpi_world);
         return computator.Finalize(graph);
     } else {
         return computator.Finalize();
@@ -284,11 +293,14 @@ Configuration parse_cli_arguments(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+#ifndef KAGEN_NOMPI
     MPI_Init(&argc, &argv);
-    if (GetCommSize(MPI_COMM_WORLD) != 1) {
+    kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+    if (mpi_world.Size() != 1) {
         std::cerr << "must be run with just one MPI process\n";
         return MPI_Finalize();
     }
+#endif
 
     Configuration config = parse_cli_arguments(argc, argv);
 
@@ -296,7 +308,11 @@ int main(int argc, char* argv[]) {
         PrintHeader(config);
     }
     if (config.header_only) {
+#ifndef KAGEN_NOMPI
         return MPI_Finalize();
+#else
+        return 0;
+#endif
     }
 
     for (const auto& filename: config.input_filenames) {
@@ -311,5 +327,9 @@ int main(int argc, char* argv[]) {
         PrintRow(config, stats);
     }
 
+#ifndef KAGEN_NOMPI
     return MPI_Finalize();
+#else
+    return 0;
+#endif
 }

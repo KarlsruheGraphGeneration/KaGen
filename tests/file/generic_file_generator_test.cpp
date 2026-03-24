@@ -1,3 +1,4 @@
+#include "kagen/comm/mpi_comm.h"
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
 
@@ -63,21 +64,21 @@ inline Graph ReadStaticGraph(
     config.input_graph.distribution = distribution;
     config.input_graph.format       = format;
 
-    PEID size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    PEID size = comm.Size();
+    PEID rank = comm.Rank();
 
     FileGraphGenerator generator(config, rank, size);
     generator.Generate(representation);
-    generator.Finalize(MPI_COMM_WORLD);
+    generator.Finalize(comm);
     return generator.Take();
 }
 
 inline Graph ReadStaticGraphOnRoot(
     const std::string& filename, const GraphDistribution distribution, const FileFormat format,
     const GraphRepresentation representation) {
-    PEID rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    PEID rank = comm.Rank();
 
     if (rank == 0) {
         PGeneratorConfig config;
@@ -98,7 +99,7 @@ inline Graph ReadStaticGraphOnRoot(
 
         FileGraphGenerator generator(config, 0, 1);
         generator.Generate(representation);
-        generator.Finalize(MPI_COMM_WORLD);
+        generator.Finalize(comm);
         return generator.Take();
     } else {
         return {};
@@ -329,8 +330,8 @@ TEST_P(GenericGeneratorTestFixture, loads_real_world_graph) {
     using namespace ::testing;
     const auto [format, distribution, representation] = GetParam();
 
-    PEID rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+    PEID rank = mpi_world.Rank();
 
     const auto local_graph  = ReadStaticGraph(REAL_WORLD_GRAPH, distribution, format, representation);
     auto       global_graph = kagen::testing::GatherGraph(local_graph);

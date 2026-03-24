@@ -1,5 +1,7 @@
 #include "kagen/generators/generator.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/context.h"
 #include "kagen/edgeweight_generators/default_generator.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
@@ -9,12 +11,11 @@
 #include "kagen/edgeweight_generators/voiding_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
+#include "kagen/tools/utils.h"
 #include "kagen/vertexweight_generators/default_generator.h"
 #include "kagen/vertexweight_generators/uniform_random_generator.h"
 #include "kagen/vertexweight_generators/vertex_weight_generator.h"
 #include "kagen/vertexweight_generators/voiding_generator.h"
-
-#include <mpi.h>
 
 #include <algorithm>
 #include <cmath>
@@ -43,7 +44,7 @@ Generator* Generator::Generate(const GraphRepresentation representation) {
     return this;
 }
 
-Generator* Generator::Finalize(MPI_Comm comm) {
+Generator* Generator::Finalize(Comm& comm) {
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST:
             FinalizeEdgeList(comm);
@@ -60,7 +61,7 @@ Generator* Generator::Finalize(MPI_Comm comm) {
 }
 
 std::unique_ptr<kagen::EdgeWeightGenerator>
-CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, const VertexRange vertex_range) {
+CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, Comm& comm, const VertexRange vertex_range) {
     switch (weight_config.generator_type) {
         case EdgeWeightGeneratorType::DEFAULT:
             return std::make_unique<DefaultEdgeWeightGenerator>(weight_config);
@@ -77,7 +78,7 @@ CreateEdgeWeightGenerator(const EdgeWeightConfig weight_config, MPI_Comm comm, c
     throw std::runtime_error("invalid weight generator type");
 }
 
-void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm) {
+void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, Comm& comm) {
     std::unique_ptr<kagen::EdgeWeightGenerator> edge_weight_generator =
         CreateEdgeWeightGenerator(weight_config, comm, graph_.vertex_range);
 
@@ -95,9 +96,6 @@ namespace {
 template <typename Permutator>
 auto ApplyPermutationAndComputeSendBuffersEdgeList(
     const Graph& graph, const std::vector<VertexRange>& recv_ranges, Permutator&& permute) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
     Edgelist edges = graph.edges;
     for (auto& [src, dst]: edges) {
         src = permute(src);
@@ -255,8 +253,6 @@ auto ApplyPermutationAndComputeSendBuffers(
     const std::vector<SSInt>& recv_vertex_weights) {
     std::size_t       num_local_vertices = recv_range.second - recv_range.first;
     std::vector<SInt> degree(num_local_vertices, 0);
-    int               rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     for (std::size_t i = 0; i < recv_edges.size(); i += 2) {
         const auto src = recv_edges[i];
         ++degree[src - recv_range.first];
@@ -286,12 +282,10 @@ auto ApplyPermutationAndComputeSendBuffers(
 }
 } // namespace
 
-void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config, [[maybe_unused]] MPI_Comm comm) {
+void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config, [[maybe_unused]] Comm& comm) {
 #ifdef KAGEN_XXHASH_FOUND
-    int size = -1;
-    int rank = -1;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    int size = comm.Size();
+    int rank = comm.Rank();
 
     auto permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(config.n - 1, 0);
     auto permute    = [&permutator](SInt v) {
@@ -311,9 +305,9 @@ void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config,
 
     auto [send_buffers, edge_weight_send_buffers, vertex_weight_send_buffers] =
         ApplyPermutationAndComputeSendBuffers(graph_, recv_ranges, permute);
-    auto recv_edges          = ExchangeMessageBuffers(std::move(send_buffers), KAGEN_MPI_SINT, comm);
-    auto recv_edge_weights   = ExchangeMessageBuffers(std::move(edge_weight_send_buffers), KAGEN_MPI_SSINT, comm);
-    auto recv_vertex_weights = ExchangeMessageBuffers(std::move(vertex_weight_send_buffers), KAGEN_MPI_SSINT, comm);
+    auto recv_edges          = ExchangeMessageBuffers(std::move(send_buffers), comm);
+    auto recv_edge_weights   = ExchangeMessageBuffers(std::move(edge_weight_send_buffers), comm);
+    auto recv_vertex_weights = ExchangeMessageBuffers(std::move(vertex_weight_send_buffers), comm);
 
     switch (desired_representation_) {
         case GraphRepresentation::EDGE_LIST: {
@@ -340,7 +334,7 @@ void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config,
 }
 
 std::unique_ptr<kagen::VertexWeightGenerator>
-CreateVertexWeightGenerator(const VertexWeightConfig weight_config, MPI_Comm comm) {
+CreateVertexWeightGenerator(const VertexWeightConfig weight_config, Comm& comm) {
     switch (weight_config.generator_type) {
         case VertexWeightGeneratorType::DEFAULT:
             return std::make_unique<DefaultVertexWeightGenerator>(weight_config);
@@ -353,7 +347,7 @@ CreateVertexWeightGenerator(const VertexWeightConfig weight_config, MPI_Comm com
     throw std::runtime_error("invalid weight generator type");
 }
 
-void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm comm) {
+void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, Comm& comm) {
     std::unique_ptr<kagen::VertexWeightGenerator> vertex_weight_generator =
         CreateVertexWeightGenerator(weight_config, comm);
 
@@ -368,15 +362,15 @@ void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm
     }
 }
 
-void Generator::FinalizeEdgeList(MPI_Comm) {}
+void Generator::FinalizeEdgeList(Comm&) {}
 
-void Generator::FinalizeCSR(MPI_Comm) {}
+void Generator::FinalizeCSR(Comm&) {}
 
 void CSROnlyGenerator::GenerateEdgeList() {
     GenerateCSR();
 }
 
-void CSROnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
+void CSROnlyGenerator::FinalizeEdgeList(Comm& comm) {
     if (graph_.xadj.empty()) {
         return;
     }
@@ -399,7 +393,7 @@ void EdgeListOnlyGenerator::GenerateCSR() {
     GenerateEdgeList();
 }
 
-void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
+void EdgeListOnlyGenerator::FinalizeCSR(Comm& comm) {
     if (!graph_.xadj.empty()) {
         return;
     }

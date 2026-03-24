@@ -1,23 +1,22 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
 #include "kagen/kagen.h"
-
-#include <mpi.h>
 
 #include <vector>
 
 namespace kagen {
-SInt FindNumberOfGlobalNodes(VertexRange vertex_range, MPI_Comm comm);
+SInt FindNumberOfGlobalNodes(VertexRange vertex_range, Comm& comm);
 
-SInt FindNumberOfGlobalEdges(const Edgelist& edges, MPI_Comm comm);
+SInt FindNumberOfGlobalEdges(const Edgelist& edges, Comm& comm);
 
-std::vector<SInt> GatherNumberOfEdges(const Edgelist& edges, MPI_Comm comm);
+std::vector<SInt> GatherNumberOfEdges(const Edgelist& edges, Comm& comm);
 
-SInt    ReduceSum(SInt value, MPI_Comm comm);
-SInt    ReduceMin(SInt value, MPI_Comm comm);
-LPFloat ReduceMean(SInt value, MPI_Comm comm);
-SInt    ReduceMax(SInt value, MPI_Comm comm);
-LPFloat ReduceSD(SInt value, MPI_Comm comm);
+SInt    ReduceSum(SInt value, Comm& comm);
+SInt    ReduceMin(SInt value, Comm& comm);
+LPFloat ReduceMean(SInt value, Comm& comm);
+SInt    ReduceMax(SInt value, Comm& comm);
+LPFloat ReduceSD(SInt value, Comm& comm);
 
 struct DegreeStatistics {
     SInt    min;
@@ -25,18 +24,18 @@ struct DegreeStatistics {
     SInt    max;
 };
 
-DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, SInt global_num_nodes, MPI_Comm comm);
+DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, SInt global_num_nodes, Comm& comm);
 
-std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, VertexRange vertex_range, Comm& comm);
 
-double ComputeEdgeLocality(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+double ComputeEdgeLocality(const Edgelist& edges, VertexRange vertex_range, Comm& comm);
 
-SInt ComputeNumberOfGhostNodes(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+SInt ComputeNumberOfGhostNodes(const Edgelist& edges, VertexRange vertex_range, Comm& comm);
 
 void PrintBasicStatistics(
-    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, bool root, MPI_Comm comm);
+    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, bool root, Comm& comm);
 
-void PrintBasicStatistics(const Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
+void PrintBasicStatistics(const Edgelist& edges, VertexRange vertex_range, bool root, Comm& comm);
 
-void PrintAdvancedStatistics(Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
+void PrintAdvancedStatistics(Edgelist& edges, VertexRange vertex_range, bool root, Comm& comm);
 } // namespace kagen

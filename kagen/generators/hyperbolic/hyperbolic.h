@@ -14,8 +14,6 @@
 #include "kagen/tools/rng_wrapper.h"
 #include "kagen/tools/sorted_mersenne.h"
 
-#include <mpi.h>
-
 #include <tuple>
 #include <vector>
 
@@ -44,7 +42,7 @@ public:
 protected:
     void GenerateEdgeList() final;
 
-    void FinalizeEdgeList(MPI_Comm comm) final;
+    void FinalizeEdgeList(Comm& comm) final;
 
 private:
     // Config

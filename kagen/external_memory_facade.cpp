@@ -1,5 +1,7 @@
 #include "kagen/external_memory_facade.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/definitions.h"
 #include "kagen/factories.h"
 #include "kagen/io.h"
@@ -151,11 +153,9 @@ ReadMyIndices(const PEID rank, const PEID size, const PGeneratorConfig& config) 
 
 Graph SwapinGraphChunk(
     const PEID chunk, const Indices& my_indices, const std::vector<SInt>& distribution, std::ifstream* aggregate_in,
-    std::ofstream* aggregate_out, const PGeneratorConfig& config, MPI_Comm comm) {
-    PEID size;
-    PEID rank;
-    MPI_Comm_size(comm, &size);
-    MPI_Comm_rank(comm, &rank);
+    std::ofstream* aggregate_out, const PGeneratorConfig& config, Comm& comm) {
+    PEID size = comm.Size();
+    PEID rank = comm.Rank();
 
     const bool output_info = (rank == ROOT && !config.quiet);
 
@@ -274,10 +274,9 @@ void RemoveAggregatedBufferFiles(const PEID rank, const PGeneratorConfig& config
 }
 
 std::pair<PGeneratorConfig, GraphInfo>
-GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribution, MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribution, Comm& comm) {
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
 
     const bool output_error = (rank == ROOT);
     const bool output_info  = (rank == ROOT && !config.quiet);
@@ -291,7 +290,7 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
         if (output_error) {
             std::cerr << "Error: cannot create files in " << config.external.tmp_directory << "\n";
         }
-        MPI_Abort(comm, 1);
+        comm.Abort(1);
     }
 
     SInt cur_edge_offset = 0;
@@ -306,7 +305,7 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
             if (output_error) {
                 std::cerr << "Error: " << ex.what() << "\n";
             }
-            MPI_Abort(comm, 1);
+            comm.Abort(1);
         }
 
         auto generator = generator_factory->Create(config, chunk, config.external.num_chunks);
@@ -325,7 +324,7 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
             if (output_error) {
                 std::cerr << "Error: edge weights are not supported in external mode\n";
             }
-            MPI_Abort(comm, 1);
+            comm.Abort(1);
         }
 
         Edgelist edges = std::move(graph.edges);
@@ -362,7 +361,7 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
     if (output_info) {
         std::cout << "Waiting for other PEs ... " << std::flush;
     }
-    MPI_Barrier(comm);
+    comm.Barrier();
     if (output_info) {
         std::cout << "OK" << std::endl;
     }
@@ -372,10 +371,9 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
 
 GraphInfo DeduplicateEdges(
     GraphInfo info, PGeneratorConfig config, const Indices& my_indices, const std::vector<SInt>& vertex_distribution,
-    MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    Comm& comm) {
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
 
     const bool output_info = (rank == ROOT && !config.quiet);
 
@@ -406,7 +404,7 @@ GraphInfo DeduplicateEdges(
     if (output_info) {
         std::cout << "Waiting for other PEs ... " << std::flush;
     }
-    MPI_Barrier(comm);
+    comm.Barrier();
     if (output_info) {
         std::cout << "OK" << std::endl;
     }
@@ -415,10 +413,9 @@ GraphInfo DeduplicateEdges(
 }
 } // namespace
 
-void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
-    PEID rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+void GenerateExternalMemoryToDisk(PGeneratorConfig config, Comm& comm) {
+    PEID rank = comm.Rank();
+    PEID size = comm.Size();
 
     const bool output_error = (rank == ROOT);
     const bool output_info  = (rank == ROOT && !config.quiet);
@@ -431,7 +428,7 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
         if (output_error) {
             std::cerr << "Error: external mode requires the number of nodes to be given in advance\n";
         }
-        MPI_Abort(comm, 1);
+        comm.Abort(1);
     }
 
     auto vertex_distribution = CreateVertexDistribution(config.n, config.external.num_chunks);
@@ -462,7 +459,7 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
         if (rank == ROOT) {
             if (std::ofstream out(out_config.filename); !out) {
                 std::cerr << "Error: cannot write to " << out_config.filename << "\n";
-                MPI_Abort(comm, 1);
+                comm.Abort(1);
             }
         }
 
@@ -510,15 +507,17 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
                 pass_info.local_n   = graph.NumberOfLocalVertices();
                 pass_info.local_m   = graph.NumberOfLocalEdges();
 
-                MPI_Exscan(&pass_info.local_n, &pass_info.offset_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-                MPI_Exscan(&pass_info.local_m, &pass_info.offset_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+                comm.Exscan(&pass_info.local_n, &pass_info.offset_n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+                comm.Exscan(&pass_info.local_m, &pass_info.offset_m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
                 pass_info.offset_n += last_round_offset_n;
                 pass_info.offset_m += last_round_offset_m;
 
                 SInt this_round_n = 0;
                 SInt this_round_m = 0;
-                MPI_Allreduce(&pass_info.local_n, &this_round_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-                MPI_Allreduce(&pass_info.local_m, &this_round_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+                comm.Allreduce(
+                    &pass_info.local_n, &this_round_n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+                comm.Allreduce(
+                    &pass_info.local_m, &this_round_m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
                 last_round_offset_n += this_round_n;
                 last_round_offset_m += this_round_m;
 
@@ -527,7 +526,7 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
                 }
 
                 for (PEID pe = 0; pe < size; ++pe) {
-                    MPI_Barrier(comm);
+                    comm.Barrier();
                     if (pe != rank) {
                         continue;
                     }
@@ -545,7 +544,7 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
             // If not all PEs participate in the last round, we need to make sure that they all know whether we are done
             // or not
-            MPI_Allreduce(MPI_IN_PLACE, &continue_with_next_pass, 1, MPI_C_BOOL, MPI_LOR, comm);
+            comm.Allreduce(COMM_IN_PLACE, &continue_with_next_pass, 1, CommDatatype::C_BOOL, CommOp::LOR);
         }
     }
 
@@ -553,4 +552,3 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     RemoveAggregatedBufferFiles(rank, config, output_info);
 }
 } // namespace kagen
-

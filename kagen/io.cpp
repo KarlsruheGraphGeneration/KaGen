@@ -11,9 +11,9 @@
 #include "kagen/io/parhip.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/postprocessor.h"
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/tools/utils.h"
-
-#include <mpi.h>
 
 #include <memory>
 #include <sstream>
@@ -202,14 +202,14 @@ GraphFragment ReadGraphFragment(
     };
 }
 
-Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, MPI_Comm comm) {
+Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, Comm& comm) {
     if (fragment.deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
         if (fragment.graph.representation == GraphRepresentation::CSR) {
             throw std::invalid_argument("not implemented");
         }
 
-        const PEID size = GetCommSize(comm);
-        const PEID rank = GetCommRank(comm);
+        const PEID size = comm.Size();
+        const PEID rank = comm.Rank();
 
         if (output) {
             std::cout << "redistributing edges ... " << std::flush;
@@ -221,7 +221,7 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, MPI_Comm 
                 n = FindNumberOfVerticesInEdgelist(fragment.graph.edges, comm);
             } else {
                 n = fragment.graph.vertex_range.second;
-                MPI_Bcast(&n, 1, KAGEN_MPI_SINT, size - 1, comm);
+                comm.Bcast(&n, 1, CommDatatype::UNSIGNED_LONG_LONG, size - 1);
             }
             return n;
         }();
@@ -233,9 +233,9 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, MPI_Comm 
     return std::move(fragment.graph);
 }
 
-void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, MPI_Comm comm) {
-    const PEID size = GetCommSize(comm);
-    const PEID rank = GetCommRank(comm);
+void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool output, Comm& comm) {
+    const PEID size = comm.Size();
+    const PEID rank = comm.Rank();
 
     const std::string filename = config.distributed ? config.filename + "." + std::to_string(rank) : config.filename;
 
@@ -286,7 +286,7 @@ void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, const bool
                 if (rank == pe) {
                     continue_with_next_pass = writer.Write(pass, filename);
                 }
-                MPI_Barrier(comm);
+                comm.Barrier();
                 if (output) {
                     std::cout << "OK" << std::endl;
                 }

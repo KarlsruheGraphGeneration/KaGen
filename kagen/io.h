@@ -1,10 +1,9 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
 #include "kagen/context.h"
 #include "kagen/io/graph_format.h"
 #include "kagen/kagen.h"
-
-#include <mpi.h>
 
 #include <string>
 #include <unordered_map>
@@ -40,7 +39,7 @@ struct GraphFragment {
 GraphFragment ReadGraphFragment(
     GraphReader& reader, GraphRepresentation representation, const InputGraphConfig& config, PEID rank, PEID size);
 
-Graph FinalizeGraphFragment(GraphFragment fragment, bool output, MPI_Comm comm);
+Graph FinalizeGraphFragment(GraphFragment fragment, bool output, Comm& comm);
 
-void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, bool output, MPI_Comm comm);
+void WriteGraph(GraphWriter& writer, const OutputGraphConfig& config, bool output, Comm& comm);
 } // namespace kagen

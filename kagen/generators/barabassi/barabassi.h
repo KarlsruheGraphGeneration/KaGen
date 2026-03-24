@@ -11,8 +11,6 @@
 #include "kagen/generators/generator.h"
 #include "kagen/kagen.h"
 
-#include <mpi.h>
-
 namespace kagen {
 class BarabassiFactory : public GeneratorFactory {
 public:
@@ -28,7 +26,7 @@ public:
 protected:
     void GenerateEdgeList() final;
 
-    void FinalizeEdgeList(MPI_Comm comm) final;
+    void FinalizeEdgeList(Comm& comm) final;
 
 private:
     // Config

@@ -87,9 +87,8 @@ struct SrcDstEqual {
 
 void GenerateEdgeWeightsImpl(
     EdgeRange edge_range, EdgeWeights& weights, const EdgeWeightConfig& config, VertexRange vertex_range,
-    MPI_Comm comm_) {
-    PEID rank;
-    MPI_Comm_rank(comm_, &rank);
+    Comm& comm_) {
+    PEID rank = comm_.Rank();
     std::mt19937                         gen = get_random_generator(rank);
     std::uniform_int_distribution<SSInt> weight_dist(config.weight_range_begin, config.weight_range_end - 1);
 
@@ -115,11 +114,7 @@ void GenerateEdgeWeightsImpl(
         }
     }
 
-    MPI_Datatype edgedata_mpi_type;
-    MPI_Type_contiguous(sizeof(EdgeData), MPI_BYTE, &edgedata_mpi_type);
-    MPI_Type_commit(&edgedata_mpi_type);
-    auto recv_buf = ExchangeMessageBuffers(std::move(message_buffers), edgedata_mpi_type, comm_);
-    MPI_Type_free(&edgedata_mpi_type);
+    auto recv_buf = ExchangeMessageBuffers(std::move(message_buffers), comm_);
 
     // add received cut edges into edge_weight storage
     for (const auto& [u, v, weight]: recv_buf) {
@@ -139,7 +134,7 @@ void GenerateEdgeWeightsImpl(
 } // namespace
 
 UniformRandomEdgeWeightGenerator::UniformRandomEdgeWeightGenerator(
-    EdgeWeightConfig config, MPI_Comm comm, VertexRange vertex_range)
+    EdgeWeightConfig config, Comm& comm, VertexRange vertex_range)
     : config_(config),
       comm_(comm),
       vertex_range_(vertex_range) {

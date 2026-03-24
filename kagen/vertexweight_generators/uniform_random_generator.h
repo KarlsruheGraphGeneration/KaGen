@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
 #include "kagen/context.h"
 #include "kagen/kagen.h"
 #include "kagen/vertexweight_generators/vertex_weight_generator.h"
@@ -10,7 +11,7 @@ namespace kagen {
  */
 class UniformRandomVertexWeightGenerator : public VertexWeightGenerator {
 public:
-    UniformRandomVertexWeightGenerator(VertexWeightConfig config, MPI_Comm comm);
+    UniformRandomVertexWeightGenerator(VertexWeightConfig config, Comm& comm);
     void GenerateVertexWeights(const VertexRange& vertex_range, const Edgelist& edgelist, VertexWeights& weights) final;
     void GenerateVertexWeights(
         const VertexRange& vertex_range, const XadjArray& xadj, const AdjncyArray& adjncy,
@@ -18,6 +19,6 @@ public:
 
 private:
     const VertexWeightConfig config_;
-    MPI_Comm                 comm_;
+    Comm&                    comm_;
 };
 } // namespace kagen

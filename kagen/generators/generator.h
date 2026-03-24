@@ -1,9 +1,8 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
 #include "kagen/context.h"
 #include "kagen/kagen.h"
-
-#include <mpi.h>
 
 #include <exception>
 #include <memory>
@@ -15,17 +14,17 @@ public:
 
     Generator* Generate(GraphRepresentation representation);
 
-    void GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm comm);
+    void GenerateEdgeWeights(EdgeWeightConfig weight_config, Comm& comm);
 
-    void GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm comm);
+    void GenerateVertexWeights(VertexWeightConfig weight_config, Comm& comm);
 
-    Generator* Finalize(MPI_Comm comm);
+    Generator* Finalize(Comm& comm);
 
     SInt GetNumberOfEdges() const;
 
     Graph Take();
 
-    virtual void PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm);
+    virtual void PermuteVertices(const PGeneratorConfig& config, Comm& comm);
 
     Edgelist TakeNonlocalEdges();
 
@@ -34,9 +33,9 @@ protected:
 
     virtual void GenerateCSR() = 0;
 
-    virtual void FinalizeEdgeList(MPI_Comm comm);
+    virtual void FinalizeEdgeList(Comm& comm);
 
-    virtual void FinalizeCSR(MPI_Comm comm);
+    virtual void FinalizeCSR(Comm& comm);
 
     void SetVertexRange(VertexRange vetrex_range);
 
@@ -93,13 +92,13 @@ private:
 class EdgeListOnlyGenerator : virtual Generator {
 public:
     void GenerateCSR() final;
-    void FinalizeCSR(MPI_Comm comm) final;
+    void FinalizeCSR(Comm& comm) final;
 };
 
 class CSROnlyGenerator : virtual Generator {
 public:
     void GenerateEdgeList() final;
-    void FinalizeEdgeList(MPI_Comm comm) final;
+    void FinalizeEdgeList(Comm& comm) final;
 };
 
 class GeneratorFactory {

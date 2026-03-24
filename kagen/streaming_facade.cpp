@@ -1,27 +1,27 @@
 #include "kagen/streaming_facade.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/definitions.h"
 #include "kagen/factories.h"
 #include "kagen/tools/utils.h"
-
-#include <mpi.h>
 
 #include <cassert>
 #include <iomanip>
 #include <numeric>
 
 namespace kagen {
-StreamingGenerator::StreamingGenerator(const std::string& options, const PEID chunks_per_pe, MPI_Comm comm)
+StreamingGenerator::StreamingGenerator(const std::string& options, const PEID chunks_per_pe, Comm& comm)
     : config_(CreateConfigFromString(options)),
       comm_(comm),
       factory_(CreateGeneratorFactory(config_.generator)) {
-    MPI_Comm_size(comm_, &size_);
-    MPI_Comm_rank(comm_, &rank_);
+    size_ = comm_.Size();
+    rank_ = comm_.Rank();
 
     const PEID streaming_size = chunks_per_pe * size_;
     const PEID streaming_rank = chunks_per_pe * rank_;
 
-    config_.streaming       = true; 
+    config_.streaming       = true;
     config_                  = factory_->NormalizeParameters(config_, streaming_rank, streaming_size, rank_ == 0);
     next_streaming_chunk_    = 0;
     streaming_chunks_per_pe_ = config_.k / size_;
@@ -75,7 +75,7 @@ void StreamingGenerator::Initialize() {
                 return lhs.first < rhs.first;
             });
 
-            my_vertex_ranges_[chunk] = graph.vertex_range; 
+            my_vertex_ranges_[chunk] = graph.vertex_range;
 
             // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
             // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
@@ -102,14 +102,16 @@ void StreamingGenerator::Initialize() {
             }
         }
 
-        MPI_Allreduce(MPI_IN_PLACE, &max_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
-        MPI_Allreduce(MPI_IN_PLACE, &num_nonlocal_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
-        MPI_Allreduce(MPI_IN_PLACE, &num_local_edges, 1, KAGEN_MPI_SINT, MPI_SUM, comm_);
-        MPI_Allreduce(MPI_IN_PLACE, &max_local_edges, 1, KAGEN_MPI_SINT, MPI_MAX, comm_);
+        comm_.Allreduce(COMM_IN_PLACE, &max_nonlocal_edges, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::MAX);
+        comm_.Allreduce(COMM_IN_PLACE, &num_nonlocal_edges, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+        comm_.Allreduce(COMM_IN_PLACE, &num_local_edges, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+        comm_.Allreduce(COMM_IN_PLACE, &max_local_edges, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::MAX);
 
         vertex_distribution_[rank_]     = my_vertex_ranges_.front().first;
         vertex_distribution_[rank_ + 1] = my_vertex_ranges_.back().second;
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vertex_distribution_.data() + 1, 1, KAGEN_MPI_SINT, comm_);
+        comm_.Allgather(
+            COMM_IN_PLACE, 0, CommDatatype::UNSIGNED_LONG_LONG, vertex_distribution_.data() + 1, 1,
+            CommDatatype::UNSIGNED_LONG_LONG);
 
         if (rank_ == ROOT && !config_.quiet) {
             std::cout << std::endl;
@@ -166,19 +168,27 @@ void StreamingGenerator::ExchangeNonlocalEdges() {
     std::vector<int> recv_counts(size_);
     std::vector<int> recv_displs(size_);
 
-    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm_);
-    std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
+    // Scale counts by sizeof(pair<SInt,SInt>) for byte-based transfer
+    std::vector<int> send_counts_bytes(size_);
+    std::vector<int> recv_counts_bytes(size_);
+    std::vector<int> send_displs_bytes(size_);
+    std::vector<int> recv_displs_bytes(size_);
+    for (int i = 0; i < size_; ++i) {
+        send_counts_bytes[i] = send_counts[i] * static_cast<int>(sizeof(typename Edgelist::value_type));
+    }
 
-    MPI_Datatype sint_pair = MPI_DATATYPE_NULL;
-    MPI_Type_contiguous(2, KAGEN_MPI_SINT, &sint_pair);
-    MPI_Type_commit(&sint_pair);
+    comm_.Alltoall(send_counts_bytes.data(), 1, CommDatatype::INT, recv_counts_bytes.data(), 1, CommDatatype::INT);
+    std::exclusive_scan(send_counts_bytes.begin(), send_counts_bytes.end(), send_displs_bytes.begin(), 0);
+    std::exclusive_scan(recv_counts_bytes.begin(), recv_counts_bytes.end(), recv_displs_bytes.begin(), 0);
+    for (int i = 0; i < size_; ++i) {
+        recv_counts[i] = recv_counts_bytes[i] / static_cast<int>(sizeof(typename Edgelist::value_type));
+        recv_displs[i] = recv_displs_bytes[i] / static_cast<int>(sizeof(typename Edgelist::value_type));
+    }
 
     Edgelist recv_bufs(recv_displs.back() + recv_counts.back());
-    MPI_Alltoallv(
-        send_bufs.data(), send_counts.data(), send_displs.data(), sint_pair, recv_bufs.data(), recv_counts.data(),
-        recv_displs.data(), sint_pair, comm_);
-
-    MPI_Type_free(&sint_pair);
+    comm_.Alltoallv(
+        send_bufs.data(), send_counts_bytes.data(), send_displs_bytes.data(), CommDatatype::BYTE, recv_bufs.data(),
+        recv_counts_bytes.data(), recv_displs_bytes.data(), CommDatatype::BYTE);
 
     for (PEID pe = 0; pe < size_; ++pe) {
         std::sort(recv_bufs.begin() + recv_displs[pe], recv_bufs.begin() + recv_displs[pe] + recv_counts[pe]);
@@ -220,7 +230,7 @@ StreamedGraph StreamingGenerator::Next() {
     // Some generators only report a meaningful vertex range if there is at least one vertex in the chunk.
     // Otherwise, it reports SInt max() for both first and second. For a nicer interface, fix the range.
     // @todo: this assumes that there is at least one none-empty chunk on each PE ...
-    // Currently, if the chunk is empty, this means that the correspoding vertices have no edges. Hence, 
+    // Currently, if the chunk is empty, this means that the correspoding vertices have no edges. Hence,
     // can just report the vertex range without any edges I guess.
     if (next_streaming_chunk_ > 0 && my_vertex_ranges_[next_streaming_chunk_].first == std::numeric_limits<SInt>::max()) {
         my_vertex_ranges_[next_streaming_chunk_].first = my_vertex_ranges_[next_streaming_chunk_].second = my_vertex_ranges_[next_streaming_chunk_ - 1].second;
@@ -237,7 +247,6 @@ StreamedGraph StreamingGenerator::Next() {
         ++next_streaming_chunk_;
         return Next();
     }
-      
 
     StreamedGraph sgraph = {
         .vertex_range    = my_vertex_ranges_[next_streaming_chunk_],

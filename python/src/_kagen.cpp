@@ -187,6 +187,7 @@ struct PyKaGen {
 
     void enable_output(bool header) { gen.EnableOutput(header); }
     void use_hp_floats(bool state) { gen.UseHPFloats(state); }
+    void set_num_threads(int threads) { gen.SetNumberOfThreads(threads); }
     void set_number_of_chunks(uint64_t k) { gen.SetNumberOfChunks(k); }
     void use_edge_list_representation() { gen.UseEdgeListRepresentation(); }
     void use_csr_representation() { gen.UseCSRRepresentation(); }
@@ -403,6 +404,8 @@ PYBIND11_MODULE(_kagen, m) {
              py::arg("generator"), py::arg("weight_range_begin"), py::arg("weight_range_end"))
         .def("enable_output", &PyKaGen::enable_output, py::arg("header") = false)
         .def("use_hp_floats", &PyKaGen::use_hp_floats, py::arg("state"))
+        .def("set_num_threads", &PyKaGen::set_num_threads, py::arg("threads"),
+             "Set the number of threads per MPI process for intra-node parallelism.")
         .def("set_number_of_chunks", &PyKaGen::set_number_of_chunks, py::arg("k"))
         .def("use_edge_list_representation", &PyKaGen::use_edge_list_representation)
         .def("use_csr_representation", &PyKaGen::use_csr_representation)

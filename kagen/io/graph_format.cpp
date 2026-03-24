@@ -1,39 +1,39 @@
 #include "kagen/io/graph_format.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
 #include "kagen/definitions.h"
 #include "kagen/io.h"
 
-#include <mpi.h>
-
 namespace kagen {
-GraphInfo::GraphInfo(const Graph& graph, MPI_Comm comm)
+GraphInfo::GraphInfo(const Graph& graph, Comm& comm)
     : local_n(graph.NumberOfLocalVertices()),
       local_m(graph.NumberOfLocalEdges()),
       global_n(graph.NumberOfLocalVertices()),
       global_m(graph.NumberOfLocalEdges()),
       has_vertex_weights(!graph.vertex_weights.empty()),
       has_edge_weights(!graph.edge_weights.empty()) {
-    MPI_Allreduce(MPI_IN_PLACE, &global_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &global_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Exscan(&local_n, &offset_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Exscan(&local_m, &offset_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
+    comm.Allreduce(COMM_IN_PLACE, &global_n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Allreduce(COMM_IN_PLACE, &global_m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Exscan(&local_n, &offset_n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Exscan(&local_m, &offset_m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Allreduce(COMM_IN_PLACE, &has_vertex_weights, 1, CommDatatype::C_BOOL, CommOp::LOR);
+    comm.Allreduce(COMM_IN_PLACE, &has_edge_weights, 1, CommDatatype::C_BOOL, CommOp::LOR);
 }
 
-GraphInfo::GraphInfo(const GraphInfo& local, MPI_Comm comm)
+GraphInfo::GraphInfo(const GraphInfo& local, Comm& comm)
     : local_n(local.local_n),
       local_m(local.local_m),
       global_n(local.global_n),
       global_m(local.global_m),
       has_vertex_weights(local.has_vertex_weights),
       has_edge_weights(local.has_edge_weights) {
-    MPI_Allreduce(&local_n, &global_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Allreduce(&local_m, &global_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Exscan(&local_n, &offset_n, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Exscan(&local_m, &offset_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &has_vertex_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &has_edge_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
+    comm.Allreduce(&local_n, &global_n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Allreduce(&local_m, &global_m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Exscan(&local_n, &offset_n, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Exscan(&local_m, &offset_m, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
+    comm.Allreduce(COMM_IN_PLACE, &has_vertex_weights, 1, CommDatatype::C_BOOL, CommOp::LOR);
+    comm.Allreduce(COMM_IN_PLACE, &has_edge_weights, 1, CommDatatype::C_BOOL, CommOp::LOR);
 }
 GraphWriter::GraphWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)

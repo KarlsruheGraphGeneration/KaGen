@@ -1,10 +1,12 @@
-#include "kagen/vertexweight_generators//uniform_random_generator.h"
+#include "kagen/vertexweight_generators/uniform_random_generator.h"
+
+#include "kagen/comm/comm.h"
 
 #include <random>
 
 namespace kagen {
 
-UniformRandomVertexWeightGenerator::UniformRandomVertexWeightGenerator(VertexWeightConfig config, MPI_Comm comm)
+UniformRandomVertexWeightGenerator::UniformRandomVertexWeightGenerator(VertexWeightConfig config, Comm& comm)
     : config_(config),
       comm_{comm} {
     if (config_.weight_range_begin >= config_.weight_range_end) {
@@ -14,9 +16,8 @@ UniformRandomVertexWeightGenerator::UniformRandomVertexWeightGenerator(VertexWei
 
 namespace {
 void GenerateRandomWeights(
-    const VertexWeightConfig& config, VertexRange vertex_range, MPI_Comm comm, VertexWeights& vertex_weights) {
-    PEID rank;
-    MPI_Comm_rank(comm, &rank);
+    const VertexWeightConfig& config, VertexRange vertex_range, Comm& comm, VertexWeights& vertex_weights) {
+    PEID rank = comm.Rank();
     std::mt19937                         gen((rank + 42) * 3);
     std::uniform_int_distribution<SSInt> weight_dist(config.weight_range_begin, config.weight_range_end - 1);
     const size_t                         num_vertices = vertex_range.second - vertex_range.first;

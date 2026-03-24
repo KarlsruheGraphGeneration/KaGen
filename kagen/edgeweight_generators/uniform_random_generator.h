@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kagen/comm/comm.h"
 #include "kagen/context.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
 #include "kagen/kagen.h"
@@ -12,14 +13,14 @@ namespace kagen {
  */
 class UniformRandomEdgeWeightGenerator : public EdgeWeightGenerator {
 public:
-    UniformRandomEdgeWeightGenerator(EdgeWeightConfig config, MPI_Comm comm, VertexRange vertex_range);
+    UniformRandomEdgeWeightGenerator(EdgeWeightConfig config, Comm& comm, VertexRange vertex_range);
 
     void GenerateEdgeWeights(const XadjArray& xadj, const AdjncyArray& adjncy, EdgeWeights& weights) final;
     void GenerateEdgeWeights(const Edgelist& edgelist, EdgeWeights& weights) final;
 
 private:
     const EdgeWeightConfig config_;
-    MPI_Comm               comm_;
+    Comm&                  comm_;
     VertexRange            vertex_range_;
 };
 } // namespace kagen

@@ -1,5 +1,12 @@
 #include "kagen.h"
 
+#include "kagen/comm/comm.h"
+#include "kagen/comm/comm_types.h"
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+#else
+    #include "kagen/comm/seq_comm.h"
+#endif
 #include "kagen/context.h"
 #include "kagen/in_memory_facade.h"
 #include "kagen/streaming_facade.h"
@@ -394,7 +401,12 @@ SInt Graph::NumberOfLocalVertices() const {
 
 SInt Graph::NumberOfGlobalVertices() const {
     SInt number_vertices = NumberOfLocalVertices();
-    MPI_Allreduce(MPI_IN_PLACE, &number_vertices, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+#ifndef KAGEN_NOMPI
+    MPIComm comm(MPI_COMM_WORLD);
+#else
+    SeqComm comm;
+#endif
+    comm.Allreduce(COMM_IN_PLACE, &number_vertices, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
     return number_vertices;
 }
 
@@ -412,7 +424,12 @@ SInt Graph::NumberOfLocalEdges() const {
 
 SInt Graph::NumberOfGlobalEdges() const {
     SInt number_edges = NumberOfLocalEdges();
-    MPI_Allreduce(MPI_IN_PLACE, &number_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+#ifndef KAGEN_NOMPI
+    MPIComm comm(MPI_COMM_WORLD);
+#else
+    SeqComm comm;
+#endif
+    comm.Allreduce(COMM_IN_PLACE, &number_edges, 1, CommDatatype::UNSIGNED_LONG_LONG, CommOp::SUM);
     return number_edges;
 }
 
@@ -424,6 +441,51 @@ void Graph::Clear() {
     edge_weights.clear();
     coordinates.first.clear();
     coordinates.second.clear();
+}
+
+void Graph::Merge(Graph&& other) {
+    // Extend vertex range (assumes the two ranges are contiguous)
+    if (vertex_range.first == vertex_range.second) {
+        vertex_range = other.vertex_range;
+    } else if (other.vertex_range.first != other.vertex_range.second) {
+        vertex_range.second = other.vertex_range.second;
+    }
+
+    // Edge list
+    edges.insert(edges.end(), std::make_move_iterator(other.edges.begin()), std::make_move_iterator(other.edges.end()));
+
+    // CSR: merge xadj (offset other's entries by our current edge count) and adjncy
+    if (!other.xadj.empty()) {
+        if (xadj.empty()) {
+            xadj   = std::move(other.xadj);
+            adjncy = std::move(other.adjncy);
+        } else {
+            const SInt edge_offset = xadj.back();
+            // other.xadj[0] == 0, already covered by xadj.back(); skip it
+            for (std::size_t i = 1; i < other.xadj.size(); ++i) {
+                xadj.push_back(other.xadj[i] + edge_offset);
+            }
+            adjncy.insert(
+                adjncy.end(), std::make_move_iterator(other.adjncy.begin()),
+                std::make_move_iterator(other.adjncy.end()));
+        }
+    }
+
+    // Weights
+    edge_weights.insert(
+        edge_weights.end(), std::make_move_iterator(other.edge_weights.begin()),
+        std::make_move_iterator(other.edge_weights.end()));
+    vertex_weights.insert(
+        vertex_weights.end(), std::make_move_iterator(other.vertex_weights.begin()),
+        std::make_move_iterator(other.vertex_weights.end()));
+
+    // Coordinates
+    coordinates.first.insert(
+        coordinates.first.end(), std::make_move_iterator(other.coordinates.first.begin()),
+        std::make_move_iterator(other.coordinates.first.end()));
+    coordinates.second.insert(
+        coordinates.second.end(), std::make_move_iterator(other.coordinates.second.begin()),
+        std::make_move_iterator(other.coordinates.second.end()));
 }
 
 void Graph::FreeEdgelist() {
@@ -458,9 +520,14 @@ void Graph::SortEdgelist() {
 }
 
 KaGen::KaGen(MPI_Comm comm)
-    : comm_(comm),
+#ifndef KAGEN_NOMPI
+    : comm_(std::make_unique<MPIComm>(comm)),
+#else
+    : comm_(std::make_unique<SeqComm>()),
+#endif
       config_(std::make_unique<PGeneratorConfig>()),
       representation_(GraphRepresentation::EDGE_LIST) {
+    (void)comm;
     SetDefaults();
 }
 
@@ -489,6 +556,10 @@ void KaGen::EnableAdvancedStatistics() {
 
 void KaGen::EnableVertexPermutation() {
     config_->permute = true;
+}
+
+void KaGen::SetNumberOfThreads(const int threads) {
+    config_->num_threads = threads;
 }
 
 void KaGen::ConfigureEdgeWeightGeneration(
@@ -529,13 +600,13 @@ void KaGen::UseCSRRepresentation() {
 namespace {
 auto GenericGenerateFromOptionString(
     const std::string& options_str, PGeneratorConfig base_config, const GraphRepresentation representation,
-    MPI_Comm comm) {
+    Comm& comm) {
     return GenerateInMemory(CreateConfigFromString(options_str, base_config), representation, comm);
 }
 } // namespace
 
 Graph KaGen::GenerateFromOptionString(const std::string& options) {
-    return GenericGenerateFromOptionString(options, *config_, representation_, comm_);
+    return GenericGenerateFromOptionString(options, *config_, representation_, *comm_);
 }
 
 Graph KaGen::GenerateDirectedGNM(const SInt n, const SInt m, const bool self_loops) {
@@ -543,7 +614,7 @@ Graph KaGen::GenerateDirectedGNM(const SInt n, const SInt m, const bool self_loo
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 Graph KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool self_loops) {
@@ -551,7 +622,7 @@ Graph KaGen::GenerateUndirectedGNM(const SInt n, const SInt m, const bool self_l
     config_->n          = n;
     config_->m          = m;
     config_->self_loops = self_loops;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 Graph KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -559,7 +630,7 @@ Graph KaGen::GenerateDirectedGNP(const SInt n, const LPFloat p, const bool self_
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 Graph KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bool self_loops) {
@@ -567,13 +638,13 @@ Graph KaGen::GenerateUndirectedGNP(const SInt n, const LPFloat p, const bool sel
     config_->n          = n;
     config_->p          = p;
     config_->self_loops = self_loops;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 namespace {
 Graph GenerateRGG2D_Impl(
     PGeneratorConfig& config, const SInt n, const SInt m, const LPFloat r, const bool coordinates,
-    const GraphRepresentation representation, MPI_Comm comm) {
+    const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::RGG_2D;
     config.n           = n;
     config.m           = m;
@@ -584,21 +655,21 @@ Graph GenerateRGG2D_Impl(
 } // namespace
 
 Graph KaGen::GenerateRGG2D(const SInt n, const LPFloat r, const bool coordinates) {
-    return GenerateRGG2D_Impl(*config_, n, 0, r, coordinates, representation_, comm_);
+    return GenerateRGG2D_Impl(*config_, n, 0, r, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRGG2D_NM(const SInt n, const SInt m, const bool coordinates) {
-    return GenerateRGG2D_Impl(*config_, n, m, 0.0, coordinates, representation_, comm_);
+    return GenerateRGG2D_Impl(*config_, n, m, 0.0, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRGG2D_MR(const SInt m, const LPFloat r, const bool coordinates) {
-    return GenerateRGG2D_Impl(*config_, 0, m, r, coordinates, representation_, comm_);
+    return GenerateRGG2D_Impl(*config_, 0, m, r, coordinates, representation_, *comm_);
 }
 
 namespace {
 Graph GenerateRGG3D_Impl(
     PGeneratorConfig& config, const SInt n, const SInt m, const LPFloat r, const bool coordinates,
-    const GraphRepresentation representation, MPI_Comm comm) {
+    const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::RGG_3D;
     config.m           = m;
     config.n           = n;
@@ -609,22 +680,22 @@ Graph GenerateRGG3D_Impl(
 } // namespace
 
 Graph KaGen::GenerateRGG3D(const SInt n, const LPFloat r, const bool coordinates) {
-    return GenerateRGG3D_Impl(*config_, n, 0, r, coordinates, representation_, comm_);
+    return GenerateRGG3D_Impl(*config_, n, 0, r, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRGG3D_NM(const SInt n, const SInt m, const bool coordinates) {
-    return GenerateRGG3D_Impl(*config_, n, m, 0.0, coordinates, representation_, comm_);
+    return GenerateRGG3D_Impl(*config_, n, m, 0.0, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRGG3D_MR(const SInt m, const LPFloat r, const bool coordinates) {
-    return GenerateRGG3D_Impl(*config_, 0, m, r, coordinates, representation_, comm_);
+    return GenerateRGG3D_Impl(*config_, 0, m, r, coordinates, representation_, *comm_);
 }
 
 #ifdef KAGEN_CGAL_FOUND
 namespace {
 Graph GenerateRDG2D_Impl(
     PGeneratorConfig& config, const SInt n, const SInt m, const bool periodic, const bool coordinates,
-    const GraphRepresentation representation, MPI_Comm comm) {
+    const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::RDG_2D;
     config.n           = n;
     config.m           = m;
@@ -635,17 +706,17 @@ Graph GenerateRDG2D_Impl(
 } // namespace
 
 Graph KaGen::GenerateRDG2D(const SInt n, const bool periodic, const bool coordinates) {
-    return GenerateRDG2D_Impl(*config_, n, 0, periodic, coordinates, representation_, comm_);
+    return GenerateRDG2D_Impl(*config_, n, 0, periodic, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRDG2D_M(const SInt m, const bool periodic, const bool coordinates) {
-    return GenerateRDG2D_Impl(*config_, 0, m, periodic, coordinates, representation_, comm_);
+    return GenerateRDG2D_Impl(*config_, 0, m, periodic, coordinates, representation_, *comm_);
 }
 
 namespace {
 Graph GenerateRDG3D_Impl(
     PGeneratorConfig& config, const SInt n, const SInt m, const bool coordinates,
-    const GraphRepresentation representation, MPI_Comm comm) {
+    const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::RDG_3D;
     config.n           = n;
     config.m           = m;
@@ -655,11 +726,11 @@ Graph GenerateRDG3D_Impl(
 } // namespace
 
 Graph KaGen::GenerateRDG3D(const SInt n, const bool coordinates) {
-    return GenerateRDG3D_Impl(*config_, n, 0, coordinates, representation_, comm_);
+    return GenerateRDG3D_Impl(*config_, n, 0, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRDG3D_M(const SInt m, const bool coordinates) {
-    return GenerateRDG3D_Impl(*config_, 0, m, coordinates, representation_, comm_);
+    return GenerateRDG3D_Impl(*config_, 0, m, coordinates, representation_, *comm_);
 }
 #else  // KAGEN_CGAL_FOUND
 Graph KaGen::GenerateRDG2D(SInt, bool, bool) {
@@ -682,7 +753,7 @@ Graph KaGen::GenerateRDG3D_M(SInt, bool) {
 namespace {
 Graph GenerateBA_Impl(
     PGeneratorConfig& config, const SInt n, const SInt m, const SInt d, const bool directed, const bool self_loops,
-    const GraphRepresentation representation, MPI_Comm comm) {
+    const GraphRepresentation representation, Comm& comm) {
     config.generator  = GeneratorType::BA;
     config.m          = m;
     config.n          = n;
@@ -694,21 +765,21 @@ Graph GenerateBA_Impl(
 } // namespace
 
 Graph KaGen::GenerateBA(const SInt n, const SInt d, const bool directed, const bool self_loops) {
-    return GenerateBA_Impl(*config_, n, 0, d, directed, self_loops, representation_, comm_);
+    return GenerateBA_Impl(*config_, n, 0, d, directed, self_loops, representation_, *comm_);
 }
 
 Graph KaGen::GenerateBA_NM(const SInt n, const SInt m, const bool directed, const bool self_loops) {
-    return GenerateBA_Impl(*config_, n, m, 0.0, directed, self_loops, representation_, comm_);
+    return GenerateBA_Impl(*config_, n, m, 0.0, directed, self_loops, representation_, *comm_);
 }
 
 Graph KaGen::GenerateBA_MD(const SInt m, const SInt d, const bool directed, const bool self_loops) {
-    return GenerateBA_Impl(*config_, 0, m, d, directed, self_loops, representation_, comm_);
+    return GenerateBA_Impl(*config_, 0, m, d, directed, self_loops, representation_, *comm_);
 }
 
 namespace {
 Graph GenerateRHG_Impl(
     PGeneratorConfig& config, const LPFloat gamma, const SInt n, const SInt m, const LPFloat d, const bool coordinates,
-    const GraphRepresentation representation, MPI_Comm comm) {
+    const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::RHG;
     config.n           = n;
     config.m           = m;
@@ -720,21 +791,21 @@ Graph GenerateRHG_Impl(
 } // namespace
 
 Graph KaGen::GenerateRHG(const LPFloat gamma, const SInt n, const LPFloat d, const bool coordinates) {
-    return GenerateRHG_Impl(*config_, gamma, n, 0, d, coordinates, representation_, comm_);
+    return GenerateRHG_Impl(*config_, gamma, n, 0, d, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRHG_NM(const LPFloat gamma, const SInt n, const SInt m, const bool coordinates) {
-    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, coordinates, representation_, comm_);
+    return GenerateRHG_Impl(*config_, gamma, n, m, 0.0, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRHG_MD(const LPFloat gamma, const SInt m, const LPFloat d, const bool coordinates) {
-    return GenerateRHG_Impl(*config_, gamma, 0, m, d, coordinates, representation_, comm_);
+    return GenerateRHG_Impl(*config_, gamma, 0, m, d, coordinates, representation_, *comm_);
 }
 
 namespace {
 Graph GenerateGrid2D_Impl(
     PGeneratorConfig& config, const SInt n, const SInt grid_x, const SInt grid_y, const LPFloat p, const SInt m,
-    const bool periodic, const bool coordinates, const GraphRepresentation representation, MPI_Comm comm) {
+    const bool periodic, const bool coordinates, const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::GRID_2D;
     config.grid_x      = grid_x;
     config.grid_y      = grid_y;
@@ -749,21 +820,21 @@ Graph GenerateGrid2D_Impl(
 
 Graph KaGen::GenerateGrid2D(
     const SInt grid_x, const SInt grid_y, const LPFloat p, const bool periodic, const bool coordinates) {
-    return GenerateGrid2D_Impl(*config_, 0, grid_x, grid_y, p, 0, periodic, coordinates, representation_, comm_);
+    return GenerateGrid2D_Impl(*config_, 0, grid_x, grid_y, p, 0, periodic, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateGrid2D_N(const SInt n, const LPFloat p, const bool periodic, const bool coordinates) {
-    return GenerateGrid2D_Impl(*config_, n, 0, 0, p, 0, periodic, coordinates, representation_, comm_);
+    return GenerateGrid2D_Impl(*config_, n, 0, 0, p, 0, periodic, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateGrid2D_NM(const SInt n, const SInt m, const bool periodic, const bool coordinates) {
-    return GenerateGrid2D_Impl(*config_, n, 0, 0, 0.0, m, periodic, coordinates, representation_, comm_);
+    return GenerateGrid2D_Impl(*config_, n, 0, 0, 0.0, m, periodic, coordinates, representation_, *comm_);
 }
 
 namespace {
 Graph GenerateGrid3D_Impl(
     PGeneratorConfig& config, const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const SInt m,
-    const bool periodic, const bool coordinates, const GraphRepresentation representation, MPI_Comm comm) {
+    const bool periodic, const bool coordinates, const GraphRepresentation representation, Comm& comm) {
     config.generator   = GeneratorType::GRID_3D;
     config.grid_x      = grid_x;
     config.grid_y      = grid_y;
@@ -779,7 +850,7 @@ Graph GenerateGrid3D_Impl(
 Graph KaGen::GenerateGrid3D(
     const SInt grid_x, const SInt grid_y, const SInt grid_z, const LPFloat p, const bool periodic,
     const bool coordinates) {
-    return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, 0, periodic, coordinates, representation_, comm_);
+    return GenerateGrid3D_Impl(*config_, grid_x, grid_y, grid_z, p, 0, periodic, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateGrid3D_N(const SInt n, const LPFloat p, const bool periodic, const bool coordinates) {
@@ -789,7 +860,7 @@ Graph KaGen::GenerateGrid3D_N(const SInt n, const LPFloat p, const bool periodic
 
 Graph KaGen::GenerateGrid3D_NM(const SInt n, const SInt m, const bool periodic, const bool coordinates) {
     const SInt cbrt_n = std::cbrt(n);
-    return GenerateGrid3D_Impl(*config_, cbrt_n, cbrt_n, cbrt_n, 0.0, m, periodic, coordinates, representation_, comm_);
+    return GenerateGrid3D_Impl(*config_, cbrt_n, cbrt_n, cbrt_n, 0.0, m, periodic, coordinates, representation_, *comm_);
 }
 
 Graph KaGen::GenerateDirectedPath(unsigned long long n, bool permute, bool periodic) {
@@ -797,7 +868,7 @@ Graph KaGen::GenerateDirectedPath(unsigned long long n, bool permute, bool perio
     config_->n         = n;
     config_->permute   = permute;
     config_->periodic  = periodic;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 Graph KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, const bool self_loops) {
@@ -806,7 +877,7 @@ Graph KaGen::GenerateKronecker(const SInt n, const SInt m, const bool directed, 
     config_->m          = m;
     config_->directed   = directed;
     config_->self_loops = self_loops;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 Graph KaGen::GenerateRMAT(
@@ -820,7 +891,7 @@ Graph KaGen::GenerateRMAT(
     config_->rmat_c     = c;
     config_->directed   = directed;
     config_->self_loops = self_loops;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, const GraphDistribution distribution) {
@@ -828,7 +899,7 @@ Graph KaGen::ReadFromFile(std::string const& filename, const FileFormat format, 
     config_->input_graph.filename     = filename;
     config_->input_graph.format       = format;
     config_->input_graph.distribution = distribution;
-    return GenerateInMemory(*config_, representation_, comm_);
+    return GenerateInMemory(*config_, representation_, *comm_);
 }
 
 void KaGen::SetDefaults() {
@@ -850,7 +921,14 @@ void KaGen::SetDefaults() {
 }
 
 sKaGen::sKaGen(const std::string& options, PEID chunks_per_pe, MPI_Comm comm)
-    : generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, comm)) {}
+#ifndef KAGEN_NOMPI
+    : comm_(std::make_unique<MPIComm>(comm)),
+#else
+    : comm_(std::make_unique<SeqComm>()),
+#endif
+      generator_(std::make_unique<StreamingGenerator>(options, chunks_per_pe, *comm_)) {
+    (void)comm;
+}
 
 sKaGen::~sKaGen() = default;
 

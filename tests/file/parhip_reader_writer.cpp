@@ -1,3 +1,4 @@
+#include "kagen/comm/mpi_comm.h"
 #include "kagen/context.h"
 #include "kagen/generators/file/file_graph.h"
 
@@ -64,6 +65,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace {
 template <typename Write>
 void write_graph(Write&& write, int rank, int size) {
+    kagen::MPIComm comm(MPI_COMM_WORLD);
     bool continue_write = false;
     int  round          = 0;
     do {
@@ -71,9 +73,9 @@ void write_graph(Write&& write, int rank, int size) {
             if (i == rank) {
                 continue_write = write(round);
             }
-            MPI_Barrier(MPI_COMM_WORLD);
+            comm.Barrier();
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        comm.Barrier();
         ++round;
     } while (continue_write);
 }
@@ -102,13 +104,12 @@ TEST_P(ParhipReadWriteTestFixture, default_write_read_in_parhip_format) {
     const SInt                 n           = 1000;
     const SInt                 m           = 16 * n;
     const WeightRange          weight_range{1, 100};
-    MPI_Comm                   comm = MPI_COMM_WORLD;
-    int                        rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    kagen::MPIComm             comm(MPI_COMM_WORLD);
+    int                        rank = comm.Rank();
+    int                        size = comm.Size();
 
     // setup
-    kagen::KaGen generator(comm);
+    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
@@ -142,13 +143,12 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format) {
     const SInt                 n           = 1000;
     const SInt                 m           = 16 * n;
     const WeightRange          weight_range{1, 100};
-    MPI_Comm                   comm = MPI_COMM_WORLD;
-    int                        rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    kagen::MPIComm             comm(MPI_COMM_WORLD);
+    int                        rank = comm.Rank();
+    int                        size = comm.Size();
 
     // setup
-    kagen::KaGen generator(comm);
+    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
@@ -184,13 +184,12 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format_32bit_ed
     const SInt                 n           = 1000;
     const SInt                 m           = 16 * n;
     const WeightRange          weight_range{1, 100};
-    MPI_Comm                   comm = MPI_COMM_WORLD;
-    int                        rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    kagen::MPIComm             comm(MPI_COMM_WORLD);
+    int                        rank = comm.Rank();
+    int                        size = comm.Size();
 
     // setup
-    kagen::KaGen generator(comm);
+    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseCSRRepresentation();
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);

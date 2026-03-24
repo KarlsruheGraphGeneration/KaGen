@@ -5,7 +5,9 @@
 #include "kagen/kagen.h"
 #include "kagen/tools/utils.h"
 
-#include <mpi.h>
+#ifndef KAGEN_NOMPI
+    #include <mpi.h>
+#endif
 
 #include <algorithm>
 #include <filesystem>
@@ -201,6 +203,7 @@ SInt FindNumberOfVertices(const InputGraphConfig& in_config, Config config) {
 }
 
 int main(int argc, char* argv[]) {
+#ifndef KAGEN_NOMPI
     MPI_Init(&argc, &argv);
     PEID size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -208,6 +211,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error: must be run sequentially\n";
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+#endif
 
     OutputGraphConfig out_config;
     InputGraphConfig  in_config;
@@ -516,5 +520,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
+#ifndef KAGEN_NOMPI
     return MPI_Finalize();
+#else
+    return 0;
+#endif
 }

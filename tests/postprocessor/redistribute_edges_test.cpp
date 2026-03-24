@@ -1,3 +1,4 @@
+#include "kagen/comm/mpi_comm.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/postprocessor.h"
 
@@ -13,7 +14,7 @@
 using namespace kagen;
 
 using GeneratorFunc    = std::function<Graph(KaGen&, SInt, SInt)>;
-using RedistributeFunc = std::function<VertexRange(Edgelist&, Edgelist&, SInt, bool, MPI_Comm)>;
+using RedistributeFunc = std::function<VertexRange(Edgelist&, Edgelist&, SInt, bool, kagen::Comm&)>;
 
 static Graph MakeEdgeListGraph(const Edgelist& edges) {
     Graph g;
@@ -28,8 +29,8 @@ static Edgelist GatherAllEdges(const Edgelist& local_edges) {
 
 // Build a star graph (vertex 0 connected to all others, both directions) with all edges on PE 0.
 static Edgelist BuildStarOnPE0(SInt n) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    kagen::MPIComm mpi_world(MPI_COMM_WORLD);
+    int rank = mpi_world.Rank();
     Edgelist edges;
     if (rank == 0) {
         for (SInt v = 1; v < n; ++v) {
@@ -84,17 +85,18 @@ TEST_P(RedistributeEdgesFixture, PreservesEdgeSet) {
     const SInt n = 1000;
     const SInt m = 4 * n;
 
-    kagen::KaGen generator(MPI_COMM_WORLD);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseEdgeListRepresentation();
     Graph graph = generate(generator, n, m);
 
     Edgelist input        = graph.edges;
     SInt     num_vertices = graph.vertex_range.second;
-    MPI_Allreduce(MPI_IN_PLACE, &num_vertices, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
+    comm.Allreduce(kagen::COMM_IN_PLACE, &num_vertices, 1, kagen::CommDatatype::UNSIGNED_LONG_LONG, kagen::CommOp::MAX);
 
     Edgelist expected = [&](auto edges) {
         if (remap_round_robin) {
-            RoundRobinRemapping(edges, num_vertices, MPI_COMM_WORLD);
+            RoundRobinRemapping(edges, num_vertices, comm);
         }
         edges = GatherAllEdges(edges);
         std::sort(edges.begin(), edges.end());
@@ -103,7 +105,7 @@ TEST_P(RedistributeEdgesFixture, PreservesEdgeSet) {
     }(input);
 
     Edgelist redistributed_edges;
-    redistribute(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
+    redistribute(input, redistributed_edges, num_vertices, remap_round_robin, comm);
 
     Edgelist result = GatherAllEdges(redistributed_edges);
     std::sort(result.begin(), result.end());
@@ -119,16 +121,17 @@ TEST_P(RedistributeEdgesFixture, OwnershipInvariant) {
     const SInt n = 1000;
     const SInt m = 4 * n;
 
-    kagen::KaGen generator(MPI_COMM_WORLD);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseEdgeListRepresentation();
     Graph graph = generate(generator, n, m);
 
     Edgelist input        = graph.edges;
     SInt     num_vertices = graph.vertex_range.second;
-    MPI_Allreduce(MPI_IN_PLACE, &num_vertices, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
+    comm.Allreduce(kagen::COMM_IN_PLACE, &num_vertices, 1, kagen::CommDatatype::UNSIGNED_LONG_LONG, kagen::CommOp::MAX);
 
     Edgelist    redistributed_edges;
-    VertexRange vr = redistribute(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
+    VertexRange vr = redistribute(input, redistributed_edges, num_vertices, remap_round_robin, comm);
 
     for (const auto& edge: redistributed_edges) {
         EXPECT_GE(edge.first, vr.first);
@@ -144,16 +147,17 @@ TEST_P(RedistributeEdgesFixture, NoDuplicatesInOutput) {
     const SInt n = 1000;
     const SInt m = 4 * n;
 
-    kagen::KaGen generator(MPI_COMM_WORLD);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    kagen::KaGen generator(comm.GetMPIComm());
     generator.UseEdgeListRepresentation();
     Graph graph = generate(generator, n, m);
 
     Edgelist input        = graph.edges;
     SInt     num_vertices = graph.vertex_range.second;
-    MPI_Allreduce(MPI_IN_PLACE, &num_vertices, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
+    comm.Allreduce(kagen::COMM_IN_PLACE, &num_vertices, 1, kagen::CommDatatype::UNSIGNED_LONG_LONG, kagen::CommOp::MAX);
 
     Edgelist redistributed_edges;
-    redistribute(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
+    redistribute(input, redistributed_edges, num_vertices, remap_round_robin, comm);
 
     EXPECT_TRUE(std::is_sorted(redistributed_edges.begin(), redistributed_edges.end()));
     auto dup = std::adjacent_find(redistributed_edges.begin(), redistributed_edges.end());
@@ -184,16 +188,17 @@ TEST_P(RedistributeEdgesSimpleFixture, PreservesEdgeSet_Star) {
     const SInt n     = 100;
     Edgelist   input = BuildStarOnPE0(n);
 
+    kagen::MPIComm comm(MPI_COMM_WORLD);
     Edgelist reference = input;
     if (remap_round_robin) {
-        RoundRobinRemapping(reference, n, MPI_COMM_WORLD);
+        RoundRobinRemapping(reference, n, comm);
     }
     Edgelist expected = GatherAllEdges(reference);
     std::sort(expected.begin(), expected.end());
     expected.erase(std::unique(expected.begin(), expected.end()), expected.end());
 
     Edgelist redistributed_edges;
-    redistribute(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
+    redistribute(input, redistributed_edges, n, remap_round_robin, comm);
 
     Edgelist result = GatherAllEdges(redistributed_edges);
     std::sort(result.begin(), result.end());
@@ -208,7 +213,8 @@ TEST_P(RedistributeEdgesSimpleFixture, OwnershipInvariant_Star) {
     const SInt  n     = 100;
     Edgelist    input = BuildStarOnPE0(n);
     Edgelist    redistributed_edges;
-    VertexRange vr = redistribute(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    VertexRange vr = redistribute(input, redistributed_edges, n, remap_round_robin, comm);
 
     for (const auto& edge: redistributed_edges) {
         EXPECT_GE(edge.first, vr.first);
@@ -224,7 +230,8 @@ TEST_P(RedistributeEdgesSimpleFixture, EmptyInput) {
     Edgelist   input;
     Edgelist   redistributed_edges;
 
-    redistribute(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    redistribute(input, redistributed_edges, n, remap_round_robin, comm);
 
     EXPECT_TRUE(redistributed_edges.empty());
 }
@@ -233,8 +240,8 @@ TEST_P(RedistributeEdgesSimpleFixture, SingleEdge) {
     auto [redist_pair, remap_round_robin] = GetParam();
     auto redistribute                     = std::get<1>(redist_pair);
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    kagen::MPIComm comm(MPI_COMM_WORLD);
+    int rank = comm.Rank();
 
     const SInt n = 10;
     Edgelist   input;
@@ -244,13 +251,13 @@ TEST_P(RedistributeEdgesSimpleFixture, SingleEdge) {
 
     Edgelist reference = input;
     if (remap_round_robin) {
-        RoundRobinRemapping(reference, n, MPI_COMM_WORLD);
+        RoundRobinRemapping(reference, n, comm);
     }
     Edgelist expected = GatherAllEdges(reference);
     std::sort(expected.begin(), expected.end());
 
     Edgelist    redistributed_edges;
-    VertexRange vr = redistribute(input, redistributed_edges, n, remap_round_robin, MPI_COMM_WORLD);
+    VertexRange vr = redistribute(input, redistributed_edges, n, remap_round_robin, comm);
 
     Edgelist result = GatherAllEdges(redistributed_edges);
     std::sort(result.begin(), result.end());

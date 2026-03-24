@@ -4,7 +4,6 @@
 #include "kagen/io/mmap_toker.h"
 #include "kagen/kagen.h"
 
-#include <mpi.h>
 
 #include <optional>
 

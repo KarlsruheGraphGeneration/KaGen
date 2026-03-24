@@ -131,7 +131,7 @@ Hyperbolic<Double>::Hyperbolic(const PGeneratorConfig& config, const PEID rank, 
 }
 
 template <typename Double>
-void Hyperbolic<Double>::FinalizeEdgeList(MPI_Comm comm) {
+void Hyperbolic<Double>::FinalizeEdgeList(Comm& comm) {
     // @todo use nonlocal_edges_ to implement this fix
     AddNonlocalReverseEdges(graph_.edges, graph_.edge_weights, graph_.vertex_range, comm);
 }

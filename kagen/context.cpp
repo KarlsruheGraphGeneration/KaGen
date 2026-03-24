@@ -1,8 +1,10 @@
 #include "kagen/context.h"
 
+#ifndef KAGEN_NOMPI
+    #include "kagen/comm/mpi_comm.h"
+    #include <mpi.h>
+#endif
 #include "kagen/definitions.h"
-
-#include <mpi.h>
 
 #include <iomanip>
 #include <ios>
@@ -458,8 +460,12 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
             get_sint_or_default("vertexweights_range_end", config.vertex_weights.weight_range_end);
     }
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#ifndef KAGEN_NOMPI
+    MPIComm mpi_comm(MPI_COMM_WORLD);
+    int     rank = mpi_comm.Rank();
+#else
+    int rank = 0;
+#endif
     if (rank == ROOT && !option_keys.empty()) {
         std::stringstream sstr;
         sstr << "WARNING: unused options: ";
