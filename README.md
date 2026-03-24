@@ -127,6 +127,17 @@ g = gen.generate_from_option_string("rhg;n=5000;gamma=2.6;avg_degree=10")
 
 All generators accept a `seed` parameter for reproducibility. Geometric generators accept `coordinates=True` to return vertex positions.
 
+## Homebrew
+
+The C++ library and CLI can be installed via Homebrew (macOS and Linux):
+
+```shell
+brew tap KarlsruheGraphGeneration/kagen
+brew install kagen
+```
+
+This installs the `KaGen` command-line tool with MPI support and the C++ library with headers for use in your own projects.
+
 ---
 
 ## Building from Source (C++ / MPI)
