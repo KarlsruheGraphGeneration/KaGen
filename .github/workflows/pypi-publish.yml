@@ -32,8 +32,23 @@ jobs:
         path: dist/*.tar.gz
 
   build-wheels:
-    name: Build wheels (cibuildwheel)
-    runs-on: ubuntu-latest
+    name: Build wheels (${{ matrix.name }})
+    strategy:
+      matrix:
+        include:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            cibw_build: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64"
+            artifact_name: wheels-linux
+          - name: macOS x86_64
+            os: macos-13
+            cibw_build: "cp310-macosx_x86_64 cp311-macosx_x86_64 cp312-macosx_x86_64 cp313-macosx_x86_64"
+            artifact_name: wheels-macos-x86_64
+          - name: macOS arm64
+            os: macos-14
+            cibw_build: "cp310-macosx_arm64 cp311-macosx_arm64 cp312-macosx_arm64 cp313-macosx_arm64"
+            artifact_name: wheels-macos-arm64
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -42,21 +57,28 @@ jobs:
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.22
       env:
-        # Build for CPython 3.10-3.13 on manylinux_2_28 (AlmaLinux 8)
-        # Python 3.14 is built separately below (not yet in cibuildwheel)
-        CIBW_BUILD: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64"
+        CIBW_BUILD: ${{ matrix.cibw_build }}
         CIBW_SKIP: "*-musllinux*"
         CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
 
-        # Install GMP/MPFR and download header-only CGAL + modern Boost
+        # Linux: install GMP/MPFR via dnf, download header-only CGAL + modern Boost
         # (system Boost in manylinux_2_28 is too old for CGAL + C++20)
         CIBW_BEFORE_ALL_LINUX: >
           dnf install -y gmp-devel mpfr-devel &&
           curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
           curl -L https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.gz | tar -xz -C /tmp
 
-        CIBW_ENVIRONMENT: >
+        # macOS: install GMP/MPFR via Homebrew, download same CGAL + Boost
+        CIBW_BEFORE_ALL_MACOS: >
+          brew install gmp mpfr &&
+          curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp &&
+          curl -L https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.gz | tar -xz -C /tmp
+
+        CIBW_ENVIRONMENT_LINUX: >
           CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
+
+        CIBW_ENVIRONMENT_MACOS: >
+          CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0 -DCMAKE_PREFIX_PATH=$(brew --prefix)"
 
         # Quick smoke test after wheel build
         CIBW_TEST_REQUIRES: numpy pytest
@@ -65,7 +87,7 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: wheels-cibuildwheel
+        name: ${{ matrix.artifact_name }}
         path: ./wheelhouse/*.whl
 
   build-wheel-314:
@@ -112,9 +134,60 @@ jobs:
         name: wheels-py314
         path: /tmp/dist/*.whl
 
+  build-wheel-314-macos:
+    name: Build wheel (Python 3.14, ${{ matrix.name }})
+    strategy:
+      matrix:
+        include:
+          - name: macOS x86_64
+            os: macos-13
+            artifact_name: wheels-py314-macos-x86_64
+          - name: macOS arm64
+            os: macos-14
+            artifact_name: wheels-py314-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Install system dependencies
+      run: |
+        brew install gmp mpfr openssl readline sqlite xz zlib
+        curl -L https://github.com/CGAL/cgal/releases/download/v5.6.2/CGAL-5.6.2-library.tar.xz | tar -xJ -C /tmp
+        curl -L https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.gz | tar -xz -C /tmp
+
+    - name: Install Python 3.14 from source
+      run: |
+        curl -L https://www.python.org/ftp/python/3.14.0/Python-3.14.0a7.tgz | tar -xz -C /tmp
+        cd /tmp/Python-3.14.0a7
+        ./configure --prefix=/opt/python314 --enable-optimizations --with-ensurepip=install \
+          --with-openssl=$(brew --prefix openssl)
+        make -j$(sysctl -n hw.ncpu)
+        sudo make install
+        /opt/python314/bin/python3 -m pip install --upgrade pip
+
+    - name: Build wheel
+      run: |
+        export PATH="/opt/python314/bin:$PATH"
+        export CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0 -DCMAKE_PREFIX_PATH=$(brew --prefix)"
+        pip3 install scikit-build-core pybind11 numpy delocate
+        pip3 wheel . --no-deps -w /tmp/raw-wheels/
+        delocate-wheel -w /tmp/dist/ /tmp/raw-wheels/*.whl
+
+    - name: Smoke test
+      run: |
+        /opt/python314/bin/pip3 install /tmp/dist/*.whl
+        /opt/python314/bin/python3 -c "import kagen; g = kagen.generate_undirected_gnm(100, 500, seed=42); assert g.num_edges() == 1000"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: /tmp/dist/*.whl
+
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [build-sdist, build-wheels, build-wheel-314]
+    needs: [build-sdist, build-wheels, build-wheel-314, build-wheel-314-macos]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
     environment: testpypi
@@ -133,7 +206,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [build-sdist, build-wheels, build-wheel-314]
+    needs: [build-sdist, build-wheels, build-wheel-314, build-wheel-314-macos]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
     environment: pypi
