@@ -34,16 +34,13 @@ jobs:
   build-wheels:
     name: Build wheels (${{ matrix.name }})
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: Linux x86_64
             os: ubuntu-latest
             cibw_build: "cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64"
             artifact_name: wheels-linux
-          - name: macOS x86_64
-            os: macos-13
-            cibw_build: "cp310-macosx_x86_64 cp311-macosx_x86_64 cp312-macosx_x86_64 cp313-macosx_x86_64"
-            artifact_name: wheels-macos-x86_64
           - name: macOS arm64
             os: macos-14
             cibw_build: "cp310-macosx_arm64 cp311-macosx_arm64 cp312-macosx_arm64 cp313-macosx_arm64"
@@ -78,7 +75,8 @@ jobs:
           CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
 
         CIBW_ENVIRONMENT_MACOS: >
-          CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0 -DCMAKE_PREFIX_PATH=$(brew --prefix)"
+          CMAKE_PREFIX_PATH=$(brew --prefix)
+          CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
 
         # Quick smoke test after wheel build
         CIBW_TEST_REQUIRES: numpy pytest
@@ -135,17 +133,8 @@ jobs:
         path: /tmp/dist/*.whl
 
   build-wheel-314-macos:
-    name: Build wheel (Python 3.14, ${{ matrix.name }})
-    strategy:
-      matrix:
-        include:
-          - name: macOS x86_64
-            os: macos-13
-            artifact_name: wheels-py314-macos-x86_64
-          - name: macOS arm64
-            os: macos-14
-            artifact_name: wheels-py314-macos-arm64
-    runs-on: ${{ matrix.os }}
+    name: Build wheel (Python 3.14, macOS arm64)
+    runs-on: macos-14
     steps:
     - uses: actions/checkout@v4
       with:
@@ -170,7 +159,8 @@ jobs:
     - name: Build wheel
       run: |
         export PATH="/opt/python314/bin:$PATH"
-        export CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0 -DCMAKE_PREFIX_PATH=$(brew --prefix)"
+        export CMAKE_PREFIX_PATH="$(brew --prefix)"
+        export CMAKE_ARGS="-DCGAL_DIR=/tmp/CGAL-5.6.2/lib/cmake/CGAL -DBOOST_ROOT=/tmp/boost_1_83_0"
         pip3 install scikit-build-core pybind11 numpy delocate
         pip3 wheel . --no-deps -w /tmp/raw-wheels/
         delocate-wheel -w /tmp/dist/ /tmp/raw-wheels/*.whl
@@ -182,7 +172,7 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact_name }}
+        name: wheels-py314-macos-arm64
         path: /tmp/dist/*.whl
 
   publish-testpypi:
