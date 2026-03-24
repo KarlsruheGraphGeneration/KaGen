@@ -65,7 +65,7 @@ void Kronecker::GenerateEdgeList() {
 
     kronecker::mrg_seed(&state, seed);
 
-    [[maybe_unused]] uint64_t scramble1_, scramble2_; /* Values for scrambling */
+    /* Initialize member variables for vertex scrambling */
     {
         kronecker::mrg_state new_state = state;
         kronecker::mrg_skip(&new_state, 50, 7, 0);

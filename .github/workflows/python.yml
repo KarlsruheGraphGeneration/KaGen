@@ -1,0 +1,83 @@
+name: Python Wheel
+
+on:
+  push:
+    branches:
+      - main
+      - python-module
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-wheel:
+    name: Build & Test Python 3.14 (Linux x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libcgal-dev \
+          libgmp-dev \
+          libboost-dev
+
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14-dev'
+        allow-prereleases: true
+
+    - name: Install Python build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install scikit-build-core pybind11 numpy pytest
+
+    - name: Build and install wheel
+      run: pip install .
+
+    - name: Verify import
+      run: |
+        python -c "
+        import kagen
+        print('KaGen version:', kagen.__version__)
+        print('CGAL support:', kagen.has_cgal)
+        g = kagen.generate_undirected_gnm(100, 500, seed=42)
+        print('Test graph: n=%d, m=%d' % (g.num_vertices(), g.num_edges()))
+        "
+
+    - name: Run sanity tests
+      run: python -m pytest python/tests/test_bindings.py python/tests/test_csr.py python/tests/test_weights.py python/tests/test_option_string.py -v
+
+    - name: Build MPI CLI for reproducibility tests
+      run: |
+        sudo apt-get install -y libopenmpi-dev openmpi-bin
+        cmake -B build-mpi \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DKAGEN_USE_CGAL=ON \
+          -DKAGEN_USE_SPARSEHASH=OFF \
+          -DKAGEN_USE_XXHASH=ON \
+          -DKAGEN_BUILD_APPS=ON \
+          -DKAGEN_BUILD_TOOLS=OFF \
+          -DKAGEN_BUILD_EXAMPLES=OFF \
+          -DKAGEN_BUILD_TESTS=OFF
+        cmake --build build-mpi --parallel $(nproc)
+
+    - name: Run CLI reproducibility tests
+      run: python -m pytest python/tests/test_reproducibility.py -v
+
+    - name: Build wheel artifact
+      run: pip wheel . --no-deps -w dist/
+
+    - name: Upload wheel
+      uses: actions/upload-artifact@v4
+      with:
+        name: kagen-wheel-linux-x86_64-py314
+        path: dist/*.whl

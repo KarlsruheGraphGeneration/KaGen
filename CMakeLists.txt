@@ -22,6 +22,8 @@ set(CMAKE_CXX_STANDARD 20)
 option(BUILD_SHARED_LIBS "Build using shared libraries." OFF)
 
 option(KAGEN_NODEPS "Build KaGen without any dependencies." OFF)
+option(KAGEN_NOMPI "Build without MPI (single-process pseudo-MPI for Python bindings)." OFF)
+option(KAGEN_BUILD_PYTHON "Build Python bindings (pybind11)." OFF)
 
 option(KAGEN_USE_MARCH_NATIVE "Compile with -march=native." OFF)
 option(KAGEN_USE_CGAL "If available, link against CGal to enable RDG generators." ON)
@@ -51,6 +53,21 @@ if (KAGEN_NODEPS)
     set(KAGEN_USE_MKL OFF)
     set(KAGEN_USE_XXHASH OFF)
     set(KAGEN_BUILD_TESTS OFF) # requires GoogleTest
+endif ()
+
+# If KAGEN_BUILD_PYTHON is set, enable NOMPI and require PIC for shared lib
+if (KAGEN_BUILD_PYTHON)
+    set(KAGEN_NOMPI ON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif ()
+
+# If KAGEN_NOMPI is set, disable apps/tools/examples (they require MPI_Init in main)
+if (KAGEN_NOMPI)
+    message(STATUS "Building without MPI (using pseudo-MPI stub)")
+    set(KAGEN_BUILD_APPS OFF CACHE BOOL "" FORCE)
+    set(KAGEN_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+    set(KAGEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(KAGEN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 endif ()
 
 # Prohibit in-source builds
@@ -143,9 +160,16 @@ endif ()
 ###############################################################################
 # MPI
 ###############################################################################
-set(MPI_DETERMINE_LIBRARY_VERSION TRUE) # needed for KaTestrophe
-find_package(MPI REQUIRED)
-list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
+if (NOT KAGEN_NOMPI)
+    set(MPI_DETERMINE_LIBRARY_VERSION TRUE) # needed for KaTestrophe
+    find_package(MPI REQUIRED)
+    list(APPEND KAGEN_LINK_LIBRARIES MPI::MPI_CXX)
+else ()
+    # Shadow <mpi.h> with our single-process pseudo-MPI stub.
+    # This adds nompi/ to the include path BEFORE system includes, so all
+    # existing #include <mpi.h> directives resolve to nompi/mpi.h automatically.
+    include_directories(BEFORE SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/nompi")
+endif ()
 
 ###############################################################################
 # pthread
@@ -228,6 +252,10 @@ add_library(KaGen::cKaGen ALIAS KaGen) # @deprecated, use KaGen::KaGen
 if (KAGEN_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif ()
+
+if (KAGEN_BUILD_PYTHON)
+    add_subdirectory(python)
 endif ()
 
 ################################################################################
