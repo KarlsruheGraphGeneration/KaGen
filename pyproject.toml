@@ -1,0 +1,39 @@
+[build-system]
+requires = ["scikit-build-core>=0.8", "pybind11>=2.11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "kagen"
+version = "1.2.1"
+description = "KaGen: Communication-free Massively Distributed Graph Generators"
+readme = "README.md"
+license = {text = "BSD-2-Clause"}
+requires-python = ">=3.8"
+dependencies = ["numpy"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+Homepage = "https://github.com/KarlsruheGraphGeneration/KaGen"
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+cmake.args = [
+    "-DKAGEN_BUILD_PYTHON=ON",
+    "-DKAGEN_USE_CGAL=ON",
+    "-DKAGEN_USE_SPARSEHASH=OFF",
+    "-DKAGEN_USE_XXHASH=ON",
+]
+wheel.packages = ["python/kagen"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+markers = [
+    "cli: tests that require the KaGen CLI binary built with MPI",
+]

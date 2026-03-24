@@ -56,7 +56,82 @@ The resulting generators are often embarrassingly parallel and have a near optim
 This allows us to generate instances of up to $2^{43}$ vertices and $2^{47}$ edges in less than 22 minutes on 32,768 cores.
 Therefore, our generators allow new graph families to be used on an unprecedented scale.
 
-## Requirements 
+## Python Module
+
+KaGen is available as a Python package that can be installed via pip. No MPI installation is required.
+
+> **Note:** The Python module runs in single-process mode without MPI and is therefore less scalable than the C++ version. For generating very large graphs (billions of vertices/edges), use the [C++ library or CLI with MPI](#building-from-source-c--mpi) instead.
+
+```shell
+pip install kagen
+```
+
+### Example
+
+```python
+import kagen
+
+# Generate an Erdos-Renyi graph
+g = kagen.generate_undirected_gnm(n=1000, m=5000, seed=42)
+print(f"Vertices: {g.num_vertices()}, Edges: {g.num_edges()}")
+edges = g.edges()  # numpy array of shape (m, 2), dtype=uint64
+
+# Generate a random geometric graph with coordinates
+g = kagen.generate_rgg2d_nm(n=2000, m=10000, seed=42, coordinates=True)
+coords = g.coordinates_2d()  # numpy array of shape (n, 2)
+
+# Generate a random hyperbolic graph (power-law degree distribution)
+g = kagen.generate_rhg(gamma=2.6, n=5000, d=10.0, seed=42)
+
+# Generate a Barabasi-Albert preferential attachment graph
+g = kagen.generate_ba(n=5000, d=3, seed=42)
+
+# Generate a random Delaunay graph (requires CGAL at build time)
+g = kagen.generate_rdg2d(n=1000, seed=42)
+
+# All generators are also available via the class-based interface
+gen = kagen.KaGen()
+gen.set_seed(42)
+gen.use_csr_representation()  # compressed sparse row format
+g = gen.generate_undirected_gnm(1000, 5000)
+xadj, adjncy = g.xadj(), g.adjncy()
+
+# Edge and vertex weights
+gen = kagen.KaGen()
+gen.set_seed(42)
+gen.configure_edge_weight_generation("hashing_based", 1, 100)
+gen.configure_vertex_weight_generation("uniform_random", 1, 50)
+g = gen.generate_undirected_gnm(500, 2000)
+print(g.edge_weights(), g.vertex_weights())
+
+# Option string interface (same syntax as C++ library)
+g = gen.generate_from_option_string("rhg;n=5000;gamma=2.6;avg_degree=10")
+```
+
+### Available Generators
+
+| Function | Model |
+|----------|-------|
+| `generate_undirected_gnm` / `generate_directed_gnm` | Erdos-Renyi G(n,m) |
+| `generate_undirected_gnp` / `generate_directed_gnp` | Erdos-Renyi G(n,p) |
+| `generate_rgg2d` / `generate_rgg2d_nm` / `generate_rgg2d_mr` | 2D Random Geometric |
+| `generate_rgg3d` / `generate_rgg3d_nm` / `generate_rgg3d_mr` | 3D Random Geometric |
+| `generate_rdg2d` / `generate_rdg3d` | Random Delaunay (requires CGAL) |
+| `generate_rhg` / `generate_rhg_nm` / `generate_rhg_md` | Random Hyperbolic |
+| `generate_ba` / `generate_ba_nm` / `generate_ba_md` | Barabasi-Albert |
+| `generate_grid2d` / `generate_grid2d_n` / `generate_grid2d_nm` | 2D Grid |
+| `generate_grid3d` / `generate_grid3d_n` / `generate_grid3d_nm` | 3D Grid |
+| `generate_kronecker` | Kronecker |
+| `generate_rmat` | R-MAT |
+| `generate_directed_path` | Directed Path / Cycle |
+
+All generators accept a `seed` parameter for reproducibility. Geometric generators accept `coordinates=True` to return vertex positions.
+
+---
+
+## Building from Source (C++ / MPI)
+
+### Requirements
 
 In order to compile the generators, you require: 
 
