@@ -29,8 +29,11 @@ int main(int argc, char** argv) {
     // Filter out Google Test arguments
     ::testing::InitGoogleTest(&argc, argv);
 
-    // Initialize MPI
-    MPI_Init(&argc, &argv);
+    // Initialize MPI with thread support level SERIALIZED so that tests using
+    // hybrid (MPI + std::thread) communicators can safely call MPI from any
+    // one thread at a time (HybridComm ensures only thread_id_==0 calls MPI).
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
 
     int init_flag;
     MPI_Initialized(&init_flag);

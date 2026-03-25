@@ -94,3 +94,8 @@ kagen_add_test(test_redistribute_edges
 kagen_add_test(test_rmat_distribution
         FILES rmat/rmat_distribution_test.cpp
         CORES 1 2 4)
+
+# Communicator unit tests
+kagen_add_test(test_comm
+    FILES comm/comm_test.cpp
+    CORES 1 2 4)
