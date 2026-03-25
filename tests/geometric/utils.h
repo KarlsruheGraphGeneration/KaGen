@@ -30,7 +30,7 @@ inline Edgelist CreateExpectedRGG3DEdges(PGeneratorConfig config, const Graph& g
         for (SInt j = 0; j < config.n; j++) {
             auto [x2, y2, z2] = graph.coordinates.second[j];
             // Comparing all coordinates
-            if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) < config.r) {
+            if (i != j && std::hypot(x1 - x2, y1 - y2, z1 - z2) <= config.r) {
                 edges.emplace_back(i, j);
             }
         }
