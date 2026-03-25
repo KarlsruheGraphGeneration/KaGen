@@ -55,15 +55,39 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, Comm& comm) {
 Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentation representation, Comm& comm) {
     // Threaded path: spawn num_threads virtual PEs within this real PE
     if (config_template.num_threads > 1) {
-        const int  T            = config_template.num_threads;
+        const int  T         = config_template.num_threads;
         const PEID real_rank = comm.Rank();
 
+        const bool output_info = real_rank == ROOT && !config_template.quiet;
+
+        if (output_info && config_template.print_header) {
+            PrintHeader(config_template);
+        }
+
+        // Print normalised parameter summary (display only — actual per-thread normalisation
+        // happens inside each thread with its own virtual rank/size).
+        if (output_info) {
+            try {
+                auto factory = CreateGeneratorFactory(config_template.generator);
+                factory->NormalizeParameters(config_template, 0, comm.Size() * T, /*output=*/true);
+            } catch (const kagen::ConfigurationError& ex) {
+                std::cerr << "Error: " << ex.what() << "\n";
+                comm.Abort(1);
+            }
+        }
+
+        if (output_info) {
+            std::cout << "Generating graph ... " << std::flush;
+        }
+
+        const auto t_start_graphgen = comm.Wtime();
+
         // Per-thread config: suppress output/stats/validation (done once on merged result)
-        PGeneratorConfig thread_config    = config_template;
-        thread_config.quiet               = true;
-        thread_config.statistics_level    = StatisticsLevel::NONE;
+        PGeneratorConfig thread_config      = config_template;
+        thread_config.quiet                 = true;
+        thread_config.statistics_level      = StatisticsLevel::NONE;
         thread_config.validate_simple_graph = false;
-        thread_config.num_threads         = 1; // Prevent recursive threading
+        thread_config.num_threads           = 1; // Prevent recursive threading
 
         HybridCommShared         shared(T);
         std::vector<Graph>       thread_graphs(T);
@@ -77,6 +101,13 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         }
         for (auto& w : workers) {
             w.join();
+        }
+
+        const auto t_end_graphgen = comm.Wtime();
+        if (output_info) {
+            std::cout << "OK" << std::endl;
+            std::cout << "Finalizing graph ... OK" << std::endl;
+            std::cout << "Generating weights ... OK" << std::endl;
         }
 
         Graph merged = std::move(thread_graphs[0]);
@@ -103,6 +134,12 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
             }
         }
         if (!config_template.quiet) {
+            if (output_info) {
+                std::cout << "Generation took " << std::fixed << std::setprecision(3)
+                          << t_end_graphgen - t_start_graphgen << " seconds" << std::endl;
+                std::cout << "-------------------------------------------------------------------------------"
+                          << std::endl;
+            }
             if (representation == GraphRepresentation::EDGE_LIST) {
                 if (config_template.statistics_level >= StatisticsLevel::BASIC) {
                     PrintBasicStatistics(merged.edges, merged.vertex_range, real_rank == ROOT, comm);
@@ -114,6 +151,10 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
                 if (config_template.statistics_level >= StatisticsLevel::BASIC) {
                     PrintBasicStatistics(merged.xadj, merged.adjncy, merged.vertex_range, real_rank == ROOT, comm);
                 }
+            }
+            if (output_info && config_template.statistics_level != StatisticsLevel::NONE) {
+                std::cout << "-------------------------------------------------------------------------------"
+                          << std::endl;
             }
         }
 
