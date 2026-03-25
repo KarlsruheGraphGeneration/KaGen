@@ -102,7 +102,6 @@ inline std::vector<VertexRange> AllgatherVertexRange(const VertexRange vertex_ra
 // Each element of type T is sent as sizeof(T) bytes.
 template <typename T>
 std::vector<T> ExchangeMessageBuffers(std::unordered_map<PEID, std::vector<T>> message_buffers, Comm& comm) {
-    PEID rank = comm.Rank();
     PEID size = comm.Size();
 
     std::vector<T>   send_buf;
