@@ -268,4 +268,8 @@ void Delaunay2D::SortCellVertices(std::vector<Vertex>& vertices) {
     SpatialSortingTraits sst;
     CGAL::spatial_sort(vertices.begin(), vertices.end(), sst);
 }
+
+void Delaunay2D::GenerateEdgeList() {
+    GenerateGeometry();
+}
 } // namespace kagen

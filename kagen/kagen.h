@@ -9,6 +9,7 @@
     #include <tuple>
     #include <type_traits>
     #include <unordered_map>
+    #include <unordered_set>
     #include <utility>
     #include <vector>
 #endif
@@ -41,21 +42,23 @@ std::string BuildDescription();
 // C++ interface
 #ifdef __cplusplus
 namespace kagen {
-using SInt          = unsigned long long;
-using SSInt         = long long;
-using Edgelist      = std::vector<std::pair<SInt, SInt>>;
-using Edgelist32    = std::vector<std::pair<int, int>>;
-using VertexRange   = std::pair<SInt, SInt>;
-using PEID          = int;
-using HPFloat       = long double;
-using LPFloat       = double;
-using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
-using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
-using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
-using VertexWeights = std::vector<SSInt>;
-using EdgeWeights   = std::vector<SSInt>;
-using XadjArray     = std::vector<SInt>;
-using AdjncyArray   = std::vector<SInt>;
+using SInt             = unsigned long long;
+using SSInt            = long long;
+using Edgelist         = std::vector<std::pair<SInt, SInt>>;
+using Edgelist32       = std::vector<std::pair<int, int>>;
+using HyperedgeOffsets = std::vector<SInt>;
+using HyperedgePins    = std::vector<SInt>;
+using VertexRange      = std::pair<SInt, SInt>;
+using PEID             = int;
+using HPFloat          = long double;
+using LPFloat          = double;
+using Coordinates2D    = std::vector<std::tuple<HPFloat, HPFloat>>;
+using Coordinates3D    = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
+using Coordinates      = std::pair<Coordinates2D, Coordinates3D>;
+using VertexWeights    = std::vector<SSInt>;
+using EdgeWeights      = std::vector<SSInt>;
+using XadjArray        = std::vector<SInt>;
+using AdjncyArray      = std::vector<SInt>;
 } // namespace kagen
 #endif
 
@@ -105,6 +108,7 @@ enum class GeneratorType {
     GNP_UNDIRECTED,
     RGG_2D,
     RGG_3D,
+    HRGG_2D,
     RDG_2D,
     RDG_3D,
     GRID_2D,
@@ -146,10 +150,7 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
-enum class GraphRepresentation {
-    EDGE_LIST,
-    CSR,
-};
+enum class GraphRepresentation { EDGE_LIST, CSR, HYPERGRAPH };
 
 std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
 
@@ -207,6 +208,7 @@ enum class StreamingMode {
 
 #ifdef __cplusplus
 namespace kagen {
+
 struct Graph {
     VertexRange         vertex_range;
     GraphRepresentation representation;
@@ -217,6 +219,10 @@ struct Graph {
     // CSR representation only
     XadjArray   xadj;
     AdjncyArray adjncy;
+
+    // Hypergraphs only
+    HyperedgeOffsets hyperedge_offsets;
+    HyperedgePins    hyperedge_pins;
 
     VertexWeights vertex_weights;
     EdgeWeights   edge_weights;
@@ -266,6 +272,19 @@ struct Graph {
         return std::make_tuple(
             vertex_range, std::move(edges), std::move(xadj), std::move(adjncy), std::move(vertex_weights),
             std::move(edge_weights), std::move(coordinates));
+    }
+
+    bool IsHypergraph() const {
+        return representation == GraphRepresentation::HYPERGRAPH || !hyperedge_offsets.empty()
+               || !hyperedge_pins.empty();
+    }
+
+    SInt NumberOfLocalHyperedges() const {
+        return hyperedge_offsets.empty() ? 0 : static_cast<SInt>(hyperedge_offsets.size() - 1);
+    }
+
+    SInt NumberOfLocalPins() const {
+        return static_cast<SInt>(hyperedge_pins.size());
     }
 
 private:
@@ -452,6 +471,8 @@ public:
     Graph GenerateRGG3D_NM(SInt n, SInt m, bool coordinates = false);
 
     Graph GenerateRGG3D_MR(SInt m, LPFloat r, bool coordinates = false);
+
+    Graph GenerateHRGG2D(const SInt n, const LPFloat r, const bool coordinates);
 
     Graph GenerateRDG2D(SInt n, bool periodic, bool coordinates = false);
 

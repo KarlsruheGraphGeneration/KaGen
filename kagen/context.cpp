@@ -79,6 +79,12 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
                 << "\n";
             break;
 
+        case GeneratorType::HRGG_2D:
+            out << "  Number of vertices:                 " << config.n << "\n";
+            out << "  Hyperedge radius:                   " << config.r << "\n";
+            out << "  Hypergraph:                         yes\n";
+            break;
+
         case GeneratorType::RDG_2D:
         case GeneratorType::RDG_3D:
             out << "  Number of vertices:                 " << config.n << "\n";
@@ -335,26 +341,27 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         return get_sint_or_default(option, default_value);
     };
 
-    config.generator   = type;
-    config.n           = get_power_of_two_or_default("N", "n");
-    config.m           = get_power_of_two_or_default("M", "m");
-    config.k           = get_sint_or_default("k");
-    config.seed        = get_sint_or_default("seed", config.seed);
-    config.p           = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
-    config.r           = get_hpfloat_or_default("radius", get_hpfloat_or_default("r"));
-    config.plexp       = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
-    config.periodic    = get_bool_or_default("periodic");
-    config.avg_degree  = get_hpfloat_or_default("avg_degree", get_hpfloat_or_default("d"));
-    config.min_degree  = get_sint_or_default("min_degree", get_sint_or_default("d"));
-    config.grid_x      = get_sint_or_default("grid_x", get_sint_or_default("x"));
-    config.grid_y      = get_sint_or_default("grid_y", get_sint_or_default("y"));
-    config.grid_z      = get_sint_or_default("grid_z", get_sint_or_default("z"));
-    config.rmat_a      = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a", Graph500RMATDefaults::a));
-    config.rmat_b      = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b", Graph500RMATDefaults::b));
-    config.rmat_c      = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c", Graph500RMATDefaults::c));
-    config.coordinates = get_bool_or_default("coordinates");
-    config.permute     = get_bool_or_default("permute");
-    config.directed    = get_bool_or_default("directed");
+    config.generator     = type;
+    config.is_hypergraph = config.generator == GeneratorType::HRGG_2D;
+    config.n             = get_power_of_two_or_default("N", "n");
+    config.m             = get_power_of_two_or_default("M", "m");
+    config.k             = get_sint_or_default("k");
+    config.seed          = get_sint_or_default("seed", config.seed);
+    config.p             = get_hpfloat_or_default("prob", get_hpfloat_or_default("p"));
+    config.r             = get_hpfloat_or_default("radius", get_hpfloat_or_default("r"));
+    config.plexp         = get_hpfloat_or_default("gamma", get_hpfloat_or_default("g"));
+    config.periodic      = get_bool_or_default("periodic");
+    config.avg_degree    = get_hpfloat_or_default("avg_degree", get_hpfloat_or_default("d"));
+    config.min_degree    = get_sint_or_default("min_degree", get_sint_or_default("d"));
+    config.grid_x        = get_sint_or_default("grid_x", get_sint_or_default("x"));
+    config.grid_y        = get_sint_or_default("grid_y", get_sint_or_default("y"));
+    config.grid_z        = get_sint_or_default("grid_z", get_sint_or_default("z"));
+    config.rmat_a        = get_hpfloat_or_default("rmat_a", get_hpfloat_or_default("a", Graph500RMATDefaults::a));
+    config.rmat_b        = get_hpfloat_or_default("rmat_b", get_hpfloat_or_default("b", Graph500RMATDefaults::b));
+    config.rmat_c        = get_hpfloat_or_default("rmat_c", get_hpfloat_or_default("c", Graph500RMATDefaults::c));
+    config.coordinates   = get_bool_or_default("coordinates");
+    config.permute       = get_bool_or_default("permute");
+    config.directed      = get_bool_or_default("directed");
 
     if (config.generator == GeneratorType::IMAGE_MESH) {
         const std::string filename = get_string_or_default("filename");
@@ -468,6 +475,23 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         }
         sstr << "\n";
         std::cout << sstr.str();
+    }
+
+    // TODO(clickup)[2026-05-10]: Adapt guards to style
+    if (config.is_hypergraph) {
+        config.validate_simple_graph = false;
+
+        if (config.permute) {
+            throw std::runtime_error("vertex permutation is not implemented for hypergraphs yet");
+        }
+
+        if (config.edge_weights.generator_type != EdgeWeightGeneratorType::DEFAULT) {
+            throw std::runtime_error("edge weights are not implemented for hypergraphs yet");
+        }
+
+        if (config.output_graph.formats.size() == 1 && config.output_graph.formats.front() == FileFormat::EDGE_LIST) {
+            config.output_graph.formats = {FileFormat::HMETIS};
+        }
     }
 
     return config;

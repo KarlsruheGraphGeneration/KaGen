@@ -20,7 +20,10 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
 
-    auto graph = GenerateInMemory(config, GraphRepresentation::EDGE_LIST, comm);
+    const GraphRepresentation representation =
+        config.is_hypergraph ? GraphRepresentation::HYPERGRAPH : GraphRepresentation::EDGE_LIST;
+
+    auto graph = GenerateInMemory(config, representation, comm);
 
     const auto t_start_io = MPI_Wtime();
 
@@ -74,6 +77,8 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         MPI_Abort(comm, 1);
     }
 
+    const bool is_hypergraph = config.is_hypergraph;
+
     if (output_info) {
         std::cout << "Generating graph ... " << std::flush;
     }
@@ -104,8 +109,10 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
     if (output_info) {
         std::cout << "Generating weights ... " << std::flush;
     }
-    generator->GenerateEdgeWeights(config.edge_weights, comm);
-    generator->GenerateVertexWeights(config.vertex_weights, comm);
+    if (!is_hypergraph) {
+        generator->GenerateEdgeWeights(config.edge_weights, comm);
+        generator->GenerateVertexWeights(config.vertex_weights, comm);
+    }
     if (output_info) {
         std::cout << "OK" << std::endl;
     }
@@ -125,14 +132,16 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
                       << ")" << std::endl;
         }
     }
-    if (config.permute) {
+    if (config.is_hypergraph && config.permute) {
+        throw ConfigurationError("Vertex permutation is not implemented for hypergraphs yet");
+    } else if (config.permute) {
         generator->PermuteVertices(config, comm);
     }
 
     auto graph = generator->Take();
 
     // Validation
-    if (config.validate_simple_graph) {
+    if (config.validate_simple_graph && !is_hypergraph) {
         if (output_info) {
             std::cout << "Validating graph ... " << std::flush;
         }
@@ -157,7 +166,14 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
             std::cout << "-------------------------------------------------------------------------------" << std::endl;
         }
 
-        if (representation == GraphRepresentation::EDGE_LIST) {
+        if (is_hypergraph) {
+            if (config.statistics_level >= StatisticsLevel::BASIC) {
+                PrintBasicHypergraphStatistics(graph, rank == ROOT, comm);
+            }
+            if (config.statistics_level >= StatisticsLevel::ADVANCED) {
+                PrintAdvancedHypergraphStatistics(graph, rank == ROOT, comm);
+            }
+        } else if (representation == GraphRepresentation::EDGE_LIST) {
             if (config.statistics_level >= StatisticsLevel::BASIC) {
                 PrintBasicStatistics(graph.edges, graph.vertex_range, rank == ROOT, comm);
             }

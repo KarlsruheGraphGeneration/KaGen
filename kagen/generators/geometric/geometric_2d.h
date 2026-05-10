@@ -22,7 +22,7 @@
 #include <algorithm>
 
 namespace kagen {
-class Geometric2D : public virtual Generator, private EdgeListOnlyGenerator {
+class Geometric2D : public virtual Generator{
 public:
     // n, x_off, y_off, generated, offset
     using Chunk = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void GenerateEdgeList() final {
+    void GenerateGeometry() {
         // Generate per PE point distribution
         for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i)
             ComputeChunk(i);

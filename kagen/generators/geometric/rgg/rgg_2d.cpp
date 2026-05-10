@@ -1,26 +1,12 @@
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 
-#include <algorithm>
-
+#include "kagen/generators/geometric/geometric_2d.h"
 #include "kagen/tools/geometry.h"
 
 namespace kagen {
-RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
-    // Number of chunks must be (a) a multiple of size and (b) be a quadratic number
-    total_chunks_ = config_.k;
-
-    // Chunk variables
-    chunks_per_dim_ = std::sqrt(total_chunks_);
-    chunk_size_     = 1.0 / chunks_per_dim_;
-
-    // Cell variables
-    cells_per_dim_   = std::floor(chunk_size_ / config_.r);
-    cells_per_chunk_ = cells_per_dim_ * cells_per_dim_;
-    cell_size_       = config_.r + (chunk_size_ - cells_per_dim_ * config_.r) / cells_per_dim_;
-    target_r_        = config_.r * config_.r;
-
-    InitDatastructures();
-}
+RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
+    : Geometric2D(config, rank, size),
+      SpatialGrid2D(config, rank, size) {}
 
 void RGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     // Iterate grid cells
@@ -135,88 +121,8 @@ void RGG2D::GenerateGridEdges(
     }
 }
 
-void RGG2D::GenerateCells(const SInt chunk_id) {
-    // Lazily compute chunk
-    if (chunks_.find(chunk_id) == end(chunks_))
-        ComputeChunk(chunk_id);
-    auto& chunk = chunks_[chunk_id];
-
-    // Stop if cell distribution already generated
-    if (std::get<3>(chunk))
-        return;
-
-    SInt    seed       = 0;
-    SInt    n          = std::get<0>(chunk);
-    SInt    offset     = std::get<4>(chunk);
-    LPFloat total_area = chunk_size_ * chunk_size_;
-    LPFloat cell_area  = cell_size_ * cell_size_;
-
-    for (SInt i = 0; i < cells_per_chunk_; ++i) {
-        seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
-        SInt    h             = sampling::Spooky::hash(seed);
-        // due to potential floating point inaccuracies clamp probability
-        SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 1.0));
-        LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
-        LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
-
-        // Only generate adjacent cells
-        if (cell_vertices != 0) {
-            if (IsLocalChunk(chunk_id) || IsAdjacentCell(chunk_id, i)) {
-                cells_[ComputeGlobalCellId(chunk_id, i)] =
-                    std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);
-            }
-        }
-
-        // Update for multinomial
-        n -= cell_vertices;
-        offset += cell_vertices;
-        total_area -= cell_area;
-    }
-    std::get<3>(chunk) = true;
+void RGG2D::GenerateEdgeList() {
+    GenerateGeometry();
 }
 
-bool RGG2D::IsAdjacentCell(const SInt chunk_id, const SInt cell_id) {
-    SInt chunk_row, chunk_column;
-    Decode(chunk_id, chunk_column, chunk_row);
-    SInt cell_row, cell_column;
-    DecodeCell(cell_id, cell_column, cell_row);
-    // Iterate neighboring cells
-    for (SSInt i = -1; i <= 1; i++) {
-        SSInt neighbor_row = cell_row + i;
-        for (SSInt j = -1; j <= 1; j++) {
-            SSInt neighbor_column = cell_column + j;
-
-            // Compute diffs
-            int horizontal_diff = 0;
-            int vertical_diff   = 0;
-            if (neighbor_column < 0)
-                horizontal_diff = -1;
-            else if (neighbor_column >= (SSInt)cells_per_dim_)
-                horizontal_diff = 1;
-            if (neighbor_row < 0)
-                vertical_diff = -1;
-            else if (neighbor_row >= (SSInt)cells_per_dim_)
-                vertical_diff = 1;
-
-            // Skip invalid cells
-            if ((SSInt)chunk_row + vertical_diff < 0 || chunk_row + vertical_diff >= chunks_per_dim_
-                || (SSInt)chunk_column + horizontal_diff < 0 || chunk_column + horizontal_diff >= chunks_per_dim_)
-                continue;
-
-            SInt neighbor_id = Encode(chunk_column + horizontal_diff, chunk_row + vertical_diff);
-            if (IsLocalChunk(neighbor_id))
-                return true;
-        }
-    }
-    return false;
-}
-
-inline SInt RGG2D::EncodeCell(const SInt x, const SInt y) const {
-    return x + y * cells_per_dim_;
-}
-
-inline void RGG2D::DecodeCell(const SInt id, SInt& x, SInt& y) const {
-    x = id % cells_per_dim_;
-    y = (id / cells_per_dim_) % cells_per_dim_;
-}
 } // namespace kagen

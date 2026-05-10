@@ -271,6 +271,19 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         params->silent();
     }
 
+    { // Hyper RGG2D
+        auto* cmd = app.add_subcommand("hrgg2d", "2D Random Geometric Graph adapted for Hypergraphs");
+        cmd->alias("hrgg_2d")->alias("hrgg-2d");
+        cmd->callback([&] {
+            config.generator     = GeneratorType::HRGG_2D;
+            config.is_hypergraph = true;
+        });
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params)->required();
+        add_option_r(params)->required();
+    }
+
 #ifdef KAGEN_CGAL_FOUND
     { // RDG2D
         auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");

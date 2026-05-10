@@ -7,6 +7,7 @@
 
 #include <exception>
 #include <memory>
+#include <vector>
 
 namespace kagen {
 class Generator {
@@ -34,9 +35,13 @@ protected:
 
     virtual void GenerateCSR() = 0;
 
+    virtual void GenerateHypergraph();
+
     virtual void FinalizeEdgeList(MPI_Comm comm);
 
     virtual void FinalizeCSR(MPI_Comm comm);
+
+    virtual void FinalizeHypergraph(MPI_Comm comm);
 
     void SetVertexRange(VertexRange vetrex_range);
 
@@ -68,6 +73,16 @@ protected:
         graph_.vertex_range = std::make_pair(first_vertex, first_invalid_vertex);
     }
 
+    inline void PushHyperedge(const std::vector<SInt>& pins) {
+        if (graph_.hyperedge_offsets.empty()) {
+            graph_.hyperedge_offsets.push_back(0);
+        }
+
+        graph_.hyperedge_pins.insert(graph_.hyperedge_pins.end(), pins.begin(), pins.end());
+
+        graph_.hyperedge_offsets.push_back(static_cast<SInt>(graph_.hyperedge_pins.size()));
+    }
+
     void FilterDuplicateEdges();
 
     GraphRepresentation desired_representation_;
@@ -92,14 +107,22 @@ private:
 
 class EdgeListOnlyGenerator : virtual Generator {
 public:
-    void GenerateCSR() final;
-    void FinalizeCSR(MPI_Comm comm) final;
+    void GenerateCSR() override;
+    void FinalizeCSR(MPI_Comm comm) override;
 };
 
 class CSROnlyGenerator : virtual Generator {
 public:
     void GenerateEdgeList() final;
     void FinalizeEdgeList(MPI_Comm comm) final;
+};
+
+class HypergraphOnlyGenerator : virtual Generator {
+public:
+    void GenerateEdgeList() override;
+    void GenerateCSR() override;
+    void FinalizeEdgeList(MPI_Comm comm) override;
+    void FinalizeCSR(MPI_Comm comm) override;
 };
 
 class GeneratorFactory {

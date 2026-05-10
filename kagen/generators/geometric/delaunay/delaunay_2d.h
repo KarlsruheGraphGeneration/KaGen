@@ -13,7 +13,7 @@
 #include <climits>
 
 namespace kagen {
-class Delaunay2D : public Geometric2D {
+class Delaunay2D : public Geometric2D, private EdgeListOnlyGenerator {
 public:
     Delaunay2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
@@ -23,6 +23,8 @@ protected:
     SInt max_radius_;
 
     void GenerateEdges(SInt chunk_row, SInt chunk_column) override;
+
+    void GenerateEdgeList() override;
 
 private:
     void SortCellVertices(std::vector<Vertex>& vertices);

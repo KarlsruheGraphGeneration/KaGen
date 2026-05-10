@@ -1,6 +1,8 @@
 #include "kagen/io/hmetis.h"
 
+#include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/io/buffered_writer.h"
+#include "kagen/io/hmetis_hypergraph.h"
 
 #include <unordered_map>
 
@@ -13,6 +15,18 @@ HmetisWriter::HmetisWriter(
 
 void HmetisWriter::WriteHeader(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
+    if (graph_.representation == GraphRepresentation::HYPERGRAPH) {
+        // TODO(clickup)[2026-05-10]: Weights for Hypergraphs not supported
+        IgnoresEdgeWeights();
+        IgnoresVertexWeights();
+
+        const SInt num_hyperedges =
+            graph_.hyperedge_offsets.empty() ? 0 : static_cast<SInt>(graph_.hyperedge_offsets.size() - 1);
+
+        out.WriteInt(num_hyperedges).WriteChar(' ').WriteInt(n).WriteChar('\n').Flush();
+        return;
+    }
+
     out.WriteInt(m / 2).WriteChar(' ').WriteInt(n);
     if (info_.has_vertex_weights || info_.has_edge_weights) {
         out.WriteChar(' ');
@@ -30,6 +44,32 @@ void HmetisWriter::WriteHeader(const std::string& filename, const SInt n, const 
 
 bool HmetisWriter::WriteBody(const std::string& filename) {
     BufferedTextOutput<> out(tag::append, filename);
+
+    if (graph_.representation == GraphRepresentation::HYPERGRAPH) {
+        IgnoresEdgeWeights();
+
+        if (graph_.hyperedge_offsets.empty()) {
+            return info_.has_vertex_weights;
+        }
+
+        for (SInt e = 0; e + 1 < static_cast<SInt>(graph_.hyperedge_offsets.size()); ++e) {
+            const SInt begin = graph_.hyperedge_offsets[e];
+            const SInt end   = graph_.hyperedge_offsets[e + 1];
+
+            for (SInt i = begin; i < end; ++i) {
+                if (i > begin) {
+                    out.WriteChar(' ');
+                }
+
+                // hMetis uses 1-based vertex IDs
+                out.WriteInt(graph_.hyperedge_pins[i] + 1);
+            }
+
+            out.WriteChar('\n').Flush();
+        }
+
+        return info_.has_vertex_weights;
+    }
 
     for (SInt e = 0; e < graph_.edges.size(); ++e) {
         const auto& [from, to] = graph_.edges[e];
@@ -57,6 +97,9 @@ void HmetisWriter::WriteFooter(const std::string& filename) {
 
 std::unique_ptr<GraphWriter> HmetisFactory::CreateWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size) const {
+    if (IsHypergraph(graph)) {
+        return std::make_unique<HmetisHypergraphWriter>(config, graph, info, rank, size);
+    }
     return std::make_unique<HmetisWriter>(false, config, graph, info, rank, size);
 }
 

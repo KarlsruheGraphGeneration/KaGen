@@ -1,6 +1,7 @@
 #include "kagen/io/graph_format.h"
 
 #include "kagen/definitions.h"
+#include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/io.h"
 
 #include <mpi.h>
@@ -95,7 +96,9 @@ bool StandardGraphWriter::Write(const int pass, const std::string& filename) {
         if (write_header_footer) {
             const SInt n =
                 config_.distributed ? graph_.vertex_range.second - graph_.vertex_range.first : info_.global_n;
-            const SInt m = config_.distributed ? graph_.edges.size() : info_.global_m;
+
+            const SInt m = config_.distributed ? graph_.NumberOfLocalEdges() : info_.global_m;
+
             WriteHeader(filename, n, m);
         }
         return WriteBody(filename);

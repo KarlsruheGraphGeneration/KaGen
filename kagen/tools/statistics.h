@@ -39,4 +39,8 @@ void PrintBasicStatistics(
 void PrintBasicStatistics(const Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
 
 void PrintAdvancedStatistics(Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
+
+void PrintBasicHypergraphStatistics(const Graph& graph, bool root, MPI_Comm comm);
+
+void PrintAdvancedHypergraphStatistics(const Graph& graph, bool root, MPI_Comm comm);
 } // namespace kagen

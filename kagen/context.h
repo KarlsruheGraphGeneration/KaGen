@@ -171,6 +171,10 @@ struct PGeneratorConfig {
     // Edge weights
 
     OutputGraphConfig output_graph{};
+
+    // Hypergraph mode.
+    // If true, the generator produces hyperedge_offsets / hyperedge_pins instead of graph edges.
+    bool is_hypergraph = false;
 };
 
 void PrintHeader(const PGeneratorConfig& config);

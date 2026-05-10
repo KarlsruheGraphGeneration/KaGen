@@ -266,6 +266,43 @@ void PrintBasicStatistics(
     PrintBasicStatistics(xadj.size() - 1, adjncy.size(), root, comm);
 }
 
+std::vector<SInt> ComputeHyperedgeSizeBins(const Graph& graph, MPI_Comm comm) {
+    std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
+
+    for (std::size_t e = 0; e + 1 < graph.hyperedge_offsets.size(); ++e) {
+        const SInt size = graph.hyperedge_offsets[e + 1] - graph.hyperedge_offsets[e];
+        const SInt bin  = (size == 0) ? 0 : (std::log2(size) + 1);
+        ++bins[bin];
+    }
+
+    std::vector<SInt> global_bins(bins.size());
+    MPI_Reduce(bins.data(), global_bins.data(), bins.size(), KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+
+    return global_bins;
+}
+
+std::vector<SInt> ComputeHypergraphNodeDegreeBins(const Graph& graph, MPI_Comm comm) {
+    std::vector<SInt> local_degrees(graph.NumberOfLocalVertices(), 0);
+
+    for (const SInt pin: graph.hyperedge_pins) {
+        if (pin >= graph.vertex_range.first && pin < graph.vertex_range.second) {
+            ++local_degrees[pin - graph.vertex_range.first];
+        }
+    }
+
+    std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
+
+    for (const SInt degree: local_degrees) {
+        const SInt bin = (degree == 0) ? 0 : (std::log2(degree) + 1);
+        ++bins[bin];
+    }
+
+    std::vector<SInt> global_bins(bins.size());
+    MPI_Reduce(bins.data(), global_bins.data(), bins.size(), KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+
+    return global_bins;
+}
+
 void PrintBasicStatistics(const Edgelist& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
     PrintBasicStatistics(vertex_range.second - vertex_range.first, edges.size(), root, comm);
 }
@@ -324,4 +361,91 @@ void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, co
                   << " ghost vertices" << std::endl;
     }
 }
+
+void PrintBasicHypergraphStatistics(const Graph& graph, bool root, MPI_Comm comm) {
+    const SInt local_num_vertices   = graph.vertex_range.second - graph.vertex_range.first;
+    const SInt local_num_hyperedges = graph.NumberOfLocalHyperedges();
+    const SInt local_num_pins       = graph.NumberOfLocalPins();
+
+    // Reuse existing distributed statistics output.
+    // This prints "Number of edges", but here this means hyperedges.
+    PrintBasicStatistics(local_num_vertices, local_num_hyperedges, root, comm);
+
+    const SInt global_num_hyperedges = ReduceSum(local_num_hyperedges, comm);
+    const SInt global_num_pins       = ReduceSum(local_num_pins, comm);
+
+    const SInt min_pins  = ReduceMin(local_num_pins, comm);
+    const auto mean_pins = ReduceMean(local_num_pins, comm);
+    const SInt max_pins  = ReduceMax(local_num_pins, comm);
+    const auto sd_pins   = ReduceSD(local_num_pins, comm);
+
+    if (root) {
+        std::cout << "Number of pins:     " << global_num_pins << " [Min=" << min_pins << " | Mean=" << std::fixed
+                  << std::setprecision(1) << mean_pins << " | Max=" << max_pins << " | SD=" << std::fixed
+                  << std::setprecision(2) << sd_pins << "]\n";
+
+        std::cout << "Average hyperedge size: "
+                  << DivideOrDefault(
+                         static_cast<double>(global_num_pins), static_cast<double>(global_num_hyperedges), 0.0)
+                  << "\n";
+    }
+}
+namespace {
+void PrintBins(const std::string& name, const std::vector<SInt>& bins) {
+    SInt last_nonempty_bin = 0;
+    for (SInt i = 0; i < bins.size(); ++i) {
+        if (bins[i] > 0) {
+            last_nonempty_bin = i;
+        }
+    }
+
+    const SInt digits10 = last_nonempty_bin == 0 ? 1 : std::log10(1 << last_nonempty_bin) + 1;
+
+    std::cout << name << ":\n";
+    for (SInt i = 0; i <= last_nonempty_bin; ++i) {
+        const SInt from = (i == 0) ? 0 : 1 << (i - 1);
+        const SInt to   = 2 * from;
+
+        std::cout << "  [" << std::setw(digits10) << from << ", " << std::setw(digits10) << to << "): " << bins[i]
+                  << "\n";
+    }
+}
+} // namespace
+
+void PrintAdvancedHypergraphStatistics(const Graph& graph, const bool root, MPI_Comm comm) {
+    PrintBasicHypergraphStatistics(graph, root, comm);
+
+    SInt local_min_size = std::numeric_limits<SInt>::max();
+    SInt local_max_size = 0;
+    SInt local_size_sum = 0;
+
+    for (std::size_t e = 0; e + 1 < graph.hyperedge_offsets.size(); ++e) {
+        const SInt size = graph.hyperedge_offsets[e + 1] - graph.hyperedge_offsets[e];
+
+        local_min_size = std::min(local_min_size, size);
+        local_max_size = std::max(local_max_size, size);
+        local_size_sum += size;
+    }
+
+    if (graph.NumberOfLocalHyperedges() == 0) {
+        local_min_size = 0;
+    }
+
+    const SInt global_min_size     = ReduceMin(local_min_size, comm);
+    const SInt global_max_size     = ReduceMax(local_max_size, comm);
+    const SInt global_size_sum     = ReduceSum(local_size_sum, comm);
+    const SInt global_m            = ReduceSum(graph.NumberOfLocalHyperedges(), comm);
+    const auto node_degree_bins    = ComputeHypergraphNodeDegreeBins(graph, comm);
+    const auto hyperedge_size_bins = ComputeHyperedgeSizeBins(graph, comm);
+
+    if (root) {
+        std::cout << "Hyperedge size:    [Min=" << global_min_size << " | Mean=" << std::fixed << std::setprecision(1)
+                  << DivideOrDefault(static_cast<double>(global_size_sum), static_cast<double>(global_m), 0.0)
+                  << " | Max=" << global_max_size << "]\n";
+
+        PrintBins("Node degree bins", node_degree_bins);
+        PrintBins("Hyperedge size bins", hyperedge_size_bins);
+    }
+}
+
 } // namespace kagen

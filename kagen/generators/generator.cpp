@@ -38,6 +38,10 @@ Generator* Generator::Generate(const GraphRepresentation representation) {
         case GraphRepresentation::CSR:
             GenerateCSR();
             break;
+
+        case kagen::GraphRepresentation::HYPERGRAPH:
+            GenerateHypergraph();
+            break;
     }
 
     return this;
@@ -52,6 +56,9 @@ Generator* Generator::Finalize(MPI_Comm comm) {
         case GraphRepresentation::CSR:
             FinalizeCSR(comm);
             break;
+
+        case kagen::GraphRepresentation::HYPERGRAPH:
+            FinalizeHypergraph(comm);
     }
 
     graph_.representation = desired_representation_;
@@ -88,6 +95,9 @@ void Generator::GenerateEdgeWeights(EdgeWeightConfig weight_config, MPI_Comm com
         case GraphRepresentation::CSR:
             edge_weight_generator->GenerateEdgeWeights(graph_.xadj, graph_.adjncy, graph_.edge_weights);
             break;
+
+        case kagen::GraphRepresentation::HYPERGRAPH:
+            throw ConfigurationError("Edge weights are not supported for hypergraphs");
     }
 }
 
@@ -288,6 +298,9 @@ auto ApplyPermutationAndComputeSendBuffers(
 
 void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config, [[maybe_unused]] MPI_Comm comm) {
 #ifdef KAGEN_XXHASH_FOUND
+    if (desired_representation_ == GraphRepresentation::HYPERGRAPH) {
+        throw ConfigurationError("vertex permutation is not implemented for hypergraphs yet");
+    }
     int size = -1;
     int rank = -1;
     MPI_Comm_rank(comm, &rank);
@@ -334,6 +347,8 @@ void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config,
             graph_.vertex_weights = std::move(permuted_vertex_weights);
             break;
         }
+        case kagen::GraphRepresentation::HYPERGRAPH:
+            break;
     }
     SetVertexRange(recv_range);
 #endif // KAGEN_XXHASH_FOUND
@@ -371,6 +386,12 @@ void Generator::GenerateVertexWeights(VertexWeightConfig weight_config, MPI_Comm
 void Generator::FinalizeEdgeList(MPI_Comm) {}
 
 void Generator::FinalizeCSR(MPI_Comm) {}
+
+void Generator::GenerateHypergraph() {
+    throw ConfigurationError("This generator does not support hypergraph generation");
+}
+
+void Generator::FinalizeHypergraph(MPI_Comm) {}
 
 void CSROnlyGenerator::GenerateEdgeList() {
     GenerateCSR();
@@ -414,8 +435,35 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     }
 }
 
+void HypergraphOnlyGenerator::GenerateEdgeList() {
+    GenerateHypergraph();
+}
+
+void HypergraphOnlyGenerator::GenerateCSR() {
+    GenerateHypergraph();
+}
+
+void HypergraphOnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
+    FinalizeHypergraph(comm);
+}
+
+void HypergraphOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
+    FinalizeHypergraph(comm);
+}
+
 SInt Generator::GetNumberOfEdges() const {
-    return std::max(graph_.adjncy.size(), graph_.edges.size());
+    switch (graph_.representation) {
+        case GraphRepresentation::EDGE_LIST:
+            return static_cast<SInt>(graph_.edges.size());
+
+        case GraphRepresentation::CSR:
+            return static_cast<SInt>(graph_.adjncy.size());
+
+        case GraphRepresentation::HYPERGRAPH:
+            return graph_.hyperedge_offsets.empty() ? SInt{0} : static_cast<SInt>(graph_.hyperedge_offsets.size() - 1);
+    }
+
+    return SInt{0};
 }
 
 Graph Generator::Take() {

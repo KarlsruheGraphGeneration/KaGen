@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <numeric>
+#include <regex>
 #include <sstream>
 #include <unordered_map>
 
@@ -153,6 +154,7 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"gnp_undirected", GeneratorType::GNP_UNDIRECTED},
         {"rgg2d", GeneratorType::RGG_2D},
         {"rgg3d", GeneratorType::RGG_3D},
+        {"hyper_rgg2d", GeneratorType::HRGG_2D},
 #ifdef KAGEN_CGAL_FOUND
         {"rdg2d", GeneratorType::RDG_2D},
         {"rdg3d", GeneratorType::RDG_3D},
@@ -191,6 +193,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
 
         case GeneratorType::RGG_3D:
             return out << "rgg3d";
+
+        case GeneratorType::HRGG_2D:
+            return out << "hyper_rgg2d";
 
         case GeneratorType::RDG_2D:
             return out << "rdg2d";
@@ -373,6 +378,7 @@ std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap()
     return {
         {"edge-list", GraphRepresentation::EDGE_LIST},
         {"csr", GraphRepresentation::CSR},
+        {"hypergraph", GraphRepresentation::HYPERGRAPH},
     };
 }
 
@@ -383,6 +389,9 @@ std::ostream& operator<<(std::ostream& out, const GraphRepresentation representa
 
         case GraphRepresentation::CSR:
             return out << "csr";
+
+        case kagen::GraphRepresentation::HYPERGRAPH:
+            return out << "hypergraph";
     }
 
     return out << "<invalid>";
@@ -405,6 +414,9 @@ SInt Graph::NumberOfLocalEdges() const {
 
         case GraphRepresentation::CSR:
             return adjncy.size();
+
+        case GraphRepresentation::HYPERGRAPH:
+            return NumberOfLocalHyperedges();
     }
 
     __builtin_unreachable();
@@ -424,6 +436,8 @@ void Graph::Clear() {
     edge_weights.clear();
     coordinates.first.clear();
     coordinates.second.clear();
+    hyperedge_offsets.clear();
+    hyperedge_pins.clear();
 }
 
 void Graph::FreeEdgelist() {
@@ -618,6 +632,23 @@ Graph KaGen::GenerateRGG3D_NM(const SInt n, const SInt m, const bool coordinates
 
 Graph KaGen::GenerateRGG3D_MR(const SInt m, const LPFloat r, const bool coordinates) {
     return GenerateRGG3D_Impl(*config_, 0, m, r, coordinates, representation_, comm_);
+}
+namespace {
+Graph GenerateHRGG2D_Impl(
+    PGeneratorConfig& config, const SInt n, const SInt m, const LPFloat r, const bool coordinates,
+    const GraphRepresentation representation, MPI_Comm comm) {
+    config.generator     = GeneratorType::HRGG_2D;
+    config.is_hypergraph = true;
+    config.m             = m;
+    config.n             = n;
+    config.r             = r;
+    config.coordinates   = coordinates;
+    return GenerateInMemory(config, representation, comm);
+}
+} // namespace
+
+Graph KaGen::GenerateHRGG2D(const SInt n, const LPFloat r, const bool coordinates) {
+    return GenerateHRGG2D_Impl(*config_, n, 0, r, coordinates, representation_, comm_);
 }
 
 #ifdef KAGEN_CGAL_FOUND
