@@ -35,13 +35,9 @@ protected:
 
     virtual void GenerateCSR() = 0;
 
-    virtual void GenerateHypergraph();
-
     virtual void FinalizeEdgeList(MPI_Comm comm);
 
     virtual void FinalizeCSR(MPI_Comm comm);
-
-    virtual void FinalizeHypergraph(MPI_Comm comm);
 
     void SetVertexRange(VertexRange vetrex_range);
 
@@ -117,13 +113,6 @@ public:
     void FinalizeEdgeList(MPI_Comm comm) final;
 };
 
-class HypergraphOnlyGenerator : virtual Generator {
-public:
-    void GenerateEdgeList() override;
-    void GenerateCSR() override;
-    void FinalizeEdgeList(MPI_Comm comm) override;
-    void FinalizeCSR(MPI_Comm comm) override;
-};
 
 class GeneratorFactory {
 public:

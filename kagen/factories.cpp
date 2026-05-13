@@ -10,6 +10,7 @@
 #include "kagen/generators/grid/grid_2d.h"
 #include "kagen/generators/grid/grid_3d.h"
 #include "kagen/generators/hyper/h_geometric/h_rgg.h"
+#include "kagen/generators/hyper/h_hyperbolic/hyper_hyperbolic.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
 #include "kagen/generators/image/image_mesh.h"
 #include "kagen/generators/kronecker/kronecker.h"
@@ -43,6 +44,9 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::HRGG_2D:
             return std::make_unique<HyperRGG2DFactory>();
+
+        case kagen::GeneratorType::H_RHG:
+            return std::make_unique<Hyper_HyperbolicFactory>();
 
             // TODO(clickup)[2026-05-08]: Implement other Generators
 

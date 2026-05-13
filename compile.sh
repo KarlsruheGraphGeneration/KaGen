@@ -1,5 +1,1 @@
-#!/bin/bash
-git submodule update --init --recursive
-cmake -B build -DCMAKE_BUILD_TYPE=Release 
-cmake --build build --parallel
-
+/mnt/c/Users/linus/OneDrive/VSCode-Workspace-Config/bachelor/vscode-shared/sync/kagen-local/compile.sh

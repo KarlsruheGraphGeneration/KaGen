@@ -197,6 +197,9 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
         case GeneratorType::HRGG_2D:
             return out << "hyper_rgg2d";
 
+        case GeneratorType::H_RHG:
+            return out << "hyper_rhg";
+
         case GeneratorType::RDG_2D:
             return out << "rdg2d";
 
@@ -378,7 +381,6 @@ std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap()
     return {
         {"edge-list", GraphRepresentation::EDGE_LIST},
         {"csr", GraphRepresentation::CSR},
-        {"hypergraph", GraphRepresentation::HYPERGRAPH},
     };
 }
 
@@ -389,9 +391,6 @@ std::ostream& operator<<(std::ostream& out, const GraphRepresentation representa
 
         case GraphRepresentation::CSR:
             return out << "csr";
-
-        case kagen::GraphRepresentation::HYPERGRAPH:
-            return out << "hypergraph";
     }
 
     return out << "<invalid>";
@@ -408,15 +407,15 @@ SInt Graph::NumberOfGlobalVertices() const {
 }
 
 SInt Graph::NumberOfLocalEdges() const {
+    if (this->IsHypergraph()) {
+        return NumberOfLocalHyperedges();
+    }
     switch (representation) {
         case GraphRepresentation::EDGE_LIST:
             return edges.size();
 
         case GraphRepresentation::CSR:
             return adjncy.size();
-
-        case GraphRepresentation::HYPERGRAPH:
-            return NumberOfLocalHyperedges();
     }
 
     __builtin_unreachable();

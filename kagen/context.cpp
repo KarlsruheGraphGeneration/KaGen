@@ -85,6 +85,26 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             out << "  Hypergraph:                         yes\n";
             break;
 
+        case GeneratorType::H_RHG:
+            out << "  Power-law exponent:                 " << config.plexp << "\n";
+            out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n))
+                << "\n";
+            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
+                << "\n";
+            out << "  Average degree:                     "
+                << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
+            out << "  High-precision floating points:     ";
+            if (config.hp_floats == 0) {
+                out << "auto";
+            } else if (config.hp_floats == -1) {
+                out << "no";
+            } else {
+                out << "yes";
+            }
+            out << "\n";
+            out << "  Hypergraph:                         yes\n";
+            break;
+
         case GeneratorType::RDG_2D:
         case GeneratorType::RDG_3D:
             out << "  Number of vertices:                 " << config.n << "\n";

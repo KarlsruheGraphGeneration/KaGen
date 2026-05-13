@@ -284,6 +284,38 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_r(params)->required();
     }
 
+    { // Hyper RHG
+        auto* cmd = app.add_subcommand("hrhg", "Random Hyperbolic Hypergraph");
+        cmd->callback([&] {
+            config.generator     = GeneratorType::H_RHG;
+            config.is_hypergraph = true;
+        });
+        cmd->add_flag("--query-both", config.query_both, "Generate reverse cut edges communication-free (slow!)"); //?
+        cmd->add_flag("--hp-floats,!--no-hp-floats", config.hp_floats, "Use 80 bit floating point numbers");
+        add_option_gamma(cmd)->required();
+        auto* radius_params        = cmd->add_option_group("Hyperedge radius parameters");
+        auto* min_hyperedge_radius = radius_params->add_option(
+            "--min-radius", config.min_hyperedge_radius, "Minimum radius used for random hyperedge radius generation");
+        auto* max_hyperedge_radius = radius_params->add_option(
+            "--max-radius", config.max_hyperedge_radius, "Maximum radius used for random hyperedge redius generation");
+        auto* hyperedge_radius_exponent = radius_params->add_option(
+            "--radius-exponent", config.hyperedge_radius_exponent, "Exponent for random hyperedge radius distribution");
+
+        radius_params->callback([&, min_hyperedge_radius, max_hyperedge_radius, hyperedge_radius_exponent] {
+            config.random_radius = static_cast<bool>(*min_hyperedge_radius) || static_cast<bool>(*max_hyperedge_radius)
+                                   || static_cast<bool>(*hyperedge_radius_exponent);
+        });
+
+        cmd->add_option("-r,--radius", config.r, "Fixed hyperedge radius");
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        add_option_avg_deg(params);
+        add_option_m(params);
+        params->require_option(2);
+        params->silent();
+    }
+
 #ifdef KAGEN_CGAL_FOUND
     { // RDG2D
         auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");

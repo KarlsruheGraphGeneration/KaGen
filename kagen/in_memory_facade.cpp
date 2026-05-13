@@ -21,7 +21,7 @@ void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     MPI_Comm_rank(comm, &rank);
 
     const GraphRepresentation representation =
-        config.is_hypergraph ? GraphRepresentation::HYPERGRAPH : GraphRepresentation::EDGE_LIST;
+        config.is_hypergraph ? GraphRepresentation::CSR : GraphRepresentation::EDGE_LIST;
 
     auto graph = GenerateInMemory(config, representation, comm);
 

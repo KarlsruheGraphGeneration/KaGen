@@ -6,13 +6,13 @@
 
 namespace kagen {
 
-class HyperRGG2D : public HRGG, protected SpatialGrid2D, private HypergraphOnlyGenerator {
+class HyperRGG2D : public HRGG, protected SpatialGrid2D, private CSROnlyGenerator {
 public:
     HyperRGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
 protected:
-    void GenerateHypergraph() override;
-    void FinalizeHypergraph(MPI_Comm comm) override;
+    void GenerateCSR() override;
+    void FinalizeCSR(MPI_Comm comm) override;
 
 private:
     void GenerateEdges(SInt chunk_row, SInt chunk_column) override;

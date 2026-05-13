@@ -109,6 +109,7 @@ enum class GeneratorType {
     RGG_2D,
     RGG_3D,
     HRGG_2D,
+    H_RHG,
     RDG_2D,
     RDG_3D,
     GRID_2D,
@@ -150,7 +151,7 @@ std::unordered_map<std::string, ImageMeshWeightModel> GetImageMeshWeightModelMap
 
 std::ostream& operator<<(std::ostream& out, ImageMeshWeightModel weight_model);
 
-enum class GraphRepresentation { EDGE_LIST, CSR, HYPERGRAPH };
+enum class GraphRepresentation { EDGE_LIST, CSR };
 
 std::unordered_map<std::string, GraphRepresentation> GetGraphRepresentationMap();
 
@@ -234,6 +235,9 @@ struct Graph {
 
     SInt NumberOfLocalEdges() const;
 
+    SInt NumberOfLocalEdges(
+        std::unique_ptr<struct PGeneratorConfig>& config) const; // To differentiate between CSR and hypergraphs
+
     SInt NumberOfGlobalEdges() const;
 
     void SortEdgelist();
@@ -275,8 +279,7 @@ struct Graph {
     }
 
     bool IsHypergraph() const {
-        return representation == GraphRepresentation::HYPERGRAPH || !hyperedge_offsets.empty()
-               || !hyperedge_pins.empty();
+        return !hyperedge_offsets.empty() || !hyperedge_pins.empty();
     }
 
     SInt NumberOfLocalHyperedges() const {

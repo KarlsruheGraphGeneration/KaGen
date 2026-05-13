@@ -71,7 +71,7 @@ void HyperRGG2D::GenerateBallHyperedge(const Vertex& center, const SInt center_c
 
                 const auto squared_distance = PGGeometry<LPFloat>::SquaredEuclideanDistance(center, candidate);
 
-                if (squared_distance <= target_r_) {
+                if (squared_distance <= getSampledOrConstantRadiusSquared(config_, center_id)) {
                     pins.push_back(candidate_id);
                 }
             }
@@ -107,10 +107,10 @@ void HyperRGG2D::GenerateEdges(SInt chunk_row, SInt chunk_column) {
     }
 }
 
-void HyperRGG2D::GenerateHypergraph() {
+void HyperRGG2D::GenerateCSR() {
     GenerateGeometry();
 }
 
-void HyperRGG2D::FinalizeHypergraph(MPI_Comm) {}
+void HyperRGG2D::FinalizeCSR(MPI_Comm) {}
 
 } // namespace kagen

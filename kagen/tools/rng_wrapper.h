@@ -45,6 +45,15 @@ public:
         sds.sample(N, n, callback);
     }
 
+    template <typename real_t = double>
+    real_t GenerateUniform(SInt seed, real_t min = 0.0, real_t max = 1.0) {
+        rng_.seed(seed);
+
+        std::uniform_real_distribution<real_t> dist(min, max);
+
+        return dist(rng_);
+    }
+
 private:
     const PGeneratorConfig& config_;
 
