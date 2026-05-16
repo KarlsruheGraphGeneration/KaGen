@@ -9,6 +9,7 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
@@ -36,8 +37,6 @@ public:
     using Chunk = std::tuple<SInt, Double, Double, SInt>;
     // n, min_phi, max_phi, generated, generated
     using Cell = std::tuple<SInt, Double, Double, bool, SInt>;
-    // phi, r, x, y, gamma, id
-    using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
 
     Hyper_Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
@@ -90,7 +89,8 @@ private:
     void ComputeChunk(SInt chunk_id);
 
     void ComputeChunk(
-        SInt chunk_id, SInt n, SInt k, Double min_phi, Double max_phi, SInt chunk_start, SInt level, SInt offset);
+        SInt chunk_id, SInt n, SInt num_of_chunks, Double min_phi, Double max_phi, SInt chunk_start, SInt level,
+        SInt offset);
 
     void GenerateCells(SInt annulus_id, SInt chunk_id);
 
@@ -98,17 +98,17 @@ private:
 
     void GenerateHyperedges(SInt annulus_id, SInt chunk_id);
 
-    void QueryHyperBallBoth(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q);
+    void QueryHyperBallBoth(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& center);
 
-    void QueryHyperBall(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool search_down = true);
+    void QueryHyperBall(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& center, bool search_down = true);
 
     bool QueryHyperBallRightNeighbor(
-        SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down);
+        SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& center, bool phase, bool search_down);
 
     bool QueryHyperBallLeftNeighbor(
-        SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q, bool phase, bool search_down);
+        SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& center, bool phase, bool search_down);
 
-    void GenerateGridPins(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& q);
+    void GenerateGridPins(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& center);
 
     std::pair<Double, Double> GetBoundaryPhis(Double boundary_phi, Double boundary_r, SInt annulus_id) const;
 
@@ -124,9 +124,16 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 
-    void BeginHyperedge(const Vertex& v);
+    void BeginHyperedge(const Vertex& center);
 
-    void EndHyperedge(const Vertex& v);
+    void EndHyperedge(const Vertex& center);
+
+    CellBallRelation
+    ClassifyCellAgainstHyperball(SInt annulus_id, SInt chunk_id, SInt cell_id, const Vertex& hyperball_center);
+
+    bool IsPointInsideHyperball(Double center_r, Double center_phi, Double r, Double phi) const;
+
+    void AddWholeCellPins(SInt global_cell_id, SInt center_id);
 };
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm) {}

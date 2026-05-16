@@ -2,6 +2,9 @@
 
 #include "kagen/kagen.h"
 
+#include <tuple>
+#include <vector>
+
 namespace kagen {
 // phi, r, x, y, gamma, id
 using Vertex = std::tuple<double, double, double, double, double, SInt>;
@@ -17,9 +20,13 @@ inline SInt NumberOfLocalPins(const Graph& graph) {
     return static_cast<SInt>(graph.hyperedge_pins.size());
 }
 /**
-* Checks ```random_radius`` flag of @link PGeneratorConfig
-*/
-double getSampledOrConstantRadiusSquared(const PGeneratorConfig& config, const SInt identifier);
+ * Checks ```random_radius`` flag of @link PGeneratorConfig
+ */
+double getSampledOrConstantRadius(const PGeneratorConfig& config, SInt identifier);
 
-double getSampledOrConstantRadiusSquared(const PGeneratorConfig& config, const Vertex& center);
+double getSampledOrConstantRadius(const PGeneratorConfig& config, const Vertex& center);
+
+bool RandomRadiusChecks(PGeneratorConfig& config);
+
+enum class CellBallRelation : std::uint8_t { INSIDE, PARTIAL, OUTSIDE };
 } // namespace kagen

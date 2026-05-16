@@ -1,6 +1,7 @@
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d.h"
 
 #include "kagen/context.h"
+#include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/tools/geometry.h"
 
 namespace kagen {
@@ -71,7 +72,9 @@ void HyperRGG2D::GenerateBallHyperedge(const Vertex& center, const SInt center_c
 
                 const auto squared_distance = PGGeometry<LPFloat>::SquaredEuclideanDistance(center, candidate);
 
-                if (squared_distance <= getSampledOrConstantRadiusSquared(config_, center_id)) {
+                double radius = getSampledOrConstantRadius(config_, center_id);
+
+                if (squared_distance <= radius * radius) {
                     pins.push_back(candidate_id);
                 }
             }

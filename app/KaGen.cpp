@@ -18,11 +18,12 @@
 
 using namespace kagen;
 
+
 void PrintVersion() {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank == ROOT) {
-        std::cout << BuildDescription() << std::endl;
+        std::cout << BuildDescription() << '\n';
     }
 }
 

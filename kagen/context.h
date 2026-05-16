@@ -179,6 +179,15 @@ struct PGeneratorConfig {
     double min_hyperedge_radius      = 0.05;
     double max_hyperedge_radius      = 0.2;
     double hyperedge_radius_exponent = 2.5;
+
+    /*
+     * Sets config.k if k == 0 to PEID size, else does nothing.
+     */
+    void setChunkSizeIfMissing(PEID size) {
+        if (this->k == 0) {
+            this->k = static_cast<SInt>(size);
+        }
+    }
 };
 
 void PrintHeader(const PGeneratorConfig& config);
