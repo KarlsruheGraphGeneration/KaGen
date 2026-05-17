@@ -12,8 +12,16 @@ inline bool IsHypergraph(const Graph& graph) {
     return !graph.hyperedge_offsets.empty() || !graph.hyperedge_pins.empty();
 }
 
-inline SInt NumberOfLocalHyperedges(const Graph& graph) {
-    return graph.hyperedge_offsets.empty() ? SInt{0} : static_cast<SInt>(graph.hyperedge_offsets.size() - 1);
+inline SInt NumberOfLocalHyperedges(Graph& graph) {
+    if (!graph.hyperedge_offsets.empty()) {
+        return static_cast<SInt>(graph.hyperedge_offsets.size() - 1);
+    }
+
+    if (!graph.hyperedge_range_offsets.empty()) {
+        return static_cast<SInt>(graph.hyperedge_range_offsets.size() - 1);
+    }
+
+    return 0;
 }
 
 inline SInt NumberOfLocalPins(const Graph& graph) {

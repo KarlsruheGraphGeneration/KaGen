@@ -42,23 +42,41 @@ std::string BuildDescription();
 // C++ interface
 #ifdef __cplusplus
 namespace kagen {
-using SInt             = unsigned long long;
-using SSInt            = long long;
-using Edgelist         = std::vector<std::pair<SInt, SInt>>;
-using Edgelist32       = std::vector<std::pair<int, int>>;
-using HyperedgeOffsets = std::vector<SInt>;
-using HyperedgePins    = std::vector<SInt>;
-using VertexRange      = std::pair<SInt, SInt>;
-using PEID             = int;
-using HPFloat          = long double;
-using LPFloat          = double;
-using Coordinates2D    = std::vector<std::tuple<HPFloat, HPFloat>>;
-using Coordinates3D    = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
-using Coordinates      = std::pair<Coordinates2D, Coordinates3D>;
-using VertexWeights    = std::vector<SSInt>;
-using EdgeWeights      = std::vector<SSInt>;
-using XadjArray        = std::vector<SInt>;
-using AdjncyArray      = std::vector<SInt>;
+
+using SInt          = unsigned long long;
+using SSInt         = long long;
+using Edgelist      = std::vector<std::pair<SInt, SInt>>;
+using Edgelist32    = std::vector<std::pair<int, int>>;
+using VertexRange   = std::pair<SInt, SInt>;
+using PEID          = int;
+using HPFloat       = long double;
+using LPFloat       = double;
+using Coordinates2D = std::vector<std::tuple<HPFloat, HPFloat>>;
+using Coordinates3D = std::vector<std::tuple<HPFloat, HPFloat, HPFloat>>;
+using Coordinates   = std::pair<Coordinates2D, Coordinates3D>;
+using VertexWeights = std::vector<SSInt>;
+using EdgeWeights   = std::vector<SSInt>;
+using XadjArray     = std::vector<SInt>;
+using AdjncyArray   = std::vector<SInt>;
+
+struct PinRange {
+    SInt begin; // inclusive
+    SInt end;   // exclusive
+};
+
+struct HyperedgeRef {
+    SInt pin_begin;
+    SInt pin_end;
+
+    SInt range_begin;
+    SInt range_end;
+};
+
+using HyperedgeOffsets      = std::vector<SInt>;
+using HyperedgePins         = std::vector<SInt>;
+using HyperedgeRanges       = std::vector<PinRange>;
+using HyperedgeRangeOffsets = std::vector<SInt>;
+
 } // namespace kagen
 #endif
 
@@ -222,8 +240,23 @@ struct Graph {
     AdjncyArray adjncy;
 
     // Hypergraphs only
-    HyperedgeOffsets hyperedge_offsets;
-    HyperedgePins    hyperedge_pins;
+    HyperedgeOffsets      hyperedge_offsets;
+    HyperedgePins         hyperedge_pins;
+    HyperedgeRangeOffsets hyperedge_range_offsets;
+    HyperedgeRanges       hyperedge_ranges;
+
+    struct PinRange {
+        SInt begin; // inclusive
+        SInt end;   // exclusive
+    };
+
+    struct HyperedgeRef {
+        SInt pin_begin;
+        SInt pin_end;
+
+        SInt range_begin;
+        SInt range_end;
+    };
 
     VertexWeights vertex_weights;
     EdgeWeights   edge_weights;

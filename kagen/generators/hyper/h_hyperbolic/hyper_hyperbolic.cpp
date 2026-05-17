@@ -3,6 +3,7 @@
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
+#include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/geometry.h"
 
@@ -435,6 +436,7 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
 template <typename Double>
 void Hyper_Hyperbolic<Double>::BeginHyperedge(const Vertex& center) {
     current_hyperedge_pins_.clear();
+    current_hyperedge_ranges_.clear();
 
     current_hyperedge_pins_.push_back(std::get<5>(center));
 
@@ -448,14 +450,32 @@ void Hyper_Hyperbolic<Double>::BeginHyperedge(const Vertex& center) {
  */
 template <typename Double>
 void Hyper_Hyperbolic<Double>::EndHyperedge(const Vertex& /*center*/) {
-    std::sort(current_hyperedge_pins_.begin(), current_hyperedge_pins_.end());
+    auto normalized =
+        NormalizeCurrentHyperedge(std::move(current_hyperedge_pins_), std::move(current_hyperedge_ranges_), 4);
 
-    current_hyperedge_pins_.erase(
-        std::unique(current_hyperedge_pins_.begin(), current_hyperedge_pins_.end()), current_hyperedge_pins_.end());
+    current_hyperedge_pins_   = std::move(normalized.first);
+    current_hyperedge_ranges_ = std::move(normalized.second);
 
-    if (current_hyperedge_pins_.size() >= 2) {
-        PushHyperedge(current_hyperedge_pins_);
+    SInt range_pin_count = 0;
+    for (const PinRange& range: current_hyperedge_ranges_) {
+        range_pin_count += range.end - range.begin;
     }
+
+    if (current_hyperedge_pins_.size() + range_pin_count >= 2) {
+        PushHyperedgeCompressed(current_hyperedge_pins_, current_hyperedge_ranges_);
+    }
+}
+
+template <typename Double>
+void Hyper_Hyperbolic<Double>::PushHyperedgeCompressed(
+    const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
+    graph_.hyperedge_pins.insert(graph_.hyperedge_pins.end(), pins.begin(), pins.end());
+
+    graph_.hyperedge_offsets.push_back(graph_.hyperedge_pins.size());
+
+    graph_.hyperedge_ranges.insert(graph_.hyperedge_ranges.end(), ranges.begin(), ranges.end());
+
+    graph_.hyperedge_range_offsets.push_back(graph_.hyperedge_ranges.size());
 }
 
 template <typename Double>
@@ -714,11 +734,17 @@ void Hyper_Hyperbolic<Double>::AddWholeCellPins(SInt global_cell_id, SInt center
     const SInt cell_size     = std::get<0>(cell);
     const SInt vertex_offset = std::get<4>(cell);
 
-    for (SInt i = 0; i < cell_size; ++i) {
-        const SInt vertex_id = vertex_offset + i;
+    const SInt begin = vertex_offset;
+    const SInt end   = vertex_offset + cell_size;
 
-        if (vertex_id != center_id) {
-            current_hyperedge_pins_.push_back(vertex_id);
+    if (center_id < begin || center_id >= end) { // center_id not in cell
+        current_hyperedge_ranges_.push_back({begin, end});
+    } else {
+        if (begin < center_id) {
+            current_hyperedge_ranges_.push_back({begin, center_id});
+        }
+        if (center_id + 1 < end) {
+            current_hyperedge_ranges_.push_back({center_id + 1, end});
         }
     }
 }

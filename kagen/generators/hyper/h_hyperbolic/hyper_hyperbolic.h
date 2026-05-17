@@ -9,7 +9,9 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/hypergraph/hyperedge_management.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
+#include "kagen/kagen.h"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
@@ -66,12 +68,13 @@ private:
     // Eps
     Double chunk_eps_, cell_eps_, point_eps_;
     // State
-    SInt              current_annulus_, current_chunk_, current_cell_;
-    Double            current_min_phi_, current_max_phi_;
-    SInt              right_processed_chunk_, right_processed_cell_;
-    std::vector<SInt> current_hyperedge_pins_;
-    Double            current_hyperedge_radius_;
-    Double            current_hyperedge_pdm_radius_;
+    SInt                  current_annulus_, current_chunk_, current_cell_;
+    Double                current_min_phi_, current_max_phi_;
+    SInt                  right_processed_chunk_, right_processed_cell_;
+    std::vector<SInt>     current_hyperedge_pins_;
+    std::vector<PinRange> current_hyperedge_ranges_;
+    Double                current_hyperedge_radius_;
+    Double                current_hyperedge_pdm_radius_;
 
     // Data structures
     HashMap<SInt, Annulus>             annuli_;
@@ -134,6 +137,12 @@ private:
     bool IsPointInsideHyperball(Double center_r, Double center_phi, Double r, Double phi) const;
 
     void AddWholeCellPins(SInt global_cell_id, SInt center_id);
+
+    void PushHyperedgePin(SInt pin);
+
+    void PushHyperedgeRange(SInt begin, SInt end);
+
+    void PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
 };
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm) {}
