@@ -29,6 +29,11 @@ HyperRGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
         throw ConfigurationError("edge weights are not implemented for hypergraphs yet");
     }
 
+    if (config.random_radius && config.r == 0) {
+        double expected_vertices = 8.0;
+        config.r                 = std::sqrt(expected_vertices / (M_PI * static_cast<double>(config.n)));
+    }
+
     return config;
 }
 

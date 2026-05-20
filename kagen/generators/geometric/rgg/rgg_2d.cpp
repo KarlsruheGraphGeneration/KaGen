@@ -4,9 +4,7 @@
 #include "kagen/tools/geometry.h"
 
 namespace kagen {
-RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : Geometric2D(config, rank, size),
-      SpatialGrid2D(config, rank, size) {}
+RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : SpatialGrid2D(config, rank, size) {}
 
 void RGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     // Iterate grid cells

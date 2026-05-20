@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream& out, OutputHeader output_header) {
     return out << "<invalid>";
 }
 
-std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
+std::ostream& printGeneralParams(std::ostream& out, const PGeneratorConfig& config) {
     out << "General Parameters:\n";
     out << "  Seed:                               " << config.seed << "\n";
     out << "  Generate coordinates:               " << (config.coordinates ? "yes" : "no") << "\n";
@@ -47,68 +47,184 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
         out << "  Statistics level:                   " << config.statistics_level << "\n";
     }
     out << "-------------------------------------------------------------------------------\n";
+    return out;
+}
+std::ostream& printGNMData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Number of edges:                    " << config.m << "\n";
+    out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+    out << "  Graph type:                         "
+        << (config.generator == GeneratorType::GNM_DIRECTED ? "directed" : "undirected") << "\n";
+    return out;
+}
 
+std::ostream& printGNPData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Edge probability:                   " << config.p << "\n";
+    out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+    out << "  Graph type:                         "
+        << (config.generator == GeneratorType::GNP_DIRECTED ? "directed" : "undirected") << "\n";
+    return out;
+}
+
+std::ostream& printRGGData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n)) << "\n";
+    out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m)) << "\n";
+    out << "  Edge radius:                        " << (config.r == 0.0 ? "auto" : std::to_string(config.r)) << "\n";
+    return out;
+}
+
+std::ostream& printHRHGData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Power-law exponent:                 " << config.plexp << "\n";
+    out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n)) << "\n";
+    out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m)) << "\n";
+    out << "  Average degree:                     "
+        << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
+    out << "  High-precision floating points:     ";
+    if (config.hp_floats == 0) {
+        out << "auto";
+    } else if (config.hp_floats == -1) {
+        out << "no";
+    } else {
+        out << "yes";
+    }
+    out << "\n";
+    out << "  Hypergraph:                         yes\n";
+    return out;
+}
+
+std::ostream& printHRGGData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Hyperedge distribution exponent:    " << config.hyperedge_radius_exponent << "\n";
+    out << "  Hypergraph:                         yes\n";
+    return out;
+}
+
+std::ostream& printRDGData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
+    return out;
+}
+
+std::ostream& printGridCommonData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Grid y:                             " << config.grid_y << "\n";
+    out << "  Grid x:                             " << config.grid_x << "\n";
+    out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m)) << "\n";
+    out << "  Edge probability:                   " << (config.p == 0.0 ? "auto" : std::to_string(config.p)) << "\n";
+    out << "  Periodic boundary:                  " << (config.periodic ? "yes" : "no") << "\n";
+    return out;
+}
+
+std::ostream& printPathDirectedData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
+    out << "  Permute vertices:                   " << (config.permute ? "yes" : "no") << "\n";
+    return out;
+}
+
+std::ostream& printBAData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Minimum degree:                     " << config.min_degree << "\n";
+    out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+    out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
+    return out;
+}
+
+std::ostream& printKroneckerData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Number of edges:                    " << config.m << "\n";
+    out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+    return out;
+}
+
+std::ostream& printRHGData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Power-law exponent:                 " << config.plexp << "\n";
+    out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n)) << "\n";
+    out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m)) << "\n";
+    out << "  Average degree:                     "
+        << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
+    out << "  High-precision floating points:     ";
+    if (config.hp_floats == 0) {
+        out << "auto";
+    } else if (config.hp_floats == -1) {
+        out << "no";
+    } else {
+        out << "yes";
+    }
+    out << "\n";
+    return out;
+}
+
+std::ostream& printRMATData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Number of edges:                    " << config.m << "\n";
+    out << "  Probabilities:                      " << std::setprecision(3) << std::fixed << config.rmat_a << " / "
+        << config.rmat_b << " / " << config.rmat_c << " / " << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c
+        << "\n";
+    out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+    out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
+    return out;
+}
+
+std::ostream& printIMAGE_MESHData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Input image:                        " << config.image_mesh.filename << "\n";
+    out << "  Weight model:                       " << config.image_mesh.weight_model << " (x "
+        << config.image_mesh.weight_multiplier << ", + " << config.image_mesh.weight_offset << ")\n";
+    out << "  Weight threshold:                   " << config.image_mesh.weight_min_threshold
+        << " <= <weight> <= " << config.image_mesh.weight_max_threshold << "\n";
+    out << "  Grid size:                          "
+        << (config.image_mesh.max_grid_x == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_x)) << " x "
+        << (config.image_mesh.max_grid_y == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_y)) << "\n";
+    if (config.image_mesh.grid_x != 0 || config.image_mesh.grid_y != 0) {
+        out << "    Only use top-left subgrid:        "
+            << (config.image_mesh.grid_x == 0 ? "auto" : std::to_string(config.image_mesh.grid_x)) << " x "
+            << (config.image_mesh.grid_y == 0 ? "auto" : std::to_string(config.image_mesh.grid_y)) << "\n";
+    }
+    out << "  Subgrid assigned to each PE:        "
+        << (config.image_mesh.cols_per_pe == 0 ? "auto" : std::to_string(config.image_mesh.cols_per_pe)) << " x "
+        << (config.image_mesh.rows_per_pe == 0 ? "auto" : std::to_string(config.image_mesh.rows_per_pe)) << "\n";
+    return out;
+}
+
+std::ostream& printFILEData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Input file:                         " << config.input_graph.filename << "\n";
+    out << "  File format:                        " << config.input_graph.format
+        << " [vwgt: " << (config.input_graph.drop_vertex_weights ? "drop" : "keep")
+        << ", adjwgt: " << (config.input_graph.drop_edge_weights ? "drop" : "keep") << "]\n";
+    out << "  Distribution:                       " << config.input_graph.distribution << "\n";
+    return out;
+}
+
+std::ostream& printGeneratorData(std::ostream& out, const PGeneratorConfig& config) {
     out << "Generator Parameters:\n";
     out << "  Generator:                          " << config.generator << "\n";
     switch (config.generator) {
         case GeneratorType::GNM_DIRECTED:
         case GeneratorType::GNM_UNDIRECTED:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Number of edges:                    " << config.m << "\n";
-            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
-            out << "  Graph type:                         "
-                << (config.generator == GeneratorType::GNM_DIRECTED ? "directed" : "undirected") << "\n";
+            printGNMData(out, config);
             break;
 
         case GeneratorType::GNP_DIRECTED:
         case GeneratorType::GNP_UNDIRECTED:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Edge probability:                   " << config.p << "\n";
-            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
-            out << "  Graph type:                         "
-                << (config.generator == GeneratorType::GNP_DIRECTED ? "directed" : "undirected") << "\n";
+            printGNPData(out, config);
             break;
 
         case GeneratorType::RGG_2D:
         case GeneratorType::RGG_3D:
-            out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n))
-                << "\n";
-            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
-                << "\n";
-            out << "  Edge radius:                        " << (config.r == 0.0 ? "auto" : std::to_string(config.r))
-                << "\n";
+            printRGGData(out, config);
             break;
 
         case GeneratorType::HRGG_2D:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Hyperedge radius:                   " << config.r << "\n";
-            out << "  Hypergraph:                         yes\n";
+            printHRGGData(out, config);
             break;
 
         case GeneratorType::H_RHG:
-            out << "  Power-law exponent:                 " << config.plexp << "\n";
-            out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n))
-                << "\n";
-            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
-                << "\n";
-            out << "  Average degree:                     "
-                << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
-            out << "  High-precision floating points:     ";
-            if (config.hp_floats == 0) {
-                out << "auto";
-            } else if (config.hp_floats == -1) {
-                out << "no";
-            } else {
-                out << "yes";
-            }
-            out << "\n";
-            out << "  Hypergraph:                         yes\n";
+            printHRHGData(out, config);
             break;
 
         case GeneratorType::RDG_2D:
         case GeneratorType::RDG_3D:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
+            printRDGData(out, config);
             break;
 
         case GeneratorType::GRID_3D:
@@ -116,92 +232,43 @@ std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
             // intentional fall through
 
         case GeneratorType::GRID_2D:
-            out << "  Grid y:                             " << config.grid_y << "\n";
-            out << "  Grid x:                             " << config.grid_x << "\n";
-            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
-                << "\n";
-            out << "  Edge probability:                   " << (config.p == 0.0 ? "auto" : std::to_string(config.p))
-                << "\n";
-            out << "  Periodic boundary:                  " << (config.periodic ? "yes" : "no") << "\n";
+            printGridCommonData(out, config);
             break;
 
         case GeneratorType::PATH_DIRECTED:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
-            out << "  Permute vertices:                   " << (config.permute ? "yes" : "no") << "\n";
+            printPathDirectedData(out, config);
             break;
 
         case GeneratorType::BA:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Minimum degree:                     " << config.min_degree << "\n";
-            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
-            out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
+            printBAData(out, config);
             break;
 
         case GeneratorType::KRONECKER:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Number of edges:                    " << config.m << "\n";
-            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
+            printKroneckerData(out, config);
             break;
 
         case GeneratorType::RHG:
-            out << "  Power-law exponent:                 " << config.plexp << "\n";
-            out << "  Number of vertices:                 " << (config.n == 0 ? "auto" : std::to_string(config.n))
-                << "\n";
-            out << "  Number of edges:                    " << (config.m == 0 ? "auto" : std::to_string(config.m))
-                << "\n";
-            out << "  Average degree:                     "
-                << (config.avg_degree == 0.0 ? "auto" : std::to_string(config.avg_degree)) << "\n";
-            out << "  High-precision floating points:     ";
-            if (config.hp_floats == 0) {
-                out << "auto";
-            } else if (config.hp_floats == -1) {
-                out << "no";
-            } else {
-                out << "yes";
-            }
-            out << "\n";
+            printRHGData(out, config);
             break;
 
         case GeneratorType::RMAT:
-            out << "  Number of vertices:                 " << config.n << "\n";
-            out << "  Number of edges:                    " << config.m << "\n";
-            out << "  Probabilities:                      " << std::setprecision(3) << std::fixed << config.rmat_a
-                << " / " << config.rmat_b << " / " << config.rmat_c << " / "
-                << 1.0 - config.rmat_a - config.rmat_b - config.rmat_c << "\n";
-            out << "  Self loops:                         " << (config.self_loops ? "yes" : "no") << "\n";
-            out << "  Graph type:                         " << (config.directed ? "directed" : "undirected") << "\n";
+            printRMATData(out, config);
             break;
 
         case GeneratorType::IMAGE_MESH:
-            out << "  Input image:                        " << config.image_mesh.filename << "\n";
-            out << "  Weight model:                       " << config.image_mesh.weight_model << " (x "
-                << config.image_mesh.weight_multiplier << ", + " << config.image_mesh.weight_offset << ")\n";
-            out << "  Weight threshold:                   " << config.image_mesh.weight_min_threshold
-                << " <= <weight> <= " << config.image_mesh.weight_max_threshold << "\n";
-            out << "  Grid size:                          "
-                << (config.image_mesh.max_grid_x == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_x)) << " x "
-                << (config.image_mesh.max_grid_y == 0 ? "auto" : std::to_string(config.image_mesh.max_grid_y)) << "\n";
-            if (config.image_mesh.grid_x != 0 || config.image_mesh.grid_y != 0) {
-                out << "    Only use top-left subgrid:        "
-                    << (config.image_mesh.grid_x == 0 ? "auto" : std::to_string(config.image_mesh.grid_x)) << " x "
-                    << (config.image_mesh.grid_y == 0 ? "auto" : std::to_string(config.image_mesh.grid_y)) << "\n";
-            }
-            out << "  Subgrid assigned to each PE:        "
-                << (config.image_mesh.cols_per_pe == 0 ? "auto" : std::to_string(config.image_mesh.cols_per_pe))
-                << " x "
-                << (config.image_mesh.rows_per_pe == 0 ? "auto" : std::to_string(config.image_mesh.rows_per_pe))
-                << "\n";
+            printIMAGE_MESHData(out, config);
             break;
 
         case GeneratorType::FILE:
-            out << "  Input file:                         " << config.input_graph.filename << "\n";
-            out << "  File format:                        " << config.input_graph.format
-                << " [vwgt: " << (config.input_graph.drop_vertex_weights ? "drop" : "keep")
-                << ", adjwgt: " << (config.input_graph.drop_edge_weights ? "drop" : "keep") << "]\n";
-            out << "  Distribution:                       " << config.input_graph.distribution << "\n";
+            printFILEData(out, config);
             break;
     }
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const PGeneratorConfig& config) {
+    printGeneralParams(out, config);
+    printGeneratorData(out, config);
 
     // RMAT does not use chunks
     if (config.generator != GeneratorType::RMAT && config.generator != GeneratorType::IMAGE_MESH

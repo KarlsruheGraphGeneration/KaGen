@@ -282,38 +282,47 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params)->required();
-        add_option_r(params)->required();
+        add_option_m(params)->required();
+        auto* radius_params = cmd->add_option_group("Hyperedge radius parameters");
+
+        auto* fixed_radius = radius_params->add_option("-r,--radius", config.r, "Fixed hyperedge radius");
+
+        auto* random_radius = radius_params->add_option(
+            "--radius-exponent", config.hyperedge_radius_exponent, "Exponent for random hyperedge radius distribution");
+
+        radius_params->require_option(1);
+        radius_params->silent();
+
+        radius_params->callback([&, random_radius] { config.random_radius = static_cast<bool>(*random_radius); });
     }
 
     { // Hyper RHG
         auto* cmd = app.add_subcommand("hrhg", "Random Hyperbolic Hypergraph");
+
         cmd->callback([&] {
             config.generator     = GeneratorType::H_RHG;
             config.is_hypergraph = true;
         });
-        cmd->add_flag("--query-both", config.query_both, "Generate reverse cut edges communication-free (slow!)"); //?
+
         cmd->add_flag("--hp-floats,!--no-hp-floats", config.hp_floats, "Use 80 bit floating point numbers");
+
         add_option_gamma(cmd)->required();
-        auto* radius_params        = cmd->add_option_group("Hyperedge radius parameters");
-        auto* min_hyperedge_radius = radius_params->add_option(
-            "--min-radius", config.min_hyperedge_radius, "Minimum radius used for random hyperedge radius generation");
-        auto* max_hyperedge_radius = radius_params->add_option(
-            "--max-radius", config.max_hyperedge_radius, "Maximum radius used for random hyperedge redius generation");
-        auto* hyperedge_radius_exponent = radius_params->add_option(
+
+        auto* radius_params = cmd->add_option_group("Hyperedge radius parameters");
+
+        auto* fixed_radius = radius_params->add_option("-r,--radius", config.r, "Fixed hyperedge radius");
+
+        auto* random_radius = radius_params->add_option(
             "--radius-exponent", config.hyperedge_radius_exponent, "Exponent for random hyperedge radius distribution");
 
-        radius_params->callback([&, min_hyperedge_radius, max_hyperedge_radius, hyperedge_radius_exponent] {
-            config.random_radius = static_cast<bool>(*min_hyperedge_radius) || static_cast<bool>(*max_hyperedge_radius)
-                                   || static_cast<bool>(*hyperedge_radius_exponent);
-        });
+        radius_params->require_option(1);
+        radius_params->silent();
 
-        cmd->add_option("-r,--radius", config.r, "Fixed hyperedge radius");
+        radius_params->callback([&, random_radius] { config.random_radius = static_cast<bool>(*random_radius); });
 
         auto* params = cmd->add_option_group("Parameters");
-        add_option_n(params);
-        add_option_avg_deg(params);
-        add_option_m(params);
-        params->require_option(2);
+        add_option_n(params)->required();
+        add_option_m(params)->required();
         params->silent();
     }
 
@@ -574,29 +583,41 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
+    try {
+        // Parse parameters
+        PGeneratorConfig config;
+        CLI::App         app("KaGen: Karlsruhe Graph Generator");
+        SetupCommandLineArguments(app, config);
+        CLI11_PARSE(app, argc, argv);
 
-    // Parse parameters
-    PGeneratorConfig config;
-    CLI::App         app("KaGen: Karlsruhe Graph Generator");
-    SetupCommandLineArguments(app, config);
-    CLI11_PARSE(app, argc, argv);
+        // Coordinates output format implies --coordinates
+        if (std::find(config.output_graph.formats.begin(), config.output_graph.formats.end(), FileFormat::COORDINATES)
+            != config.output_graph.formats.end()) {
+            config.coordinates = true;
+        }
 
-    // Coordinates output format implies --coordinates
-    if (std::find(config.output_graph.formats.begin(), config.output_graph.formats.end(), FileFormat::COORDINATES)
-        != config.output_graph.formats.end()) {
-        config.coordinates = true;
+        // If use more than one output format, always make output filenames distinct by appending the default extension
+        if (config.output_graph.formats.size() > 1) {
+            config.output_graph.extension = true;
+        }
+
+        if (config.external.num_chunks > 1) {
+            GenerateExternalMemoryToDisk(config, MPI_COMM_WORLD);
+        } else {
+            GenerateInMemoryToDisk(config, MPI_COMM_WORLD);
+        }
+
+        MPI_Finalize();
+        return EXIT_SUCCESS;
+    } catch (const CLI::ParseError& e) {
+        std::cerr << "Fatal error: " << e.what() << '\n';
+    } catch (const std::exception& e) {
+        std::cerr << "Fatal std::exception: " << e.what() << '\n';
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    } catch (...) {
+        std::cerr << "Fatal non-std exception\n";
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
-
-    // If use more than one output format, always make output filenames distinct by appending the default extension
-    if (config.output_graph.formats.size() > 1) {
-        config.output_graph.extension = true;
-    }
-
-    if (config.external.num_chunks > 1) {
-        GenerateExternalMemoryToDisk(config, MPI_COMM_WORLD);
-    } else {
-        GenerateInMemoryToDisk(config, MPI_COMM_WORLD);
-    }
-
-    return MPI_Finalize();
+    MPI_Finalize();
+    return EXIT_FAILURE;
 }

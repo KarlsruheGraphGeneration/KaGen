@@ -1,8 +1,11 @@
 #include "kagen/generators/geometric/spatial_grid_2d.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace kagen {
+
 SpatialGrid2D::SpatialGrid2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : Geometric2D(config, rank, size) {
     InitSpatialGrid2D(config);
@@ -30,6 +33,18 @@ SInt SpatialGrid2D::EncodeCell(const SInt x, const SInt y) const {
 void SpatialGrid2D::DecodeCell(const SInt id, SInt& x, SInt& y) const {
     x = id / cells_per_dim_;
     y = id % cells_per_dim_;
+}
+
+SInt SpatialGrid2D::SafeTotalCellsPerDim() const {
+    if (chunks_per_dim_ <= 0 || cells_per_dim_ <= 0) {
+        throw ConfigurationError("Invalid grid: chunks_per_dim_ or cells_per_dim_ not initialized");
+    }
+
+    if (chunks_per_dim_ > std::numeric_limits<SInt>::max() / cells_per_dim_) {
+        throw ConfigurationError("Invalid grid: total_cells_per_dim overflow");
+    }
+
+    return chunks_per_dim_ * cells_per_dim_;
 }
 
 } // namespace kagen

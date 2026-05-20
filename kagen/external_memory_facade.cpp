@@ -16,7 +16,7 @@
 namespace kagen {
 namespace {
 void AddReverseEdges(Edgelist& edges) {
-    for (auto& [from, to] : edges) {
+    for (auto& [from, to]: edges) {
         if (from > to) {
             std::swap(from, to);
         }
@@ -40,7 +40,7 @@ void AddReverseEdges(Edgelist& edges) {
 void AddNonlocalReverseEdges(Edgelist& edges, const std::pair<SInt, SInt>& local_vertices) {
     Edgelist additional_edges;
 
-    for (const auto& [from, to] : edges) {
+    for (const auto& [from, to]: edges) {
         if (to < local_vertices.first || to >= local_vertices.second) {
             additional_edges.emplace_back(to, from);
         }
@@ -62,16 +62,12 @@ std::string HypergraphChunkFilename(const PEID chunk, const PGeneratorConfig& co
 }
 
 SInt SwapoutGraphChunk(
-    std::ofstream& out_index,
-    std::ofstream& out_edges,
-    const SInt offset,
-    const Edgelist& edges,
-    const std::vector<SInt>& distribution,
-    const PGeneratorConfig& config) {
+    std::ofstream& out_index, std::ofstream& out_edges, const SInt offset, const Edgelist& edges,
+    const std::vector<SInt>& distribution, const PGeneratorConfig& config) {
     std::vector<SInt> index(config.external.num_chunks + 1);
 
     PEID cur = 0;
-    for (const auto& [from, to] : edges) {
+    for (const auto& [from, to]: edges) {
         while (cur + 1 < config.external.num_chunks && from >= distribution[cur + 1]) {
             ++cur;
         }
@@ -120,7 +116,7 @@ Edgelist SwapinAggregatedEdgelist(std::ifstream& in) {
 }
 
 void SwapoutHypergraphChunk(std::ofstream& out, const Graph& graph) {
-    HyperedgeOffsets hyperedge_offsets = graph.hyperedge_offsets;
+    HyperedgeOffsets      hyperedge_offsets       = graph.hyperedge_offsets;
     HyperedgeRangeOffsets hyperedge_range_offsets = graph.hyperedge_range_offsets;
 
     if (hyperedge_offsets.empty()) {
@@ -132,13 +128,13 @@ void SwapoutHypergraphChunk(std::ofstream& out, const Graph& graph) {
     }
 
     const SInt vertex_range_begin = graph.vertex_range.first;
-    const SInt vertex_range_end = graph.vertex_range.second;
+    const SInt vertex_range_end   = graph.vertex_range.second;
 
     const SInt num_offsets = static_cast<SInt>(hyperedge_offsets.size());
-    const SInt num_pins = static_cast<SInt>(graph.hyperedge_pins.size());
+    const SInt num_pins    = static_cast<SInt>(graph.hyperedge_pins.size());
 
     const SInt num_range_offsets = static_cast<SInt>(hyperedge_range_offsets.size());
-    const SInt num_ranges = static_cast<SInt>(graph.hyperedge_ranges.size());
+    const SInt num_ranges        = static_cast<SInt>(graph.hyperedge_ranges.size());
 
     out.write(reinterpret_cast<const char*>(&vertex_range_begin), sizeof(SInt));
     out.write(reinterpret_cast<const char*>(&vertex_range_end), sizeof(SInt));
@@ -164,10 +160,10 @@ Graph SwapinHypergraphChunk(std::ifstream& in) {
     in.read(reinterpret_cast<char*>(&graph.vertex_range.first), sizeof(SInt));
     in.read(reinterpret_cast<char*>(&graph.vertex_range.second), sizeof(SInt));
 
-    SInt num_offsets = 0;
-    SInt num_pins = 0;
+    SInt num_offsets       = 0;
+    SInt num_pins          = 0;
     SInt num_range_offsets = 0;
-    SInt num_ranges = 0;
+    SInt num_ranges        = 0;
 
     in.read(reinterpret_cast<char*>(&num_offsets), sizeof(SInt));
     graph.hyperedge_offsets.resize(num_offsets);
@@ -203,7 +199,7 @@ PEID ComputeNumChunksOnPE(const PEID pe, const PEID size, const PEID num_chunks)
 using Indices = std::vector<std::vector<std::pair<SInt, SInt>>>;
 
 Indices ReadMyIndices(const PEID rank, const PEID size, const PGeneratorConfig& config) {
-    const PEID num_chunks = config.external.num_chunks;
+    const PEID num_chunks    = config.external.num_chunks;
     const PEID my_num_chunks = ComputeNumChunksOnPE(rank, size, num_chunks);
 
     Indices my_indices(my_num_chunks, std::vector<std::pair<SInt, SInt>>(num_chunks));
@@ -215,7 +211,7 @@ Indices ReadMyIndices(const PEID rank, const PEID size, const PGeneratorConfig& 
             std::vector<SInt> pe_indices(1ul * (num_chunks + 1) * pe_num_chunks);
 
             const std::string filename = BufferFilename(pe, config, true);
-            std::ifstream in(filename, std::ios_base::binary);
+            std::ifstream     in(filename, std::ios_base::binary);
             in.read(reinterpret_cast<char*>(pe_indices.data()), sizeof(SInt) * pe_indices.size());
 
             return pe_indices;
@@ -224,7 +220,7 @@ Indices ReadMyIndices(const PEID rank, const PEID size, const PGeneratorConfig& 
         for (PEID to_chunk = rank; to_chunk < num_chunks; to_chunk += size) {
             for (PEID from_chunk = pe; from_chunk < num_chunks; from_chunk += size) {
                 const PEID nth_chunk_on_pe = from_chunk / size;
-                const SInt i = nth_chunk_on_pe * (num_chunks + 1) + to_chunk;
+                const SInt i               = nth_chunk_on_pe * (num_chunks + 1) + to_chunk;
 
                 my_indices[to_chunk / size][from_chunk] = {pe_indices[i], pe_indices[i + 1]};
             }
@@ -235,13 +231,8 @@ Indices ReadMyIndices(const PEID rank, const PEID size, const PGeneratorConfig& 
 }
 
 Graph SwapinGraphChunk(
-    const PEID chunk,
-    const Indices& my_indices,
-    const std::vector<SInt>& distribution,
-    std::ifstream* aggregate_in,
-    std::ofstream* aggregate_out,
-    const PGeneratorConfig& config,
-    MPI_Comm comm) {
+    const PEID chunk, const Indices& my_indices, const std::vector<SInt>& distribution, std::ifstream* aggregate_in,
+    std::ofstream* aggregate_out, const PGeneratorConfig& config, MPI_Comm comm) {
     PEID size;
     PEID rank;
     MPI_Comm_size(comm, &size);
@@ -258,7 +249,7 @@ Graph SwapinGraphChunk(
         edges = SwapinAggregatedEdgelist(*aggregate_in);
     } else {
         const PEID my_nth_chunk = chunk / size;
-        SInt num_edges = 0;
+        SInt       num_edges    = 0;
         for (PEID from_chunk = 0; from_chunk < config.external.num_chunks; ++from_chunk) {
             const auto& [first_edge, first_invalid_edge] = my_indices[my_nth_chunk][from_chunk];
             num_edges += first_invalid_edge - first_edge;
@@ -298,10 +289,10 @@ Graph SwapinGraphChunk(
     }
 
     Graph graph;
-    graph.representation = GraphRepresentation::EDGE_LIST;
-    graph.vertex_range.first = distribution[chunk];
+    graph.representation      = GraphRepresentation::EDGE_LIST;
+    graph.vertex_range.first  = distribution[chunk];
     graph.vertex_range.second = distribution[chunk + 1];
-    graph.edges = std::move(edges);
+    graph.edges               = std::move(edges);
 
     if (!aggregate_in && aggregate_out) {
         if (output_info) {
@@ -316,10 +307,10 @@ Graph SwapinGraphChunk(
 
 template <typename Int>
 std::pair<Int, Int> ComputeFirstLastElement(const Int rank, const Int size, const Int elements) {
-    const Int div = elements / size;
-    const Int rem = elements % size;
+    const Int div  = elements / size;
+    const Int rem  = elements % size;
     const Int from = rank * div + std::min<Int>(rank, rem);
-    const Int to = from + ((rank < rem) ? div + 1 : div);
+    const Int to   = from + ((rank < rem) ? div + 1 : div);
     return {from, to};
 }
 
@@ -366,7 +357,8 @@ void RemoveAggregatedBufferFiles(const PEID rank, const PGeneratorConfig& config
     }
 }
 
-void RemoveHypergraphBufferFiles(const PEID rank, const PEID size, const PGeneratorConfig& config, const bool output_info) {
+void RemoveHypergraphBufferFiles(
+    const PEID rank, const PEID size, const PGeneratorConfig& config, const bool output_info) {
     if (output_info) {
         std::cout << "Removing hypergraph buffer files ... " << std::flush;
     }
@@ -382,10 +374,7 @@ void RemoveHypergraphBufferFiles(const PEID rank, const PEID size, const PGenera
 }
 
 GraphInfo DeduplicateEdges(
-    GraphInfo info,
-    PGeneratorConfig config,
-    const Indices& my_indices,
-    const std::vector<SInt>& vertex_distribution,
+    GraphInfo info, PGeneratorConfig config, const Indices& my_indices, const std::vector<SInt>& vertex_distribution,
     MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
@@ -396,7 +385,7 @@ GraphInfo DeduplicateEdges(
     info.local_m = 0;
     info.local_n = 0;
 
-    const std::string agg_filename = AggregatedBufferFilename(rank, config);
+    const std::string              agg_filename = AggregatedBufferFilename(rank, config);
     std::unique_ptr<std::ofstream> agg_out =
         config.external.cache_aggregated_chunks
             ? std::make_unique<std::ofstream>(agg_filename, std::ios_base::binary | std::ios_base::trunc)
@@ -437,10 +426,10 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
     MPI_Comm_size(comm, &size);
 
     const bool output_error = (rank == ROOT);
-    const bool output_info = (rank == ROOT && !config.quiet);
+    const bool output_info  = (rank == ROOT && !config.quiet);
 
     GraphInfo local_info;
-    auto generator_factory = CreateGeneratorFactory(config.generator);
+    auto      generator_factory = CreateGeneratorFactory(config.generator);
 
     std::ofstream out_index;
     std::ofstream out_edges;
@@ -500,8 +489,7 @@ GenerateChunks(PGeneratorConfig config, const std::vector<SInt>& vertex_distribu
             }
 
             std::ofstream out_hypergraph(
-                HypergraphChunkFilename(chunk, config),
-                std::ios_base::binary | std::ios_base::trunc);
+                HypergraphChunkFilename(chunk, config), std::ios_base::binary | std::ios_base::trunc);
 
             if (!out_hypergraph) {
                 if (output_error) {
@@ -582,7 +570,7 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     MPI_Comm_size(comm, &size);
 
     const bool output_error = (rank == ROOT);
-    const bool output_info = (rank == ROOT && !config.quiet);
+    const bool output_info  = (rank == ROOT && !config.quiet);
 
     if (output_info && config.print_header) {
         PrintHeader(config);
@@ -612,12 +600,12 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
 
     const GraphInfo global_info(local_info, comm);
 
-    OutputGraphConfig out_config = config.output_graph;
+    OutputGraphConfig out_config    = config.output_graph;
     const std::string base_filename = out_config.filename;
 
     for (std::size_t i = 0; i < out_config.formats.size(); ++i) {
-        const FileFormat& format = out_config.formats[i];
-        const auto& factory = GetGraphFormatFactory(format);
+        const FileFormat& format  = out_config.formats[i];
+        const auto&       factory = GetGraphFormatFactory(format);
 
         if ((out_config.formats.size() > 1 && !factory->DefaultExtensions().empty()) || out_config.extension) {
             out_config.filename = base_filename + "." + factory->DefaultExtensions().front();
@@ -680,17 +668,11 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
                     }
 
                     return SwapinGraphChunk(
-                        chunk,
-                        my_indices,
-                        vertex_distribution,
-                        agg_in.get(),
-                        nullptr,
-                        config,
-                        comm);
+                        chunk, my_indices, vertex_distribution, agg_in.get(), nullptr, config, comm);
                 }();
 
                 GraphInfo pass_info = global_info;
-                pass_info.local_n = graph.NumberOfLocalVertices();
+                pass_info.local_n   = graph.NumberOfLocalVertices();
 
                 if (config.is_hypergraph) {
                     pass_info.local_m = graph.NumberOfLocalHyperedges();
@@ -746,4 +728,4 @@ void GenerateExternalMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
         RemoveAggregatedBufferFiles(rank, config, output_info);
     }
 }
-} // namespace kagen -
+} // namespace kagen
