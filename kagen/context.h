@@ -102,6 +102,8 @@ struct Graph500RMATDefaults {
     static constexpr double b = 0.19;
     static constexpr double c = 0.19;
 };
+// Handles behavior of by hyperballs partially covered cells
+enum class PartialCellMode { EstimateByCoverage, GenerateAndCheck };
 
 // Configuration for the generator.
 struct PGeneratorConfig {
@@ -174,11 +176,12 @@ struct PGeneratorConfig {
 
     // Hypergraph mode.
     // If true, the generator produces hyperedge_offsets / hyperedge_pins instead of graph edges.
-    bool   is_hypergraph             = false;
-    bool   random_radius             = false;
-    double min_hyperedge_radius      = 0.05;
-    double max_hyperedge_radius      = 0.2;
-    double hyperedge_radius_exponent = 2.5;
+    bool            is_hypergraph             = false;
+    bool            random_radius             = false;
+    double          min_hyperedge_radius      = 0.05;
+    double          max_hyperedge_radius      = 0.2;
+    double          hyperedge_radius_exponent = 2.5;
+    PartialCellMode partial_cell_mode         = PartialCellMode::GenerateAndCheck;
 
     /*
      * Sets config.k if k == 0 to PEID size, else does nothing.

@@ -47,12 +47,19 @@ public:
     }
 
     BufferedTextOutput& WriteChar(const char ch) {
+        if (static_cast<std::size_t>(buffer_pos_ - buffer_) >= kBufferSizeLimit) {
+            ForceFlush();
+        }
         *(buffer_pos_)++ = ch;
         return *this;
     }
 
     template <typename Int>
     BufferedTextOutput& WriteInt(Int value) {
+        if (static_cast<std::size_t>(buffer_pos_ - buffer_) >= kBufferSizeLimit) {
+            ForceFlush();
+        }
+
         static char rev_buffer[80];
 
         int pos = 0;
@@ -68,6 +75,10 @@ public:
     }
 
     BufferedTextOutput& WriteFloat(const double value) {
+        if (static_cast<std::size_t>(buffer_pos_ - buffer_) >= kBufferSizeLimit) {
+            ForceFlush();
+        }
+        
         int written = std::snprintf(buffer_pos_, kBufferSize - (buffer_pos_ - buffer_), "%.5lf", value);
         buffer_pos_ += written;
         return *this;

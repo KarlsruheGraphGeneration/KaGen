@@ -36,7 +36,12 @@ struct HyperbolicHyperedgeCenter {
 };
 
 template <typename Double>
+class HyperbolicGeometryPolicy;
+
+template <typename Double>
 class Hyper_Hyperbolic : public virtual Generator, private CSROnlyGenerator {
+    friend class HyperbolicGeometryPolicy<Double>;
+
 public:
     // n, min_r, max_r, generated, offset
     using Annulus = std::tuple<SInt, Double, Double, bool, SInt>;
@@ -44,6 +49,18 @@ public:
     using Chunk = std::tuple<SInt, Double, Double, SInt>;
     // n, min_phi, max_phi, generated, generated
     using Cell = std::tuple<SInt, Double, Double, bool, SInt>;
+    // phi, r, x, y, gamma, id
+    using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
+
+    // Used for placement of hyperball centers
+    //  m, min_phi, max_phi, offset
+    using CenterChunk = std::tuple<SInt, Double, Double, SInt>;
+
+    // m, min_r, max_r, generated, offset
+    using CenterAnnulus = std::tuple<SInt, Double, Double, bool, SInt>;
+
+    // m, min_phi, max_phi, generated, offset
+    using CenterCell = std::tuple<SInt, Double, Double, bool, SInt>;
 
     Hyper_Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
@@ -86,6 +103,10 @@ private:
     HashMap<SInt, Chunk>               chunks_;
     HashMap<SInt, Cell>                cells_;
     HashMap<SInt, std::vector<Vertex>> vertices_;
+    // used for hyperedge centers
+    HashMap<SInt, CenterChunk>   center_chunks_;
+    HashMap<SInt, CenterAnnulus> center_annuli_;
+    HashMap<SInt, CenterCell>    center_cells_;
 
     // Avoid costly recomputations
     std::vector<SInt>                      global_cell_ids_;
@@ -96,35 +117,29 @@ private:
 
     void ComputeChunk(SInt chunk_id);
 
-    void ComputeChunk(
-        SInt chunk_id, SInt n, SInt num_of_chunks, Double min_phi, Double max_phi, SInt chunk_start, SInt level,
-        SInt offset);
-
     void GenerateCells(SInt annulus_id, SInt chunk_id);
 
     void GenerateVertices(SInt annulus_id, SInt chunk_id, SInt cell_id);
 
+    void ComputeCenterAnnuli(SInt chunk_id);
+
+    void ComputeCenterChunk(SInt chunk_id);
+
+    void GenerateCenterCells(SInt annulus_id, SInt chunk_id);
+
     void GenerateHyperedges(SInt annulus_id, SInt chunk_id);
 
-    void
-    QueryHyperBallBoth(SInt annulus_id, SInt chunk_id, SInt cell_id, const HyperbolicHyperedgeCenter<Double>& center);
+    template <typename ChunkMap, typename AnnulusMap>
+    void ComputeAnnuliInto(const ChunkMap& chunks, AnnulusMap& annuli, const SInt chunk_id, const SInt seed_offset);
 
-    void QueryHyperBall(
-        SInt annulus_id, SInt chunk_id, SInt cell_id, const HyperbolicHyperedgeCenter<Double>& center,
-        bool search_down = true);
+    template <typename ChunkMap>
+    void ComputeChunkInto(
+        ChunkMap& chunks, SInt chunk_id, SInt total_objects, SInt num_chunks, Double min_phi, Double max_phi,
+        SInt chunk_start, SInt level, SInt offset, SInt seed_offset);
 
-    bool QueryHyperBallRightNeighbor(
-        SInt annulus_id, SInt chunk_id, SInt cell_id, const HyperbolicHyperedgeCenter<Double>& center, bool phase,
-        bool search_down);
-
-    bool QueryHyperBallLeftNeighbor(
-        SInt annulus_id, SInt chunk_id, SInt cell_id, const HyperbolicHyperedgeCenter<Double>& center, bool phase,
-        bool search_down);
-
-    void
-    GenerateGridPins(SInt annulus_id, SInt chunk_id, SInt cell_id, const HyperbolicHyperedgeCenter<Double>& center);
-
-    std::pair<Double, Double> GetBoundaryPhis(Double boundary_phi, Double boundary_r, SInt annulus_id) const;
+    template <typename ChunkMap, typename AnnulusMap, typename CellMap>
+    void GenerateCellsInto(
+        SInt annulus_id, SInt chunk_id, ChunkMap& chunks, AnnulusMap& annuli, CellMap& cells, SInt seed_offset);
 
     bool OutOfBounds(Double num) const;
 
@@ -138,24 +153,15 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 
-    void BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center, SInt sampled_center_id);
+    void BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center, SInt sampled_center_id, Double lower_bound);
 
-    bool EndHyperedge();
-
-    CellBallRelation ClassifyCellAgainstHyperball(
-        SInt annulus_id, SInt chunk_id, SInt cell_id, const HyperbolicHyperedgeCenter<Double>& hyperball_center);
-
-    bool IsPointInsideHyperball(Double center_r, Double center_phi, Double r, Double phi) const;
-
-    void AddWholeCellPins(SInt global_cell_id);
+    void EndHyperedge();
 
     void PushHyperedgePin(SInt pin);
 
     void PushHyperedgeRange(SInt begin, SInt end);
 
     void PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
-
-    Double HyperbolicDistance(const HyperbolicHyperedgeCenter<Double>& center, const Vertex& vertex);
 };
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm) {}

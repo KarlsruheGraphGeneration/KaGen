@@ -14,7 +14,7 @@ SInt NumHyperedgesFromOffsets(const std::vector<SInt>& offsets) {
 }
 } // namespace
 
-void HmetisHypergraphWriter::WriteHeader(const std::string& filename, const SInt n, const SInt /*m*/) {
+void HmetisHypergraphWriter::WriteHeader(const std::string& filename, const SInt n, const SInt m) {
     IgnoresEdgeWeights();
 
     const SInt num_pin_hyperedges   = NumHyperedgesFromOffsets(graph_.hyperedge_offsets);
@@ -24,10 +24,8 @@ void HmetisHypergraphWriter::WriteHeader(const std::string& filename, const SInt
         throw IOError("Hyperedge pin offsets and range offsets describe different numbers of hyperedges");
     }
 
-    const SInt num_hyperedges = std::max(num_pin_hyperedges, num_range_hyperedges);
-
     BufferedTextOutput<> out(tag::append, filename);
-    out.WriteInt(num_hyperedges).WriteChar(' ').WriteInt(n).WriteChar('\n').Flush();
+    out.WriteInt(m).WriteChar(' ').WriteInt(n).WriteChar('\n').Flush();
 }
 
 bool HmetisHypergraphWriter::WriteBody(const std::string& filename) {
@@ -53,37 +51,57 @@ bool HmetisHypergraphWriter::WriteBody(const std::string& filename) {
 
     const SInt num_hyperedges = std::max(num_pin_hyperedges, num_range_hyperedges);
 
+    auto WritePin = [&](const SInt v, bool& first) {
+        if (!first) {
+            out.WriteChar(' ');
+        }
+
+        out.WriteInt(v + 1); // hMetis is 1-based
+        first = false;
+    };
+
     for (SInt e = 0; e < num_hyperedges; ++e) {
         bool first = true;
 
-        if (num_pin_hyperedges != 0) {
-            const SInt begin = offsets[e];
-            const SInt end   = offsets[e + 1];
+        SInt       p     = num_pin_hyperedges != 0 ? offsets[e] : 0;
+        const SInt p_end = num_pin_hyperedges != 0 ? offsets[e + 1] : 0;
 
-            for (SInt i = begin; i < end; ++i) {
-                if (!first) {
-                    out.WriteChar(' ');
-                }
+        SInt       r     = num_range_hyperedges != 0 ? range_offsets[e] : 0;
+        const SInt r_end = num_range_hyperedges != 0 ? range_offsets[e + 1] : 0;
 
-                out.WriteInt(pins[i] + 1); // hMetis is 1-based
-                first = false;
+        SInt last_written = -1;
+
+        auto WriteUniquePin = [&](const SInt v) {
+            if (v != last_written) {
+                WritePin(v, first);
+                last_written = v;
             }
-        }
+        };
 
-        if (num_range_hyperedges != 0) {
-            const SInt begin = range_offsets[e];
-            const SInt end   = range_offsets[e + 1];
-
-            for (SInt i = begin; i < end; ++i) {
-                const PinRange& range = ranges[i];
+        while (p < p_end || r < r_end) {
+            if (r >= r_end) {
+                WriteUniquePin(pins[p++]);
+            } else if (p >= p_end) {
+                const PinRange& range = ranges[r++];
 
                 for (SInt v = range.begin; v < range.end; ++v) {
-                    if (!first) {
-                        out.WriteChar(' ');
-                    }
+                    WriteUniquePin(v);
+                }
+            } else {
+                const SInt      pin   = pins[p];
+                const PinRange& range = ranges[r];
 
-                    out.WriteInt(v + 1); // hMetis is 1-based
-                    first = false;
+                if (pin < range.begin) {
+                    WriteUniquePin(pin);
+                    ++p;
+                } else if (pin < range.end) {
+                    // Pin is already covered by the range.
+                    ++p;
+                } else {
+                    for (SInt v = range.begin; v < range.end; ++v) {
+                        WriteUniquePin(v);
+                    }
+                    ++r;
                 }
             }
         }

@@ -15,6 +15,7 @@
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
+#include "kagen/generators/geometric/geometric_util.h"
 
 #include "libmorton/morton2D.h"
 #include <tuple>
@@ -24,12 +25,7 @@
 namespace kagen {
 class Geometric2D : public virtual Generator{
 public:
-    // n, x_off, y_off, generated, offset
-    using Chunk = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
-    // n, x_off, y_off, generated, offset
-    using Cell = std::tuple<SInt, LPFloat, LPFloat, bool, SInt>;
-    // x, y, id
-    using Vertex = std::tuple<LPFloat, LPFloat, SInt>;
+
 
     Geometric2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
         : config_(config),

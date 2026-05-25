@@ -250,14 +250,6 @@ struct Graph {
         SInt end;   // exclusive
     };
 
-    struct HyperedgeRef {
-        SInt pin_begin;
-        SInt pin_end;
-
-        SInt range_begin;
-        SInt range_end;
-    };
-
     VertexWeights vertex_weights;
     EdgeWeights   edge_weights;
     Coordinates   coordinates;

@@ -18,7 +18,6 @@
 
 using namespace kagen;
 
-
 void PrintVersion() {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -294,6 +293,10 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         radius_params->silent();
 
         radius_params->callback([&, random_radius] { config.random_radius = static_cast<bool>(*random_radius); });
+
+        cmd->add_flag(
+            "--estimate-area, -e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
+            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered are");
     }
 
     { // Hyper RHG
@@ -324,6 +327,9 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_n(params)->required();
         add_option_m(params)->required();
         params->silent();
+        cmd->add_flag(
+            "--estimate-area, -e", config.partial_cell_mode,
+            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered are");
     }
 
 #ifdef KAGEN_CGAL_FOUND
