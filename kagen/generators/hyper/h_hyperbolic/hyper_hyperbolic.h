@@ -33,6 +33,10 @@ template <typename Double>
 struct HyperbolicHyperedgeCenter {
     Double phi;
     Double r;
+
+    std::string toString() {
+        return phi << "/" << r;
+    }
 };
 
 template <typename Double>

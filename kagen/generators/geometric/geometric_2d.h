@@ -43,8 +43,9 @@ protected:
             ComputeChunk(i);
 
         // Generate local chunks and edges
-        for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i)
+        for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
             GenerateChunk(i);
+}
 
         SetVertexRange(start_node_, start_node_ + num_nodes_);
         if (config_.coordinates) {

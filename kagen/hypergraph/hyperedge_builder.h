@@ -107,9 +107,10 @@ public:
         const long long duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
 
         ++counter_;
+        std::string center_string = "TODO";
 
         logger_.LogHyperedge(
-            counter_, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells, partial_cells,
+            counter_, center_string, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells, partial_cells,
             outside_cells, static_cast<SInt>(pins.size()), static_cast<SInt>(ranges.size()), hyperedge_size,
             duration_ns);
 

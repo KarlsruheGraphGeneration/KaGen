@@ -17,6 +17,12 @@ public:
         SInt    sampled_id;
         SInt    chunk_id;
         SInt    cell_id;
+        HPFloat global_x;
+        HPFloat global_y;
+
+        std::string toString() {
+            return "TODO";
+        }
     };
 
     struct Cell {

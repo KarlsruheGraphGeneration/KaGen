@@ -30,7 +30,7 @@ HyperRGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
     }
 
     if (config.random_radius && config.r == 0) {
-        double expected_vertices = 8.0;
+        double expected_vertices = 32.0;
         config.r                 = std::sqrt(expected_vertices / (M_PI * static_cast<double>(config.n)));
     }
 
