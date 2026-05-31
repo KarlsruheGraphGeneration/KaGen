@@ -1,10 +1,12 @@
 #pragma once
 
+#include "kagen/context.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 
 #include <algorithm>
 #include <chrono>
+#include <string>
 #include <utility>
 #include <vector>
 // TODO(clickup)[2026-05-24]: Remove after Debugging
@@ -24,19 +26,24 @@ public:
 
     using Clock = std::chrono::steady_clock;
 
+    PGeneratorConfig      config_;
     HypergraphDebugLogger logger_;
     SInt                  counter_ = 0;
     int                   rank_    = 0;
 
-    explicit HyperedgeBuilder(GeometryPolicy& geometry, const PartialCellMode partial_cell_mode)
+    explicit HyperedgeBuilder(GeometryPolicy& geometry, const PGeneratorConfig& config)
         : geometry_(geometry),
-          partial_cell_mode_(partial_cell_mode),
+          partial_cell_mode_(config.partial_cell_mode),
+          config_(config),
           logger_(MakeDebugFilename(), true) {}
 
-    static std::string MakeDebugFilename() {
+    std::string MakeDebugFilename() {
         int rank = 0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        return "output/hyper_debug_rank_" + std::to_string(rank) + ".csv";
+        std::string output = config_.output_graph.filename + "_" + std::to_string(config_.n) + "_"
+                             + std::to_string(config_.m) + "_" + std::to_string(config_.hyperedge_radius_exponent)
+                             + "_debug_rank_" + std::to_string(rank) + ".csv";
+        return output;
     }
 
     void Build(const Center& center) {
@@ -50,9 +57,11 @@ public:
         const auto radius = geometry_.Radius(center);
         const auto cells  = geometry_.CandidateCells(center, radius);
 
-        SInt outside_cells = 0;
-        SInt inside_cells  = 0;
-        SInt partial_cells = 0;
+        SInt outside_cells          = 0;
+        SInt inside_cells           = 0;
+        SInt partial_cells          = 0;
+        SInt partial_estimated_size = 0;
+        SInt inside_estimated_size  = 0;
 
         for (const Cell& cell: cells) {
             const CellBallRelation relation = geometry_.ClassifyCell(center, radius, cell);
@@ -63,13 +72,13 @@ public:
                     continue;
 
                 case CellBallRelation::INSIDE:
-                    geometry_.AddWholeCell(cell, ranges);
+                    inside_estimated_size += geometry_.AddWholeCell(cell, ranges);
                     ++inside_cells;
                     continue;
 
                 case CellBallRelation::PARTIAL:
                     if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
-                        geometry_.AddPartialCellExact(center, radius, cell, pins);
+                        partial_estimated_size += geometry_.AddPartialCellExact(center, radius, cell, pins);
                         ++partial_cells;
                     } else {
                         const double coverage = geometry_.CellCoverage(center, radius, cell);
@@ -80,10 +89,10 @@ public:
                         }
 
                         if (coverage >= 1.0) {
-                            geometry_.AddWholeCell(cell, ranges);
+                            inside_estimated_size += geometry_.AddWholeCell(cell, ranges);
                             ++inside_cells;
                         } else {
-                            geometry_.AddPartialCell(center, cell, coverage, ranges);
+                            partial_estimated_size += geometry_.AddPartialCell(center, cell, coverage, ranges);
                             ++partial_cells;
                         }
                     }
@@ -92,11 +101,6 @@ public:
         }
 
         Normalize(pins, ranges);
-        static SInt counter = 0;
-        if (counter % 1000 == 0) {
-            std::cout << counter << '\n';
-        }
-        ++counter;
         SInt hyperedge_size = static_cast<SInt>(pins.size());
         for (const PinRange& range: ranges) {
             hyperedge_size += range.end - range.begin;
@@ -107,12 +111,12 @@ public:
         const long long duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
 
         ++counter_;
-        std::string center_string = "TODO";
+        std::string center_string = geometry_.CenterToString(center);
 
         logger_.LogHyperedge(
-            counter_, center_string, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells, partial_cells,
-            outside_cells, static_cast<SInt>(pins.size()), static_cast<SInt>(ranges.size()), hyperedge_size,
-            duration_ns);
+            counter_, center_string, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells,
+            partial_cells, outside_cells, static_cast<SInt>(pins.size()), static_cast<SInt>(ranges.size()),
+            hyperedge_size, duration_ns, inside_estimated_size, partial_estimated_size);
 
         geometry_.EmitHyperedge(pins, ranges);
     }
@@ -141,19 +145,15 @@ private:
         std::vector<SInt> filtered_pins;
         filtered_pins.reserve(pins.size());
 
+        std::size_t range_index = 0;
+
         for (const SInt pin: pins) {
-            bool covered = false;
-
-            for (const PinRange& range: merged_ranges) {
-                if (pin < range.begin) {
-                    break;
-                }
-
-                if (pin >= range.begin && pin < range.end) {
-                    covered = true;
-                    break;
-                }
+            while (range_index < merged_ranges.size() && merged_ranges[range_index].end <= pin) {
+                ++range_index;
             }
+
+            const bool covered = range_index < merged_ranges.size() && merged_ranges[range_index].begin <= pin
+                                 && pin < merged_ranges[range_index].end;
 
             if (!covered) {
                 filtered_pins.push_back(pin);

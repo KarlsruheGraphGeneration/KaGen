@@ -42,7 +42,7 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     const SInt total_cells = total_cells_per_dim * total_cells_per_dim;
 
     HyperRGG2DPolicy                   policy(*this);
-    HyperedgeBuilder<HyperRGG2DPolicy> builder(policy, config_.partial_cell_mode);
+    HyperedgeBuilder<HyperRGG2DPolicy> builder(policy, config_);
 
     for (SInt cell_row = 0; cell_row < cells_per_dim_; ++cell_row) {
         for (SInt cell_column = 0; cell_column < cells_per_dim_; ++cell_column) {
@@ -58,7 +58,8 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
             const LPFloat cell_width = LPFloat{1.0} / static_cast<LPFloat>(total_cells_per_dim);
 
             for (SInt emitted = 0; emitted < cell_m; emitted++) {
-                const SInt sampled_center_id = (global_cell_id * cell_m) + emitted;
+                const SInt sampled_center_id =
+                    (global_cell_id * base_m) + std::min(global_cell_id, remainder) + emitted;
 
                 const SInt seed_x = sampling::Spooky::hash(config_.seed + (17 * sampled_center_id));
                 const SInt seed_y = sampling::Spooky::hash(config_.seed + (31 * sampled_center_id));

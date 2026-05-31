@@ -511,7 +511,7 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const S
     GenerateCenterCells(annulus_id, chunk_id);
 
     HyperbolicGeometryPolicy<Double>                   geometry(*this, annulus_id, chunk_id);
-    HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(geometry, config_.partial_cell_mode);
+    HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(geometry, config_);
 
     for (SInt cell_id = 0; cell_id < GridSizeForAnnulus(annulus_id); ++cell_id) {
         current_cell_ = cell_id;

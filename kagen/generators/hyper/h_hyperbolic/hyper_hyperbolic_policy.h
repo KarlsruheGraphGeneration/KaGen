@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace kagen {
@@ -279,11 +280,11 @@ public:
         return std::clamp(static_cast<double>(weighted_inside / weighted_total), 0.0, 1.0);
     }
 
-    void AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
+    SInt AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
         const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.annulus_id, cell.chunk_id, cell.cell_id);
 
         if (gen_.cells_.find(global_cell_id) == gen_.cells_.end()) {
-            return;
+            return 0;
         }
 
         const auto& stored_cell = gen_.cells_[global_cell_id];
@@ -294,14 +295,15 @@ public:
         if (size > 0) {
             ranges.push_back({.begin = offset, .end = offset + size});
         }
+        return size;
     }
 
-    void AddPartialCell(
+    SInt AddPartialCell(
         const Center& /*center*/, const Cell& cell, const double coverage, std::vector<PinRange>& ranges) const {
         const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.annulus_id, cell.chunk_id, cell.cell_id);
 
         if (gen_.cells_.find(global_cell_id) == gen_.cells_.end()) {
-            return;
+            return 0;
         }
 
         const auto& stored_cell = gen_.cells_[global_cell_id];
@@ -311,28 +313,39 @@ public:
         SInt range_size = static_cast<SInt>(std::floor(static_cast<double>(size) * coverage));
         SInt seed       = gen_.config_.seed + (131 * start_cell_id_) + std::floor(coverage * 100);
         ranges.push_back(getRandomPinRange(size, range_size, offset, seed, gen_.config_));
+        return range_size;
     }
 
-    void AddPartialCellExact(const Center& center, const Double /*radius*/, const Cell& cell, std::vector<SInt>& pins) {
+    SInt AddPartialCellExact(const Center& center, const Double /*radius*/, const Cell& cell, std::vector<SInt>& pins) {
         gen_.GenerateVertices(cell.annulus_id, cell.chunk_id, cell.cell_id);
 
         const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.annulus_id, cell.chunk_id, cell.cell_id);
 
         if (gen_.vertices_.find(global_cell_id) == gen_.vertices_.end()) {
-            return;
+            return 0;
         }
 
-        const auto& vertices = gen_.vertices_[global_cell_id];
-
+        const auto& vertices       = gen_.vertices_[global_cell_id];
+        SInt        vertex_counter = 0;
         for (const Vertex& vertex: vertices) {
             if (HyperbolicDistance(center, vertex) <= gen_.current_hyperedge_pdm_radius_) {
                 pins.push_back(std::get<5>(vertex));
+                vertex_counter++;
             }
         }
+        return vertex_counter;
     }
 
     void EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
         gen_.PushHyperedgeCompressed(pins, ranges);
+    }
+
+    std::string CenterToString(const Center& center) const {
+        std::ostringstream out;
+
+        out << "phi=" << center.phi << ";r=" << center.r;
+
+        return out.str();
     }
 
 private:
@@ -556,8 +569,6 @@ private:
 
         return {boundary_phi - diff, boundary_phi + diff};
     }
-
-
 };
 
 } // namespace kagen

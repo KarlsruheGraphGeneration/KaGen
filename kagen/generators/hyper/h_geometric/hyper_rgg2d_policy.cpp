@@ -46,37 +46,42 @@ double ExactCircleRectCoverage(
         return 0.0;
     }
 
-    std::set<double> split_points;
-    split_points.insert(xa);
-    split_points.insert(xb);
+    double split_points[4];
+    int    count = 0;
 
-    for (const double y: {y0, y1}) {
-        if (std::abs(y) < radius) {
-            const double x_cross = std::sqrt(radius * radius - y * y);
-
-            const double left  = -x_cross;
-            const double right = x_cross;
-
-            if (left > xa && left < xb) {
-                split_points.insert(left);
-            }
-
-            if (right > xa && right < xb) {
-                split_points.insert(right);
+    auto add_split = [&](double x) {
+        if (x <= xa || x >= xb) {
+            return;
+        }
+        for (int i = 0; i < count; ++i) {
+            if (std::abs(split_points[i] - x) < 1e-15) {
+                return;
             }
         }
-    }
+        split_points[count++] = x;
+    };
+    split_points[count++]  = xa;
+    split_points[count++]  = xb;
+    const double radius_sq = radius * radius;
 
-    const std::vector<double> xs(split_points.begin(), split_points.end());
+    for (double y: {y0, y1}) {
+        if (std::abs(y) < radius) {
+            const double x_cross = std::sqrt(radius_sq - (y * y));
+
+            add_split(-x_cross);
+            add_split(x_cross);
+        }
+    }
+    std::sort(split_points, split_points + count);
 
     double area = 0.0;
 
-    for (std::size_t i = 0; i + 1 < xs.size(); ++i) {
-        const double a = xs[i];
-        const double b = xs[i + 1];
+    for (int i = 0; i + 1 < count; ++i) {
+        const double a = split_points[i];
+        const double b = split_points[i + 1];
         const double m = 0.5 * (a + b);
 
-        const double circle_top    = std::sqrt(std::max(0.0, radius * radius - m * m));
+        const double circle_top    = std::sqrt(std::max(0.0, radius_sq - m * m));
         const double circle_bottom = -circle_top;
 
         const double top_inside    = std::min(y1, circle_top);
@@ -221,11 +226,11 @@ double HyperRGG2DPolicy::CellCoverage(const Center& center, const LPFloat radius
     return ExactCircleRectCoverage(center.x, center.y, min_x, max_x, min_y, max_y, radius);
 }
 
-void HyperRGG2DPolicy::AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
+SInt HyperRGG2DPolicy::AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
     const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.chunk_id, cell.cell_id);
 
     if (gen_.cells_.find(global_cell_id) == gen_.cells_.end()) {
-        return;
+        return 0;
     }
 
     const auto& stored_cell = gen_.cells_[global_cell_id];
@@ -236,14 +241,15 @@ void HyperRGG2DPolicy::AddWholeCell(const Cell& cell, std::vector<PinRange>& ran
     if (size > 0) {
         ranges.push_back({.begin = begin, .end = begin + size});
     }
+    return size;
 }
 
-void HyperRGG2DPolicy::AddPartialCell(
+SInt HyperRGG2DPolicy::AddPartialCell(
     const Center& center, const Cell& cell, const double coverage, std::vector<PinRange>& ranges) const {
     const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.chunk_id, cell.cell_id);
 
     if (gen_.cells_.find(global_cell_id) == gen_.cells_.end()) {
-        return;
+        return 0;
     }
 
     const auto& target_cell = gen_.cells_[global_cell_id];
@@ -254,23 +260,26 @@ void HyperRGG2DPolicy::AddPartialCell(
     const SInt seed                     = sampling::Spooky::hash(gen_.config_.seed + (131 * center.sampled_id));
 
     ranges.push_back(getRandomPinRange(size, estimated_hyperedge_part, offset, seed, gen_.config_));
+    return estimated_hyperedge_part;
 }
 
-void HyperRGG2DPolicy::AddPartialCellExact(
+SInt HyperRGG2DPolicy::AddPartialCellExact(
     const Center& center, const LPFloat radius, const Cell& cell, std::vector<SInt>& pins) const {
     std::vector<Vertex> vertices;
     gen_.GenerateVertices(cell.chunk_id, cell.cell_id, vertices);
 
-    const double radius_sq = static_cast<double>(radius) * static_cast<double>(radius);
-
+    const double radius_sq      = static_cast<double>(radius) * static_cast<double>(radius);
+    SInt         vertex_counter = 0;
     for (const auto& vertex: vertices) {
         const double dx = static_cast<double>(center.x) - static_cast<double>(std::get<0>(vertex));
         const double dy = static_cast<double>(center.y) - static_cast<double>(std::get<1>(vertex));
 
         if ((dx * dx) + (dy * dy) <= radius_sq) {
             pins.push_back(std::get<2>(vertex));
+            vertex_counter++;
         }
     }
+    return vertex_counter;
 }
 
 void HyperRGG2DPolicy::EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {

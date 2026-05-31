@@ -17,17 +17,20 @@ public:
             !append || !std::filesystem::exists(filename) || std::filesystem::file_size(filename) == 0;
         if (should_write_header) {
             out_ << "hyperedge_id,hyperedge_center,radius,candidate_cells,inside_cells,partial_cells,outside_cells,"
-                    "emitted_pins,emitted_ranges,estimated_size,duration_ns\n";
+                    "emitted_pins,emitted_ranges,estimated_size,duration_ns,inside_estimated_size,partial_estimated_"
+                    "size\n";
         }
     }
 
     void LogHyperedge(
         const SInt hyperedge_id, const std::string hyperedge_center, const double radius, const SInt candidate_cells,
         const SInt inside_cells, const SInt partial_cells, const SInt outside_cells, const SInt emitted_pins,
-        const SInt emitted_ranges, const SInt estimated_size, const long long duration_ns) {
-        out_ << hyperedge_id << /*',' << hyperedge_center <<*/ ',' << radius << ',' << candidate_cells << ','
+        const SInt emitted_ranges, const SInt estimated_size, const long long duration_ns,
+        const SInt inside_estimated_size, const SInt partial_estimated_size) {
+        out_ << hyperedge_id << ',' << hyperedge_center << ',' << radius << ',' << candidate_cells << ','
              << inside_cells << ',' << partial_cells << ',' << outside_cells << ',' << emitted_pins << ','
-             << emitted_ranges << ',' << estimated_size << ',' << duration_ns << '\n';
+             << emitted_ranges << ',' << estimated_size << ',' << duration_ns << ',' << inside_estimated_size << ','
+             << partial_estimated_size << '\n';
     }
 
 private:

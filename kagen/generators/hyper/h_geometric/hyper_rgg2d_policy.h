@@ -5,6 +5,7 @@
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 
+#include <string>
 #include <vector>
 
 namespace kagen {
@@ -17,12 +18,6 @@ public:
         SInt    sampled_id;
         SInt    chunk_id;
         SInt    cell_id;
-        HPFloat global_x;
-        HPFloat global_y;
-
-        std::string toString() {
-            return "TODO";
-        }
     };
 
     struct Cell {
@@ -44,13 +39,17 @@ public:
 
     double CellCoverage(const Center& center, LPFloat radius, const Cell& cell) const;
 
-    void AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const;
+    SInt AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const;
 
-    void AddPartialCell(const Center& center, const Cell& cell, double coverage, std::vector<PinRange>& ranges) const;
+    SInt AddPartialCell(const Center& center, const Cell& cell, double coverage, std::vector<PinRange>& ranges) const;
 
-    void AddPartialCellExact(const Center& center, LPFloat radius, const Cell& cell, std::vector<SInt>& pins) const;
+    SInt AddPartialCellExact(const Center& center, LPFloat radius, const Cell& cell, std::vector<SInt>& pins) const;
 
     void EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
+
+    std::string CenterToString(const Center center) const {
+        return std::to_string(center.x) + ";" + std::to_string(center.y);
+    }
 
 private:
     HyperRGG2D& gen_;
