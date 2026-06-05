@@ -10,23 +10,21 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/generators/geometric/geometric_util.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
-#include "kagen/generators/geometric/geometric_util.h"
 
 #include "libmorton/morton2D.h"
+#include <algorithm>
 #include <tuple>
 #include <vector>
-#include <algorithm>
 
 namespace kagen {
-class Geometric2D : public virtual Generator{
+class Geometric2D : public virtual Generator {
 public:
-
-
     Geometric2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
         : config_(config),
           rank_(rank),
@@ -45,7 +43,7 @@ protected:
         // Generate local chunks and edges
         for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
             GenerateChunk(i);
-}
+        }
 
         SetVertexRange(start_node_, start_node_ + num_nodes_);
         if (config_.coordinates) {
@@ -202,8 +200,8 @@ protected:
         LPFloat cell_area  = cell_size_ * cell_size_;
 
         for (SInt i = 0; i < cells_per_chunk_; ++i) {
-            seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
-            SInt    h             = sampling::Spooky::hash(seed);
+            seed   = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
+            SInt h = sampling::Spooky::hash(seed);
             // due to potential floating point inaccuracies clamp probability
             SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 1.0));
             LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;

@@ -295,8 +295,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         radius_params->callback([&, random_radius] { config.random_radius = static_cast<bool>(*random_radius); });
 
         cmd->add_flag(
-            "--estimate-area, -e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
-            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered are");
+            "--exact, -e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
+            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered area");
     }
 
     { // Hyper RHG
@@ -328,8 +328,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_m(params)->required();
         params->silent();
         cmd->add_flag(
-            "--estimate-area, -e", config.partial_cell_mode,
-            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered are");
+            "--exact, -e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
+            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered area");
     }
 
 #ifdef KAGEN_CGAL_FOUND

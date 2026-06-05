@@ -1,6 +1,5 @@
 #pragma once
 
-#include "kagen/context.h"
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
@@ -33,6 +32,8 @@ public:
 
     LPFloat Radius(const Center& center) const;
 
+    SInt GetNumVerticeOfCellCoord(SSInt global_cell_x, SSInt global_cell_y);
+
     std::vector<Cell> CandidateCells(const Center& center, LPFloat radius) const;
 
     CellBallRelation ClassifyCell(const Center& center, LPFloat radius, const Cell& cell) const;
@@ -47,12 +48,21 @@ public:
 
     void EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
 
-    std::string CenterToString(const Center center) const {
+    static std::string CenterToString(const Center center) {
         return std::to_string(center.x) + ";" + std::to_string(center.y);
     }
 
 private:
-    HyperRGG2D& gen_;
+    double MinimumRadius(const Center& center);
+
+    double EstimatedCellCoverage(const Center& center, LPFloat radius, const Cell& cell) const;
+
+    double EstimatedCircleRectCoverage(
+        double center_x, double center_y, double min_x, double max_x, double min_y, double max_y, double radius) const;
+
+    HyperRGG2D* gen_;
+
+    mutable RNGWrapper<> rng_;
 };
 
 } // namespace kagen

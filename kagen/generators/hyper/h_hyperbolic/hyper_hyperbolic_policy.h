@@ -1,10 +1,8 @@
 #pragma once
 
-#include "kagen/generators/geometric/geometric_util.h"
 #include "kagen/generators/hyper/h_hyperbolic/hyper_hyperbolic.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
-#include "kagen/sampling/hash.hpp"
 
 #include <CGAL/number_utils_classes.h>
 
@@ -33,7 +31,7 @@ public:
         : gen_(generator),
           start_annulus_id_(annulus_id),
           start_chunk_id_(chunk_id),
-          start_cell_id_(0) {}
+          rng_(RNGWrapper(generator.config_)){}
 
     void SetStartCell(const SInt annulus_id, const SInt chunk_id, const SInt cell_id) {
         start_annulus_id_ = annulus_id;
@@ -41,9 +39,9 @@ public:
         start_cell_id_    = cell_id;
     }
 
-    void AddCenter(const Center&, std::vector<SInt>&) const {}
+    void AddCenter(const Center& /*unused*/, std::vector<SInt>& /*unused*/) const {}
 
-    Double Radius(const Center&) const {
+    Double Radius(const Center& /*unused*/) const {
         return gen_.current_hyperedge_radius_;
     }
 
@@ -184,7 +182,7 @@ public:
             return distance <= hyperball_radius ? M_PI : 0.0;
         }
 
-        const Double numerator = std::cosh(center_r) * std::cosh(query_r) - std::cosh(hyperball_radius);
+        const Double numerator = (std::cosh(center_r) * std::cosh(query_r)) - std::cosh(hyperball_radius);
 
         const Double denominator = std::sinh(center_r) * std::sinh(query_r);
 
@@ -312,7 +310,7 @@ public:
         SInt offset     = std::get<4>(stored_cell);
         SInt range_size = static_cast<SInt>(std::floor(static_cast<double>(size) * coverage));
         SInt seed       = gen_.config_.seed + (131 * start_cell_id_) + std::floor(coverage * 100);
-        ranges.push_back(getRandomPinRange(size, range_size, offset, seed, gen_.config_));
+        ranges.push_back(getRandomPinRange(size, range_size, offset, seed, gen_.mersenne));
         return range_size;
     }
 
@@ -352,7 +350,8 @@ private:
     GeneratorT& gen_;
     SInt        start_annulus_id_;
     SInt        start_chunk_id_;
-    SInt        start_cell_id_;
+    SInt        start_cell_id_{};
+    mutable RNGWrapper<> rng_;
 
     void
     PushCandidateCell(const SInt annulus_id, const SInt chunk_id, const SInt cell_id, std::vector<Cell>& cells) const {
@@ -536,7 +535,7 @@ private:
         delta_phi        = std::min(delta_phi, Double{2.0 * M_PI} - delta_phi);
 
         const Double cosh_dist =
-            std::cosh(center.r) * std::cosh(r) - std::sinh(center.r) * std::sinh(r) * std::cos(delta_phi);
+            (std::cosh(center.r) * std::cosh(r)) - (std::sinh(center.r) * std::sinh(r) * std::cos(delta_phi));
 
         return cosh_dist <= std::cosh(radius);
     }
@@ -545,8 +544,8 @@ private:
         Double delta_phi = std::abs(center.phi - std::get<0>(vertex));
         delta_phi        = std::min(delta_phi, Double{2.0 * M_PI} - delta_phi);
 
-        const Double cosh_dist = std::cosh(center.r) * std::cosh(std::get<1>(vertex))
-                                 - std::sinh(center.r) * std::sinh(std::get<1>(vertex)) * std::cos(delta_phi);
+        const Double cosh_dist = (std::cosh(center.r) * std::cosh(std::get<1>(vertex)))
+                                 - (std::sinh(center.r) * std::sinh(std::get<1>(vertex)) * std::cos(delta_phi));
 
         return (cosh_dist - 1.0) / 2.0;
     }

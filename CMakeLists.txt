@@ -135,6 +135,8 @@ endif ()
 if (KAGEN_USE_FAST_MATH)
     add_compile_options(-ffast-match)
 endif ()
+# Required for CGAL interval arithmetic
+add_compile_options(-frounding-math)
 
 ###############################################################################
 # libmorton

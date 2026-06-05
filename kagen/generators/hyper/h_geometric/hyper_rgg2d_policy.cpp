@@ -1,6 +1,5 @@
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d_policy.h"
 
-#include "kagen/generators/geometric/geometric_2d.h"
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
@@ -8,17 +7,18 @@
 
 #include <algorithm>
 #include <cmath>
-#include <set>
-#include <tuple>
+#include <fstream>
 #include <vector>
 
 namespace kagen {
 
 namespace {
 
-double CircleSegmentIntegral(double x, const double r) {
-    x = std::clamp(x, -r, r);
-    return 0.5 * ((x * std::sqrt(std::max(0.0, r * r - x * x))) + (r * r * std::asin(x / r)));
+double CircleSegmentIntegral(double x_value, const double radius) {
+    x_value = std::clamp(x_value, -radius, radius);
+    return 0.5
+           * ((x_value * std::sqrt(std::max(0.0, (radius * radius) - (x_value * x_value))))
+              + (radius * radius * std::asin(x_value / radius)));
 }
 
 double IntegrateSqrt(const double a, const double b, const double r) {
@@ -46,7 +46,7 @@ double ExactCircleRectCoverage(
         return 0.0;
     }
 
-    double split_points[4];
+    double split_points[6];
     int    count = 0;
 
     auto add_split = [&](double x) {
@@ -110,45 +110,164 @@ double ExactCircleRectCoverage(
 
 } // namespace
 
-HyperRGG2DPolicy::HyperRGG2DPolicy(HyperRGG2D& generator) : gen_(generator) {}
+HyperRGG2DPolicy::HyperRGG2DPolicy(HyperRGG2D& generator) : gen_(&generator), rng_(RNGWrapper(generator.config_)) {}
 
 void HyperRGG2DPolicy::AddCenter(const Center&, std::vector<SInt>&) const {}
 
-LPFloat HyperRGG2DPolicy::Radius(const Center& center) const {
-    const SInt  global_cell_id = gen_.ComputeGlobalCellId(center.chunk_id, center.cell_id);
-    const auto& cell           = gen_.cells_[global_cell_id];
-    SInt        size           = std::get<0>(cell);
-    double      lower_bound    = 0;
-    if (size != 0) {
-        SInt          cells_per_dim    = gen_.SafeTotalCellsPerDim();
-        LPFloat       single_cell_area = LPFloat{1.0} / static_cast<LPFloat>(cells_per_dim * cells_per_dim);
-        const LPFloat density          = single_cell_area > 0.0 ? static_cast<LPFloat>(size) / single_cell_area : 0.0;
-        lower_bound                    = std::sqrt(2.0 / (M_PI * density));
+SInt HyperRGG2DPolicy::GetNumVerticeOfCellCoord(const SSInt global_cell_x, const SSInt global_cell_y) {
+    const auto total_cells_per_dim_signed = static_cast<SSInt>(gen_->SafeTotalCellsPerDim());
+    if (global_cell_x < 0 || global_cell_y < 0 || global_cell_x >= total_cells_per_dim_signed
+        || global_cell_y >= total_cells_per_dim_signed) {
+        return SInt{0};
     }
-    return static_cast<LPFloat>(getSampledOrConstantRadius(gen_.config_, center.sampled_id, lower_bound));
+
+    const SInt chunk_x = static_cast<SInt>(global_cell_x) / gen_->cells_per_dim_;
+    const SInt chunk_y = static_cast<SInt>(global_cell_y) / gen_->cells_per_dim_;
+    const SInt cell_x  = static_cast<SInt>(global_cell_x) % gen_->cells_per_dim_;
+    const SInt cell_y  = static_cast<SInt>(global_cell_y) % gen_->cells_per_dim_;
+
+    const SInt global_cell_id =
+        gen_->ComputeGlobalCellId(gen_->Encode(chunk_x, chunk_y), gen_->EncodeCell(cell_x, cell_y));
+
+    const auto cell_it = gen_->cells_.find(global_cell_id);
+    if (cell_it == gen_->cells_.end()) {
+        return SInt{0};
+    }
+
+    return std::get<0>(cell_it->second);
+}
+
+double HyperRGG2DPolicy::MinimumRadius(const Center& center) {
+    constexpr double target_expected_vertices = 2.0;
+    constexpr double max_radius               = 1.0;
+
+    const SInt total_cells_per_dim = gen_->SafeTotalCellsPerDim();
+    if (total_cells_per_dim <= 0) {
+        return 0.0;
+    }
+
+    const auto   total_cells_per_dim_signed = static_cast<SSInt>(total_cells_per_dim);
+    const double cell_size                  = 1.0 / static_cast<double>(total_cells_per_dim);
+
+    struct CachedCell {
+        double min_x;
+        double max_x;
+        double min_y;
+        double max_y;
+        SInt   size;
+    };
+
+    std::vector<CachedCell> cached_cells;
+
+    const double min_x = std::max(0.0, static_cast<double>(center.x) - max_radius);
+    const double max_x = std::min(1.0, static_cast<double>(center.x) + max_radius);
+    const double min_y = std::max(0.0, static_cast<double>(center.y) - max_radius);
+    const double max_y = std::min(1.0, static_cast<double>(center.y) + max_radius);
+
+    const SSInt first_x = std::max<SSInt>(0, static_cast<SSInt>(std::floor(min_x * total_cells_per_dim)));
+    const SSInt last_x  = std::min<SSInt>(
+        total_cells_per_dim_signed - 1,
+        static_cast<SSInt>(std::floor(std::nextafter(max_x, 0.0) * total_cells_per_dim)));
+
+    const SSInt first_y = std::max<SSInt>(0, static_cast<SSInt>(std::floor(min_y * total_cells_per_dim)));
+    const SSInt last_y  = std::min<SSInt>(
+        total_cells_per_dim_signed - 1,
+        static_cast<SSInt>(std::floor(std::nextafter(max_y, 0.0) * total_cells_per_dim)));
+
+    for (SSInt global_cell_x = first_x; global_cell_x <= last_x; ++global_cell_x) {
+        const double rect_min_x = static_cast<double>(global_cell_x) * cell_size;
+        const double rect_max_x = static_cast<double>(global_cell_x + 1) * cell_size;
+
+        for (SSInt global_cell_y = first_y; global_cell_y <= last_y; ++global_cell_y) {
+            const SInt size = GetNumVerticeOfCellCoord(global_cell_x, global_cell_y);
+            if (size == 0) {
+                continue;
+            }
+
+            cached_cells.push_back({
+                .min_x = rect_min_x,
+                .max_x = rect_max_x,
+                .min_y = static_cast<double>(global_cell_y) * cell_size,
+                .max_y = static_cast<double>(global_cell_y + 1) * cell_size,
+                .size  = size,
+            });
+        }
+    }
+
+    auto expected_vertices = [&](const double radius) {
+        if (radius <= 0.0) {
+            return 0.0;
+        }
+
+        double expected = 0.0;
+
+        for (const CachedCell& cell: cached_cells) {
+            const double coverage = EstimatedCircleRectCoverage(
+                static_cast<double>(center.x), static_cast<double>(center.y), cell.min_x, cell.max_x, cell.min_y,
+                cell.max_y, radius);
+            ;
+
+            expected += static_cast<double>(cell.size) * coverage;
+
+            if (expected >= target_expected_vertices) {
+                return expected;
+            }
+        }
+
+        return expected;
+    };
+
+    if (expected_vertices(max_radius) < target_expected_vertices) {
+        return max_radius;
+    }
+
+    double lower = 0.0;
+    double upper = cell_size;
+
+    while (upper < max_radius && expected_vertices(upper) < target_expected_vertices) {
+        upper = std::min(max_radius, 2.0 * upper);
+    }
+
+    for (int iteration = 0; iteration < 32; ++iteration) {
+        const double mid = 0.5 * (lower + upper);
+
+        if (expected_vertices(mid) >= target_expected_vertices) {
+            upper = mid;
+        } else {
+            lower = mid;
+        }
+    }
+
+    return upper;
+}
+LPFloat HyperRGG2DPolicy::Radius(const Center& center) const {
+    const double     lower_bound = const_cast<HyperRGG2DPolicy*>(this)->MinimumRadius(center);
+    constexpr double upper_bound = 1.0;
+    const double actualRadius = getSampledOrConstantRadius(gen_->config_, center.sampled_id, lower_bound, upper_bound);
+    return static_cast<LPFloat>(actualRadius);
 }
 
 std::vector<HyperRGG2DPolicy::Cell> HyperRGG2DPolicy::CandidateCells(const Center& center, const LPFloat radius) const {
     SInt center_cell_x;
     SInt center_cell_y;
-    gen_.DecodeCell(center.cell_id, center_cell_x, center_cell_y);
+    gen_->DecodeCell(center.cell_id, center_cell_x, center_cell_y);
 
     SInt center_chunk_x;
     SInt center_chunk_y;
-    gen_.Decode(center.chunk_id, center_chunk_x, center_chunk_y);
+    gen_->Decode(center.chunk_id, center_chunk_x, center_chunk_y);
 
-    const SInt total_cells_per_dim = gen_.SafeTotalCellsPerDim();
+    const SInt total_cells_per_dim = gen_->SafeTotalCellsPerDim();
 
-    const SSInt global_center_cell_x = static_cast<SSInt>(center_chunk_x * gen_.cells_per_dim_ + center_cell_x);
-    const SSInt global_center_cell_y = static_cast<SSInt>(center_chunk_y * gen_.cells_per_dim_ + center_cell_y);
+    const auto global_center_cell_x = static_cast<SSInt>((center_chunk_x * gen_->cells_per_dim_) + center_cell_x);
+    const auto global_center_cell_y = static_cast<SSInt>((center_chunk_y * gen_->cells_per_dim_) + center_cell_y);
 
-    const SSInt cell_radius = static_cast<SSInt>(std::ceil(radius * static_cast<LPFloat>(total_cells_per_dim)));
+    const auto cell_radius = static_cast<SSInt>(std::ceil(radius * static_cast<LPFloat>(total_cells_per_dim)));
 
     std::vector<Cell> cells;
 
     for (SSInt dx = -cell_radius; dx <= cell_radius; ++dx) {
-        const SSInt max_dy =
-            static_cast<SSInt>(std::floor(std::sqrt(static_cast<LPFloat>(cell_radius * cell_radius - dx * dx))));
+        const auto max_dy =
+            static_cast<SSInt>(std::floor(std::sqrt(static_cast<LPFloat>((cell_radius * cell_radius) - dx * dx))));
 
         for (SSInt dy = -max_dy; dy <= max_dy; ++dy) {
             const SSInt global_cell_x = global_center_cell_x + dx;
@@ -161,16 +280,16 @@ std::vector<HyperRGG2DPolicy::Cell> HyperRGG2DPolicy::CandidateCells(const Cente
                 continue;
             }
 
-            const SInt neighbor_chunk_x = static_cast<SInt>(global_cell_x) / gen_.cells_per_dim_;
-            const SInt neighbor_chunk_y = static_cast<SInt>(global_cell_y) / gen_.cells_per_dim_;
+            const SInt neighbor_chunk_x = static_cast<SInt>(global_cell_x) / gen_->cells_per_dim_;
+            const SInt neighbor_chunk_y = static_cast<SInt>(global_cell_y) / gen_->cells_per_dim_;
 
-            const SInt neighbor_cell_x = static_cast<SInt>(global_cell_x) % gen_.cells_per_dim_;
-            const SInt neighbor_cell_y = static_cast<SInt>(global_cell_y) % gen_.cells_per_dim_;
+            const SInt neighbor_cell_x = static_cast<SInt>(global_cell_x) % gen_->cells_per_dim_;
+            const SInt neighbor_cell_y = static_cast<SInt>(global_cell_y) % gen_->cells_per_dim_;
 
             cells.push_back(
                 Cell{
-                    .chunk_id      = gen_.Encode(neighbor_chunk_x, neighbor_chunk_y),
-                    .cell_id       = gen_.EncodeCell(neighbor_cell_x, neighbor_cell_y),
+                    .chunk_id      = gen_->Encode(neighbor_chunk_x, neighbor_chunk_y),
+                    .cell_id       = gen_->EncodeCell(neighbor_cell_x, neighbor_cell_y),
                     .global_cell_x = static_cast<SInt>(global_cell_x),
                     .global_cell_y = static_cast<SInt>(global_cell_y),
                 });
@@ -181,7 +300,7 @@ std::vector<HyperRGG2DPolicy::Cell> HyperRGG2DPolicy::CandidateCells(const Cente
 }
 
 CellBallRelation HyperRGG2DPolicy::ClassifyCell(const Center& center, const LPFloat radius, const Cell& cell) const {
-    const SInt total_cells_per_dim = gen_.SafeTotalCellsPerDim();
+    const SInt total_cells_per_dim = gen_->SafeTotalCellsPerDim();
 
     const LPFloat min_x = static_cast<LPFloat>(cell.global_cell_x) / total_cells_per_dim;
     const LPFloat max_x = static_cast<LPFloat>(cell.global_cell_x + 1) / total_cells_per_dim;
@@ -214,26 +333,88 @@ CellBallRelation HyperRGG2DPolicy::ClassifyCell(const Center& center, const LPFl
 
     return CellBallRelation::PARTIAL;
 }
+double HyperRGG2DPolicy::EstimatedCellCoverage(const Center& center, const LPFloat radius, const Cell& cell) const {
+    const SInt total_cells_per_dim = gen_->SafeTotalCellsPerDim();
+
+    const double h = 1.0 / static_cast<double>(total_cells_per_dim);
+
+    const double min_x = static_cast<double>(cell.global_cell_x) * h;
+    const double min_y = static_cast<double>(cell.global_cell_y) * h;
+
+    const double cx = static_cast<double>(center.x);
+    const double cy = static_cast<double>(center.y);
+    const double r2 = static_cast<double>(radius) * static_cast<double>(radius);
+
+    auto inside = [&](const double x, const double y) {
+        const double dx = x - cx;
+        const double dy = y - cy;
+        return dx * dx + dy * dy <= r2;
+    };
+
+    int hits = 0;
+
+    // 3x3 stratified sample points
+    for (int ix = 0; ix < 3; ++ix) {
+        for (int iy = 0; iy < 3; ++iy) {
+            const double x = min_x + (static_cast<double>(ix) + 0.5) * h / 3.0;
+            const double y = min_y + (static_cast<double>(iy) + 0.5) * h / 3.0;
+
+            hits += inside(x, y) ? 1 : 0;
+        }
+    }
+
+    return static_cast<double>(hits) / 9.0;
+}
+
+double HyperRGG2DPolicy::EstimatedCircleRectCoverage(
+    const double center_x, const double center_y, const double min_x, const double max_x, const double min_y,
+    const double max_y, const double radius) const {
+    const double r2 = radius * radius;
+
+    auto inside = [&](const double x, const double y) {
+        const double dx = x - center_x;
+        const double dy = y - center_y;
+        return dx * dx + dy * dy <= r2;
+    };
+
+    const double dx = (max_x - min_x) / 3.0;
+    const double dy = (max_y - min_y) / 3.0;
+
+    int hits = 0;
+
+    for (int ix = 0; ix < 3; ++ix) {
+        for (int iy = 0; iy < 3; ++iy) {
+            const double x = min_x + (ix + 0.5) * dx;
+            const double y = min_y + (iy + 0.5) * dy;
+            hits += inside(x, y) ? 1 : 0;
+        }
+    }
+
+    return static_cast<double>(hits) / 9.0;
+}
 
 double HyperRGG2DPolicy::CellCoverage(const Center& center, const LPFloat radius, const Cell& cell) const {
-    const SInt total_cells_per_dim = gen_.SafeTotalCellsPerDim();
-
+    const SInt   total_cells_per_dim = gen_->SafeTotalCellsPerDim();
     const double min_x = static_cast<double>(cell.global_cell_x) / static_cast<double>(total_cells_per_dim);
     const double max_x = static_cast<double>(cell.global_cell_x + 1) / static_cast<double>(total_cells_per_dim);
     const double min_y = static_cast<double>(cell.global_cell_y) / static_cast<double>(total_cells_per_dim);
     const double max_y = static_cast<double>(cell.global_cell_y + 1) / static_cast<double>(total_cells_per_dim);
 
-    return ExactCircleRectCoverage(center.x, center.y, min_x, max_x, min_y, max_y, radius);
+    return EstimatedCircleRectCoverage(center.x, center.y, min_x, max_x, min_y, max_y, radius);
+    /*
+    return ExactCircleRectCoverage(center.x, center.y, min_x, max_x, min_y, max_y, radius); Currently debugged for
+     faster estimate.
+    */
 }
 
 SInt HyperRGG2DPolicy::AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
-    const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.chunk_id, cell.cell_id);
+    const SInt global_cell_id = gen_->ComputeGlobalCellId(cell.chunk_id, cell.cell_id);
 
-    if (gen_.cells_.find(global_cell_id) == gen_.cells_.end()) {
+    if (gen_->cells_.find(global_cell_id) == gen_->cells_.end()) {
         return 0;
     }
 
-    const auto& stored_cell = gen_.cells_[global_cell_id];
+    const auto& stored_cell = gen_->cells_[global_cell_id];
 
     const SInt size  = std::get<0>(stored_cell);
     const SInt begin = std::get<4>(stored_cell);
@@ -246,27 +427,27 @@ SInt HyperRGG2DPolicy::AddWholeCell(const Cell& cell, std::vector<PinRange>& ran
 
 SInt HyperRGG2DPolicy::AddPartialCell(
     const Center& center, const Cell& cell, const double coverage, std::vector<PinRange>& ranges) const {
-    const SInt global_cell_id = gen_.ComputeGlobalCellId(cell.chunk_id, cell.cell_id);
+    const SInt global_cell_id = gen_->ComputeGlobalCellId(cell.chunk_id, cell.cell_id);
 
-    if (gen_.cells_.find(global_cell_id) == gen_.cells_.end()) {
+    if (gen_->cells_.find(global_cell_id) == gen_->cells_.end()) {
         return 0;
     }
 
-    const auto& target_cell = gen_.cells_[global_cell_id];
+    const auto& target_cell = gen_->cells_[global_cell_id];
 
     const SInt size                     = std::get<0>(target_cell);
     const SInt offset                   = std::get<4>(target_cell);
     const SInt estimated_hyperedge_part = std::floor(size * coverage);
-    const SInt seed                     = sampling::Spooky::hash(gen_.config_.seed + (131 * center.sampled_id));
+    const SInt seed = sampling::Spooky::hash(gen_->config_.seed + 131 * center.sampled_id + (9973 * global_cell_id));
 
-    ranges.push_back(getRandomPinRange(size, estimated_hyperedge_part, offset, seed, gen_.config_));
+    ranges.push_back(getRandomPinRange(size, estimated_hyperedge_part, offset, seed, gen_->mersenne));
     return estimated_hyperedge_part;
 }
 
 SInt HyperRGG2DPolicy::AddPartialCellExact(
     const Center& center, const LPFloat radius, const Cell& cell, std::vector<SInt>& pins) const {
     std::vector<Vertex> vertices;
-    gen_.GenerateVertices(cell.chunk_id, cell.cell_id, vertices);
+    gen_->GenerateVertices(cell.chunk_id, cell.cell_id, vertices);
 
     const double radius_sq      = static_cast<double>(radius) * static_cast<double>(radius);
     SInt         vertex_counter = 0;
@@ -283,7 +464,7 @@ SInt HyperRGG2DPolicy::AddPartialCellExact(
 }
 
 void HyperRGG2DPolicy::EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
-    gen_.PushHyperedgeCompressed(pins, ranges);
+    gen_->PushHyperedgeCompressed(pins, ranges);
 }
 
 } // namespace kagen

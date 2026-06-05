@@ -9,8 +9,6 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
-#include "kagen/hypergraph/hyperedge_management.h"
-#include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
@@ -71,8 +69,8 @@ protected:
 
 private:
     // Config
-    const PGeneratorConfig& config_;
-    PEID                    rank_, size_;
+    PGeneratorConfig config_;
+    PEID             rank_, size_;
 
     // Variates
     RNGWrapper<>   rng_;
@@ -130,7 +128,7 @@ private:
     void GenerateHyperedges(SInt annulus_id, SInt chunk_id);
 
     template <typename ChunkMap, typename AnnulusMap>
-    void ComputeAnnuliInto(const ChunkMap& chunks, AnnulusMap& annuli, const SInt chunk_id, const SInt seed_offset);
+    void ComputeAnnuliInto(const ChunkMap& chunks, AnnulusMap& annuli, SInt chunk_id, SInt seed_offset);
 
     template <typename ChunkMap>
     void ComputeChunkInto(
@@ -153,7 +151,9 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 
-    void BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center, SInt sampled_center_id, Double lower_bound);
+    void BeginHyperedge(
+        const HyperbolicHyperedgeCenter<Double>& center, SInt sampled_center_id, Double lower_bound,
+        Double upper_bound);
 
     void EndHyperedge();
 
@@ -162,9 +162,13 @@ private:
     void PushHyperedgeRange(SInt begin, SInt end);
 
     void PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
+
+    Double ExpectedPinsForRadius(const HyperbolicHyperedgeCenter<Double>& center, Double radius);
+
+    Double FindRadiusForExpectedPins(const HyperbolicHyperedgeCenter<Double>& center, Double desired_pins);
 };
 template <typename Double>
-void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm) {}
+void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm /*comm*/) {}
 
 using LowPrecisionHyperHyperbolic  = Hyper_Hyperbolic<LPFloat>;
 using HighPrecisionHyperHyperbolic = Hyper_Hyperbolic<HPFloat>;

@@ -1,11 +1,9 @@
 #pragma once
 
 #include "kagen/context.h"
-#include "kagen/generators/geometric/geometric_util.h"
 #include "kagen/kagen.h"
-
-#include <tuple>
-#include <vector>
+#include "kagen/tools/mersenne.h"
+#include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
 inline bool IsHypergraph(const Graph& graph) {
@@ -30,12 +28,13 @@ inline SInt NumberOfLocalPins(const Graph& graph) {
 /**
  * Checks ```random_radius`` flag of @link PGeneratorConfig
  */
-double getSampledOrConstantRadius(const PGeneratorConfig& config, SInt identifier, double lower_bound = 0.0);
+double getSampledOrConstantRadius(
+    const PGeneratorConfig& config, SInt identifier, double lower_bound = 1e-8, double upper_bound = 1.0);
 
 bool RandomRadiusChecks(PGeneratorConfig& config);
 
-PinRange getRandomPinRange(
-    SInt target_cell_size, SInt range_size, SInt target_cell_offset, SInt seed, const PGeneratorConfig& config);
+PinRange
+getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offset, SInt seed, Mersenne& mersenne);
 
 enum class CellBallRelation : std::uint8_t { INSIDE, PARTIAL, OUTSIDE };
 } // namespace kagen

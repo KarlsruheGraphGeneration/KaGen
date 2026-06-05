@@ -14,8 +14,6 @@
 
 #include <CGAL/number_utils_classes.h>
 
-#include <fstream>
-
 namespace kagen {
 
 template <typename GeometryPolicy>
@@ -25,11 +23,6 @@ public:
     using Cell   = typename GeometryPolicy::Cell;
 
     using Clock = std::chrono::steady_clock;
-
-    PGeneratorConfig      config_;
-    HypergraphDebugLogger logger_;
-    SInt                  counter_ = 0;
-    int                   rank_    = 0;
 
     explicit HyperedgeBuilder(GeometryPolicy& geometry, const PGeneratorConfig& config)
         : geometry_(geometry),
@@ -47,13 +40,12 @@ public:
     }
 
     void Build(const Center& center) {
-        const auto t1 = Clock::now();
+        const auto timer_start_total = Clock::now();
 
         std::vector<SInt>     pins;
         std::vector<PinRange> ranges;
 
         geometry_.AddCenter(center, pins);
-
         const auto radius = geometry_.Radius(center);
         const auto cells  = geometry_.CandidateCells(center, radius);
 
@@ -106,9 +98,10 @@ public:
             hyperedge_size += range.end - range.begin;
         }
 
-        const auto t2 = Clock::now();
+        const auto timer_end_total = Clock::now();
 
-        const long long duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+        const long long duration_ns =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(timer_end_total - timer_start_total).count();
 
         ++counter_;
         std::string center_string = geometry_.CenterToString(center);
@@ -126,7 +119,9 @@ private:
         std::sort(pins.begin(), pins.end());
         pins.erase(std::unique(pins.begin(), pins.end()), pins.end());
 
-        std::sort(ranges.begin(), ranges.end(), [](const PinRange& a, const PinRange& b) { return a.begin < b.begin; });
+        std::sort(ranges.begin(), ranges.end(), [](const PinRange& firstRange, const PinRange& secondRange) {
+            return firstRange.begin < secondRange.begin;
+        });
 
         std::vector<PinRange> merged_ranges;
 
@@ -164,8 +159,12 @@ private:
         ranges = std::move(merged_ranges);
     }
 
-    GeometryPolicy& geometry_;
-    PartialCellMode partial_cell_mode_;
+    GeometryPolicy        geometry_;
+    PartialCellMode       partial_cell_mode_;
+    PGeneratorConfig      config_;
+    HypergraphDebugLogger logger_;
+    SInt                  counter_ = 0;
+    int                   rank_    = 0;
 };
 
 } // namespace kagen

@@ -3,7 +3,6 @@
 #include "kagen/context.h"
 #include "kagen/generators/geometric/spatial_grid_2d.h"
 #include "kagen/generators/hyper/h_geometric/h_rgg.h"
-#include "kagen/hypergraph/hypergraph_utils.h"
 
 #include <vector>
 

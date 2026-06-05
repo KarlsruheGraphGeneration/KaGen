@@ -64,11 +64,11 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
                 const SInt seed_x = sampling::Spooky::hash(config_.seed + (17 * sampled_center_id));
                 const SInt seed_y = sampling::Spooky::hash(config_.seed + (31 * sampled_center_id));
 
-                const LPFloat u = rng_.GenerateUniform<LPFloat>(seed_x);
-                const LPFloat v = rng_.GenerateUniform<LPFloat>(seed_y);
+                const LPFloat random_x = rng_.GenerateUniform<LPFloat>(seed_x);
+                const LPFloat random_y = rng_.GenerateUniform<LPFloat>(seed_y);
 
-                const LPFloat center_x = (static_cast<LPFloat>(global_cell_x) + u) * cell_width;
-                const LPFloat center_y = (static_cast<LPFloat>(global_cell_y) + v) * cell_width;
+                const LPFloat center_x = (static_cast<LPFloat>(global_cell_x) + random_x) * cell_width;
+                const LPFloat center_y = (static_cast<LPFloat>(global_cell_y) + random_y) * cell_width;
 
                 const HyperRGG2DPolicy::Center center{
                     .x          = center_x,
@@ -104,6 +104,6 @@ void HyperRGG2D::GenerateCSR() {
     GenerateGeometry();
 }
 
-void HyperRGG2D::FinalizeCSR(MPI_Comm) {}
+void HyperRGG2D::FinalizeCSR(MPI_Comm /*comm*/) {}
 
 } // namespace kagen

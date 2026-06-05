@@ -6,17 +6,17 @@ namespace kagen {
 std::vector<PinRange> RemoveEmpty(std::vector<PinRange> hyperedge_ranges) {
     hyperedge_ranges.erase(
         std::remove_if(
-            hyperedge_ranges.begin(), hyperedge_ranges.end(), [](const PinRange& r) { return r.begin >= r.end; }),
+            hyperedge_ranges.begin(), hyperedge_ranges.end(), [](const PinRange& range) { return range.begin >= range.end; }),
         hyperedge_ranges.end());
     return hyperedge_ranges;
 }
 
 std::vector<PinRange> SortRanges(std::vector<PinRange> hyperedge_ranges) {
-    std::sort(hyperedge_ranges.begin(), hyperedge_ranges.end(), [](const PinRange& a, const PinRange& b) {
-        if (a.begin != b.begin) {
-            return a.begin < b.begin;
+    std::sort(hyperedge_ranges.begin(), hyperedge_ranges.end(), [](const PinRange& firstRange, const PinRange& secondRange) {
+        if (firstRange.begin != secondRange.begin) {
+            return firstRange.begin < secondRange.begin;
         }
-        return a.end < b.end;
+        return firstRange.end < secondRange.end;
     });
 
     return hyperedge_ranges;
@@ -45,16 +45,16 @@ std::vector<SInt> SortDeduplicatePins(std::vector<SInt> hyperedge_pins) {
 
 std::vector<SInt> RemovePinsInRanges(std::vector<SInt> hyperedge_pins, const std::vector<PinRange>& hyperedge_ranges) {
     auto covered_by_range = [&hyperedge_ranges](const SInt pin) {
-        auto it = std::upper_bound(
+        auto iterator = std::upper_bound(
             hyperedge_ranges.begin(), hyperedge_ranges.end(), pin,
             [](const SInt value, const PinRange& range) { return value < range.begin; });
 
-        if (it == hyperedge_ranges.begin()) {
+        if (iterator == hyperedge_ranges.begin()) {
             return false;
         }
 
-        --it;
-        return it->begin <= pin && pin < it->end;
+        --iterator;
+        return iterator->begin <= pin && pin < iterator->end;
     };
 
     hyperedge_pins.erase(
@@ -71,10 +71,10 @@ std::pair<std::vector<SInt>, std::vector<PinRange>> ConvertConsecutivePinsToRang
         const SInt begin = pins[i];
         SInt       end   = begin + 1;
 
-        SInt j = i + 1;
-        while (j < static_cast<SInt>(pins.size()) && pins[j] == end) {
+        SInt inner_iterator = i + 1;
+        while (inner_iterator < static_cast<SInt>(pins.size()) && pins[inner_iterator] == end) {
             ++end;
-            ++j;
+            ++inner_iterator;
         }
 
         const SInt run_length = end - begin;
@@ -82,12 +82,12 @@ std::pair<std::vector<SInt>, std::vector<PinRange>> ConvertConsecutivePinsToRang
         if (run_length >= min_run_length) {
             ranges.push_back({begin, end});
         } else {
-            for (SInt v = begin; v < end; ++v) {
-                remaining_pins.push_back(v);
+            for (SInt vertice = begin; vertice < end; ++vertice) {
+                remaining_pins.push_back(vertice);
             }
         }
 
-        i = j;
+        i = inner_iterator;
     }
 
     return {remaining_pins, ranges};
