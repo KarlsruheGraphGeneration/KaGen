@@ -151,6 +151,8 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 
+    Double ScaleRelativeRadius(const HyperbolicHyperedgeCenter<Double>& center, Double relative_radius) const;
+
     void BeginHyperedge(
         const HyperbolicHyperedgeCenter<Double>& center, SInt sampled_center_id, Double lower_bound,
         Double upper_bound);
@@ -166,6 +168,9 @@ private:
     Double ExpectedPinsForRadius(const HyperbolicHyperedgeCenter<Double>& center, Double radius);
 
     Double FindRadiusForExpectedPins(const HyperbolicHyperedgeCenter<Double>& center, Double desired_pins);
+
+    std::pair<Double, Double>
+    RelativeRadiusBounds(const HyperbolicHyperedgeCenter<Double>& center, Double desired_min_pins);
 };
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm /*comm*/) {}

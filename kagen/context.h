@@ -178,10 +178,13 @@ struct PGeneratorConfig {
     // If true, the generator produces hyperedge_offsets / hyperedge_pins instead of graph edges.
     bool            is_hypergraph             = false;
     bool            random_radius             = false;
-    double          min_hyperedge_radius      = 0.05;
-    double          max_hyperedge_radius      = 0.2;
+    double          min_hyperedge_radius      = -1.0;
+    double          max_hyperedge_radius      = -1.0;
     double          hyperedge_radius_exponent = 2.5;
     PartialCellMode partial_cell_mode         = PartialCellMode::GenerateAndCheck;
+    double          quantile                  = 1.0;
+
+    bool debug = false;
 
     /*
      * Sets config.k if k == 0 to PEID size, else does nothing.

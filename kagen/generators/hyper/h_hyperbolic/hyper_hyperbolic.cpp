@@ -302,16 +302,28 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
 }
 
 template <typename Double>
+Double Hyper_Hyperbolic<Double>::ScaleRelativeRadius(
+    const HyperbolicHyperedgeCenter<Double>& center, const Double relative_radius) const {
+    const Double t = std::clamp(relative_radius, Double{0.0}, Double{1.0});
+
+    // Farthest possible point in the generated hyperbolic disk:
+    // opposite angle, outer boundary at target_r_.
+    const Double max_covering_radius = center.r + target_r_;
+
+    return t * max_covering_radius;
+}
+
+template <typename Double>
 void Hyper_Hyperbolic<Double>::BeginHyperedge(
-    const HyperbolicHyperedgeCenter<Double>& /*center*/, const SInt sampled_center_id, const Double lower_bound,
+    const HyperbolicHyperedgeCenter<Double>& center, const SInt sampled_center_id, const Double lower_bound,
     const Double upper_bound) {
     current_hyperedge_pins_.clear();
     current_hyperedge_ranges_.clear();
 
-    const Double lb = std::clamp(lower_bound, Double{0.0}, upper_bound);
-    const Double ub = std::max(lb, upper_bound);
+    const Double relative_radius =
+        static_cast<Double>(getSampledOrConstantRadius(config_, sampled_center_id, lower_bound, upper_bound));
 
-    current_hyperedge_radius_ = static_cast<Double>(getSampledOrConstantRadius(config_, sampled_center_id, lb, ub));
+    current_hyperedge_radius_ = ScaleRelativeRadius(center, relative_radius);
 
     current_hyperedge_pdm_radius_ = (std::cosh(current_hyperedge_radius_) - 1.0) / 2.0;
 }
@@ -552,6 +564,21 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
 
     std::get<3>(annulus) = true;
 }
+template <typename Double>
+std::pair<Double, Double> Hyper_Hyperbolic<Double>::RelativeRadiusBounds(
+    const HyperbolicHyperedgeCenter<Double>& center, const Double desired_min_pins) {
+    const Double max_bound =
+        config_.max_hyperedge_radius != -1.0 ? static_cast<Double>(config_.max_hyperedge_radius) : Double{1.0};
+
+    const Double min_bound = config_.min_hyperedge_radius != -1.0
+                                 ? static_cast<Double>(config_.min_hyperedge_radius)
+                                 : FindRadiusForExpectedPins(center, desired_min_pins) / (center.r + target_r_);
+
+    const Double lower_bound = std::clamp(min_bound, Double{0.0}, Double{1.0});
+    const Double upper_bound = std::clamp(max_bound, lower_bound, Double{1.0});
+
+    return {lower_bound, upper_bound};
+}
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const SInt chunk_id) {
@@ -600,10 +627,10 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const S
                 .phi = min_phi + (u_phi * (max_phi - min_phi)),
                 .r   = std::acosh((u_r * (maxcdf - mincdf)) + mincdf) / alpha_};
 
-            const Double lower_bound = FindRadiusForExpectedPins(center, 6.0);
-            const Double upper_bound = center.r + target_r_;
+            const auto [lower_bound, upper_bound] = RelativeRadiusBounds(center, 6.0);
 
             BeginHyperedge(center, sampled_center_id, lower_bound, upper_bound);
+
             builder.Build(center);
         }
     }

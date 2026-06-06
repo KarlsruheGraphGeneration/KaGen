@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,8 +28,11 @@ public:
     explicit HyperedgeBuilder(GeometryPolicy& geometry, const PGeneratorConfig& config)
         : geometry_(geometry),
           partial_cell_mode_(config.partial_cell_mode),
-          config_(config),
-          logger_(MakeDebugFilename(), true) {}
+          config_(config) {
+        if (config_.debug) {
+            logger_.emplace(MakeDebugFilename(), true);
+        }
+    }
 
     std::string MakeDebugFilename() {
         int rank = 0;
@@ -105,11 +109,12 @@ public:
 
         ++counter_;
         std::string center_string = geometry_.CenterToString(center);
-
-        logger_.LogHyperedge(
-            counter_, center_string, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells,
-            partial_cells, outside_cells, static_cast<SInt>(pins.size()), static_cast<SInt>(ranges.size()),
-            hyperedge_size, duration_ns, inside_estimated_size, partial_estimated_size);
+        if (logger_) {
+            logger_->LogHyperedge(
+                counter_, center_string, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells,
+                partial_cells, outside_cells, static_cast<SInt>(pins.size()), static_cast<SInt>(ranges.size()),
+                hyperedge_size, duration_ns, inside_estimated_size, partial_estimated_size);
+        }
 
         geometry_.EmitHyperedge(pins, ranges);
     }
@@ -159,12 +164,12 @@ private:
         ranges = std::move(merged_ranges);
     }
 
-    GeometryPolicy        geometry_;
-    PartialCellMode       partial_cell_mode_;
-    PGeneratorConfig      config_;
-    HypergraphDebugLogger logger_;
-    SInt                  counter_ = 0;
-    int                   rank_    = 0;
+    GeometryPolicy                       geometry_;
+    PartialCellMode                      partial_cell_mode_;
+    PGeneratorConfig                     config_;
+    std::optional<HypergraphDebugLogger> logger_;
+    SInt                                 counter_ = 0;
+    int                                  rank_    = 0;
 };
 
 } // namespace kagen

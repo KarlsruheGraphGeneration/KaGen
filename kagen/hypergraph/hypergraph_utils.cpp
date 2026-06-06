@@ -43,13 +43,13 @@ double SampleHyperedgeRadius(
 }
 
 double getSampledOrConstantRadius(
-    const PGeneratorConfig& config, const SInt identifier, const double dynamic_lower_bound,
-    const double dynamic_upper_bound) {
+    const PGeneratorConfig& config, const SInt identifier, const double actual_lower_bound,
+    const double actual_upper_bound) {
     if (!config.random_radius) {
         return config.r;
     }
 
-    return SampleHyperedgeRadius(identifier, config, dynamic_lower_bound, dynamic_upper_bound);
+    return SampleHyperedgeRadius(identifier, config, actual_lower_bound, actual_upper_bound);
 }
 
 /**
@@ -78,6 +78,33 @@ getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offse
     const SInt    interval_start = static_cast<SInt>(std::floor(u * static_cast<LPFloat>(max_start)));
 
     return {.begin = target_cell_offset + interval_start, .end = target_cell_offset + interval_start + range_size};
+}
+
+double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config) {
+    if (!config.random_radius) {
+        return config.r;
+    }
+
+    if (config.n <= 0) {
+        throw ConfigurationError("Quantile radius requires n > 0");
+    }
+
+    const double alpha = config.hyperedge_radius_exponent;
+
+    if (alpha <= 0.0 || !std::isfinite(alpha)) {
+        throw ConfigurationError("Quantile radius requires exponent > 0");
+    }
+
+    const double lower_bound = std::sqrt(2.0 / (M_PI * static_cast<double>(config.n)));
+
+    const double upper_bound = 1.0;
+
+    const double clamped_q = std::clamp(config.quantile, 0.0, 1.0);
+
+    const double transformed_lower = std::pow(lower_bound, -alpha);
+    const double transformed_upper = std::pow(upper_bound, -alpha);
+
+    return std::pow(transformed_lower - clamped_q * (transformed_lower - transformed_upper), -1.0 / alpha);
 }
 
 } // namespace kagen

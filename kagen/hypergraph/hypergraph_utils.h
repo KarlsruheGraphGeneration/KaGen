@@ -29,12 +29,14 @@ inline SInt NumberOfLocalPins(const Graph& graph) {
  * Checks ```random_radius`` flag of @link PGeneratorConfig
  */
 double getSampledOrConstantRadius(
-    const PGeneratorConfig& config, SInt identifier, double lower_bound = 1e-8, double upper_bound = 1.0);
+    const PGeneratorConfig& config, SInt identifier, double actual_lower_bound, double actual_upper_bound);
 
 bool RandomRadiusChecks(PGeneratorConfig& config);
 
 PinRange
 getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offset, SInt seed, Mersenne& mersenne);
+
+double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config);
 
 enum class CellBallRelation : std::uint8_t { INSIDE, PARTIAL, OUTSIDE };
 } // namespace kagen

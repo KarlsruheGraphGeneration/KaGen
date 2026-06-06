@@ -99,6 +99,55 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     auto add_option_avg_deg = [&](CLI::App* cmd) {
         return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
     };
+    auto set_hypergraph_generator = [&](GeneratorType generator) {
+        return [&config, generator] {
+            config.generator     = generator;
+            config.is_hypergraph = true;
+        };
+    };
+    auto add_hypergraph_nm = [&](CLI::App* cmd) {
+        add_option_n(cmd)->required();
+        add_option_m(cmd)->required();
+    };
+    auto add_hyperedge_radius_options = [&](CLI::App* cmd) {
+        auto* radius_mode = cmd->add_option_group("Hyperedge radius mode");
+
+        radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
+
+        auto* radius_exponent = radius_mode->add_option(
+            "--radius-exponent", config.hyperedge_radius_exponent,
+            "Use variable hyperedge radii with the given distribution exponent");
+
+        radius_exponent->each([&](const std::string&) { config.random_radius = true; });
+
+        radius_mode->require_option(1);
+        radius_mode->silent();
+
+        auto* variable_radius_params = cmd->add_option_group("Variable hyperedge radius parameters");
+
+        variable_radius_params
+            ->add_option(
+                "--minr,--radius-lower-bound", config.min_hyperedge_radius,
+                "Optional lower bound for variable hyperedge radius")
+            ->needs(radius_exponent);
+
+        variable_radius_params
+            ->add_option(
+                "--maxr,--radius-upper-bound", config.max_hyperedge_radius,
+                "Optional upper bound for variable hyperedge radius")
+            ->needs(radius_exponent);
+
+        variable_radius_params
+            ->add_option("--rq,--radius-quantile", config.quantile, "Optional quantile for variable hyperedge radius")
+            ->check(CLI::Range(0.0, 1.0))
+            ->needs(radius_exponent);
+    };
+    auto add_partial_cell_mode = [&](CLI::App* cmd) {
+        return cmd->add_flag(
+            "--exact,-e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
+            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered "
+            "area");
+    };
 
     // Use 40 characters width for help
     auto formatter = std::make_shared<CLI::Formatter>();
@@ -140,6 +189,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         "--skip-postprocessing", config.skip_postprocessing,
         "Skip postprocessing (repair inconsistency due to floating point inaccuracies etc.)");
     app.add_option("-s,--seed", config.seed, "Seed for PRNG (must be the same on all PEs)");
+    app.add_flag("--debug", config.debug, "Enable debug output");
     auto* stats_group = app.add_option_group("Statistics output");
     stats_group->add_option("--stats", config.statistics_level)
         ->transform(CLI::CheckedTransformer(GetStatisticsLevelMap()).description(""))
@@ -274,62 +324,31 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     { // Hyper RGG2D
         auto* cmd = app.add_subcommand("hrgg2d", "2D Random Geometric Graph adapted for Hypergraphs");
         cmd->alias("hrgg_2d")->alias("hrgg-2d");
-        cmd->callback([&] {
-            config.generator     = GeneratorType::HRGG_2D;
-            config.is_hypergraph = true;
-        });
+        cmd->callback(set_hypergraph_generator(GeneratorType::HRGG_2D));
 
         auto* params = cmd->add_option_group("Parameters");
-        add_option_n(params)->required();
-        add_option_m(params)->required();
-        auto* radius_params = cmd->add_option_group("Hyperedge radius parameters");
+        add_hypergraph_nm(params);
+        params->silent();
 
-        auto* fixed_radius = radius_params->add_option("-r,--radius", config.r, "Fixed hyperedge radius");
+        add_hyperedge_radius_options(cmd);
 
-        auto* random_radius = radius_params->add_option(
-            "--radius-exponent", config.hyperedge_radius_exponent, "Exponent for random hyperedge radius distribution");
-
-        radius_params->require_option(1);
-        radius_params->silent();
-
-        radius_params->callback([&, random_radius] { config.random_radius = static_cast<bool>(*random_radius); });
-
-        cmd->add_flag(
-            "--exact, -e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
-            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered area");
+        add_partial_cell_mode(cmd);
     }
 
     { // Hyper RHG
         auto* cmd = app.add_subcommand("hrhg", "Random Hyperbolic Hypergraph");
-
-        cmd->callback([&] {
-            config.generator     = GeneratorType::H_RHG;
-            config.is_hypergraph = true;
-        });
+        cmd->callback(set_hypergraph_generator(GeneratorType::H_RHG));
 
         cmd->add_flag("--hp-floats,!--no-hp-floats", config.hp_floats, "Use 80 bit floating point numbers");
-
         add_option_gamma(cmd)->required();
 
-        auto* radius_params = cmd->add_option_group("Hyperedge radius parameters");
-
-        auto* fixed_radius = radius_params->add_option("-r,--radius", config.r, "Fixed hyperedge radius");
-
-        auto* random_radius = radius_params->add_option(
-            "--radius-exponent", config.hyperedge_radius_exponent, "Exponent for random hyperedge radius distribution");
-
-        radius_params->require_option(1);
-        radius_params->silent();
-
-        radius_params->callback([&, random_radius] { config.random_radius = static_cast<bool>(*random_radius); });
-
         auto* params = cmd->add_option_group("Parameters");
-        add_option_n(params)->required();
-        add_option_m(params)->required();
+        add_hypergraph_nm(params);
         params->silent();
-        cmd->add_flag(
-            "--exact, -e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
-            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered area");
+
+        add_hyperedge_radius_options(cmd);
+
+        add_partial_cell_mode(cmd);
     }
 
 #ifdef KAGEN_CGAL_FOUND
