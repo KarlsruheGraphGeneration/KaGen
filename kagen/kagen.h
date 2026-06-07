@@ -128,6 +128,8 @@ enum class GeneratorType {
     RGG_3D,
     HRGG_2D,
     H_RHG,
+    H_GNM,
+    H_GNP,
     RDG_2D,
     RDG_3D,
     GRID_2D,

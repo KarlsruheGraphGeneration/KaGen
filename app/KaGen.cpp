@@ -351,6 +351,36 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_partial_cell_mode(cmd);
     }
 
+    { // Hyper GNM
+        auto* cmd = app.add_subcommand("hgnm", "Erdos-Renyi Hypergraph Generator");
+        cmd->alias("h-gnm")->alias("h_gnm");
+        cmd->callback(set_hypergraph_generator(GeneratorType::H_GNM));
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_hypergraph_nm(params);
+
+        params->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for Hyperedge sizes");
+        params->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for Hyperedge sizes");
+        params->add_option("--decay", config.size_dist_alpha, "Decay Parameter for Hyperedge sizes")
+            ->check(CLI::Range(0.0, 1.0));
+
+        params->silent();
+    }
+
+    { // Hyper GNP
+        auto* cmd = app.add_subcommand("hgnp", "Erdos-Renyi Hypergraph Generator");
+        cmd->alias("hyper_gnp")->alias("hyper-gnp");
+        cmd->callback([&] { config.generator = GeneratorType::H_GNP; });
+        add_option_n(cmd)->required();
+
+        auto* params = cmd->add_option_group("Parameters");
+        params->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for Hyperedge sizes");
+        params->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for Hyperedge sizes");
+        // add_option_p(cmd)->required(); TODO: Overhaul this.
+
+        params->silent();
+    }
+
 #ifdef KAGEN_CGAL_FOUND
     { // RDG2D
         auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");

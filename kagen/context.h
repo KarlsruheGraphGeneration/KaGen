@@ -186,6 +186,11 @@ struct PGeneratorConfig {
 
     bool debug = false;
 
+    // Hyperedge Distribution for Erdos Renyi
+    SInt   size_dist_lower_bound = 2;
+    SInt   size_dist_upper_bound = 0;
+    double size_dist_alpha       = 0.9;
+
     /*
      * Sets config.k if k == 0 to PEID size, else does nothing.
      */

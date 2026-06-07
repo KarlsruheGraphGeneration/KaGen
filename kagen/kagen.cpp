@@ -155,6 +155,9 @@ std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
         {"rgg2d", GeneratorType::RGG_2D},
         {"rgg3d", GeneratorType::RGG_3D},
         {"hyper_rgg2d", GeneratorType::HRGG_2D},
+        {"hyper_hyperbolic", GeneratorType::H_RHG},
+        {"h_gnm", GeneratorType::H_GNM},
+        {"h_gnp", GeneratorType::H_GNP},
 #ifdef KAGEN_CGAL_FOUND
         {"rdg2d", GeneratorType::RDG_2D},
         {"rdg3d", GeneratorType::RDG_3D},
@@ -199,6 +202,12 @@ std::ostream& operator<<(std::ostream& out, GeneratorType generator_type) {
 
         case GeneratorType::H_RHG:
             return out << "hyper_rhg";
+
+        case GeneratorType::H_GNM:
+            return out << "hyper_gnm";
+        
+        case GeneratorType::H_GNP:
+            return out << "hyper_gnp";
 
         case GeneratorType::RDG_2D:
             return out << "rdg2d";

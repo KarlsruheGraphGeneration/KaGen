@@ -9,6 +9,8 @@
 #include "kagen/generators/gnp/gnp_undirected.h"
 #include "kagen/generators/grid/grid_2d.h"
 #include "kagen/generators/grid/grid_3d.h"
+#include "kagen/generators/hyper/h_erdos/hyper_gnm.h"
+#include "kagen/generators/hyper/h_erdos/hyper_gnp.h"
 #include "kagen/generators/hyper/h_geometric/h_rgg.h"
 #include "kagen/generators/hyper/h_hyperbolic/hyper_hyperbolic.h"
 #include "kagen/generators/hyperbolic/hyperbolic.h"
@@ -16,6 +18,8 @@
 #include "kagen/generators/kronecker/kronecker.h"
 #include "kagen/generators/path/path_directed.h"
 #include "kagen/generators/rmat/rmat.h"
+
+#include <memory>
 
 #ifdef KAGEN_CGAL_FOUND
     #include "kagen/generators/geometric/delaunay.h"
@@ -47,6 +51,12 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case kagen::GeneratorType::H_RHG:
             return std::make_unique<Hyper_HyperbolicFactory>();
+
+        case GeneratorType::H_GNM:
+            return std::make_unique<HyperGNMFactory>();
+
+        case GeneratorType::H_GNP:
+            return std::make_unique<HyperGNPFactory>();
 
             // TODO(clickup)[2026-05-08]: Implement other Generators
 

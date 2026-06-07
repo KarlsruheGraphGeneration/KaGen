@@ -1,6 +1,7 @@
 #include "kagen/context.h"
 
 #include "kagen/definitions.h"
+#include "kagen/kagen.h"
 
 #include <mpi.h>
 
@@ -97,6 +98,19 @@ std::ostream& printHRGGData(std::ostream& out, const PGeneratorConfig& config) {
     out << "  Number of vertices:                 " << config.n << "\n";
     out << "  Hyperedge distribution exponent:    " << config.hyperedge_radius_exponent << "\n";
     out << "  Hypergraph:                         yes\n";
+    return out;
+}
+
+std::ostream& printHGNMData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Number of edges:                    " << config.m << "\n";
+    out << "  Graph type:                         "
+        << "hyper_gnm" << "\n";
+    return out;
+}
+
+std::ostream& printHGNPData(std::ostream& out, const PGeneratorConfig& config) {
+    // TODO(clickup)[2026-06-07]: Implementation missing
     return out;
 }
 
@@ -220,6 +234,14 @@ std::ostream& printGeneratorData(std::ostream& out, const PGeneratorConfig& conf
 
         case GeneratorType::H_RHG:
             printHRHGData(out, config);
+            break;
+
+        case GeneratorType::H_GNM:
+            printHGNMData(out, config);
+            break;
+
+        case GeneratorType::H_GNP:
+            printHGNPData(out, config);
             break;
 
         case GeneratorType::RDG_2D:
