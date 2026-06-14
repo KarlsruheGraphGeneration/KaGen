@@ -148,6 +148,86 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered "
             "area");
     };
+    auto add_option_edge_budget = [&](CLI::App* cmd) {
+        auto* opt_log_budget = cmd->add_option_function<SInt>(
+            "--EB,--log-edge-budget",
+            [&](const SInt value) { config.edge_budget = static_cast<double>(static_cast<SInt>(1) << value); },
+            "Logarithm value for expected total hyperedges");
+
+        auto* opt_budget =
+            cmd->add_option("--eb,--edge-budget", config.edge_budget, "Expected total number of hyperedges");
+
+        auto* group = cmd->add_option_group("Edge budget");
+        group->add_options(opt_log_budget, opt_budget);
+        group->require_option(1);
+        group->silent();
+        return group;
+    };
+    auto add_hyper_size_bounds = [&](CLI::App* cmd) {
+        auto* group = cmd->add_option_group("Hyperedge size bounds");
+        group->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for hyperedge sizes");
+        group->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for hyperedge sizes");
+        group->silent();
+        return group;
+    };
+    auto add_hgnm_size_distribution = [&](CLI::App* cmd) {
+        auto* group = cmd->add_option_group("Hyperedge size distribution");
+
+        group->add_option("--alpha,--decay", config.size_dist_alpha, "Geometric distribution alpha")
+            ->check(CLI::Range(0.0, 1.0));
+
+        group->add_flag(
+            "--deterministic-size-distribution", config.size_dist_deterministic,
+            "Use deterministic size counts instead of sampled counts");
+
+        group->add_option("--size-decay", config.size_decay, "Decay parameter for deterministic hyperedge size counts")
+            ->check(CLI::Range(0.0, 1.0));
+
+        group->silent();
+        return group;
+    };
+    auto add_hgnp_probabilities = [&](CLI::App* cmd) {
+        auto* probabilities = cmd->add_option_group("Probabilities");
+
+        add_option_p(probabilities);
+
+        probabilities
+            ->add_option(
+                "--size-probs", config.size_probabilities,
+                "Comma-separated probabilities by hyperedge size, starting at lower-size-bound")
+            ->delimiter(',');
+
+        probabilities
+            ->add_option(
+                "--size-probs-file", config.size_probabilities_file,
+                "File with one probability per line, starting at lower-size-bound")
+            ->check(CLI::ExistingFile);
+
+        probabilities
+            ->add_option(
+                "--size-expected", config.size_expected_counts,
+                "Expected hyperedge counts by size, starting at lower-size-bound")
+            ->delimiter(',');
+
+        probabilities
+            ->add_option(
+                "--size-expected-file", config.size_expected_counts_file,
+                "File with one expected hyperedge count per line, starting at lower-size-bound")
+            ->check(CLI::ExistingFile);
+
+        auto* budget_params = probabilities->add_option_group("Budget Parameters");
+
+        add_option_edge_budget(budget_params);
+
+        budget_params
+            ->add_option("--sd,--size-decay", config.size_decay, "Geometric decay parameter for expected counts")
+            ->check(CLI::Range(0.0, 1.0));
+
+        probabilities->require_option(1);
+        probabilities->silent();
+
+        return probabilities;
+    };
 
     // Use 40 characters width for help
     auto formatter = std::make_shared<CLI::Formatter>();
@@ -352,33 +432,45 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     }
 
     { // Hyper GNM
-        auto* cmd = app.add_subcommand("hgnm", "Erdos-Renyi Hypergraph Generator");
+        auto* cmd = app.add_subcommand("hgnm", "Erdos-Renyi Hypergraph G(n,m)");
         cmd->alias("h-gnm")->alias("h_gnm");
         cmd->callback(set_hypergraph_generator(GeneratorType::H_GNM));
 
         auto* params = cmd->add_option_group("Parameters");
         add_hypergraph_nm(params);
+        add_hyper_size_bounds(params);
+        add_hgnm_size_distribution(params);
+        auto* approximation = cmd->add_option_group("Approximation");
 
-        params->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for Hyperedge sizes");
-        params->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for Hyperedge sizes");
-        params->add_option("--decay", config.size_dist_alpha, "Decay Parameter for Hyperedge sizes")
-            ->check(CLI::Range(0.0, 1.0));
+        approximation->add_flag("--approx", config.approx, "Use approximate generation");
 
+        approximation->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
+
+        approximation->silent();
+
+        cmd->add_flag("--fast", config.allow_duplicates, "Do not check for duplicate edges in order to speed up");
         params->silent();
     }
 
     { // Hyper GNP
-        auto* cmd = app.add_subcommand("hgnp", "Erdos-Renyi Hypergraph Generator");
-        cmd->alias("hyper_gnp")->alias("hyper-gnp");
-        cmd->callback([&] { config.generator = GeneratorType::H_GNP; });
-        add_option_n(cmd)->required();
+        auto* cmd = app.add_subcommand("hgnp", "Erdos-Renyi Hypergraph G(n,p)");
+        cmd->alias("h-gnp")->alias("h_gnp")->alias("hyper_gnp")->alias("hyper-gnp");
+        cmd->callback(set_hypergraph_generator(GeneratorType::H_GNP));
 
         auto* params = cmd->add_option_group("Parameters");
-        params->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for Hyperedge sizes");
-        params->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for Hyperedge sizes");
-        // add_option_p(cmd)->required(); TODO: Overhaul this.
+        add_option_n(params)->required();
+        add_hyper_size_bounds(params);
 
+        auto* approximation = cmd->add_option_group("Approximation");
+
+        approximation->add_flag("--approx", config.approx, "Use approximate generation");
+
+        approximation->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
+
+        cmd->add_flag("--fast", config.allow_duplicates, "Do not check for duplicate edges in order to speed up");
         params->silent();
+
+        add_hgnp_probabilities(cmd);
     }
 
 #ifdef KAGEN_CGAL_FOUND

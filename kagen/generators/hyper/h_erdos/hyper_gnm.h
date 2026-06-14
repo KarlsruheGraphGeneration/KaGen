@@ -2,15 +2,17 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
+#include "kagen/hypergraph/debug_logger_erdos.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/rng_wrapper.h"
 
-#include <boost/multiprecision/cpp_int.hpp>
-
+#include <memory>
+#include <optional>
 #include <vector>
 
 namespace kagen {
-using CountInt = boost::multiprecision::cpp_int;
+
 class HyperGNMFactory : public GeneratorFactory {
 public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
@@ -26,49 +28,35 @@ protected:
     void FinalizeCSR(MPI_Comm comm) final;
 
 private:
+    void GenerateHyperedgesOfSize(SInt hyperedge_size, SInt m_k);
+
+    void PushHyperedge(const std::vector<SInt>& pins);
+
+    SInt SampleHyperedgeSize(SInt lower, SInt upper, double alpha, RNGWrapper<>& rng, SInt& seed);
+
+    SInt ApproximateLocalHyperedgeCount(SInt hyperedge_size, SInt m_k);
+
+    SInt ApproximateLocalHyperedgeCountRecursive(
+        SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt target_rank, long double population_mass, SInt draws,
+        SInt level, LogBinomCache& log_binom_cache);
+
+    SInt ExactLocalHyperedgeCount(SInt hyperedge_size, SInt m_k);
+
+    void GenerateSizeCounts(SInt lower, SInt upper, double alpha, std::unordered_map<SInt, SInt>& size_counts);
+
+    void GenerateDeterministicDecaySizeCounts(
+        SInt lower, SInt upper, double decay, std::unordered_map<SInt, SInt>& size_counts);
+
+    SInt ExactLocalHyperedgeCountRecursive(
+        SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt target_rank, CountInt population, SInt draws,
+        SInt level);
+
     const PGeneratorConfig& config_;
     PEID                    rank_;
     PEID                    size_;
 
-    RNGWrapper<BigInt> rng_;
-
-    BigInt LocalBegin(BigInt universe_size) const;
-    BigInt LocalEnd(BigInt universe_size) const;
-
-    SInt HyperedgesOfSize(SInt k) const;
-
-    CountInt Binomial(SInt n, SInt k) const;
-
-    std::vector<SInt> UnrankCombination(BigInt index, SInt n, SInt k) const;
-
-    void GenerateHyperedgesOfSize(SInt k, SInt m_k);
-
-    void QueryCombinationRange(
-        SInt k, SInt m, BigInt global_begin, BigInt global_end, BigInt query_begin, BigInt query_end, SInt level);
-
-    void GenerateRange(SInt k, SInt m, BigInt global_begin, BigInt global_end, SInt level);
-
-    void PushHyperedge(const std::vector<SInt>& pins);
-
-    BigInt SaturationLimit(SInt m) const;
-
-    CountInt CountFirstVertexRange(SInt lo, SInt hi, SInt n, SInt hyperedge_size) const;
-
-    void QueryFirstVertexRange(SInt hyperedge_size, SInt m, SInt lo, SInt hi, SInt query_lo, SInt query_hi, SInt level);
-
-    BigInt CheckedCastCount(const CountInt& value) const;
-
-    SInt FirstVertexBegin(SInt hyperedge_size) const;
-
-    SInt FirstVertexEnd(SInt hyperedge_size) const;
-
-    void QueryPrefix(std::vector<SInt>& prefix, SInt remaining_k, SInt lo, SInt hi, SInt m, SInt level);
-
-    std::vector<SInt> UnrankFirstVertexRange(BigInt index, SInt lo, SInt hi, SInt n, SInt k) const;
-
-    BigInt BinomialNative(SInt n, SInt k) const;
-
-    std::string ToString(__int128 value);
+    RNGWrapper<>                              rng_;
+    std::optional<ErdosHypergraphDebugLogger> debug_logger_;
 };
 
 using HyperGNMSmall = HyperGNM<SInt>;

@@ -1,35 +1,25 @@
-#pragma once
-
-#include "kagen/kagen.h"
-
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 
 namespace kagen {
 
-class HypergraphDebugLogger {
+class CsvDebugLogger {
 public:
-    explicit HypergraphDebugLogger(const std::string& filename, const bool append = false)
+    CsvDebugLogger(const std::string& filename, const bool append, std::string_view header)
         : out_(filename, append ? (std::ios::out | std::ios::app) : (std::ios::out | std::ios::trunc)) {
         const bool should_write_header =
             !append || !std::filesystem::exists(filename) || std::filesystem::file_size(filename) == 0;
+
         if (should_write_header) {
-            out_ << "hyperedge_id,hyperedge_center,radius,candidate_cells,inside_cells,partial_cells,outside_cells,"
-                    "emitted_pins,emitted_ranges,estimated_size,duration_ns,inside_estimated_size,partial_estimated_"
-                    "size, \n";
+            out_ << header << '\n';
         }
     }
 
-    void LogHyperedge(
-        const SInt hyperedge_id, const std::string& hyperedge_center, const double radius, const SInt candidate_cells,
-        const SInt inside_cells, const SInt partial_cells, const SInt outside_cells, const SInt emitted_pins,
-        const SInt emitted_ranges, const SInt estimated_size, const long long duration_ns,
-        const SInt inside_estimated_size, const SInt partial_estimated_size) {
-        out_ << hyperedge_id << ',' << hyperedge_center << ',' << radius << ',' << candidate_cells << ','
-             << inside_cells << ',' << partial_cells << ',' << outside_cells << ',' << emitted_pins << ','
-             << emitted_ranges << ',' << estimated_size << ',' << duration_ns << ',' << inside_estimated_size << ','
-             << partial_estimated_size << '\n';
+protected:
+    std::ofstream& out() {
+        return out_;
     }
 
 private:

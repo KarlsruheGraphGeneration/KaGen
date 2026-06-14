@@ -1,11 +1,16 @@
 #include "kagen/generators/hyper/h_erdos/hyper_gnp.h"
 
+#include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
 #include "kagen/sampling/hash.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
-#include <iostream>
+#include <fstream>
 #include <limits>
+#include <sstream>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace kagen {
@@ -28,6 +33,65 @@ HyperGNP<BigInt>::HyperGNP(const PGeneratorConfig& config, const PEID rank, cons
     if (config_.k == 0) {
         throw ConfigurationError("HGNP requires at least one chunk");
     }
+
+    if (config_.debug) {
+        debug_logger_.emplace(
+            config_.output_graph.filename + "_hgnp_debug_rank_" + std::to_string(rank_) + ".csv", false);
+    }
+}
+template <typename BigInt>
+std::pair<double, double> HyperGNP<BigInt>::CalculateProbability(SInt hyperedge_size, SInt lower_bound) {
+    double p            = 0.0;
+    double expected_m_k = -1.0;
+    switch (probs_type_) {
+        case EXPLICIT_PROBS:
+            p = config_.size_probabilities[hyperedge_size - lower_bound];
+            break;
+        case EXPLICIT_EXPECTED:
+            expected_m_k = config_.size_expected_counts[hyperedge_size - lower_bound];
+            break;
+        case BUDGET_MODE:
+            expected_m_k = config_.edge_budget * config_.size_decay
+                           * std::pow(1.0 - config_.size_decay, static_cast<double>(hyperedge_size - lower_bound));
+            break;
+        default:
+            p = config_.p;
+            break;
+    }
+    return {p, expected_m_k};
+}
+
+template <typename BigInt>
+void HyperGNP<BigInt>::SetProbability() {
+    const bool explicit_probs    = !config_.size_probabilities.empty();
+    const bool explicit_expected = !config_.size_expected_counts.empty();
+    const bool budget_mode       = config_.edge_budget > 0.0;
+    if (explicit_probs) {
+        probs_type_ = ProbabilityType::EXPLICIT_PROBS;
+        return;
+    }
+    if (explicit_expected) {
+        probs_type_ = ProbabilityType::EXPLICIT_EXPECTED;
+        return;
+    }
+    if (budget_mode) {
+        probs_type_ = ProbabilityType::BUDGET_MODE;
+        return;
+    }
+
+    probs_type_ = ProbabilityType::GLOBAL_PROBABILITY;
+}
+
+template <typename BigInt>
+SInt HyperGNP<BigInt>::SetUpperBound(SInt hard_upper_bound, SInt lower_bound) {
+    switch (probs_type_) {
+        case EXPLICIT_PROBS:
+            return std::min<SInt>(lower_bound + static_cast<SInt>(config_.size_probabilities.size()) - 1, config_.n);
+        case EXPLICIT_EXPECTED:
+            return std::min<SInt>(lower_bound + static_cast<SInt>(config_.size_expected_counts.size()) - 1, config_.n);
+        default:
+            return hard_upper_bound;
+    }
 }
 
 template <typename BigInt>
@@ -35,48 +99,110 @@ void HyperGNP<BigInt>::GenerateCSR() {
     graph_.hyperedge_offsets.push_back(0);
 
     const SInt lower_bound = config_.size_dist_lower_bound;
-    const SInt upper_bound =
+    const SInt hard_upper_bound =
         config_.size_dist_upper_bound != 0 ? std::min(config_.size_dist_upper_bound, config_.n) : config_.n;
 
-    for (SInt hyperedge_size = lower_bound; hyperedge_size <= upper_bound; ++hyperedge_size) {
-        const double expected_edges = 1000.0 / std::pow(2.0, hyperedge_size - lower_bound);
+    if (!config_.size_probabilities_file.empty()) {
+        std::ifstream in(config_.size_probabilities_file);
+        if (!in) {
+            throw ConfigurationError("Could not open HGNP size probability file");
+        }
 
-        const CountInt universe = Binomial(config_.n, hyperedge_size);
-        if (universe == 0) {
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.empty() || line[0] == '#') {
+                continue;
+            }
+
+            config_.size_probabilities.push_back(std::stod(line));
+        }
+    }
+
+    if (!config_.size_expected_counts_file.empty()) {
+        std::ifstream in(config_.size_expected_counts_file);
+        if (!in) {
+            throw ConfigurationError("Could not open HGNP size expected counts file");
+        }
+
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.empty() || line[0] == '#') {
+                continue;
+            }
+
+            config_.size_expected_counts.push_back(std::stod(line));
+        }
+    }
+
+    SetProbability();
+
+    SInt upper_bound = SetUpperBound(hard_upper_bound, lower_bound);
+
+    for (SInt hyperedge_size = lower_bound; hyperedge_size <= upper_bound; ++hyperedge_size) {
+        std::pair<double, double> probability_factors = CalculateProbability(hyperedge_size, lower_bound);
+        double                    p                   = probability_factors.first;
+        double                    expected_m_k        = probability_factors.second;
+
+        if (expected_m_k == 0.0 || ExpectedCountIsNegligible(expected_m_k)) {
+            if (probs_type_ == BUDGET_MODE) {
+                break;
+            }
             continue;
         }
 
-        const long double log_binom = std::lgammal(static_cast<long double>(config_.n) + 1.0L)
-                                      - std::lgammal(static_cast<long double>(hyperedge_size) + 1.0L)
-                                      - std::lgammal(static_cast<long double>(config_.n - hyperedge_size) + 1.0L);
+        if (expected_m_k > 0.0) {
+            const long double log_p =
+                std::log(static_cast<long double>(expected_m_k)) - LogBinomialApprox(config_.n, hyperedge_size);
 
-        const long double p_ld = static_cast<long double>(expected_edges) / expl(log_binom);
-        const double      p    = static_cast<double>(std::min<long double>(1.0L, p_ld));
+            if (log_p < std::log(static_cast<long double>(std::numeric_limits<double>::denorm_min()))) {
+                if (probs_type_ == BUDGET_MODE) {
+                    break;
+                }
+                continue;
+            }
 
-        if (rank_ == 0) {
-            std::cout << "k=" << hyperedge_size << " expected=" << expected_edges << " p=" << p << '\n';
+            p = std::clamp(static_cast<double>(expl(log_p)), 0.0, 1.0);
+        }
+
+        if (p < 0.0 || p > 1.0) {
+            throw ConfigurationError("HGNP probability must be in [0, 1]");
         }
 
         if (p <= 0.0) {
             continue;
         }
 
-        GenerateHyperedgesOfSizeGNP(hyperedge_size, universe, p);
+        if (debug_logger_) {
+            std::ostringstream p_info;
+            p_info << std::scientific << p;
+
+            debug_logger_->LogBlock(
+                rank_, hyperedge_size, "size", "min_owner", 0, 0, 0, "unknown", 0, 0, "0", 0, 0, "p=" + p_info.str());
+        }
+
+        GenerateHyperedgesOfSize(hyperedge_size, p);
     }
 
     const SInt vertices_per_pe = config_.n / size_;
     const SInt remainder       = config_.n % size_;
 
-    const SInt start = rank_ * vertices_per_pe + std::min<SInt>(rank_, remainder);
-    const SInt end   = start + vertices_per_pe + (rank_ < remainder);
+    const SInt start = (rank_ * vertices_per_pe) + std::min<SInt>(rank_, remainder);
+    const SInt end   = start + vertices_per_pe + static_cast<SInt>(static_cast<SInt>(rank_) < remainder);
 
     SetVertexRange(start, end);
 }
+template <typename BigInt>
+void HyperGNP<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const double p) {
+    if (config_.approx) {
+        GenerateHyperedgesOfSizeApprox(hyperedge_size, p);
+    } else {
+        GenerateHyperedgesOfSizeExact(hyperedge_size, p);
+    }
+}
 
 template <typename BigInt>
-void HyperGNP<BigInt>::GenerateHyperedgesOfSizeGNP(
-    const SInt hyperedge_size, const CountInt& /*universe*/, const double p) {
-    if (hyperedge_size <= 0 || hyperedge_size > config_.n || p <= 0.0) {
+void HyperGNP<BigInt>::GenerateHyperedgesOfSizeApprox(const SInt hyperedge_size, const double p) {
+    if (hyperedge_size == 0 || hyperedge_size > config_.n || p <= 0.0) {
         return;
     }
 
@@ -84,281 +210,310 @@ void HyperGNP<BigInt>::GenerateHyperedgesOfSizeGNP(
         throw ConfigurationError("HGNP probabilities must be in [0, 1]");
     }
 
-    const SInt global_first_begin = 0;
-    const SInt global_first_end   = config_.n - hyperedge_size + 1;
+    const SInt local_min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
 
-    const SInt local_first_begin = FirstVertexBegin(hyperedge_size);
-    const SInt local_first_end   = FirstVertexEnd(hyperedge_size);
+    const SInt local_min_end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
 
-    QueryFirstVertexRangeGNP(
-        hyperedge_size, global_first_begin, global_first_end, local_first_begin, local_first_end, p, 1);
+    if (local_min_begin == local_min_end) {
+        return;
+    }
+
+    LogBinomCache count_cache(hyperedge_size);
+
+    GenerateApproxLocalRange(hyperedge_size, local_min_begin, local_min_end, p, 0, count_cache);
 }
 
 template <typename BigInt>
-void HyperGNP<BigInt>::QueryFirstVertexRangeGNP(
-    const SInt hyperedge_size, const SInt lo, const SInt hi, const SInt query_lo, const SInt query_hi, const double p,
-    const SInt level) {
-    if (lo >= hi || p <= 0.0 || query_lo >= hi || query_hi <= lo) {
+SInt HyperGNP<BigInt>::FindApproxMassSplit(
+    const SInt begin, const SInt end, const SInt n, const SInt k, const long double total_mass, LogBinomCache& cache) {
+    const long double half = total_mass * 0.5L;
+
+    SInt left  = begin + 1;
+    SInt right = end - 1;
+
+    SInt best = begin + ((end - begin) / 2);
+
+    while (left <= right) {
+        const SInt mid = left + ((right - left) / 2);
+
+        const long double left_mass = MinRangeMassApproxCached(begin, mid, n, k, cache);
+
+        if (left_mass <= half) {
+            best = mid;
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+
+    return std::clamp<SInt>(best, begin + 1, end - 1);
+}
+
+template <typename BigInt>
+void HyperGNP<BigInt>::GenerateApproxLocalRange(
+    const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, const double p, const SInt level,
+    LogBinomCache& count_cache) {
+    constexpr SInt kTargetEdgesPerBlock = 16384;
+    constexpr SInt kTargetMinRangeWidth = 1ULL << 20; // 1,048,576
+
+    if (local_min_begin >= local_min_end || p <= 0.0) {
         return;
     }
 
-    const CountInt universe = CountFirstVertexRange(lo, hi, config_.n, hyperedge_size);
+    const long double local_mass =
+        MinRangeMassApproxCached(local_min_begin, local_min_end, config_.n, hyperedge_size, count_cache);
 
-    if (universe == 0) {
+    if (local_mass <= 0.0L) {
         return;
     }
 
-    if (query_lo <= lo && hi <= query_hi && universe <= static_cast<CountInt>(std::numeric_limits<BigInt>::max())) {
-        const BigInt universe_rng = CheckedCastCount(universe);
+    const long double log_total = count_cache.Get(config_.n, hyperedge_size);
 
-        const SInt seed = sampling::Spooky::hash(config_.seed + 104729 * hyperedge_size + 9176 * level + lo);
+    const long double log_expected = std::log(static_cast<long double>(p)) + std::log(local_mass) + log_total;
 
-        const SInt m = rng_.GenerateBinomial(seed, universe_rng, p);
+    const long double expected = log_expected > std::log(static_cast<long double>(std::numeric_limits<SInt>::max()))
+                                     ? static_cast<long double>(std::numeric_limits<SInt>::max())
+                                     : expl(log_expected);
 
-        if (m == 0) {
+    const SInt min_range_width = local_min_end - local_min_begin;
+
+    const bool split_by_edges = expected > static_cast<long double>(kTargetEdgesPerBlock);
+
+    const bool split_by_width = min_range_width > kTargetMinRangeWidth;
+
+    if ((split_by_edges || split_by_width) && min_range_width > 1) {
+        const SInt split =
+            split_by_width ? local_min_begin + (min_range_width / 2)
+                           : FindApproxMassSplit(
+                                 local_min_begin, local_min_end, config_.n, hyperedge_size, local_mass, count_cache);
+
+        GenerateApproxLocalRange(hyperedge_size, local_min_begin, split, p, level + 1, count_cache);
+
+        GenerateApproxLocalRange(hyperedge_size, split, local_min_end, p, level + 1, count_cache);
+
+        return;
+    }
+
+    const SInt count_seed = sampling::Spooky::hash(
+        static_cast<unsigned long long>(config_.seed)
+        + (static_cast<unsigned long long>(hyperedge_size) * kCountSeedMultiplier)
+        + (static_cast<unsigned long long>(rank_) * kRankSeedMultiplier)
+        + (static_cast<unsigned long long>(local_min_begin) * kEdgeSeedMultiplier)
+        + (static_cast<unsigned long long>(level) * kEdgeRankSeedMultiplier));
+
+    const SInt local_m = PoissonLocalCountFromScaledMass(local_mass, log_total, p, rng_, count_seed);
+
+    if (local_m == 0) {
+        return;
+    }
+
+    const SInt search_width = local_min_end - local_min_begin;
+
+    const std::size_t expected_cache_size = static_cast<std::size_t>(
+        std::min<SInt>(config_.n, std::max<SInt>(4096, std::min<SInt>(search_width, local_m * 8))));
+
+    LogBinomCache log_binom_cache(hyperedge_size, expected_cache_size);
+
+    GenerateLocalHyperedges(hyperedge_size, local_min_begin, local_min_end, local_m, log_binom_cache);
+}
+
+template <typename BigInt>
+void HyperGNP<BigInt>::GenerateHyperedgesOfSizeExact(const SInt hyperedge_size, const double p) {
+    if (hyperedge_size == 0 || hyperedge_size > config_.n || p <= 0.0) {
+        return;
+    }
+
+    if (p > 1.0) {
+        throw ConfigurationError("HGNP probabilities must be in [0, 1]");
+    }
+
+    const SInt local_min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
+
+    const SInt local_min_end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+
+    if (local_min_begin == local_min_end) {
+        return;
+    }
+
+    const CountInt local_population = MinRangeMassExact(local_min_begin, local_min_end, config_.n, hyperedge_size);
+
+    ValidateExactMinOwnerPartition(hyperedge_size);
+
+    GenerateExactLocalRange(hyperedge_size, local_min_begin, local_min_end, p, 0);
+}
+
+template <typename BigInt>
+void HyperGNP<BigInt>::GenerateExactLocalRange(
+    const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, const double p, const SInt level) {
+    if (local_min_begin >= local_min_end || p <= 0.0) {
+        return;
+    }
+
+    const CountInt population = MinRangeMassExact(local_min_begin, local_min_end, config_.n, hyperedge_size);
+
+    if (population == 0) {
+        return;
+    }
+
+    if (population <= std::numeric_limits<SInt>::max()) {
+        const SInt count_seed = sampling::Spooky::hash(
+            static_cast<unsigned long long>(config_.seed)
+            + (static_cast<unsigned long long>(hyperedge_size) * kCountSeedMultiplier)
+            + (static_cast<unsigned long long>(rank_) * kRankSeedMultiplier)
+            + (static_cast<unsigned long long>(local_min_begin) * kEdgeSeedMultiplier)
+            + (static_cast<unsigned long long>(level) * kEdgeRankSeedMultiplier));
+
+        const SInt local_population = population.convert_to<SInt>();
+        const SInt local_m          = rng_.GenerateBinomial(count_seed, local_population, p);
+
+        if (local_m == 0) {
             return;
         }
 
-        std::vector<SInt> prefix;
-        QueryPrefix(prefix, hyperedge_size, lo, hi, m, level);
+        const long double density = static_cast<long double>(local_m) / population.convert_to<long double>();
+
+        if (density > 0.25L) {
+            throw ConfigurationError("Dense exact HGNP not implemented yet");
+        }
+
+        const SInt search_width = local_min_end - local_min_begin;
+
+        const std::size_t expected_cache_size = static_cast<std::size_t>(
+            std::min<SInt>(config_.n, std::max<SInt>(4096, std::min<SInt>(search_width, local_m * 8))));
+
+        LogBinomCache log_binom_cache(hyperedge_size, expected_cache_size);
+
+        GenerateLocalHyperedges(hyperedge_size, local_min_begin, local_min_end, local_m, log_binom_cache);
+
         return;
     }
 
-    if (hi - lo == 1) {
-        const SInt        first = lo;
-        std::vector<SInt> prefix;
-        prefix.reserve(hyperedge_size);
-        prefix.push_back(first);
-
-        QueryPrefixGNP(prefix, hyperedge_size - 1, first + 1, config_.n, p, level + 1);
-        return;
+    if (local_min_end - local_min_begin <= 1) {
+        throw ConfigurationError(
+            "Exact HGNP min-owner atom population exceeds SInt; exact sub-minimum partitioning is required");
     }
 
-    const SInt mid = lo + ((hi - lo) / 2);
+    const SInt split = FindExactPopulationSplit(local_min_begin, local_min_end, config_.n, hyperedge_size, population);
 
-    QueryFirstVertexRangeGNP(hyperedge_size, lo, mid, query_lo, query_hi, p, level + 1);
-    QueryFirstVertexRangeGNP(hyperedge_size, mid, hi, query_lo, query_hi, p, level + 1);
+    GenerateExactLocalRange(hyperedge_size, local_min_begin, split, p, level + 1);
+
+    GenerateExactLocalRange(hyperedge_size, split, local_min_end, p, level + 1);
 }
+
 template <typename BigInt>
-void HyperGNP<BigInt>::QueryPrefixGNP(
-    std::vector<SInt>& prefix, const SInt remaining_k, const SInt lo, const SInt hi, const double p, const SInt level) {
-    if (remaining_k == 0) {
-        const SInt seed =
-            sampling::Spooky::hash(config_.seed + (99991 * level) + (17 * static_cast<SInt>(prefix.front())));
+SInt HyperGNP<BigInt>::FindExactPopulationSplit(
+    const SInt begin, const SInt end, const SInt n, const SInt k, const CountInt& total_population) {
+    const CountInt half = total_population / 2;
 
-        const SInt m = rng_.GenerateBinomial(seed, static_cast<BigInt>(1), p);
-        if (m == 1) {
-            PushHyperedge(prefix);
-        }
-        return;
-    }
+    SInt left  = begin + 1;
+    SInt right = end - 1;
 
-    if (lo >= hi || hi - lo < remaining_k || p <= 0.0) {
-        return;
-    }
+    SInt best = begin + ((end - begin) / 2);
 
-    const SInt max_next = hi - remaining_k;
+    while (left <= right) {
+        const SInt mid = left + ((right - left) / 2);
 
-    for (SInt next = lo; next <= max_next; ++next) {
-        const CountInt universe = Binomial(hi - next - 1, remaining_k - 1);
+        const CountInt left_population = MinRangeMassExact(begin, mid, n, k);
 
-        if (universe == 0) {
-            continue;
-        }
-
-        prefix.push_back(next);
-
-        if (universe <= static_cast<CountInt>(std::numeric_limits<BigInt>::max())) {
-            const BigInt universe_rng = CheckedCastCount(universe);
-
-            const SInt seed = sampling::Spooky::hash(
-                config_.seed + 4256249 * remaining_k + 741457 * level + 17 * next
-                + 131 * static_cast<SInt>(prefix.front()));
-
-            const SInt m = rng_.GenerateBinomial(seed, universe_rng, p);
-
-            if (m != 0) {
-                rng_.GenerateSample(seed, universe_rng, m, [&](const BigInt sample) {
-                    std::vector<SInt> pins = prefix;
-
-                    std::vector<SInt> suffix = UnrankCombination(sample - 1, hi - next - 1, remaining_k - 1);
-
-                    for (const SInt vertex: suffix) {
-                        pins.push_back(next + 1 + vertex);
-                    }
-
-                    PushHyperedge(pins);
-                });
-            }
+        if (left_population <= half) {
+            best = mid;
+            left = mid + 1;
         } else {
-            QueryPrefixGNP(prefix, remaining_k - 1, next + 1, hi, p, level + 1);
+            right = mid - 1;
+        }
+    }
+
+    best = std::clamp<SInt>(best, begin + 1, end - 1);
+    return best;
+}
+
+template <typename BigInt>
+void HyperGNP<BigInt>::GenerateLocalHyperedges(
+    const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, const SInt local_m,
+    LogBinomCache& log_binom_cache) {
+    if (local_m == 0) {
+        return;
+    }
+    const auto time_begin = std::chrono::steady_clock::now();
+
+    std::unordered_set<std::vector<SInt>, VectorHash> local_seen;
+
+    if (!config_.allow_duplicates) {
+        local_seen.max_load_factor(0.5);
+        local_seen.reserve(static_cast<std::size_t>(local_m));
+    }
+
+    SInt generated = 0;
+
+    SInt edge_seed = sampling::Spooky::hash(
+        static_cast<unsigned long long>(config_.seed)
+        + (static_cast<unsigned long long>(rank_) * kEdgeRankSeedMultiplier)
+        + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
+
+    const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
+    CountInt       attempts     = 0;
+
+    while (generated < local_m) {
+        const SInt s = SampleMinimumImplicit(
+            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
+
+        auto pins = FloydSample(s + 1, config_.n - s - 1, hyperedge_size - 1, rng_, edge_seed);
+
+        pins.push_back(s);
+        std::sort(pins.begin(), pins.end());
+
+        if (config_.allow_duplicates || local_seen.insert(pins).second) {
+            PushHyperedge(pins);
+            ++generated;
         }
 
-        prefix.pop_back();
+        if (++attempts > max_attempts) {
+            throw ConfigurationError("HGNP rejection sampling exceeded attempt limit");
+        }
+    }
+
+    const auto time_end = std::chrono::steady_clock::now();
+
+    const double seconds = std::chrono::duration<double>(time_end - time_begin).count();
+
+    const SInt num_pins = local_m * hyperedge_size;
+
+    const double us_per_pin = num_pins > 0 ? (seconds * 1e6) / static_cast<double>(num_pins) : 0.0;
+    if (config_.debug) {
+        std::cout << "HGNP rank=" << rank_ << " k=" << hyperedge_size << " local_m=" << local_m << " pins=" << num_pins
+                  << " attempts=" << attempts << " us_per_pin=" << us_per_pin << " min_begin=" << local_min_begin
+                  << " min_end=" << local_min_end << '\n';
     }
 }
+
 template <typename BigInt>
-void HyperGNP<BigInt>::QueryPrefix(
-    std::vector<SInt>& prefix, const SInt remaining_k, const SInt lo, const SInt hi, const SInt m, const SInt level) {
-    if (m == 0 || remaining_k == 0 || lo >= hi) {
+void HyperGNP<BigInt>::ValidateExactMinOwnerPartition(const SInt hyperedge_size) {
+    if (!config_.debug || config_.n > 10000 || hyperedge_size > 8) {
         return;
     }
 
-    const CountInt universe = CountFirstVertexRange(lo, hi, config_.n, remaining_k);
+    CountInt check_sum = 0;
 
-    if (universe == 0) {
-        return;
+    for (SInt r = 0; r < size_; ++r) {
+        const SInt begin = FindMinBoundaryByMass(config_.n, hyperedge_size, r, size_);
+        const SInt end   = FindMinBoundaryByMass(config_.n, hyperedge_size, r + 1, size_);
+
+        if (begin > end) {
+            throw ConfigurationError("HGNP exact validation failed: invalid min range");
+        }
+
+        check_sum += MinRangeMassExact(begin, end, config_.n, hyperedge_size);
     }
 
-    if (remaining_k == 1) {
-        const BigInt universe_rng = CheckedCastCount(static_cast<CountInt>(hi - lo));
+    const CountInt total = BinomialExact(config_.n, hyperedge_size);
 
-        const SInt seed = sampling::Spooky::hash(config_.seed + 99173 * level + lo + 17 * prefix.size());
-
-        rng_.GenerateSample(seed, universe_rng, m, [&](const BigInt sample) {
-            std::vector<SInt> pins = prefix;
-            pins.push_back(lo + static_cast<SInt>(sample - 1));
-            PushHyperedge(pins);
-        });
-
-        return;
+    if (check_sum != total) {
+        throw ConfigurationError("HGNP exact validation failed: local populations do not sum to total population");
     }
-
-    if (universe <= static_cast<CountInt>(std::numeric_limits<BigInt>::max())) {
-        const BigInt universe_rng = CheckedCastCount(universe);
-
-        const SInt seed = sampling::Spooky::hash(config_.seed + 130363 * remaining_k + 2750159 * level + lo);
-
-        rng_.GenerateSample(seed, universe_rng, m, [&](const BigInt sample) {
-            std::vector<SInt> pins = prefix;
-
-            std::vector<SInt> suffix = UnrankFirstVertexRange(sample - 1, lo, hi, config_.n, remaining_k);
-
-            pins.insert(pins.end(), suffix.begin(), suffix.end());
-            PushHyperedge(pins);
-        });
-
-        return;
-    }
-
-    const SInt mid = lo + ((hi - lo) / 2);
-
-    const CountInt left_weight  = CountFirstVertexRange(lo, mid, config_.n, remaining_k);
-    const CountInt right_weight = universe - left_weight;
-
-    if (left_weight == 0) {
-        QueryPrefix(prefix, remaining_k, mid, hi, m, level + 1);
-        return;
-    }
-
-    if (right_weight == 0) {
-        QueryPrefix(prefix, remaining_k, lo, mid, m, level + 1);
-        return;
-    }
-
-    const SInt seed = sampling::Spooky::hash(config_.seed + 271828 * remaining_k + 1618033 * level + lo);
-
-    const SInt left_m = rng_.GenerateHypergeometricLarge(seed, left_weight, m, universe);
-
-    QueryPrefix(prefix, remaining_k, lo, mid, left_m, level + 1);
-    QueryPrefix(prefix, remaining_k, mid, hi, m - left_m, level + 1);
 }
 
 template <typename BigInt>
 void HyperGNP<BigInt>::FinalizeCSR(MPI_Comm /*comm*/) {}
-
-template <typename BigInt>
-CountInt HyperGNP<BigInt>::Binomial(SInt n, SInt k) const {
-    if (k < 0 || k > n) {
-        return 0;
-    }
-
-    k = std::min(k, n - k);
-
-    CountInt result = 1;
-
-    for (SInt i = 1; i <= k; ++i) {
-        result *= static_cast<CountInt>(n - k + i);
-        result /= static_cast<CountInt>(i);
-    }
-
-    return result;
-}
-
-template <typename BigInt>
-SInt HyperGNP<BigInt>::FirstVertexBegin(const SInt hyperedge_size) const {
-    const SInt num_first_vertices = config_.n - hyperedge_size + 1;
-
-    return (num_first_vertices * static_cast<SInt>(rank_)) / static_cast<SInt>(size_);
-}
-
-template <typename BigInt>
-SInt HyperGNP<BigInt>::FirstVertexEnd(const SInt hyperedge_size) const {
-    const SInt num_first_vertices = config_.n - hyperedge_size + 1;
-
-    return (num_first_vertices * static_cast<SInt>(rank_ + 1)) / static_cast<SInt>(size_);
-}
-
-template <typename BigInt>
-BigInt HyperGNP<BigInt>::CheckedCastCount(const CountInt& value) const {
-    if (value > static_cast<CountInt>(std::numeric_limits<BigInt>::max())) {
-        throw ConfigurationError("hyperedge universe exceeds RNG integer range");
-    }
-
-    return static_cast<BigInt>(value);
-}
-
-template <typename BigInt>
-BigInt HyperGNP<BigInt>::BinomialNative(SInt n, SInt k) const {
-    if (k < 0 || k > n) {
-        return 0;
-    }
-
-    k = std::min(k, n - k);
-
-    BigInt result = 1;
-
-    for (SInt i = 1; i <= k; ++i) {
-        result *= static_cast<BigInt>(n - k + i);
-        result /= static_cast<BigInt>(i);
-    }
-
-    return result;
-}
-
-template <typename BigInt>
-std::vector<SInt> HyperGNP<BigInt>::UnrankCombination(BigInt index, const SInt n, const SInt k) const {
-    std::vector<SInt> pins;
-    pins.reserve(k);
-
-    SInt x = 0;
-
-    for (SInt remaining = k; remaining > 0; --remaining) {
-        BigInt count = BinomialNative(n - x - 1, remaining - 1);
-
-        for (; x < n; ++x) {
-            if (index < count) {
-                pins.push_back(x);
-                ++x;
-                break;
-            }
-
-            index -= count;
-
-            const SInt a = n - x - 1;
-            const SInt b = remaining - 1;
-
-            if (a > b && a > 0) {
-                count *= static_cast<BigInt>(a - b);
-                count /= static_cast<BigInt>(a);
-            } else {
-                count = 0;
-            }
-        }
-    }
-
-    return pins;
-}
 
 template <typename BigInt>
 void HyperGNP<BigInt>::PushHyperedge(const std::vector<SInt>& pins) {
@@ -366,62 +521,8 @@ void HyperGNP<BigInt>::PushHyperedge(const std::vector<SInt>& pins) {
     graph_.hyperedge_offsets.push_back(static_cast<SInt>(graph_.hyperedge_pins.size()));
 }
 
-template <typename BigInt>
-CountInt
-HyperGNP<BigInt>::CountFirstVertexRange(const SInt lo, const SInt hi, const SInt n, const SInt hyperedge_size) const {
-    if (lo >= hi || hyperedge_size == 0 || lo >= n) {
-        return 0;
-    }
-
-    const SInt clipped_hi = std::min<SInt>(hi, n - hyperedge_size + 1);
-
-    const CountInt left  = Binomial(n - lo, hyperedge_size);
-    const CountInt right = Binomial(n - clipped_hi, hyperedge_size);
-
-    return left > right ? left - right : CountInt{0};
-}
-
-template <typename BigInt>
-std::vector<SInt>
-HyperGNP<BigInt>::UnrankFirstVertexRange(BigInt index, const SInt lo, const SInt hi, const SInt n, const SInt k) const {
-    SInt left  = lo;
-    SInt right = hi;
-
-    while (left + 1 < right) {
-        const SInt mid = left + ((right - left) / 2);
-
-        const BigInt left_count = CheckedCastCount(CountFirstVertexRange(lo, mid, n, k));
-
-        if (index < left_count) {
-            right = mid;
-        } else {
-            left = mid;
-        }
-    }
-
-    const SInt first = left;
-
-    const BigInt before = CheckedCastCount(CountFirstVertexRange(lo, first, n, k));
-
-    index -= before;
-
-    std::vector<SInt> result;
-    result.reserve(k);
-
-    result.push_back(first);
-
-    std::vector<SInt> suffix = UnrankCombination(index, n - first - 1, k - 1);
-
-    for (const SInt vertex: suffix) {
-        result.push_back(first + 1 + vertex);
-    }
-
-    return result;
-}
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 template class HyperGNP<__int128>;
 #pragma GCC diagnostic pop
-
 } // namespace kagen

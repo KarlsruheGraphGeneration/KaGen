@@ -54,8 +54,6 @@ PGeneratorConfig Hyper_HyperbolicFactory::NormalizeParameters(
 
     config.is_hypergraph = true;
 
-    RandomRadiusChecks(config);
-
     if (config.streaming) {
         if (config.k < 1) {
             throw ConfigurationError("Number of chunks must be at least 1");

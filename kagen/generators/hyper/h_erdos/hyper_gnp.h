@@ -1,20 +1,20 @@
 #pragma once
 
 #include "kagen/generators/generator.h"
+#include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
+#include "kagen/hypergraph/debug_logger_erdos.h"
 #include "kagen/tools/rng_wrapper.h"
 
-#include <boost/multiprecision/cpp_int.hpp>
-
-#include <memory>
+#include <optional>
 #include <vector>
 
 namespace kagen {
 
-using CountInt = boost::multiprecision::cpp_int;
+enum ProbabilityType : std::uint8_t { EXPLICIT_PROBS, EXPLICIT_EXPECTED, BUDGET_MODE, GLOBAL_PROBABILITY };
 
 class HyperGNPFactory : public GeneratorFactory {
 public:
-    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const;
+    std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
 
 template <typename BigInt>
@@ -23,46 +23,53 @@ public:
     HyperGNP(const PGeneratorConfig& config, PEID rank, PEID size);
 
     void GenerateCSR() final;
+
     void FinalizeCSR(MPI_Comm comm) final;
 
 private:
     void GenerateHyperedgesOfSize(SInt hyperedge_size, double p);
 
-    void GenerateHyperedgesOfSizeGNP(SInt hyperedge_size, const CountInt& universe, double p);
+    void GenerateHyperedgesOfSizeApprox(SInt hyperedge_size, double p);
 
-    void QueryPrefix(std::vector<SInt>& prefix, SInt remaining_k, SInt lo, SInt hi, SInt m, SInt level);
+    void GenerateHyperedgesOfSizeExact(SInt hyperedge_size, double p);
 
-    void QueryPrefixGNP(std::vector<SInt>& prefix, SInt remaining_k, SInt lo, SInt hi, double p, SInt level);
-
-    void
-    QueryFirstVertexRangeGNP(SInt hyperedge_size, SInt lo, SInt hi, SInt query_lo, SInt query_hi, double p, SInt level);
-
-    CountInt GenerateGeometricSkip(SInt seed, CountInt counter, double p) const;
-
-    CountInt Binomial(SInt n, SInt k) const;
-
-    CountInt CountFirstVertexRange(SInt lo, SInt hi, SInt n, SInt hyperedge_size) const;
-
-    SInt FirstVertexBegin(SInt hyperedge_size) const;
-    SInt FirstVertexEnd(SInt hyperedge_size) const;
-
-    BigInt CheckedCastCount(const CountInt& value) const;
-
-    std::vector<SInt> UnrankFirstVertexRange(BigInt index, SInt lo, SInt hi, SInt n, SInt k) const;
-
-    BigInt BinomialNative(SInt n, SInt k) const;
-
-    std::vector<SInt> UnrankCombination(BigInt index, SInt n, SInt k) const;
+    void GenerateLocalHyperedges(
+        SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m, LogBinomCache& log_binom_cache);
 
     void PushHyperedge(const std::vector<SInt>& pins);
 
-private:
+    std::pair<double, double> CalculateProbability(SInt hyperedge_size, SInt lower_bound);
+
+    void SetProbability();
+
+    SInt SetUpperBound(SInt hard_upper_bound, SInt lower_bound);
+
+    void ValidateExactMinOwnerPartition(SInt hyperedge_size);
+
+    void GenerateExactLocalRange(SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, double p, SInt level);
+
+    SInt FindExactPopulationSplit(SInt begin, SInt end, SInt n, SInt k, const CountInt& total_population);
+
+    void GenerateApproxLocalRange(
+        SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, double p, SInt level,
+        LogBinomCache& count_cache);
+
+    SInt FindApproxMassSplit(SInt begin, SInt end, SInt n, SInt k, long double total_mass, LogBinomCache& cache);
+
     PGeneratorConfig config_;
-    PEID             rank_;
-    PEID             size_;
-    RNGWrapper<>     rng_;
+
+    PEID rank_;
+    PEID size_;
+
+    RNGWrapper<>    rng_;
+    ProbabilityType probs_type_ = ProbabilityType::GLOBAL_PROBABILITY;
+
+    std::optional<ErdosHypergraphDebugLogger> debug_logger_;
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 using HyperGNPBig = HyperGNP<__int128>;
+#pragma GCC diagnostic pop
 
 } // namespace kagen

@@ -187,9 +187,18 @@ struct PGeneratorConfig {
     bool debug = false;
 
     // Hyperedge Distribution for Erdos Renyi
-    SInt   size_dist_lower_bound = 2;
-    SInt   size_dist_upper_bound = 0;
-    double size_dist_alpha       = 0.9;
+    SInt                     size_dist_lower_bound = 2;
+    SInt                     size_dist_upper_bound = 0;
+    double                   size_dist_alpha       = 0.9;
+    std::vector<long double> size_probabilities;
+    std::string              size_probabilities_file;
+    std::vector<long double> size_expected_counts;
+    std::string              size_expected_counts_file;
+    double                   edge_budget             = 0.0;
+    double                   size_decay              = 0.0;
+    bool                     approx                  = false;
+    bool                     size_dist_deterministic = false;
+    bool                     allow_duplicates        = false;
 
     /*
      * Sets config.k if k == 0 to PEID size, else does nothing.

@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 // TODO(clickup)[2026-05-24]: Remove after Debugging
-#include "kagen/hypergraph/debug_logger.h"
+#include "kagen/hypergraph/debug_logger_geometric.h"
 
 #include <CGAL/number_utils_classes.h>
 
@@ -164,12 +164,12 @@ private:
         ranges = std::move(merged_ranges);
     }
 
-    GeometryPolicy                       geometry_;
-    PartialCellMode                      partial_cell_mode_;
-    PGeneratorConfig                     config_;
-    std::optional<HypergraphDebugLogger> logger_;
-    SInt                                 counter_ = 0;
-    int                                  rank_    = 0;
+    GeometryPolicy                                geometry_;
+    PartialCellMode                               partial_cell_mode_;
+    PGeneratorConfig                              config_;
+    std::optional<GeometricHypergraphDebugLogger> logger_;
+    SInt                                          counter_ = 0;
+    int                                           rank_    = 0;
 };
 
 } // namespace kagen

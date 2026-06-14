@@ -62,137 +62,65 @@ public:
 
         return dist(rng_);
     }
-
-    bool FitsNative(const CountInt& value) const {
-        return value <= static_cast<CountInt>(std::numeric_limits<int_t>::max());
+    void SeedUniformStream(const SInt seed) {
+        rng_.seed(seed);
     }
 
-    int_t CheckedCast(const CountInt& value) const {
-        if (!FitsNative(value)) {
-            throw ConfigurationError("count exceeds RNG native integer range");
-        }
-
-        return static_cast<int_t>(value);
-    }
-    /*
-    SInt GenerateHypergeometricLarge(
-        const SInt seed, const CountInt& left_population, const SInt draws, const CountInt& total_population) {
-        if (draws == 0 || left_population == 0 || total_population == 0) {
-            return 0;
-        }
-
-        if (left_population >= total_population) {
-            return draws;
-        }
-
-        // Exact path: same behavior as existing GNM when counts fit int_t.
-        if (FitsNative(left_population) && FitsNative(total_population)) {
-            return static_cast<SInt>(GenerateHypergeometric(
-                seed, CheckedCast(left_population), static_cast<int_t>(draws), CheckedCast(total_population)));
-        }
-
-        // Large-count path:
-        // Hypergeometric(N, K, draws) ≈ Binomial(draws, K / N)
-        // This is accurate when total_population is huge compared to draws.
-        const CountFloat p_float = CountFloat(left_population) / CountFloat(total_population);
-
-        double p = p_float.convert_to<double>();
-        p        = std::clamp(p, 0.0, 1.0);
-
-        return GenerateBinomial(seed, draws, static_cast<LPFloat>(p));
+    double GenerateUniformDoubleStream() {
+        return uniform_double_(rng_);
     }
 
-    ######################################
-        TODO: Temp exact Hypergeometric
-        Distribution for large populations
-    ######################################*/
-    SInt GenerateHypergeometricLarge(
-        const SInt seed, const CountInt& left_population, const SInt draws, const CountInt& total_population) {
-        if (draws == 0 || left_population == 0 || total_population == 0) {
-            return 0;
-        }
+    double GenerateCanonicalDoubleStream() {
+        constexpr double scale = 1.0 / 9007199254740992.0; // 2^-53
 
-        if (left_population >= total_population) {
-            return draws;
-        }
+        const std::uint64_t a = static_cast<std::uint64_t>(rng_()) >> 5; // 27 bits
+        const std::uint64_t b = static_cast<std::uint64_t>(rng_()) >> 6; // 26 bits
 
-        if (FitsNative(left_population) && FitsNative(total_population)) {
-            return static_cast<SInt>(GenerateHypergeometric(
-                seed, CheckedCast(left_population), static_cast<int_t>(draws), CheckedCast(total_population)));
-        }
+        return static_cast<double>((a << 26) | b) * scale;
+    }
 
+    SInt GeneratePoisson(SInt seed, double lambda) {
         rng_.seed(seed);
 
-        CountInt remaining_left  = left_population;
-        CountInt remaining_total = total_population;
+        std::poisson_distribution<SInt> poisson(lambda);
 
-        SInt successes = 0;
-
-        for (SInt draw = 0; draw < draws; ++draw) {
-            if (remaining_left == 0) {
-                break;
-            }
-
-            if (remaining_left == remaining_total) {
-                successes += draws - draw;
-                break;
-            }
-
-            const CountInt sample = GenerateUniformBelow(remaining_total);
-
-            if (sample < remaining_left) {
-                ++successes;
-                --remaining_left;
-            }
-
-            --remaining_total;
-        }
-
-        return successes;
+        return poisson(rng_);
     }
 
-    std::size_t BitLength(CountInt value) const {
-        std::size_t bits = 0;
-
-        while (value > 0) {
-            value >>= 1;
-            ++bits;
-        }
-
-        return bits;
-    }
-
-    CountInt GenerateUniformBelow(const CountInt& upper_bound) {
-        if (upper_bound <= 0) {
+    SInt GenerateBinomialHuge(SInt seed, CountInt n, LPFloat p) {
+        if (p <= 0.0) {
             return 0;
         }
 
-        const std::size_t bits = BitLength(upper_bound);
-
-        while (true) {
-            CountInt value = 0;
-
-            for (std::size_t generated = 0; generated < bits; generated += 32) {
-                value <<= 32;
-                value += static_cast<std::uint32_t>(rng_());
+        if (p >= 1.0) {
+            if (n > std::numeric_limits<SInt>::max()) {
+                throw ConfigurationError("Binomial variate exceeds SInt range");
             }
 
-            const std::size_t excess_bits = ((bits + 31) / 32) * 32 - bits;
-
-            if (excess_bits > 0) {
-                value >>= excess_bits;
-            }
-
-            if (value < upper_bound) {
-                return value;
-            }
+            return n.convert_to<SInt>();
         }
+
+        if (n <= std::numeric_limits<SInt>::max()) {
+            return GenerateBinomial(seed, n.convert_to<SInt>(), p);
+        }
+
+        const CountFloat mean = CountFloat(n) * CountFloat(p);
+
+        if (mean > CountFloat(std::numeric_limits<SInt>::max())) {
+            throw ConfigurationError("Expected binomial variate exceeds SInt range");
+        }
+
+        // Temporary exact-path stopgap:
+        // mathematically exact huge-n binomial still missing.
+        throw ConfigurationError("Huge-population exact binomial sampler not implemented yet");
     }
 
 private:
     const PGeneratorConfig& config_;
 
     std::mt19937                                         rng_;
+    std::uniform_real_distribution<double>               uniform_double_{0.0, 1.0};
+    std::uniform_real_distribution<long double>          uniform_long_double_{0.0L, 1.0L};
     sampling::hypergeometric_distribution<int_t, double> hyp_;
 };
 
