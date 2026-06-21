@@ -3,6 +3,7 @@
 #include "kagen/generators/generator.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
+#include "kagen/tools/rng_wrapper.h"
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -115,15 +116,11 @@ struct LogBinomCache {
 
 bool ExpectedCountIsNegligible(double expected_m_k);
 
-MinOwnerWeights ComputeMinOwnerWeights(SInt n, SInt k);
-
-MinOwnerPartition PartitionMinimaByWeight(const std::vector<long double>& weights, SInt p);
-
-std::vector<long double> BuildLocalMinCDF(SInt min_begin, SInt min_end, const std::vector<long double>& weights);
-
 std::vector<SInt> DeterministicRankCounts(SInt m, const std::vector<long double>& mass, long double total_mass);
 
 long double LogDifferenceOfExponentials(long double log_larger, long double log_smaller);
+
+long double LogAdd(long double log_a, long double log_b);
 
 long double MinRangeMassApprox(SInt begin, SInt end, SInt n, SInt k);
 
@@ -136,6 +133,8 @@ CountInt BinomialExact(SInt n, SInt k);
 CountInt MinRangeMassExact(SInt begin, SInt end, SInt n, SInt k);
 
 bool MinRangeMassDefinitelyExceedsSInt(SInt begin, SInt end, SInt n, SInt k);
+
+long double BinomSmallExactLD(SInt n, SInt q);
 
 template <typename RNG>
 std::vector<SInt> MultinomialRankCounts(
@@ -180,6 +179,9 @@ SInt SampleMinimumFromCDF(const SInt min_begin, const std::vector<long double>& 
 template <typename RNG>
 std::vector<SInt>
 FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sample_size, RNG& rng, SInt& seed) {
+    if (sample_size > universe_size) {
+        throw ConfigurationError("Cannot sample more pins than available vertices");
+    }
     if (sample_size <= 32) {
         std::vector<SInt> result;
         result.reserve(sample_size);
@@ -213,9 +215,9 @@ FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sam
     const SInt start = universe_size - sample_size;
 
     for (SInt j = start; j < universe_size; ++j) {
-        const SInt        draw_seed = sampling::Spooky::hash(seed++);
-        const long double x =
-            std::min<long double>(rng.GenerateUniform(draw_seed, 0.0L, 1.0L), std::nextafter(1.0L, 0.0L));
+        const long double x = std::min<long double>(
+            static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
+        ++seed;
 
         const SInt t = static_cast<SInt>(x * static_cast<long double>(j + 1));
 
@@ -354,6 +356,27 @@ SInt SampleMinimumImplicit(
 }
 
 template <typename RNG>
+SInt SampleBlockCountFromLogSize(
+    long double log_block_size, long double log_p, RNG& rng, SInt seed, const char* error_context) {
+    const long double log_expected = log_block_size + log_p;
+
+    if (log_expected <= std::log(std::numeric_limits<double>::denorm_min())) {
+        return 0;
+    }
+
+    if (log_expected > std::log(static_cast<long double>(std::numeric_limits<SInt>::max()))) {
+        throw ConfigurationError(std::string(error_context) + " expected local block count exceeds SInt");
+    }
+
+    if (log_block_size < std::log(static_cast<long double>(std::numeric_limits<SInt>::max()))) {
+        const SInt trials = static_cast<SInt>(std::llround(expl(log_block_size)));
+        return rng.GenerateBinomial(seed, trials, static_cast<double>(expl(log_p)));
+    }
+
+    return rng.GeneratePoisson(seed, static_cast<double>(expl(log_expected)));
+}
+
+template <typename RNG>
 SInt HypergeometricCountSequential(CountInt population, CountInt successes, const SInt draws, RNG& rng, SInt& seed) {
     SInt count = 0;
 
@@ -376,4 +399,199 @@ SInt HypergeometricCountSequential(CountInt population, CountInt successes, cons
     return count;
 }
 
+// Fast approximate Boltzmann-style sampler for HGNM pin-budget size counts.
+class BoltzmannPinBudgetSizeCountSampler {
+public:
+    BoltzmannPinBudgetSizeCountSampler(SInt m, SInt lower, SInt upper, SInt pin_budget)
+        : m_(m),
+          lower_(lower),
+          d_(upper - lower),
+          r_(pin_budget - (lower * m)) {}
+
+    std::unordered_map<SInt, SInt> Sample() {
+        if (r_ == 0) {
+            return {{lower_, m_}};
+        }
+
+        if (r_ == d_ * m_) {
+            return {{lower_ + d_, m_}};
+        }
+        const auto probs = BuildProbabilities();
+
+        if (r_ == d_ * m_) {
+            return {{lower_ + d_, m_}};
+        }
+
+        const SInt        active_d = static_cast<SInt>(probs.size()) - 1;
+        std::vector<SInt> counts(probs.size(), 0);
+
+        SInt edges_sum = 0;
+        SInt pins_sum  = 0;
+
+        std::vector<std::pair<long double, SInt>> fractional;
+        fractional.reserve(probs.size());
+
+        for (SInt t = 0; t <= active_d; ++t) {
+            const long double exact = static_cast<long double>(m_) * probs[t];
+            const SInt        base  = static_cast<SInt>(std::floor(exact));
+
+            counts[t] = base;
+            edges_sum += base;
+            pins_sum += base * t;
+
+            fractional.emplace_back(exact - static_cast<long double>(base), t);
+        }
+
+        std::sort(fractional.begin(), fractional.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+
+        for (SInt i = 0; edges_sum < m_; ++i) {
+            const SInt t = fractional[i % fractional.size()].second;
+            ++counts[t];
+            ++edges_sum;
+            pins_sum += t;
+        }
+
+        Repair(counts, edges_sum, pins_sum, active_d);
+
+        std::unordered_map<SInt, SInt> size_counts;
+
+        for (SInt t = 0; t <= active_d; ++t) {
+            if (counts[t] > 0) {
+                size_counts[lower_ + t] = counts[t];
+            }
+        }
+
+        return size_counts;
+    }
+
+private:
+    std::vector<long double> BuildProbabilities() const {
+        const long double target = static_cast<long double>(r_) / static_cast<long double>(m_);
+
+        if (target <= 0.0L) {
+            return {1.0L};
+        }
+
+        if (target >= static_cast<long double>(d_)) {
+            return {1.0L};
+        }
+
+        const long double q     = target / (target + 1.0L);
+        const long double alpha = 1.0L - q;
+
+        std::vector<long double> probs;
+        probs.reserve(1024);
+
+        long double z = 0.0L;
+        long double p = alpha;
+
+        for (SInt t = 0; t <= d_; ++t) {
+            const long double expected = static_cast<long double>(m_) * p;
+
+            if (t > 0 && expected < 1e-9L) {
+                break;
+            }
+
+            probs.push_back(p);
+            z += p;
+            p *= q;
+        }
+
+        for (auto& x: probs) {
+            x /= z;
+        }
+
+        return probs;
+    }
+
+    void Repair(std::vector<SInt>& counts, SInt& edges_sum, SInt& pins_sum, SInt active_d) {
+        if (edges_sum != m_) {
+            throw ConfigurationError("Boltzmann pin-budget sampler expected exact edge count before repair");
+        }
+
+        if (pins_sum < r_) {
+            MoveUpBatched(counts, pins_sum, active_d);
+        } else if (pins_sum > r_) {
+            MoveDownBatched(counts, pins_sum, active_d);
+        }
+    }
+    void MoveUpBatched(std::vector<SInt>& counts, SInt& pins_sum, SInt active_d) const {
+        SInt delta = r_ - pins_sum;
+
+        for (SInt from = 0; from < active_d && delta > 0; ++from) {
+            if (counts[from] == 0) {
+                continue;
+            }
+
+            const SInt to   = std::min<SInt>(active_d, from + delta);
+            const SInt gain = to - from;
+
+            if (gain <= 0) {
+                continue;
+            }
+
+            const SInt move = std::min<SInt>(counts[from], delta / gain);
+
+            if (move > 0) {
+                counts[from] -= move;
+                counts[to] += move;
+                pins_sum += move * gain;
+                delta -= move * gain;
+            }
+
+            if (delta > 0 && counts[from] > 0 && from + 1 <= active_d) {
+                --counts[from];
+                ++counts[from + 1];
+                ++pins_sum;
+                --delta;
+            }
+        }
+
+        if (pins_sum != r_) {
+            throw ConfigurationError("Failed to repair HGNM pin budget upward");
+        }
+    }
+
+    void MoveDownBatched(std::vector<SInt>& counts, SInt& pins_sum, SInt active_d) const {
+        SInt delta = pins_sum - r_;
+
+        for (SInt from = active_d; from > 0 && delta > 0; --from) {
+            if (counts[from] == 0) {
+                continue;
+            }
+
+            const SInt to   = std::max<SInt>(0, from - delta);
+            const SInt loss = from - to;
+
+            if (loss <= 0) {
+                continue;
+            }
+
+            const SInt move = std::min<SInt>(counts[from], delta / loss);
+
+            if (move > 0) {
+                counts[from] -= move;
+                counts[to] += move;
+                pins_sum -= move * loss;
+                delta -= move * loss;
+            }
+
+            if (delta > 0 && counts[from] > 0 && from - 1 >= 0) {
+                --counts[from];
+                ++counts[from - 1];
+                --pins_sum;
+                --delta;
+            }
+        }
+
+        if (pins_sum != r_) {
+            throw ConfigurationError("Failed to repair HGNM pin budget downward");
+        }
+    }
+
+    SInt m_;
+    SInt lower_;
+    SInt d_;
+    SInt r_;
+};
 } // namespace kagen

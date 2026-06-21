@@ -1,6 +1,7 @@
 #include "kagen/generators/hyper/h_erdos/hyper_gnp.h"
 
 #include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
+#include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -17,6 +19,9 @@ namespace kagen {
 
 std::unique_ptr<Generator>
 HyperGNPFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    if (config.n <= (1ull << 31)) {
+        return std::make_unique<HyperGNPSmall>(config, rank, size);
+    }
     return std::make_unique<HyperGNPBig>(config, rank, size);
 }
 
@@ -193,7 +198,9 @@ void HyperGNP<BigInt>::GenerateCSR() {
 }
 template <typename BigInt>
 void HyperGNP<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const double p) {
-    if (config_.approx) {
+    const bool huge_instance = config_.n > (SInt{1} << 31) || hyperedge_size > 64;
+
+    if (config_.approx || huge_instance) {
         GenerateHyperedgesOfSizeApprox(hyperedge_size, p);
     } else {
         GenerateHyperedgesOfSizeExact(hyperedge_size, p);
@@ -435,6 +442,9 @@ void HyperGNP<BigInt>::GenerateLocalHyperedges(
         return;
     }
     const auto time_begin = std::chrono::steady_clock::now();
+    if (!config_.allow_duplicates && local_m > (SInt{1} << 26)) {
+        throw ConfigurationError("Duplicate checking for huge hypergraph generation is infeasible; use --fast");
+    }
 
     std::unordered_set<std::vector<SInt>, VectorHash> local_seen;
 
@@ -452,6 +462,7 @@ void HyperGNP<BigInt>::GenerateLocalHyperedges(
 
     const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
     CountInt       attempts     = 0;
+    rng_.SeedUniformStream(edge_seed);
 
     while (generated < local_m) {
         const SInt s = SampleMinimumImplicit(
@@ -476,7 +487,7 @@ void HyperGNP<BigInt>::GenerateLocalHyperedges(
 
     const double seconds = std::chrono::duration<double>(time_end - time_begin).count();
 
-    const SInt num_pins = local_m * hyperedge_size;
+    const long double num_pins = static_cast<long double>(local_m) * static_cast<long double>(hyperedge_size);
 
     const double us_per_pin = num_pins > 0 ? (seconds * 1e6) / static_cast<double>(num_pins) : 0.0;
     if (config_.debug) {
@@ -524,5 +535,6 @@ void HyperGNP<BigInt>::PushHyperedge(const std::vector<SInt>& pins) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 template class HyperGNP<__int128>;
+template class HyperGNP<SInt>;
 #pragma GCC diagnostic pop
 } // namespace kagen

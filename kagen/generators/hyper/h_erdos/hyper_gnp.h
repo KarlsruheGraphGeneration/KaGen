@@ -3,6 +3,7 @@
 #include "kagen/generators/generator.h"
 #include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
 #include "kagen/hypergraph/debug_logger_erdos.h"
+#include "kagen/kagen.h"
 #include "kagen/tools/rng_wrapper.h"
 
 #include <optional>
@@ -66,7 +67,7 @@ private:
 
     std::optional<ErdosHypergraphDebugLogger> debug_logger_;
 };
-
+using HyperGNPSmall = HyperGNP<SInt>;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 using HyperGNPBig = HyperGNP<__int128>;

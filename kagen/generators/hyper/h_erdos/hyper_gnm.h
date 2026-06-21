@@ -47,6 +47,9 @@ private:
     void GenerateDeterministicDecaySizeCounts(
         SInt lower, SInt upper, double decay, std::unordered_map<SInt, SInt>& size_counts);
 
+    void GenerateBoltzmannPinBudgetSizeCounts(
+        SInt lower_bound, SInt upper_bound, SInt pin_budget, std::unordered_map<SInt, SInt>& size_counts);
+
     SInt ExactLocalHyperedgeCountRecursive(
         SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt target_rank, CountInt population, SInt draws,
         SInt level);

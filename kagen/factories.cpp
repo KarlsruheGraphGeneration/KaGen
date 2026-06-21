@@ -9,6 +9,7 @@
 #include "kagen/generators/gnp/gnp_undirected.h"
 #include "kagen/generators/grid/grid_2d.h"
 #include "kagen/generators/grid/grid_3d.h"
+#include "kagen/generators/hyper/h_erdos/cigam.h"
 #include "kagen/generators/hyper/h_erdos/hyper_gnm.h"
 #include "kagen/generators/hyper/h_erdos/hyper_gnp.h"
 #include "kagen/generators/hyper/h_geometric/h_rgg.h"
@@ -57,6 +58,9 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::H_GNP:
             return std::make_unique<HyperGNPFactory>();
+
+        case GeneratorType::CIGAM:
+            return std::make_unique<HyperCIGAMFactory>();
 
             // TODO(clickup)[2026-05-08]: Implement other Generators
 

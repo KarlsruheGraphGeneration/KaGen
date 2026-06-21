@@ -130,6 +130,7 @@ enum class GeneratorType {
     H_RHG,
     H_GNM,
     H_GNP,
+    CIGAM,
     RDG_2D,
     RDG_3D,
     GRID_2D,
@@ -314,7 +315,13 @@ struct Graph {
     }
 
     SInt NumberOfLocalPins() const {
-        return static_cast<SInt>(hyperedge_pins.size());
+        SInt num_pins = static_cast<SInt>(hyperedge_pins.size());
+
+        for (auto range: hyperedge_ranges) {
+            num_pins += range.end - range.begin;
+        }
+
+        return num_pins;
     }
 
 private:

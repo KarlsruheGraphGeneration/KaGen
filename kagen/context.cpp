@@ -114,6 +114,14 @@ std::ostream& printHGNPData(std::ostream& out, const PGeneratorConfig& config) {
     return out;
 }
 
+std::ostream& printCIGAMData(std::ostream& out, const PGeneratorConfig& config) {
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Number of edges:                    " << config.m << "\n";
+    out << "  Number of breakpoints:              " << config.cigam_breakpoints.size() << "\n";
+    out << "  Lambda:                             " << config.cigam_lambda << "\n";
+    return out;
+}
+
 std::ostream& printRDGData(std::ostream& out, const PGeneratorConfig& config) {
     out << "  Number of vertices:                 " << config.n << "\n";
     out << "  Periodic boundary condition:        " << (config.periodic ? "yes" : "no") << "\n";
@@ -242,6 +250,9 @@ std::ostream& printGeneratorData(std::ostream& out, const PGeneratorConfig& conf
 
         case GeneratorType::H_GNP:
             printHGNPData(out, config);
+            break;
+        case GeneratorType::CIGAM:
+            printCIGAMData(out, config);
             break;
 
         case GeneratorType::RDG_2D:

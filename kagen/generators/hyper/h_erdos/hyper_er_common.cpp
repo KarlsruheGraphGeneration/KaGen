@@ -7,100 +7,6 @@
 
 namespace kagen {
 
-MinOwnerWeights ComputeMinOwnerWeights(const SInt n, const SInt k) {
-    if (k == 0 || k > n) {
-        throw std::runtime_error("invalid k");
-    }
-
-    const SInt num_minima = n - k + 1;
-
-    std::vector<long double> log_w(num_minima);
-    log_w[0] = 0.0L;
-
-    for (SInt s = 0; s + 1 < num_minima; ++s) {
-        const long double numerator   = static_cast<long double>(n - s - k);
-        const long double denominator = static_cast<long double>(n - s - 1);
-
-        log_w[s + 1] = log_w[s] + std::log(numerator) - std::log(denominator);
-    }
-
-    const long double max_log = *std::max_element(log_w.begin(), log_w.end());
-
-    MinOwnerWeights result;
-    result.weights.resize(log_w.size());
-
-    for (std::size_t i = 0; i < log_w.size(); ++i) {
-        result.weights[i] = expl(log_w[i] - max_log);
-    }
-
-    result.log_actual_scale = LogBinomialApprox(n - 1, k - 1) + max_log;
-
-    return result;
-}
-
-MinOwnerPartition PartitionMinimaByWeight(const std::vector<long double>& weights, const SInt p) {
-    const SInt num_minima = static_cast<SInt>(weights.size());
-
-    long double total = 0.0L;
-    for (const long double weight: weights) {
-        total += weight;
-    }
-
-    MinOwnerPartition part;
-    part.begin.resize(p);
-    part.end.resize(p);
-    part.mass.assign(p, 0.0L);
-    part.total_mass = total;
-
-    SInt        s      = 0;
-    long double prefix = 0.0L;
-
-    for (SInt rank = 0; rank < p; ++rank) {
-        part.begin[rank] = s;
-
-        const long double target = total * static_cast<long double>(rank + 1) / static_cast<long double>(p);
-
-        while (s < num_minima && prefix + weights[s] <= target) {
-            prefix += weights[s];
-            part.mass[rank] += weights[s];
-            ++s;
-        }
-
-        part.end[rank] = s;
-    }
-
-    while (s < num_minima) {
-        part.mass[p - 1] += weights[s];
-        ++s;
-    }
-
-    part.end[p - 1] = num_minima;
-
-    return part;
-}
-
-std::vector<long double>
-BuildLocalMinCDF(const SInt min_begin, const SInt min_end, const std::vector<long double>& weights) {
-    std::vector<long double> cdf;
-    cdf.reserve(static_cast<std::size_t>(min_end - min_begin));
-
-    long double prefix = 0.0L;
-
-    for (SInt s = min_begin; s < min_end; ++s) {
-        prefix += weights[s];
-        cdf.push_back(prefix);
-    }
-
-    const long double total = cdf.back();
-
-    for (auto& x: cdf) {
-        x /= total;
-    }
-
-    cdf.back() = 1;
-    return cdf;
-}
-
 std::vector<SInt>
 DeterministicRankCounts(const SInt m, const std::vector<long double>& mass, const long double total_mass) {
     const SInt p = static_cast<SInt>(mass.size());
@@ -262,6 +168,34 @@ bool MinRangeMassDefinitelyExceedsSInt(const SInt begin, const SInt end, const S
     const long double log_mass = LogDifferenceOfExponentials(log_a, log_b);
 
     return log_mass > log_total;
+}
+
+long double LogAdd(long double a, long double b) {
+    if (a == -std::numeric_limits<long double>::infinity()) {
+        return b;
+    }
+    if (b == -std::numeric_limits<long double>::infinity()) {
+        return a;
+    }
+    if (a < b) {
+        std::swap(a, b);
+    }
+    return a + std::log1pl(expl(b - a));
+}
+
+long double BinomSmallExactLD(SInt n, SInt q) {
+    if (q < 0 || q > n) {
+        return 0.0L;
+    }
+
+    q = std::min(q, n - q);
+
+    long double result = 1.0L;
+    for (SInt t = 1; t <= q; ++t) {
+        result *= static_cast<long double>(n - q + t);
+        result /= static_cast<long double>(t);
+    }
+    return result;
 }
 
 } // namespace kagen

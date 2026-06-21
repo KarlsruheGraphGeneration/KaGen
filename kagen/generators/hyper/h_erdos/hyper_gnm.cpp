@@ -2,6 +2,7 @@
 
 #include "kagen/generators/generator.h"
 #include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
+#include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/rng_wrapper.h"
 
@@ -9,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,6 +18,9 @@ namespace kagen {
 
 std::unique_ptr<Generator>
 HyperGNMFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
+    if (config.n <= (1ull << 31)) {
+        return std::make_unique<HyperGNMSmall>(config, rank, size);
+    }
     return std::make_unique<HyperGNMBig>(config, rank, size);
 }
 
@@ -61,17 +66,28 @@ void HyperGNM<BigInt>::GenerateCSR() {
     }
 
     std::unordered_map<SInt, SInt> size_counts;
-    std::cout << "size_dist_determinstic=" << config_.size_dist_deterministic << ", alpha=" << alpha
-              << ", decay=" << config_.size_decay << '\n';
-    if (config_.size_dist_deterministic) {
+    if (config_.size_dist_pin_budget > 0) {
+        GenerateBoltzmannPinBudgetSizeCounts(lower_bound, hard_upper_bound, config_.size_dist_pin_budget, size_counts);
+    } else if (config_.size_dist_deterministic) {
         GenerateDeterministicDecaySizeCounts(lower_bound, hard_upper_bound, config_.size_decay, size_counts);
     } else {
         GenerateSizeCounts(lower_bound, hard_upper_bound, alpha, size_counts);
     }
+    if (config_.debug) {
+        std::vector<std::pair<SInt, SInt>> entries(size_counts.begin(), size_counts.end());
+        std::sort(entries.begin(), entries.end());
+
+        std::cout << "size_counts:\n";
+        for (const auto& [size, count]: entries) {
+            std::cout << "  size=" << size << " count=" << count << '\n';
+        }
+    }
 
     for (const auto& [k, m_k]: size_counts) {
         if (debug_logger_) {
-            debug_logger_->LogSize(rank_, k, m_k, config_.m, "implicit_min_owner");
+            const char* size_mode = config_.size_dist_pin_budget > 0 ? "boltzmann_pin_budget" : "implicit_min_owner";
+
+            debug_logger_->LogSize(rank_, k, m_k, config_.m, size_mode);
         }
 
         GenerateHyperedgesOfSize(k, m_k);
@@ -84,6 +100,31 @@ void HyperGNM<BigInt>::GenerateCSR() {
     const SInt end   = start + vertices_per_pe + static_cast<SInt>(static_cast<SInt>(rank_) < remainder);
 
     SetVertexRange(start, end);
+}
+
+template <typename BigInt>
+void HyperGNM<BigInt>::GenerateBoltzmannPinBudgetSizeCounts(
+    const SInt lower_bound, const SInt upper_bound, const SInt pin_budget,
+    std::unordered_map<SInt, SInt>& size_counts) {
+    size_counts.clear();
+
+    const SInt m = config_.m;
+
+    if (lower_bound > upper_bound) {
+        throw ConfigurationError("Invalid hyperedge size range");
+    }
+
+    const auto pins     = static_cast<unsigned __int128>(pin_budget);
+    const auto min_pins = static_cast<unsigned __int128>(lower_bound) * static_cast<unsigned __int128>(m);
+    const auto max_pins = static_cast<unsigned __int128>(upper_bound) * static_cast<unsigned __int128>(m);
+
+    if (pins < min_pins || pins > max_pins) {
+        throw ConfigurationError("Invalid HGNM pin budget");
+    }
+
+    BoltzmannPinBudgetSizeCountSampler sampler(m, lower_bound, upper_bound, pin_budget);
+
+    size_counts = sampler.Sample();
 }
 
 template <typename BigInt>
@@ -196,8 +237,14 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const
     const SInt local_min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
     const SInt local_min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
 
-    const SInt local_m = config_.approx ? ApproximateLocalHyperedgeCount(hyperedge_size, m_k)
-                                        : ExactLocalHyperedgeCount(hyperedge_size, m_k);
+    const bool use_approx = config_.approx || config_.size_dist_pin_budget > 0;
+
+    const SInt local_m = use_approx ? ApproximateLocalHyperedgeCount(hyperedge_size, m_k)
+                                    : ExactLocalHyperedgeCount(hyperedge_size, m_k);
+
+    if (!config_.allow_duplicates && local_m > (SInt{1} << 26)) {
+        throw ConfigurationError("Duplicate checking for huge hypergraph generation is infeasible; use --fast");
+    }
 
     std::unordered_set<std::vector<SInt>, VectorHash> local_seen;
     if (!config_.allow_duplicates) {
@@ -212,12 +259,7 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const
 
     LogBinomCache log_binom_cache(hyperedge_size, expected_cache_size);
 
-    SInt edge_seed = sampling::Spooky::hash(
-        static_cast<unsigned long long>(config_.seed)
-        + (static_cast<unsigned long long>(rank_) * kEdgeRankSeedMultiplier)
-        + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
-
-    if (!config_.approx) {
+    if (!use_approx) {
         const CountInt local_population = MinRangeMassExact(local_min_begin, local_min_end, config_.n, hyperedge_size);
 
         const long double density = static_cast<long double>(local_m) / local_population.convert_to<long double>();
@@ -230,11 +272,15 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const
             throw ConfigurationError("Exact HGNM local_m exceeds local population");
         }
     }
+    SInt edge_seed = sampling::Spooky::hash(
+        static_cast<unsigned long long>(config_.seed)
+        + (static_cast<unsigned long long>(rank_) * kEdgeRankSeedMultiplier)
+        + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
 
     const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
 
     CountInt attempts = 0;
-
+    rng_.SeedUniformStream(edge_seed);
     SInt generated = 0;
     while (generated < local_m) {
         const SInt s = SampleMinimumImplicit(
@@ -258,6 +304,10 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const
 
 template <typename BigInt>
 SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCount(const SInt hyperedge_size, const SInt m_k) {
+    if (size_ == 1) {
+        return m_k;
+    }
+
     LogBinomCache log_binom_cache(hyperedge_size);
 
     return ApproximateLocalHyperedgeCountRecursive(hyperedge_size, 0, size_, rank_, 1.0L, m_k, 0, log_binom_cache);
@@ -403,6 +453,7 @@ void HyperGNM<BigInt>::PushHyperedge(const std::vector<SInt>& pins) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 template class HyperGNM<__int128>;
+template class HyperGNM<SInt>;
 #pragma GCC diagnostic pop
 
 } // namespace kagen

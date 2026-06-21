@@ -199,6 +199,13 @@ struct PGeneratorConfig {
     bool                     approx                  = false;
     bool                     size_dist_deterministic = false;
     bool                     allow_duplicates        = false;
+    SInt                     size_dist_pin_budget    = 0;
+
+    // CIGAM specific parameters
+    double                   cigam_lambda = 0.0;
+    std::vector<long double> cigam_c;
+    std::vector<long double> cigam_breakpoints;
+    std::vector<SInt>        cigam_sizes;
 
     /*
      * Sets config.k if k == 0 to PEID size, else does nothing.

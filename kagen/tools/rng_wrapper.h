@@ -70,6 +70,10 @@ public:
         return uniform_double_(rng_);
     }
 
+    long double GenerateUniformLongDoubleStream() {
+        return uniform_long_double_(rng_);
+    }
+
     double GenerateCanonicalDoubleStream() {
         constexpr double scale = 1.0 / 9007199254740992.0; // 2^-53
 
@@ -77,6 +81,15 @@ public:
         const std::uint64_t b = static_cast<std::uint64_t>(rng_()) >> 6; // 26 bits
 
         return static_cast<double>((a << 26) | b) * scale;
+    }
+
+    SInt GenerateIntegerStream(const SInt upper_exclusive) {
+        if (upper_exclusive <= 0) {
+            throw ConfigurationError("Invalid integer stream range");
+        }
+
+        std::uniform_int_distribution<SInt> dist(0, upper_exclusive - 1);
+        return dist(rng_);
     }
 
     SInt GeneratePoisson(SInt seed, double lambda) {

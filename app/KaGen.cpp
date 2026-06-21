@@ -6,6 +6,8 @@
  *
  * All rights reserved. Published under the BSD-2 license in the LICENSE file.
  ******************************************************************************/
+#include "kagen.h"
+
 #include "kagen/context.h"
 #include "kagen/definitions.h"
 #include "kagen/external_memory_facade.h"
@@ -15,6 +17,7 @@
 
 #include "CLI11.h"
 #include <iostream>
+#include <limits>
 
 using namespace kagen;
 
@@ -170,18 +173,40 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         group->silent();
         return group;
     };
+    auto add_option_pin_budget = [&](CLI::App* cmd) {
+        auto* opt_log_pin_budget = cmd->add_option_function<SInt>(
+            "--PB,--log-pin-budget", log_cb(config.size_dist_pin_budget), "Logarithm value");
+
+        auto* opt_pin_budget = cmd->add_option("--pin-budget", config.size_dist_pin_budget, "Exact value");
+
+        auto* group = cmd->add_option_group("Pin budget");
+        group->add_options(opt_log_pin_budget, opt_pin_budget);
+        group->silent();
+        return group;
+    };
     auto add_hgnm_size_distribution = [&](CLI::App* cmd) {
         auto* group = cmd->add_option_group("Hyperedge size distribution");
 
-        group->add_option("--alpha,--decay", config.size_dist_alpha, "Geometric distribution alpha")
-            ->check(CLI::Range(0.0, 1.0));
+        auto* alpha = group->add_option("--alpha,--decay", config.size_dist_alpha, "Geometric distribution alpha")
+                          ->check(CLI::Range(0.0, 1.0));
 
-        group->add_flag(
+        auto* deterministic = group->add_flag(
             "--deterministic-size-distribution", config.size_dist_deterministic,
             "Use deterministic size counts instead of sampled counts");
 
-        group->add_option("--size-decay", config.size_decay, "Decay parameter for deterministic hyperedge size counts")
-            ->check(CLI::Range(0.0, 1.0));
+        auto* size_decay =
+            group
+                ->add_option(
+                    "--size-decay", config.size_decay, "Decay parameter for deterministic hyperedge size counts")
+                ->check(CLI::Range(0.0, 1.0));
+
+        auto* pin_budget = add_option_pin_budget(group);
+
+        pin_budget->excludes(alpha);
+        pin_budget->excludes(deterministic);
+        pin_budget->excludes(size_decay);
+
+        size_decay->needs(deterministic);
 
         group->silent();
         return group;
@@ -459,7 +484,28 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params)->required();
-        add_hyper_size_bounds(params);
+        auto*      size_group         = params->add_option_group("Hyperedge sizes");
+        const auto min_hyperedge_size = static_cast<SInt>(2);
+        const auto max_hyperedge_size = std::numeric_limits<SInt>::max();
+        auto*      lower_opt =
+            size_group
+                ->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for hyperedge sizes")
+                ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
+
+        auto* upper_opt =
+            size_group
+                ->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for hyperedge sizes")
+                ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
+
+        auto* sizes_opt = size_group->add_option("--sizes", config.cigam_sizes, "Explicit CIGAM hyperedge sizes")
+                              ->expected(1, -1)
+                              ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
+
+        lower_opt->needs(upper_opt);
+        upper_opt->needs(lower_opt);
+
+        sizes_opt->excludes(lower_opt);
+        sizes_opt->excludes(upper_opt);
 
         auto* approximation = cmd->add_option_group("Approximation");
 
@@ -471,6 +517,71 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         params->silent();
 
         add_hgnp_probabilities(cmd);
+    }
+    { // CIGAM
+        auto* cmd = app.add_subcommand("cigam", "CIGAM Hypergraph Generator");
+        cmd->callback(set_hypergraph_generator(GeneratorType::CIGAM));
+
+        auto* params = cmd->add_option_group("Parameters");
+        add_option_n(params);
+        auto* size_group = params->add_option_group("Hyperedge sizes");
+        size_group->require_option(1);
+        auto* bounds_group = add_hyper_size_bounds(size_group);
+        bounds_group->require_option(2);
+        auto* explicit_group = size_group->add_option_group("Explicit sizes");
+        explicit_group->add_option("--sizes", config.cigam_sizes, "Explicit CIGAM hyperedge sizes")
+            ->expected(1, -1)
+            ->check(
+                CLI::Validator(
+                    [](const std::string& value) {
+                        const auto k = std::stoull(value);
+                        return k >= 2 ? std::string{} : "hyperedge size must be >= 2";
+                    },
+                    "k >= 2"));
+
+        params->add_option("--sd,--size-decay", config.size_decay, "Geometric decay parameter for expected counts")
+            ->check(CLI::Range(0.0, 1.0));
+
+        explicit_group->require_option(1);
+
+        params->add_option("--lambda", config.cigam_lambda, "Truncated exponential parameter for rank calculation")
+            ->required()
+            ->check(CLI::PositiveNumber);
+
+        params->add_option("--c", config.cigam_c, "CIGAM density parameters, one value per layer")
+            ->required()
+            ->expected(1, -1)
+            ->check(
+                CLI::Validator(
+                    [](const std::string& value) {
+                        const auto c = std::stold(value);
+                        return c > 1.0L ? std::string{} : "CIGAM density parameters must be > 1";
+                    },
+                    "c > 1"));
+        params
+            ->add_option(
+                "--breakpoints", config.cigam_breakpoints,
+                "CIGAM layer breakpoints H_l in (0,1], strictly increasing, last must be 1")
+            ->required()
+            ->expected(1, -1)
+            ->check(
+                CLI::Validator(
+                    [](const std::string& value) {
+                        const auto bp = std::stold(value);
+                        return bp > 0.0L && bp <= 1.0L ? std::string{} : "CIGAM breakpoints must be in (0,1]";
+                    },
+                    "0 < H <= 1"));
+
+        auto* approximation = cmd->add_option_group("Approximation");
+
+        approximation->add_flag("--approx", config.approx, "Use approximate generation");
+
+        approximation->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
+
+        cmd->add_flag("--fast", config.allow_duplicates, "Do not check for duplicate edges in order to speed up");
+
+        add_option_edge_budget(params);
+        params->silent();
     }
 
 #ifdef KAGEN_CGAL_FOUND
