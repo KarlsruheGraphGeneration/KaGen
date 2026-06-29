@@ -14,7 +14,7 @@
 namespace kagen {
 
 double SampleHyperedgeRadius(
-    const SInt identifier, const PGeneratorConfig& config, const double lower_bound, const double upper_bound) {
+    SInt identifier, const PGeneratorConfig& config, double lower_bound, double upper_bound, RNGWrapper<>& rng) {
     if (lower_bound <= 0.0 || upper_bound <= 0.0 || lower_bound > upper_bound) {
         throw ConfigurationError(
             std::format("Invalid hyperedge radius bounds: lower bound:{} upper bound:{}", lower_bound, upper_bound));
@@ -22,21 +22,30 @@ double SampleHyperedgeRadius(
 
     const SInt seed = sampling::Spooky::hash(config.seed + (7919 * config.n) + identifier);
 
-    RNGWrapper<> rng(config);
+    const double uniformRandom = rng.GenerateUniformDouble(seed);
+    const double alpha         = config.hyperedge_radius_exponent;
 
-    const double uniformRandom     = rng.GenerateUniform<double>(seed);
-    const double alpha             = config.hyperedge_radius_exponent;
-    const double transformed_lower = std::pow(lower_bound, -alpha);
-    const double transformed_upper = std::pow(upper_bound, -alpha);
+    const double log_lower = -alpha * std::log(lower_bound);
+    const double log_upper = -alpha * std::log(upper_bound);
 
-    double sampled =
-        std::pow(transformed_lower - (uniformRandom * (transformed_lower - transformed_upper)), -1.0 / alpha);
+    const double max_log = std::max(log_lower, log_upper);
 
-    sampled = std::min(sampled, upper_bound);
-    sampled = std::max(sampled, lower_bound);
+    const double a = std::exp(log_lower - max_log);
+    const double b = std::exp(log_upper - max_log);
+
+    const double mixed = ((1.0 - uniformRandom) * a) + (uniformRandom * b);
+
+    double sampled = std::exp(-(std::log(mixed) + max_log) / alpha);
+
+    sampled = std::clamp(sampled, lower_bound, upper_bound);
 
     if (!std::isfinite(sampled) || sampled <= 0.0) {
-        throw ConfigurationError("Invalid sampled hyperedge radius");
+        throw ConfigurationError(
+            std::format(
+                "Invalid sampled hyperedge radius: sampled={} "
+                "u={} alpha={} lower={} upper={} "
+                "lower^-alpha={} upper^-alpha={}",
+                sampled, uniformRandom, alpha, lower_bound, upper_bound, a, b));
     }
 
     return sampled;
@@ -44,12 +53,12 @@ double SampleHyperedgeRadius(
 
 double getSampledOrConstantRadius(
     const PGeneratorConfig& config, const SInt identifier, const double actual_lower_bound,
-    const double actual_upper_bound) {
+    const double actual_upper_bound, RNGWrapper<>& rng) {
     if (!config.random_radius) {
         return config.r;
     }
 
-    return SampleHyperedgeRadius(identifier, config, actual_lower_bound, actual_upper_bound);
+    return SampleHyperedgeRadius(identifier, config, actual_lower_bound, actual_upper_bound, rng);
 }
 
 /**
@@ -90,21 +99,32 @@ double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config) {
     }
 
     const double alpha = config.hyperedge_radius_exponent;
-
     if (alpha <= 0.0 || !std::isfinite(alpha)) {
         throw ConfigurationError("Quantile radius requires exponent > 0");
     }
 
-    const double lower_bound = std::sqrt(2.0 / (M_PI * static_cast<double>(config.n)));
+    const double lower = std::sqrt(2.0 / (M_PI * static_cast<double>(config.n)));
+    const double upper = 1.0;
+    const double q     = std::clamp(config.quantile, 0.0, 1.0);
 
-    const double upper_bound = 1.0;
+    if (q <= 0.0) {
+        return lower;
+    }
+    if (q >= 1.0) {
+        return upper;
+    }
 
-    const double clamped_q = std::clamp(config.quantile, 0.0, 1.0);
+    const double log_lower = -alpha * std::log(lower);
+    const double log_upper = -alpha * std::log(upper); // 0 for upper=1
 
-    const double transformed_lower = std::pow(lower_bound, -alpha);
-    const double transformed_upper = std::pow(upper_bound, -alpha);
+    const double max_log = std::max(log_lower, log_upper);
 
-    return std::pow(transformed_lower - clamped_q * (transformed_lower - transformed_upper), -1.0 / alpha);
+    const double a = std::exp(log_lower - max_log);
+    const double b = std::exp(log_upper - max_log);
+
+    const double mixed = ((1.0 - q) * a) + (q * b);
+
+    return std::exp(-(std::log(mixed) + max_log) / alpha);
 }
 
 } // namespace kagen

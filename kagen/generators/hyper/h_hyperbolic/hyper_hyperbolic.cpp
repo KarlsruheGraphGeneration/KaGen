@@ -14,8 +14,8 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <vector>
-
 namespace kagen {
 
 constexpr double M_N_D_RATIO                     = 2.0;
@@ -86,6 +86,28 @@ PGeneratorConfig Hyper_HyperbolicFactory::NormalizeParameters(
     return config;
 }
 
+template <typename Double>
+void Hyper_Hyperbolic<Double>::PrecomputeMinimumRadii() {
+    minimum_radii_by_center_annulus_.resize(total_annuli_);
+
+    constexpr Double desired_pins = Double{2.0};
+
+    for (SInt a = 0; a < total_annuli_; ++a) {
+        const Double min_r = a * target_r_ / total_annuli_;
+        const Double max_r = (a + 1) * target_r_ / total_annuli_;
+        const Double mid_r = (min_r + max_r) / Double{2.0};
+
+        const HyperbolicHyperedgeCenter<Double> center{
+            .phi        = Double{0.0},
+            .r          = mid_r,
+            .sampled_id = 0,
+            .annulus_id = a,
+        };
+
+        minimum_radii_by_center_annulus_[a] = FindRadiusForExpectedPins(center, desired_pins);
+    }
+}
+
 std::unique_ptr<Generator>
 Hyper_HyperbolicFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
     if (config.hp_floats != 0) {
@@ -145,6 +167,90 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
     point_eps_ = std::numeric_limits<Double>::epsilon();
 
     num_nodes_ = 0;
+
+    if (config_.random_radius && config_.min_hyperedge_radius == -1.0) {
+        PrecomputeMinimumRadii();
+    }
+
+    annulus_min_r_.resize(total_annuli_);
+    annulus_max_r_.resize(total_annuli_);
+    annulus_min_cosh_.resize(total_annuli_);
+    annulus_min_sinh_.resize(total_annuli_);
+    annulus_max_cosh_.resize(total_annuli_);
+    annulus_max_sinh_.resize(total_annuli_);
+
+    for (SInt a = 0; a < total_annuli_; ++a) {
+        const Double min_r = a * target_r_ / total_annuli_;
+        const Double max_r = (a + 1) * target_r_ / total_annuli_;
+
+        annulus_min_r_[a] = min_r;
+        annulus_max_r_[a] = max_r;
+
+        annulus_min_cosh_[a] = std::cosh(min_r);
+        annulus_min_sinh_[a] = std::sinh(min_r);
+        annulus_max_cosh_[a] = std::cosh(max_r);
+        annulus_max_sinh_[a] = std::sinh(max_r);
+    }
+}
+
+template <typename Double>
+Double Hyper_Hyperbolic<Double>::FindRadiusForExpectedPins(
+    const HyperbolicHyperedgeCenter<Double>& center, const Double desired_pins) {
+    auto expected_pins = [&](const Double radius) {
+        Double expected = 0.0;
+
+        const Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * target_r_);
+
+        for (SInt a = 0; a < total_annuli_; ++a) {
+            const Double min_r = a * target_r_ / total_annuli_;
+            const Double max_r = (a + 1) * target_r_ / total_annuli_;
+
+            const Double ring_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * max_r)
+                                     - PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * min_r);
+
+            const Double expected_annulus_n = static_cast<Double>(config_.n) * ring_area / total_area;
+
+            const Double query_r = std::clamp(center.r, min_r, max_r);
+            const Double denom   = std::sinh(center.r) * std::sinh(query_r);
+
+            Double angular_reach;
+
+            if (denom <= Double{0.0}) {
+                angular_reach = M_PI;
+            } else {
+                const Double x = ((std::cosh(center.r) * std::cosh(query_r)) - std::cosh(radius)) / denom;
+
+                if (x <= Double{-1.0}) {
+                    angular_reach = M_PI;
+                } else if (x >= Double{1.0}) {
+                    angular_reach = Double{0.0};
+                } else {
+                    angular_reach = std::acos(x);
+                }
+            }
+
+            const Double angular_fraction = std::min<Double>(Double{1.0}, angular_reach / Double{M_PI});
+
+            expected += expected_annulus_n * angular_fraction;
+        }
+
+        return expected;
+    };
+
+    Double lo = Double{0.0};
+    Double hi = center.r + target_r_;
+
+    for (SInt i = 0; i < 40; ++i) {
+        const Double mid = (lo + hi) / Double{2.0};
+
+        if (expected_pins(mid) >= desired_pins) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+
+    return hi;
 }
 
 template <typename Double>
@@ -232,20 +338,29 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chun
     const Double mincdf = std::cosh(alpha_ * min_r);
     const Double maxcdf = std::cosh(alpha_ * max_r);
 
-    std::vector<Vertex>& cell_vertices = vertices_[global_cell_id];
+    VertexBlock& cell_vertices = vertices_[global_cell_id];
     cell_vertices.reserve(size);
 
     for (SInt i = 0; i < size; i++) {
         Double angle  = (sorted_mersenne.Random() * (max_phi - min_phi)) + min_phi;
         Double radius = std::acosh((mersenne.Random() * (maxcdf - mincdf)) + mincdf) / alpha_;
 
-        Double inv_len    = (std::cosh(radius) + 1.0) / 2.0;
-        Double pdm_radius = std::sqrt(1.0 - (1.0 / inv_len));
-        Double x_value    = pdm_radius * std::sin(angle);
-        Double y_value    = pdm_radius * std::cos(angle);
-        Double gamma      = 1.0 / (1.0 - (pdm_radius * pdm_radius));
+        Double       inv_len    = (std::cosh(radius) + 1.0) / 2.0;
+        Double       pdm_radius = std::sqrt(1.0 - (1.0 / inv_len));
+        const Double sin_phi    = std::sin(angle);
+        const Double cos_phi    = std::cos(angle);
+        Double       x_value    = pdm_radius * sin_phi;
+        Double       y_value    = pdm_radius * cos_phi;
+        const Double cosh_r     = std::cosh(radius);
+        const Double sinh_r     = std::sinh(radius);
 
-        cell_vertices.emplace_back(angle, radius, x_value, y_value, gamma, offset + i);
+        cell_vertices.r.push_back(radius);
+        cell_vertices.id.push_back(offset + i);
+        cell_vertices.cosh_r.push_back(cosh_r);
+        cell_vertices.sinh_r.push_back(sinh_r);
+        cell_vertices.cos_phi.push_back(cos_phi);
+        cell_vertices.sin_phi.push_back(sin_phi);
+        cell_vertices.phi.push_back(angle);
 
         if (pe_min_phi_ <= angle && pe_max_phi_ > angle) {
             if (config_.coordinates) {
@@ -300,28 +415,11 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
 }
 
 template <typename Double>
-Double Hyper_Hyperbolic<Double>::ScaleRelativeRadius(
-    const HyperbolicHyperedgeCenter<Double>& center, const Double relative_radius) const {
-    const Double t = std::clamp(relative_radius, Double{0.0}, Double{1.0});
-
-    // Farthest possible point in the generated hyperbolic disk:
-    // opposite angle, outer boundary at target_r_.
-    const Double max_covering_radius = center.r + target_r_;
-
-    return t * max_covering_radius;
-}
-
-template <typename Double>
-void Hyper_Hyperbolic<Double>::BeginHyperedge(
-    const HyperbolicHyperedgeCenter<Double>& center, const SInt sampled_center_id, const Double lower_bound,
-    const Double upper_bound) {
+void Hyper_Hyperbolic<Double>::BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center) {
     current_hyperedge_pins_.clear();
     current_hyperedge_ranges_.clear();
 
-    const Double relative_radius =
-        static_cast<Double>(getSampledOrConstantRadius(config_, sampled_center_id, lower_bound, upper_bound));
-
-    current_hyperedge_radius_ = ScaleRelativeRadius(center, relative_radius);
+    current_hyperedge_radius_ = Radius(center);
 
     current_hyperedge_pdm_radius_ = (std::cosh(current_hyperedge_radius_) - 1.0) / 2.0;
 }
@@ -409,6 +507,10 @@ void Hyper_Hyperbolic<Double>::ComputeAnnuliInto(
 
         annuli[ComputeGlobalChunkId(i - 1, chunk_id)] = std::make_tuple(n_annulus, min_r, max_r, false, offset);
 
+        if (seed_offset == 0) {
+            boundaries_[i - 1] = std::make_pair(std::cosh(min_r), std::sinh(min_r));
+        }
+
         min_r = max_r;
         size -= n_annulus;
         offset += n_annulus;
@@ -455,6 +557,82 @@ Double HyperbolicCellArea(const Double min_r, const Double max_r, const Double m
 }
 
 template <typename Double>
+struct PoincareAABB {
+    Double min_x;
+    Double max_x;
+    Double min_y;
+    Double max_y;
+};
+
+template <typename Double>
+PoincareAABB<Double> ComputePoincareCellAABB(
+    const Double min_r, const Double max_r, const Double min_phi, const Double max_phi, const Double cell_eps) {
+    const bool full_circle = std::abs((max_phi - min_phi) - Double{2.0 * M_PI}) <= cell_eps;
+
+    const Double rho_min = std::tanh(min_r / Double{2.0});
+    const Double rho_max = std::tanh(max_r / Double{2.0});
+
+    Double phis[6];
+    int    count = 0;
+
+    phis[count++] = min_phi;
+    phis[count++] = max_phi;
+
+    const Double critical_angles[] = {
+        Double{0.0},
+        Double{M_PI / 2.0},
+        Double{M_PI},
+        Double{3.0 * M_PI / 2.0},
+    };
+
+    auto normalize_phi = [](Double phi) {
+        const Double two_pi = Double{2.0 * M_PI};
+        while (phi < Double{0.0})
+            phi += two_pi;
+        while (phi >= two_pi)
+            phi -= two_pi;
+        return phi;
+    };
+
+    auto angle_in_interval = [&](Double phi, Double begin, Double end) {
+        phi   = normalize_phi(phi);
+        begin = normalize_phi(begin);
+        end   = normalize_phi(end);
+
+        if (begin <= end) {
+            return begin <= phi && phi <= end;
+        }
+
+        return phi >= begin || phi <= end;
+    };
+
+    for (const Double angle: critical_angles) {
+        if (full_circle || angle_in_interval(angle, min_phi, max_phi)) {
+            phis[count++] = angle;
+        }
+    }
+
+    Double min_x = std::numeric_limits<Double>::infinity();
+    Double max_x = -std::numeric_limits<Double>::infinity();
+    Double min_y = std::numeric_limits<Double>::infinity();
+    Double max_y = -std::numeric_limits<Double>::infinity();
+
+    for (int i = 0; i < count; ++i) {
+        for (const Double rho: {rho_min, rho_max}) {
+            const Double x = rho * std::sin(phis[i]);
+            const Double y = rho * std::cos(phis[i]);
+
+            min_x = std::min(min_x, x);
+            max_x = std::max(max_x, x);
+            min_y = std::min(min_y, y);
+            max_y = std::max(max_y, y);
+        }
+    }
+
+    return {.min_x = min_x, .max_x = max_x, .min_y = min_y, .max_y = max_y};
+}
+
+template <typename Double>
 Double HyperbolicAngularReach(
     const Double center_r, const Double annulus_min_r, const Double annulus_max_r, const Double radius) {
     const Double r = std::clamp(center_r, annulus_min_r, annulus_max_r);
@@ -476,51 +654,6 @@ Double HyperbolicAngularReach(
     }
 
     return std::acos(x);
-}
-
-template <typename Double>
-Double
-Hyper_Hyperbolic<Double>::ExpectedPinsForRadius(const HyperbolicHyperedgeCenter<Double>& center, const Double radius) {
-    Double expected = 0.0;
-
-    const Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * target_r_);
-
-    for (SInt a = 0; a < total_annuli_; ++a) {
-        const Double min_r = a * target_r_ / total_annuli_;
-        const Double max_r = (a + 1) * target_r_ / total_annuli_;
-
-        const Double ring_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * max_r)
-                                 - PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * min_r);
-
-        const Double expected_annulus_n = static_cast<Double>(config_.n) * ring_area / total_area;
-
-        const Double angular_reach = HyperbolicAngularReach(center.r, min_r, max_r, radius);
-
-        const Double angular_fraction = std::min<Double>(1.0, angular_reach / M_PI);
-
-        expected += expected_annulus_n * angular_fraction;
-    }
-
-    return expected;
-}
-
-template <typename Double>
-Double Hyper_Hyperbolic<Double>::FindRadiusForExpectedPins(
-    const HyperbolicHyperedgeCenter<Double>& center, const Double desired_pins) {
-    Double lo = 0.0;
-    Double hi = center.r + target_r_;
-
-    for (SInt i = 0; i < 40; ++i) {
-        const Double mid = (lo + hi) / 2.0;
-
-        if (ExpectedPinsForRadius(center, mid) >= desired_pins) {
-            hi = mid;
-        } else {
-            lo = mid;
-        }
-    }
-
-    return hi;
 }
 
 template <typename Double>
@@ -552,30 +685,30 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
         const SInt n_cell =
             rng_.GenerateBinomial(hash_value, size, std::clamp(grid_phi / total_phi, Double{0.0}, Double{1.0}));
 
-        cells[ComputeGlobalCellId(annulus_id, chunk_id, i)] =
-            std::make_tuple(n_cell, min_phi + (grid_phi * i), min_phi + (grid_phi * (i + 1)), false, offset);
+        const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, i);
 
+        if constexpr (std::is_same_v<typename CellMap::mapped_type, Cell>) {
+            const Double cell_min_phi = min_phi + (grid_phi * i);
+            const Double cell_max_phi = min_phi + (grid_phi * (i + 1));
+
+            const Double annulus_min_r = std::get<1>(annulus);
+            const Double annulus_max_r = std::get<2>(annulus);
+
+            const auto box =
+                ComputePoincareCellAABB(annulus_min_r, annulus_max_r, cell_min_phi, cell_max_phi, cell_eps_);
+
+            cells[global_cell_id] = std::make_tuple(
+                n_cell, cell_min_phi, cell_max_phi, false, offset, box.min_x, box.max_x, box.min_y, box.max_y);
+        } else {
+            cells[global_cell_id] =
+                std::make_tuple(n_cell, min_phi + (grid_phi * i), min_phi + (grid_phi * (i + 1)), false, offset);
+        }
         size -= n_cell;
         offset += n_cell;
         total_phi -= grid_phi;
     }
 
     std::get<3>(annulus) = true;
-}
-template <typename Double>
-std::pair<Double, Double> Hyper_Hyperbolic<Double>::RelativeRadiusBounds(
-    const HyperbolicHyperedgeCenter<Double>& center, const Double desired_min_pins) {
-    const Double max_bound =
-        config_.max_hyperedge_radius != -1.0 ? static_cast<Double>(config_.max_hyperedge_radius) : Double{1.0};
-
-    const Double min_bound = config_.min_hyperedge_radius != -1.0
-                                 ? static_cast<Double>(config_.min_hyperedge_radius)
-                                 : FindRadiusForExpectedPins(center, desired_min_pins) / (center.r + target_r_);
-
-    const Double lower_bound = std::clamp(min_bound, Double{0.0}, Double{1.0});
-    const Double upper_bound = std::clamp(max_bound, lower_bound, Double{1.0});
-
-    return {lower_bound, upper_bound};
 }
 
 template <typename Double>
@@ -622,13 +755,13 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const S
             const Double u_r   = rng_.GenerateUniform<Double>(seed_r);
 
             const HyperbolicHyperedgeCenter<Double> center{
-                .phi = min_phi + (u_phi * (max_phi - min_phi)),
-                .r   = std::acosh((u_r * (maxcdf - mincdf)) + mincdf) / alpha_};
+                .phi        = min_phi + (u_phi * (max_phi - min_phi)),
+                .r          = std::acosh((u_r * (maxcdf - mincdf)) + mincdf) / alpha_,
+                .sampled_id = sampled_center_id,
+                .annulus_id = annulus_id,
+            };
 
-            const auto [lower_bound, upper_bound] = RelativeRadiusBounds(center, 6.0);
-
-            BeginHyperedge(center, sampled_center_id, lower_bound, upper_bound);
-
+            BeginHyperedge(center);
             builder.Build(center);
         }
     }
@@ -680,6 +813,33 @@ void Hyper_Hyperbolic<Double>::PushHyperedgeRange(const SInt begin, const SInt e
     if (begin < end) {
         current_hyperedge_ranges_.push_back({begin, end});
     }
+}
+
+template <typename Double>
+Double Hyper_Hyperbolic<Double>::MinimumRadius(const HyperbolicHyperedgeCenter<Double>& center) const {
+    if (config_.min_hyperedge_radius != -1.0) {
+        return static_cast<Double>(config_.min_hyperedge_radius);
+    }
+
+    return minimum_radii_by_center_annulus_[center.annulus_id];
+}
+
+template <typename Double>
+Double Hyper_Hyperbolic<Double>::MaximumRadius(const HyperbolicHyperedgeCenter<Double>& center) const {
+    if (config_.max_hyperedge_radius != -1.0) {
+        return static_cast<Double>(config_.max_hyperedge_radius);
+    }
+
+    return center.r + target_r_;
+}
+
+template <typename Double>
+Double Hyper_Hyperbolic<Double>::Radius(const HyperbolicHyperedgeCenter<Double>& center) {
+    const Double lower = config_.random_radius ? MinimumRadius(center) : config_.r;
+    const Double upper = config_.random_radius ? std::max(lower, MaximumRadius(center)) : config_.r;
+
+    return static_cast<Double>(getSampledOrConstantRadius(
+        config_, center.sampled_id, static_cast<double>(lower), static_cast<double>(upper), rng_));
 }
 
 template class Hyper_Hyperbolic<LPFloat>;

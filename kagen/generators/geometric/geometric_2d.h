@@ -19,6 +19,7 @@
 
 #include "libmorton/morton2D.h"
 #include <algorithm>
+#include <chrono>
 #include <tuple>
 #include <vector>
 
@@ -36,9 +37,11 @@ public:
 
 protected:
     void GenerateGeometry() {
+        vertex_gen_start_ = std::chrono::steady_clock::now();
         // Generate per PE point distribution
-        for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i)
+        for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
             ComputeChunk(i);
+        }
 
         // Generate local chunks and edges
         for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
@@ -70,6 +73,9 @@ protected:
     HashMap<SInt, Chunk>               chunks_;
     HashMap<SInt, Cell>                cells_;
     HashMap<SInt, std::vector<Vertex>> vertices_;
+
+    // Debugging
+    std::chrono::steady_clock::time_point vertex_gen_start_;
 
     void InitDatastructures() {
         // Chunk distribution
@@ -105,15 +111,13 @@ protected:
         // Stop if no nodes remain
         if (n <= 0 || n > config_.n) {
             if (IsLocalChunk(chunk_id)) {
-                if (start_node_ > offset) {
-                    start_node_ = offset;
-                }
+                start_node_ = std::min(start_node_, offset);
             }
 
             return;
         }
-
-        SInt chunk_row, chunk_column;
+        SInt chunk_row;
+        SInt chunk_column;
         Decode(chunk_id, chunk_column, chunk_row);
 
         SInt chunk_start = Encode(chunk_start_column, chunk_start_row);
@@ -121,7 +125,7 @@ protected:
         // Base case
         if (row_k == 1 && column_k == 1) {
             chunks_[chunk_start] =
-                std::make_tuple(n, chunk_start_row * chunk_size_, chunk_start_column * chunk_size_, false, offset);
+                std::make_tuple(n, chunk_start_column * chunk_size_, chunk_start_row * chunk_size_, false, offset);
             if (IsLocalChunk(chunk_id)) {
                 if (start_node_ > offset)
                     start_node_ = offset;
@@ -175,9 +179,19 @@ protected:
         Decode(chunk_id, chunk_column, chunk_row);
         // Generate local cells and fill
         GenerateCells(chunk_id);
-        for (SInt i = 0; i < cells_per_chunk_; ++i)
+        for (SInt i = 0; i < cells_per_chunk_; ++i) {
             GenerateVertices(chunk_id, i, true);
+        }
         // Generate edges and vertices on demand
+
+        const auto vertex_gen_end = std::chrono::steady_clock::now();
+
+        const double duration_s = std::chrono::duration<double>(vertex_gen_end - vertex_gen_start_).count();
+
+        if (config_.debug) {
+            std::cout << "Vertex Generation took: " << std::fixed << std::setprecision(3) << duration_s << " seconds\n";
+        }
+
         GenerateEdges(chunk_row, chunk_column);
     }
 
@@ -204,8 +218,8 @@ protected:
             SInt h = sampling::Spooky::hash(seed);
             // due to potential floating point inaccuracies clamp probability
             SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 1.0));
-            LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;
-            LPFloat cell_start_y  = std::get<2>(chunk) + (i % cells_per_dim_) * cell_size_;
+            LPFloat cell_start_x  = std::get<1>(chunk) + ((i % cells_per_dim_) * cell_size_);
+            LPFloat cell_start_y  = std::get<2>(chunk) + ((i / cells_per_dim_) * cell_size_);
             if (cell_vertices != 0) {
                 cells_[ComputeGlobalCellId(chunk_id, i)] =
                     std::make_tuple(cell_vertices, cell_start_x, cell_start_y, false, offset);

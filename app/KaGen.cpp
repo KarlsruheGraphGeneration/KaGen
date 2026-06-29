@@ -146,10 +146,18 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             ->needs(radius_exponent);
     };
     auto add_partial_cell_mode = [&](CLI::App* cmd) {
-        return cmd->add_flag(
-            "--exact,-e", config.partial_cell_mode = PartialCellMode::EstimateByCoverage,
-            "Flag controls whether to generate all boundary cells for hyperedges, or to estimate based on covered "
-            "area");
+        cmd->add_flag_callback(
+            "--exact,-e", [&config]() { config.partial_cell_mode = PartialCellMode::GenerateAndCheck; },
+            "Generate and check all vertices in boundary cells");
+
+        cmd->add_flag_callback(
+            "--approx-range", [&config]() { config.partial_cell_mode = PartialCellMode::EstimateByCoverageRange; },
+            "Approximate boundary cells by sampling one random pin range per cell");
+
+        cmd->add_flag_callback(
+            "--approx-floyd,-a", [&config]() { config.partial_cell_mode = PartialCellMode::EstimateByCoverageFloyd; },
+            "Approximate boundary cells by Floyd-sampling vertices uniformly in cell");
+        return cmd;
     };
     auto add_option_edge_budget = [&](CLI::App* cmd) {
         auto* opt_log_budget = cmd->add_option_function<SInt>(

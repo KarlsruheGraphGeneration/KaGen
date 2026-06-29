@@ -1,5 +1,6 @@
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d.h"
 
+#include "kagen/generators/generator.h"
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d_policy.h"
 #include "kagen/hypergraph/hyperedge_builder.h"
 #include "kagen/sampling/hash.hpp"
@@ -104,6 +105,22 @@ void HyperRGG2D::GenerateCSR() {
     GenerateGeometry();
 }
 
-void HyperRGG2D::FinalizeCSR(MPI_Comm /*comm*/) {}
+void HyperRGG2D::FinalizeCSR(MPI_Comm comm) {
+    if (!config_.debug) {
+        return;
+    }
+
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
+
+    const auto& s = exact_debug_stats_;
+
+    std::cerr << "[Rank " << rank << "] "
+              << "partial_cells=" << s.partial_cells << " vertices_tested=" << s.vertices_tested
+              << " vertices_accepted=" << s.vertices_accepted << " acceptance="
+              << (s.vertices_tested ? static_cast<double>(s.vertices_accepted) / static_cast<double>(s.vertices_tested)
+                                    : 0.0)
+              << '\n';
+}
 
 } // namespace kagen

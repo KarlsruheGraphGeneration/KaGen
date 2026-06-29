@@ -27,10 +27,13 @@ public:
 
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
 };
+
 template <typename Double>
 struct HyperbolicHyperedgeCenter {
     Double phi;
     Double r;
+    SInt   sampled_id;
+    SInt   annulus_id;
 };
 
 template <typename Double>
@@ -45,10 +48,33 @@ public:
     using Annulus = std::tuple<SInt, Double, Double, bool, SInt>;
     // n, min_phi, max_phi, offset
     using Chunk = std::tuple<SInt, Double, Double, SInt>;
-    // n, min_phi, max_phi, generated, generated
-    using Cell = std::tuple<SInt, Double, Double, bool, SInt>;
-    // phi, r, x, y, gamma, id
-    using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt>;
+    // n, min_phi, max_phi, generated, offset, min_x, max_x, min_y, max_y
+    using Cell = std::tuple<SInt, Double, Double, bool, SInt, Double, Double, Double, Double>;
+    // phi, r, x, y, gamma, id, cosh_r, sinh_r, cos_phi, sin_phi
+    using Vertex = std::tuple<Double, Double, Double, Double, Double, SInt, Double, Double, Double, Double>;
+    struct VertexBlock {
+        std::vector<Double> r;
+        std::vector<SInt>   id;
+        std::vector<Double> cosh_r;
+        std::vector<Double> sinh_r;
+        std::vector<Double> cos_phi;
+        std::vector<Double> sin_phi;
+        std::vector<Double> phi;
+
+        void reserve(const SInt n) {
+            r.reserve(n);
+            id.reserve(n);
+            cosh_r.reserve(n);
+            sinh_r.reserve(n);
+            cos_phi.reserve(n);
+            sin_phi.reserve(n);
+            phi.reserve(n);
+        }
+
+        std::size_t size() const {
+            return id.size();
+        }
+    };
 
     // Used for placement of hyperball centers
     //  m, min_phi, max_phi, offset
@@ -97,10 +123,10 @@ private:
     Double                current_hyperedge_pdm_radius_;
 
     // Data structures
-    HashMap<SInt, Annulus>             annuli_;
-    HashMap<SInt, Chunk>               chunks_;
-    HashMap<SInt, Cell>                cells_;
-    HashMap<SInt, std::vector<Vertex>> vertices_;
+    HashMap<SInt, Annulus>     annuli_;
+    HashMap<SInt, Chunk>       chunks_;
+    HashMap<SInt, Cell>        cells_;
+    HashMap<SInt, VertexBlock> vertices_;
     // used for hyperedge centers
     HashMap<SInt, CenterChunk>   center_chunks_;
     HashMap<SInt, CenterAnnulus> center_annuli_;
@@ -110,6 +136,22 @@ private:
     std::vector<SInt>                      global_cell_ids_;
     std::vector<SInt>                      cells_per_annulus_;
     std::vector<std::pair<Double, Double>> boundaries_;
+    std::vector<Double>                    minimum_radii_by_center_annulus_;
+    std::vector<Double>                    annulus_min_r_;
+    std::vector<Double>                    annulus_max_r_;
+    std::vector<Double>                    annulus_min_cosh_;
+    std::vector<Double>                    annulus_min_sinh_;
+    std::vector<Double>                    annulus_max_cosh_;
+    std::vector<Double>                    annulus_max_sinh_;
+
+    struct DebugCenter {
+        SInt   sampled_id;
+        Double phi;
+        Double r;
+        Double radius;
+    };
+
+    std::vector<DebugCenter> debug_centers_;
 
     void ComputeAnnuli(SInt chunk_id);
 
@@ -151,11 +193,7 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 
-    Double ScaleRelativeRadius(const HyperbolicHyperedgeCenter<Double>& center, Double relative_radius) const;
-
-    void BeginHyperedge(
-        const HyperbolicHyperedgeCenter<Double>& center, SInt sampled_center_id, Double lower_bound,
-        Double upper_bound);
+    void BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center);
 
     void EndHyperedge();
 
@@ -165,12 +203,17 @@ private:
 
     void PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
 
-    Double ExpectedPinsForRadius(const HyperbolicHyperedgeCenter<Double>& center, Double radius);
+    Double MinimumRadius(const HyperbolicHyperedgeCenter<Double>& center) const;
+
+    Double MaximumRadius(const HyperbolicHyperedgeCenter<Double>& center) const;
+
+    Double SampleRadius(const HyperbolicHyperedgeCenter<Double>& center);
+
+    void PrecomputeMinimumRadii();
+
+    Double Radius(const HyperbolicHyperedgeCenter<Double>& center);
 
     Double FindRadiusForExpectedPins(const HyperbolicHyperedgeCenter<Double>& center, Double desired_pins);
-
-    std::pair<Double, Double>
-    RelativeRadiusBounds(const HyperbolicHyperedgeCenter<Double>& center, Double desired_min_pins);
 };
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm /*comm*/) {}

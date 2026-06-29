@@ -22,6 +22,7 @@ class HyperedgeBuilder {
 public:
     using Center = typename GeometryPolicy::Center;
     using Cell   = typename GeometryPolicy::Cell;
+    using Vertex = typename GeometryPolicy::Vertex;
 
     using Clock = std::chrono::steady_clock;
 
@@ -44,14 +45,14 @@ public:
     }
 
     void Build(const Center& center) {
-        const auto timer_start_total = Clock::now();
+        cells_.clear();
+        pins_.clear();
+        ranges_.clear();
+        const auto timer_start_total = config_.debug ? Clock::now() : Clock::time_point{};
 
-        std::vector<SInt>     pins;
-        std::vector<PinRange> ranges;
-
-        geometry_.AddCenter(center, pins);
+        geometry_.AddCenter(center, pins_);
         const auto radius = geometry_.Radius(center);
-        const auto cells  = geometry_.CandidateCells(center, radius);
+        geometry_.CandidateCells(center, radius, cells_);
 
         SInt outside_cells          = 0;
         SInt inside_cells           = 0;
@@ -59,64 +60,94 @@ public:
         SInt partial_estimated_size = 0;
         SInt inside_estimated_size  = 0;
 
-        for (const Cell& cell: cells) {
+        for (const Cell& cell: cells_) {
             const CellBallRelation relation = geometry_.ClassifyCell(center, radius, cell);
 
             switch (relation) {
-                case CellBallRelation::OUTSIDE:
-                    ++outside_cells;
+                case CellBallRelation::OUTSIDE: {
+                    if (config_.debug) {
+                        ++outside_cells;
+                    }
                     continue;
+                }
 
-                case CellBallRelation::INSIDE:
-                    inside_estimated_size += geometry_.AddWholeCell(cell, ranges);
-                    ++inside_cells;
+                case CellBallRelation::INSIDE: {
+                    const SInt added = geometry_.AddWholeCell(cell, ranges_);
+                    if (config_.debug) {
+                        inside_estimated_size += added;
+                        ++inside_cells;
+                    }
                     continue;
+                }
 
-                case CellBallRelation::PARTIAL:
+                case CellBallRelation::PARTIAL: {
                     if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
-                        partial_estimated_size += geometry_.AddPartialCellExact(center, radius, cell, pins);
-                        ++partial_cells;
+                        const SInt added = geometry_.AddPartialCellExact(center, radius, cell, pins_);
+                        if (config_.debug) {
+                            partial_estimated_size += added;
+                            ++partial_cells;
+                        }
                     } else {
                         const double coverage = geometry_.CellCoverage(center, radius, cell);
 
                         if (coverage <= 0.0) {
-                            ++outside_cells;
+                            if (config_.debug) {
+                                ++outside_cells;
+                            }
                             continue;
                         }
 
                         if (coverage >= 1.0) {
-                            inside_estimated_size += geometry_.AddWholeCell(cell, ranges);
-                            ++inside_cells;
+                            const SInt added = geometry_.AddWholeCell(cell, ranges_);
+                            if (config_.debug) {
+                                inside_estimated_size += added;
+                                ++inside_cells;
+                            }
+                        } else if (partial_cell_mode_ == PartialCellMode::EstimateByCoverageRange) {
+                            const SInt added = geometry_.AddPartialCellRange(center, cell, coverage, pins_, ranges_);
+                            if (config_.debug) {
+                                partial_estimated_size += added;
+                                ++partial_cells;
+                            }
                         } else {
-                            partial_estimated_size += geometry_.AddPartialCell(center, cell, coverage, ranges);
-                            ++partial_cells;
+                            const SInt added = geometry_.AddPartialCellFloyd(center, cell, coverage, pins_, ranges_);
+                            if (config_.debug) {
+                                partial_estimated_size += added;
+                                ++partial_cells;
+                            }
                         }
                     }
                     continue;
+                }
             }
         }
 
-        Normalize(pins, ranges);
-        SInt hyperedge_size = static_cast<SInt>(pins.size());
-        for (const PinRange& range: ranges) {
-            hyperedge_size += range.end - range.begin;
+        if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
+            if (!ranges_.empty()) {
+                NormalizeRangesOnly(ranges_);
+            }
+        } else {
+            Normalize(pins_, ranges_);
         }
 
-        const auto timer_end_total = Clock::now();
+        if (config_.debug && logger_) {
+            const auto      timer_end_total = Clock::now();
+            const long long duration_ns =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(timer_end_total - timer_start_total).count();
+            SInt hyperedge_size = static_cast<SInt>(pins_.size());
+            for (const PinRange& range: ranges_) {
+                hyperedge_size += range.end - range.begin;
+            }
 
-        const long long duration_ns =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(timer_end_total - timer_start_total).count();
-
-        ++counter_;
-        std::string center_string = geometry_.CenterToString(center);
-        if (logger_) {
+            ++counter_;
             logger_->LogHyperedge(
-                counter_, center_string, static_cast<double>(radius), static_cast<SInt>(cells.size()), inside_cells,
-                partial_cells, outside_cells, static_cast<SInt>(pins.size()), static_cast<SInt>(ranges.size()),
-                hyperedge_size, duration_ns, inside_estimated_size, partial_estimated_size);
+                counter_, geometry_.CenterToString(center), static_cast<double>(radius),
+                static_cast<SInt>(cells_.size()), inside_cells, partial_cells, outside_cells,
+                static_cast<SInt>(pins_.size()), static_cast<SInt>(ranges_.size()), hyperedge_size, duration_ns,
+                inside_estimated_size, partial_estimated_size);
         }
 
-        geometry_.EmitHyperedge(pins, ranges);
+        geometry_.EmitHyperedge(pins_, ranges_);
     }
 
 private:
@@ -164,10 +195,34 @@ private:
         ranges = std::move(merged_ranges);
     }
 
-    GeometryPolicy                                geometry_;
+    void NormalizeRangesOnly(std::vector<PinRange>& ranges) const {
+        std::sort(ranges.begin(), ranges.end(), [](const PinRange& a, const PinRange& b) { return a.begin < b.begin; });
+
+        std::vector<PinRange> merged;
+        merged.reserve(ranges.size());
+
+        for (const auto& range: ranges) {
+            if (range.begin >= range.end) {
+                continue;
+            }
+
+            if (!merged.empty() && merged.back().end >= range.begin) {
+                merged.back().end = std::max(merged.back().end, range.end);
+            } else {
+                merged.push_back(range);
+            }
+        }
+
+        ranges = std::move(merged);
+    }
+
+    GeometryPolicy&                               geometry_;
     PartialCellMode                               partial_cell_mode_;
-    PGeneratorConfig                              config_;
+    std::vector<Cell>                             cells_;
+    const PGeneratorConfig&                       config_;
     std::optional<GeometricHypergraphDebugLogger> logger_;
+    std::vector<SInt>                             pins_;
+    std::vector<PinRange>                         ranges_;
     SInt                                          counter_ = 0;
     int                                           rank_    = 0;
 };

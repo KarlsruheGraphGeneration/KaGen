@@ -38,13 +38,15 @@ void SpatialGrid2D::InitSpatialGrid2D(const PGeneratorConfig& config) {
     cell_size_       = chunk_size_ / static_cast<LPFloat>(cells_per_dim_);
 }
 
-SInt SpatialGrid2D::EncodeCell(const SInt x, const SInt y) const {
-    return x * cells_per_dim_ + y;
+SInt SpatialGrid2D::EncodeCell(SInt x, SInt y) const {
+    // x = column, y = row
+    return (y * cells_per_dim_) + x;
 }
 
-void SpatialGrid2D::DecodeCell(const SInt id, SInt& x, SInt& y) const {
-    x = id / cells_per_dim_;
-    y = id % cells_per_dim_;
+void SpatialGrid2D::DecodeCell(SInt id, SInt& x, SInt& y) const {
+    // x = column, y = row
+    x = id % cells_per_dim_;
+    y = id / cells_per_dim_;
 }
 
 SInt SpatialGrid2D::SafeTotalCellsPerDim() const {

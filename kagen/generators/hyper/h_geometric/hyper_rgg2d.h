@@ -20,12 +20,30 @@ protected:
     void GenerateCSR() override;
     void FinalizeCSR(MPI_Comm comm) override;
 
+    void AddExactDebugStats(SInt partial_cells, SInt vertices_tested, SInt vertices_accepted) const {
+        if (!config_.debug) {
+            return;
+}
+
+        exact_debug_stats_.partial_cells += partial_cells;
+        exact_debug_stats_.vertices_tested += vertices_tested;
+        exact_debug_stats_.vertices_accepted += vertices_accepted;
+    }
+
 private:
     void GenerateEdges(SInt chunk_row, SInt chunk_column) override;
 
     SInt SafeTotalCellsPerDim() const;
 
     void PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
+
+    struct ExactDebugStats {
+        SInt partial_cells     = 0;
+        SInt vertices_tested   = 0;
+        SInt vertices_accepted = 0;
+    };
+
+    mutable ExactDebugStats exact_debug_stats_;
 };
 
 } // namespace kagen

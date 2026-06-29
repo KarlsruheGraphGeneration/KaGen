@@ -26,4 +26,6 @@ private:
     std::ofstream out_;
 };
 
+
+
 } // namespace kagen

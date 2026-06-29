@@ -98,6 +98,8 @@ std::ostream& printHRGGData(std::ostream& out, const PGeneratorConfig& config) {
     out << "  Number of vertices:                 " << config.n << "\n";
     out << "  Hyperedge distribution exponent:    " << config.hyperedge_radius_exponent << "\n";
     out << "  Hypergraph:                         yes\n";
+    out << "  Partial cell mode:                  "
+        << (config.partial_cell_mode == PartialCellMode::GenerateAndCheck ? "exact" : "approx") << "\n";
     return out;
 }
 

@@ -58,12 +58,17 @@ public:
     real_t GenerateUniform(SInt seed, real_t min = 0.0, real_t max = 1.0) {
         rng_.seed(seed);
 
-        std::uniform_real_distribution<real_t> dist(min, max);
+        std::uniform_real_distribution<double> dist(min, max);
 
         return dist(rng_);
     }
     void SeedUniformStream(const SInt seed) {
         rng_.seed(seed);
+    }
+
+    double GenerateUniformDouble(SInt seed) {
+        rng_.seed(seed);
+        return uniform_double_(rng_);
     }
 
     double GenerateUniformDoubleStream() {

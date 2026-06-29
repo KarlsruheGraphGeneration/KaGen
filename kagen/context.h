@@ -103,7 +103,7 @@ struct Graph500RMATDefaults {
     static constexpr double c = 0.19;
 };
 // Handles behavior of by hyperballs partially covered cells
-enum class PartialCellMode { EstimateByCoverage, GenerateAndCheck };
+enum class PartialCellMode { EstimateByCoverageRange, EstimateByCoverageFloyd, GenerateAndCheck };
 
 // Configuration for the generator.
 struct PGeneratorConfig {
