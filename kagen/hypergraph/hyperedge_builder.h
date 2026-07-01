@@ -13,8 +13,6 @@
 // TODO(clickup)[2026-05-24]: Remove after Debugging
 #include "kagen/hypergraph/debug_logger_geometric.h"
 
-#include <CGAL/number_utils_classes.h>
-
 namespace kagen {
 
 template <typename GeometryPolicy>
