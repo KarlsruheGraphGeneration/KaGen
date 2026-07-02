@@ -15,40 +15,17 @@ namespace kagen {
 
 double SampleHyperedgeRadius(
     SInt identifier, const PGeneratorConfig& config, double lower_bound, double upper_bound, RNGWrapper<>& rng) {
-    if (lower_bound <= 0.0 || upper_bound <= 0.0 || lower_bound > upper_bound) {
-        throw ConfigurationError(
-            std::format("Invalid hyperedge radius bounds: lower bound:{} upper bound:{}", lower_bound, upper_bound));
-    }
-
-    const SInt seed = sampling::Spooky::hash(config.seed + (7919 * config.n) + identifier);
-
+    const SInt   seed          = sampling::Spooky::hash(config.seed + (7919 * config.n) + identifier);
     const double uniformRandom = rng.GenerateUniformDouble(seed);
-    const double alpha         = config.hyperedge_radius_exponent;
 
-    const double log_lower = -alpha * std::log(lower_bound);
-    const double log_upper = -alpha * std::log(upper_bound);
+    return SampleHyperedgeRadiusFromUniform(config, uniformRandom, lower_bound, upper_bound);
+}
 
-    const double max_log = std::max(log_lower, log_upper);
+double SampleHyperedgeRadius(
+    const PGeneratorConfig& config, const double lower_bound, const double upper_bound, Mersenne& mersenne) {
+    const double uniformRandom = mersenne.Random();
 
-    const double a = std::exp(log_lower - max_log);
-    const double b = std::exp(log_upper - max_log);
-
-    const double mixed = ((1.0 - uniformRandom) * a) + (uniformRandom * b);
-
-    double sampled = std::exp(-(std::log(mixed) + max_log) / alpha);
-
-    sampled = std::clamp(sampled, lower_bound, upper_bound);
-
-    if (!std::isfinite(sampled) || sampled <= 0.0) {
-        throw ConfigurationError(
-            std::format(
-                "Invalid sampled hyperedge radius: sampled={} "
-                "u={} alpha={} lower={} upper={} "
-                "lower^-alpha={} upper^-alpha={}",
-                sampled, uniformRandom, alpha, lower_bound, upper_bound, a, b));
-    }
-
-    return sampled;
+    return SampleHyperedgeRadiusFromUniform(config, uniformRandom, lower_bound, upper_bound);
 }
 
 double getSampledOrConstantRadius(
@@ -59,6 +36,35 @@ double getSampledOrConstantRadius(
     }
 
     return SampleHyperedgeRadius(identifier, config, actual_lower_bound, actual_upper_bound, rng);
+}
+
+double SampleHyperedgeRadiusFromUniform(
+    const PGeneratorConfig& config, const double uniform_random, const double lower_bound, const double upper_bound) {
+    if (lower_bound <= 0.0 || upper_bound <= 0.0 || lower_bound > upper_bound) {
+        throw ConfigurationError(
+            std::format("Invalid hyperedge radius bounds: lower bound:{} upper bound:{}", lower_bound, upper_bound));
+    }
+
+    const double alpha = config.hyperedge_radius_exponent;
+
+    const double log_lower = -alpha * std::log(lower_bound);
+    const double log_upper = -alpha * std::log(upper_bound);
+
+    const double max_log = std::max(log_lower, log_upper);
+
+    const double a = std::exp(log_lower - max_log);
+    const double b = std::exp(log_upper - max_log);
+
+    const double mixed = ((1.0 - uniform_random) * a) + (uniform_random * b);
+
+    double sampled = std::exp(-(std::log(mixed) + max_log) / alpha);
+    sampled        = std::clamp(sampled, lower_bound, upper_bound);
+
+    if (!std::isfinite(sampled) || sampled <= 0.0) {
+        throw ConfigurationError("Invalid sampled hyperedge radius");
+    }
+
+    return sampled;
 }
 
 /**

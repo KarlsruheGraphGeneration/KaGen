@@ -48,11 +48,7 @@ double HyperRGG2DPolicy::MinimumRadius(const Center& /*unused*/) {
 }
 
 LPFloat HyperRGG2DPolicy::Radius(const Center& center) const {
-    const double     lower_bound = const_cast<HyperRGG2DPolicy*>(this)->MinimumRadius(center);
-    constexpr double upper_bound = 1.0;
-    const double     actualRadius =
-        getSampledOrConstantRadius(gen_->config_, center.sampled_id, lower_bound, upper_bound, rng_);
-    return static_cast<LPFloat>(actualRadius);
+    return center.radius;
 }
 
 void HyperRGG2DPolicy::CandidateCells(const Center& center, const LPFloat radius, std::vector<Cell>& cells) const {

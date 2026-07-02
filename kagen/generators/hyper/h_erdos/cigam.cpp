@@ -294,7 +294,7 @@ void HyperCIGAM<BigInt>::GenerateBoundedBlock(
     }
 
     SInt edge_seed = sampling::Spooky::hash(seed + kEdgeRankSeedMultiplier);
-    rng_.SeedUniformStream(edge_seed);
+    mersenne_.RandomInit(edge_seed);
 
     std::unordered_set<std::vector<SInt>, VectorHash> local_seen;
 
@@ -323,7 +323,7 @@ void HyperCIGAM<BigInt>::GenerateBoundedBlock(
         pins.push_back(i);
 
         if (k > 2) {
-            auto middle = FloydSample(i + 1, j - i - 1, k - 2, rng_, edge_seed);
+            auto middle = FloydSample(i + 1, j - i - 1, k - 2, mersenne_);
             pins.insert(pins.end(), middle.begin(), middle.end());
         }
 
@@ -669,7 +669,7 @@ void HyperCIGAM<BigInt>::GenerateApproxRange(
 
     SInt edge_seed = sampling::Spooky::hash(static_cast<unsigned long long>(count_seed) + kEdgeRankSeedMultiplier);
 
-    rng_.SeedUniformStream(edge_seed);
+    mersenne_.RandomInit(edge_seed);
 
     for (SInt e = 0; e < local_m; ++e) {
         const long double u = std::min<long double>(
@@ -691,7 +691,7 @@ void HyperCIGAM<BigInt>::GenerateApproxRange(
         pins.push_back(i);
 
         if (k > 2) {
-            auto middle = FloydSample(i + 1, j - i - 1, k - 2, rng_, edge_seed);
+            auto middle = FloydSample(i + 1, j - i - 1, k - 2, mersenne_);
             pins.insert(pins.end(), middle.begin(), middle.end());
         }
 
@@ -750,4 +750,3 @@ template class HyperCIGAM<SInt>;
 #pragma GCC diagnostic pop
 
 } // namespace kagen
-

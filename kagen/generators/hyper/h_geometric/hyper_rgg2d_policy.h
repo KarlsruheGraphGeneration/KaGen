@@ -16,6 +16,7 @@ public:
     struct Center {
         LPFloat x;
         LPFloat y;
+        LPFloat radius;
         SInt    sampled_id;
         SInt    chunk_id;
         SInt    cell_id;
@@ -64,9 +65,9 @@ public:
 
     void PrintExactStatistics() const;
 
-private:
     double MinimumRadius(const Center& center);
 
+private:
     double EstimatedCellCoverage(const Center& center, LPFloat radius, const Cell& cell) const;
 
     double EstimatedCircleRectCoverage(

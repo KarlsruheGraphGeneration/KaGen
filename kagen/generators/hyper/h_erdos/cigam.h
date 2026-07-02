@@ -57,6 +57,7 @@ private:
     random_permutation::FeistelPseudoRandomPermutation vertex_permutation_;
 
     RNGWrapper<>                              rng_;
+    Mersenne                                  mersenne_;
     std::optional<ErdosHypergraphDebugLogger> debug_logger_;
 
     // Caching

@@ -32,6 +32,12 @@ double getSampledOrConstantRadius(
     const PGeneratorConfig& config, SInt identifier, double actual_lower_bound, double actual_upper_bound,
     RNGWrapper<>& rng);
 
+double
+SampleHyperedgeRadius(const PGeneratorConfig& config, double lower_bound, double upper_bound, Mersenne& mersenne);
+
+double SampleHyperedgeRadiusFromUniform(
+    const PGeneratorConfig& config, double uniform_random, double lower_bound, double upper_bound);
+
 bool RandomRadiusChecks(PGeneratorConfig& config);
 
 PinRange

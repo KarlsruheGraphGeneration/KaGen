@@ -193,7 +193,7 @@ private:
 
     bool IsLocalChunk(SInt chunk_id) const;
 
-    void BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center);
+    void BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center, Mersenne& mersenne);
 
     void EndHyperedge();
 
@@ -211,7 +211,7 @@ private:
 
     void PrecomputeMinimumRadii();
 
-    Double Radius(const HyperbolicHyperedgeCenter<Double>& center);
+    Double Radius(const HyperbolicHyperedgeCenter<Double>& center, Mersenne& mersenne);
 
     Double FindRadiusForExpectedPins(const HyperbolicHyperedgeCenter<Double>& center, Double desired_pins);
 };

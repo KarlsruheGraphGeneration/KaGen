@@ -415,11 +415,11 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
 }
 
 template <typename Double>
-void Hyper_Hyperbolic<Double>::BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center) {
+void Hyper_Hyperbolic<Double>::BeginHyperedge(const HyperbolicHyperedgeCenter<Double>& center, Mersenne& mersenne) {
     current_hyperedge_pins_.clear();
     current_hyperedge_ranges_.clear();
 
-    current_hyperedge_radius_ = Radius(center);
+    current_hyperedge_radius_ = Radius(center, mersenne);
 
     current_hyperedge_pdm_radius_ = (std::cosh(current_hyperedge_radius_) - 1.0) / 2.0;
 }
@@ -748,11 +748,11 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const S
         for (SInt emitted = 0; emitted < cell_m; ++emitted) {
             const SInt sampled_center_id = center_offset + emitted;
 
-            const SInt seed_phi = sampling::Spooky::hash(config_.seed + (17 * sampled_center_id));
-            const SInt seed_r   = sampling::Spooky::hash(config_.seed + (31 * sampled_center_id));
+            const SInt seed = sampling::Spooky::hash(config_.seed + sampled_center_id);
+            mersenne.RandomInit(seed);
 
-            const Double u_phi = rng_.GenerateUniform<Double>(seed_phi);
-            const Double u_r   = rng_.GenerateUniform<Double>(seed_r);
+            const Double u_phi = mersenne.Random();
+            const Double u_r   = mersenne.Random();
 
             const HyperbolicHyperedgeCenter<Double> center{
                 .phi        = min_phi + (u_phi * (max_phi - min_phi)),
@@ -761,7 +761,7 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const S
                 .annulus_id = annulus_id,
             };
 
-            BeginHyperedge(center);
+            BeginHyperedge(center, mersenne);
             builder.Build(center);
         }
     }
@@ -834,12 +834,16 @@ Double Hyper_Hyperbolic<Double>::MaximumRadius(const HyperbolicHyperedgeCenter<D
 }
 
 template <typename Double>
-Double Hyper_Hyperbolic<Double>::Radius(const HyperbolicHyperedgeCenter<Double>& center) {
-    const Double lower = config_.random_radius ? MinimumRadius(center) : config_.r;
-    const Double upper = config_.random_radius ? std::max(lower, MaximumRadius(center)) : config_.r;
+Double Hyper_Hyperbolic<Double>::Radius(const HyperbolicHyperedgeCenter<Double>& center, Mersenne& mersenne) {
+    if (!config_.random_radius) {
+        return static_cast<Double>(config_.r);
+    }
 
-    return static_cast<Double>(getSampledOrConstantRadius(
-        config_, center.sampled_id, static_cast<double>(lower), static_cast<double>(upper), rng_));
+    const Double lower = MinimumRadius(center);
+    const Double upper = std::max(lower, MaximumRadius(center));
+
+    return static_cast<Double>(
+        SampleHyperedgeRadius(config_, static_cast<double>(lower), static_cast<double>(upper), mersenne));
 }
 
 template class Hyper_Hyperbolic<LPFloat>;

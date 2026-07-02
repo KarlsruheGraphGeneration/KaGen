@@ -1,12 +1,9 @@
 #pragma once
 
-#include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
 #include "kagen/generators/hyper/h_hyperbolic/hyper_hyperbolic.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
-
-#include <CGAL/number_utils_classes.h>
 
 #include <algorithm>
 #include <cmath>
@@ -125,7 +122,10 @@ public:
         : gen_(generator),
           start_annulus_id_(annulus_id),
           start_chunk_id_(chunk_id),
-          rng_(RNGWrapper(generator.config_)) {}
+          rng_(RNGWrapper(generator.config_)) {
+        current_annulus_half_angle_.resize(gen_.total_annuli_, Double{-1.0});
+        EnsureAnnulusMidpoints();
+    }
 
     void SetStartCell(const SInt annulus_id, const SInt chunk_id, const SInt cell_id) {
         start_annulus_id_ = annulus_id;
@@ -145,13 +145,30 @@ public:
         const auto query_parts = SplitCircularInterval(min_phi, max_phi);
 
         for (SInt chunk_id = 0; chunk_id < gen_.config_.k; ++chunk_id) {
-            gen_.GenerateCells(annulus_id, chunk_id);
-
             const auto& chunk = gen_.chunks_[chunk_id];
 
             const Double chunk_min_phi = std::get<1>(chunk);
             const Double chunk_max_phi = std::get<2>(chunk);
-            const Double cell_width    = (chunk_max_phi - chunk_min_phi) / grid_size;
+
+            bool chunk_overlaps = false;
+
+            for (int p = 0; p < query_parts.count; ++p) {
+                const Double q_begin = query_parts.parts[p].first;
+                const Double q_end   = query_parts.parts[p].second;
+
+                if (std::max(q_begin, chunk_min_phi) < std::min(q_end, chunk_max_phi)) {
+                    chunk_overlaps = true;
+                    break;
+                }
+            }
+
+            if (!chunk_overlaps) {
+                continue;
+            }
+
+            gen_.GenerateCells(annulus_id, chunk_id);
+
+            const Double cell_width = (chunk_max_phi - chunk_min_phi) / grid_size;
 
             for (int p = 0; p < query_parts.count; ++p) {
                 const Double q_begin = query_parts.parts[p].first;
@@ -213,7 +230,8 @@ public:
     }
     void AddCandidateCellsInAnnulus(
         const Center& center, const Double /*radius*/, const SInt annulus_id, std::vector<Cell>& cells) {
-        const Double half_angle = AllowedHalfAngleForAnnulus(center.r, annulus_id);
+        const Double half_angle                 = AllowedHalfAngleForAnnulus(center.r, annulus_id);
+        current_annulus_half_angle_[annulus_id] = half_angle;
 
         if (half_angle <= 0.0) {
             return;
@@ -234,7 +252,24 @@ public:
 
         cells.clear();
 
-        for (SInt annulus_id = 0; annulus_id < gen_.total_annuli_; ++annulus_id) {
+        const Double r_min = std::max(Double{0.0}, center.r - radius);
+        const Double r_max = std::min(gen_.target_r_, center.r + radius);
+
+        if (r_max < r_min) {
+            return;
+        }
+
+        const Double annulus_width = gen_.target_r_ / static_cast<Double>(gen_.total_annuli_);
+
+        SInt first_annulus = static_cast<SInt>(std::floor(r_min / annulus_width));
+        SInt last_annulus  = static_cast<SInt>(std::floor(r_max / annulus_width));
+
+        first_annulus = std::clamp<SInt>(first_annulus, 0, gen_.total_annuli_ - 1);
+        last_annulus  = std::clamp<SInt>(last_annulus, 0, gen_.total_annuli_ - 1);
+
+        std::fill(current_annulus_half_angle_.begin(), current_annulus_half_angle_.end(), Double{-1.0});
+
+        for (SInt annulus_id = first_annulus; annulus_id <= last_annulus; ++annulus_id) {
             AddCandidateCellsInAnnulus(center, radius, annulus_id, cells);
         }
     }
@@ -398,13 +433,8 @@ public:
             return Double{1.0};
         }
 
-        EnsureCoverageSamples();
-
-        const auto& stored_cell =
-            gen_.cells_.find(gen_.ComputeGlobalCellId(cell.annulus_id, cell.chunk_id, cell.cell_id))->second;
-
-        const Double min_phi = std::get<1>(stored_cell);
-        const Double max_phi = std::get<2>(stored_cell);
+        const Double min_phi = cell.min_phi;
+        const Double max_phi = cell.max_phi;
 
         const Double cell_phi_width = max_phi - min_phi;
 
@@ -412,32 +442,22 @@ public:
             return Double{0.0};
         }
 
-        Double weighted_inside = Double{0.0};
-        Double weighted_total  = Double{0.0};
+        Double half_angle = current_annulus_half_angle_[cell.annulus_id];
 
-        const auto& samples = coverage_samples_[cell.annulus_id];
-
-        for (const CoverageSample& sample: samples) {
-            const Double half_angle = AllowedHalfAngleAtRadius(sample.r, sample.cosh_r, sample.sinh_r);
-
-            Double overlap_phi = Double{0.0};
-
-            if (half_angle >= Double{M_PI}) {
-                overlap_phi = cell_phi_width;
-            } else if (half_angle > Double{0.0}) {
-                overlap_phi =
-                    CircularIntervalOverlap(min_phi, max_phi, center.phi - half_angle, center.phi + half_angle);
-            }
-
-            weighted_inside += overlap_phi * sample.weight;
-            weighted_total += cell_phi_width * sample.weight;
+        if (half_angle < Double{0.0}) {
+            const auto& mid = annulus_mid_[cell.annulus_id];
+            half_angle      = AllowedHalfAngleAtRadius(mid.r, mid.cosh_r, mid.sinh_r);
         }
 
-        if (weighted_total <= Double{0.0}) {
-            return Double{0.0};
+        Double overlap_phi = Double{0.0};
+
+        if (half_angle >= Double{M_PI}) {
+            overlap_phi = cell_phi_width;
+        } else if (half_angle > Double{0.0}) {
+            overlap_phi = CircularIntervalOverlap(min_phi, max_phi, center.phi - half_angle, center.phi + half_angle);
         }
 
-        return std::clamp(weighted_inside / weighted_total, Double{0.0}, Double{1.0});
+        return std::clamp(overlap_phi / cell_phi_width, Double{0.0}, Double{1.0});
     }
 
     SInt AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
@@ -605,6 +625,7 @@ private:
     Double                           center_phi_{};
     Double                           center_r_{};
     mutable std::unordered_set<SInt> floyd_scratch_;
+    mutable std::vector<Double>      current_annulus_half_angle_;
     struct CachedExactCell {
         std::vector<Vertex> vertices_by_x;
     };
@@ -617,8 +638,34 @@ private:
         Double sinh_r;
         Double weight;
     };
-    static constexpr int                                              kCoverageSamples = 16;
+    static constexpr int                                              kCoverageSamples = 4;
     mutable std::vector<std::array<CoverageSample, kCoverageSamples>> coverage_samples_;
+
+    struct AnnulusMidpoint {
+        Double r;
+        Double cosh_r;
+        Double sinh_r;
+    };
+
+    std::vector<AnnulusMidpoint> annulus_mid_;
+
+    void EnsureAnnulusMidpoints() {
+        if (!annulus_mid_.empty()) {
+            return;
+        }
+
+        annulus_mid_.resize(gen_.total_annuli_);
+
+        for (SInt i = 0; i < gen_.total_annuli_; ++i) {
+            const Double r = (gen_.annulus_min_r_[i] + gen_.annulus_max_r_[i]) * 0.5;
+
+            annulus_mid_[i] = {
+                .r      = r,
+                .cosh_r = std::cosh(r),
+                .sinh_r = std::sinh(r),
+            };
+        }
+    }
 
     void EnsureCoverageSamples() const {
         if (!coverage_samples_.empty()) {

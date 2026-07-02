@@ -59,6 +59,7 @@ private:
     PEID                    size_;
 
     RNGWrapper<>                              rng_;
+    Mersenne                                  mersenne_;
     std::optional<ErdosHypergraphDebugLogger> debug_logger_;
 };
 

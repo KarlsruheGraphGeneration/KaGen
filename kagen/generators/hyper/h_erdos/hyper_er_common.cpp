@@ -198,4 +198,60 @@ long double BinomSmallExactLD(SInt n, SInt q) {
     return result;
 }
 
+inline long double MersenneUniform01(Mersenne& mersenne) {
+    return std::min<long double>(static_cast<long double>(mersenne.Random()), std::nextafter(1.0L, 0.0L));
+}
+std::vector<SInt>
+FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sample_size, Mersenne& mersenne) {
+    if (sample_size > universe_size) {
+        throw ConfigurationError("Cannot sample more pins than available vertices");
+    }
+
+    if (sample_size <= 32) {
+        std::vector<SInt> result;
+        result.reserve(sample_size);
+
+        while (static_cast<SInt>(result.size()) < sample_size) {
+            const long double x = MersenneUniform01(mersenne);
+
+            const SInt candidate = universe_offset + static_cast<SInt>(x * static_cast<long double>(universe_size));
+
+            bool duplicate = false;
+            for (const SInt v: result) {
+                if (v == candidate) {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (!duplicate) {
+                result.push_back(candidate);
+            }
+        }
+
+        std::sort(result.begin(), result.end());
+        return result;
+    }
+
+    std::unordered_set<SInt> selected;
+    selected.reserve(static_cast<std::size_t>(sample_size));
+
+    const SInt start = universe_size - sample_size;
+
+    for (SInt j = start; j < universe_size; ++j) {
+        const long double x = MersenneUniform01(mersenne);
+
+        const SInt t = static_cast<SInt>(x * static_cast<long double>(j + 1));
+
+        const SInt candidate = universe_offset + t;
+        const SInt fallback  = universe_offset + j;
+
+        selected.insert(selected.contains(candidate) ? fallback : candidate);
+    }
+
+    std::vector<SInt> result(selected.begin(), selected.end());
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
 } // namespace kagen

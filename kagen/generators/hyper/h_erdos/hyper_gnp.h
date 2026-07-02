@@ -63,6 +63,7 @@ private:
     PEID size_;
 
     RNGWrapper<>    rng_;
+    Mersenne        mersenne_;
     ProbabilityType probs_type_ = ProbabilityType::GLOBAL_PROBABILITY;
 
     std::optional<ErdosHypergraphDebugLogger> debug_logger_;

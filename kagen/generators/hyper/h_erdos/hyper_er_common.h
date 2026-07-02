@@ -3,6 +3,7 @@
 #include "kagen/generators/generator.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
+#include "kagen/tools/mersenne.h"
 #include "kagen/tools/rng_wrapper.h"
 
 #include <boost/multiprecision/cpp_int.hpp>
@@ -136,6 +137,8 @@ bool MinRangeMassDefinitelyExceedsSInt(SInt begin, SInt end, SInt n, SInt k);
 
 long double BinomSmallExactLD(SInt n, SInt q);
 
+std::vector<SInt> FloydSample(SInt universe_offset, SInt universe_size, SInt sample_size, Mersenne& mersenne);
+
 template <typename RNG>
 std::vector<SInt> MultinomialRankCounts(
     const SInt m, const std::vector<long double>& mass, const long double total_mass, RNG& rng, SInt seed) {
@@ -176,61 +179,7 @@ SInt SampleMinimumFromCDF(const SInt min_begin, const std::vector<long double>& 
     return min_begin + static_cast<SInt>(it - cdf.begin());
 }
 
-template <typename RNG>
-std::vector<SInt>
-FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sample_size, RNG& rng, SInt& seed) {
-    if (sample_size > universe_size) {
-        throw ConfigurationError("Cannot sample more pins than available vertices");
-    }
-    if (sample_size <= 32) {
-        std::vector<SInt> result;
-        result.reserve(sample_size);
 
-        while (static_cast<SInt>(result.size()) < sample_size) {
-            const long double x = std::min<long double>(
-                static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
-            ++seed;
-
-            const SInt candidate = universe_offset + static_cast<SInt>(x * static_cast<long double>(universe_size));
-
-            bool duplicate = false;
-            for (const SInt v: result) {
-                if (v == candidate) {
-                    duplicate = true;
-                    break;
-                }
-            }
-
-            if (!duplicate) {
-                result.push_back(candidate);
-            }
-        }
-
-        std::sort(result.begin(), result.end());
-        return result;
-    }
-    std::unordered_set<SInt> selected;
-    selected.reserve(static_cast<std::size_t>(sample_size));
-
-    const SInt start = universe_size - sample_size;
-
-    for (SInt j = start; j < universe_size; ++j) {
-        const long double x = std::min<long double>(
-            static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
-        ++seed;
-
-        const SInt t = static_cast<SInt>(x * static_cast<long double>(j + 1));
-
-        const SInt candidate = universe_offset + t;
-        const SInt fallback  = universe_offset + j;
-
-        selected.insert(selected.contains(candidate) ? fallback : candidate);
-    }
-
-    std::vector<SInt> result(selected.begin(), selected.end());
-    std::sort(result.begin(), result.end());
-    return result;
-}
 
 template <typename RNG>
 SInt PoissonLocalCountFromScaledMass(

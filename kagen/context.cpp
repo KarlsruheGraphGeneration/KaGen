@@ -91,6 +91,18 @@ std::ostream& printHRHGData(std::ostream& out, const PGeneratorConfig& config) {
     }
     out << "\n";
     out << "  Hypergraph:                         yes\n";
+    out << "  Partial cell mode:                  ";
+    switch (config.partial_cell_mode) {
+        case PartialCellMode::GenerateAndCheck:
+            out << "exact\n";
+            break;
+        case PartialCellMode::EstimateByCoverageFloyd:
+            out << "approx-floyd\n";
+            break;
+        case PartialCellMode::EstimateByCoverageRange:
+            out << "approx-range\n";
+            break;
+    }
     return out;
 }
 
@@ -98,8 +110,18 @@ std::ostream& printHRGGData(std::ostream& out, const PGeneratorConfig& config) {
     out << "  Number of vertices:                 " << config.n << "\n";
     out << "  Hyperedge distribution exponent:    " << config.hyperedge_radius_exponent << "\n";
     out << "  Hypergraph:                         yes\n";
-    out << "  Partial cell mode:                  "
-        << (config.partial_cell_mode == PartialCellMode::GenerateAndCheck ? "exact" : "approx") << "\n";
+    out << "  Partial cell mode:                  ";
+    switch (config.partial_cell_mode) {
+        case PartialCellMode::GenerateAndCheck:
+            out << "exact\n";
+            break;
+        case PartialCellMode::EstimateByCoverageFloyd:
+            out << "approx-floyd\n";
+            break;
+        case PartialCellMode::EstimateByCoverageRange:
+            out << "approx-range\n";
+            break;
+    }
     return out;
 }
 

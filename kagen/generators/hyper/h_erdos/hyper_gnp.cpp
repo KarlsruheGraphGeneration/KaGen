@@ -462,13 +462,13 @@ void HyperGNP<BigInt>::GenerateLocalHyperedges(
 
     const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
     CountInt       attempts     = 0;
-    rng_.SeedUniformStream(edge_seed);
+    mersenne_.RandomInit(edge_seed);
 
     while (generated < local_m) {
         const SInt s = SampleMinimumImplicit(
             local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
 
-        auto pins = FloydSample(s + 1, config_.n - s - 1, hyperedge_size - 1, rng_, edge_seed);
+        auto pins = FloydSample(s + 1, config_.n - s - 1, hyperedge_size - 1, mersenne_);
 
         pins.push_back(s);
         std::sort(pins.begin(), pins.end());

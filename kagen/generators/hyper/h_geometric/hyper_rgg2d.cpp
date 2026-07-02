@@ -62,18 +62,28 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
                 const SInt sampled_center_id =
                     (global_cell_id * base_m) + std::min(global_cell_id, remainder) + emitted;
 
-                const SInt seed_x = sampling::Spooky::hash(config_.seed + (17 * sampled_center_id));
-                const SInt seed_y = sampling::Spooky::hash(config_.seed + (31 * sampled_center_id));
+                const SInt center_seed = sampling::Spooky::hash(config_.seed + (17 * sampled_center_id));
 
-                const LPFloat random_x = rng_.GenerateUniform<LPFloat>(seed_x);
-                const LPFloat random_y = rng_.GenerateUniform<LPFloat>(seed_y);
+                mersenne.RandomInit(center_seed);
+
+                const LPFloat random_x = static_cast<LPFloat>(mersenne.Random());
+                const LPFloat random_y = static_cast<LPFloat>(mersenne.Random());
 
                 const LPFloat center_x = (static_cast<LPFloat>(global_cell_x) + random_x) * cell_width;
                 const LPFloat center_y = (static_cast<LPFloat>(global_cell_y) + random_y) * cell_width;
 
+                const double lower_bound = policy.MinimumRadius({});
+                const double upper_bound = 1.0;
+
+                const LPFloat radius =
+                    config_.random_radius
+                        ? static_cast<LPFloat>(SampleHyperedgeRadius(config_, lower_bound, upper_bound, mersenne))
+                        : static_cast<LPFloat>(config_.r);
+
                 const HyperRGG2DPolicy::Center center{
                     .x          = center_x,
                     .y          = center_y,
+                    .radius     = radius,
                     .sampled_id = sampled_center_id,
                     .chunk_id   = chunk_id,
                     .cell_id    = cell_id,
