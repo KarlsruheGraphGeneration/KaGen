@@ -9,12 +9,21 @@
 #include "kagen/tools/validator.h"
 
 #include <mpi.h>
+#include <sys/resource.h>
 
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 
 namespace kagen {
+namespace {
+long PeakRSSKiB() {
+    rusage usage{};
+    getrusage(RUSAGE_SELF, &usage);
+    return usage.ru_maxrss; // KiB on Linux
+}
+} // namespace
+
 void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     PEID size, rank;
     MPI_Comm_size(comm, &size);
@@ -138,8 +147,14 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         generator->PermuteVertices(config, comm);
     }
 
-    auto graph = generator->Take();
-
+    auto graph            = generator->Take();
+    long max_peak_rss_kib = 0;
+    long sum_peak_rss_kib = 0;
+    if (config.debug) {
+        const long local_peak_rss_kib = PeakRSSKiB();
+        MPI_Reduce(&local_peak_rss_kib, &max_peak_rss_kib, 1, MPI_LONG, MPI_MAX, ROOT, comm);
+        MPI_Reduce(&local_peak_rss_kib, &sum_peak_rss_kib, 1, MPI_LONG, MPI_SUM, ROOT, comm);
+    }
     // Validation
     if (config.validate_simple_graph && !is_hypergraph) {
         if (output_info) {
@@ -154,7 +169,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
             }
             MPI_Abort(comm, 1);
         } else if (output_info) {
-            std::cout << "OK" << std::endl;
+            std::cout << "OK" << '\n';
         }
     }
 
@@ -162,8 +177,12 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
     if (!config.quiet) {
         if (output_info) {
             std::cout << "Generation took " << std::fixed << std::setprecision(3) << t_end_graphgen - t_start_graphgen
-                      << " seconds" << std::endl;
-            std::cout << "-------------------------------------------------------------------------------" << std::endl;
+                      << " seconds" << '\n';
+            if (config.debug) {
+                std::cout << "Peak RSS max: " << max_peak_rss_kib << " KiB" << '\n';
+                std::cout << "Peak RSS avg: " << (sum_peak_rss_kib / size) << " KiB" << '\n';
+            }
+            std::cout << "-------------------------------------------------------------------------------" << '\n';
         }
 
         if (is_hypergraph) {
@@ -186,11 +205,11 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
             }
             if (config.statistics_level >= StatisticsLevel::ADVANCED) {
                 std::cout << "Advanced statistics are not available when generating the graph in CSR representation"
-                          << std::endl;
+                          << '\n';
             }
         }
         if (output_info && config.statistics_level != StatisticsLevel::NONE) {
-            std::cout << "-------------------------------------------------------------------------------" << std::endl;
+            std::cout << "-------------------------------------------------------------------------------" << '\n';
         }
     }
 
