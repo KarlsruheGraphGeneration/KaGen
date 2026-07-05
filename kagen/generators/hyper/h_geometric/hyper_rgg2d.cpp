@@ -3,6 +3,7 @@
 #include "kagen/generators/generator.h"
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d_policy.h"
 #include "kagen/hypergraph/hyperedge_builder.h"
+#include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 
 #include <algorithm>
@@ -27,6 +28,23 @@ SInt HyperRGG2D::SafeTotalCellsPerDim() const {
     return chunks_per_dim_ * cells_per_dim_;
 }
 
+HyperRGG2D::CellPosition HyperRGG2D::GetCellPosition(
+    const SInt chunk_row, const SInt chunk_column, const SInt cell_row, const SInt cell_column,
+    const SInt total_cells_per_dim) const {
+    const SInt cell_id = EncodeCell(cell_column, cell_row);
+
+    const SInt global_cell_x  = (chunk_column * cells_per_dim_) + cell_column;
+    const SInt global_cell_y  = (chunk_row * cells_per_dim_) + cell_row;
+    const SInt global_cell_id = (global_cell_y * total_cells_per_dim) + global_cell_x;
+
+    return {
+        .cell_id        = cell_id,
+        .global_cell_x  = global_cell_x,
+        .global_cell_y  = global_cell_y,
+        .global_cell_id = global_cell_id,
+    };
+}
+
 void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     const SInt chunk_id = Encode(chunk_column, chunk_row);
 
@@ -45,51 +63,31 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     HyperRGG2DPolicy                   policy(*this);
     HyperedgeBuilder<HyperRGG2DPolicy> builder(policy, config_);
 
+    LPFloat lower_bound = static_cast<LPFloat>(policy.MinimumRadius({}));
+    LPFloat upper_bound = LPFloat{1.0};
+
+    if (config_.min_hyperedge_radius != -1.0) {
+        lower_bound = static_cast<LPFloat>(config_.min_hyperedge_radius);
+    }
+
+    if (config_.max_hyperedge_radius != -1.0) {
+        upper_bound = static_cast<LPFloat>(config_.max_hyperedge_radius);
+    }
+
+    const SInt    base_m     = config_.m / total_cells;
+    const SInt    remainder  = config_.m % total_cells;
+    const LPFloat cell_width = LPFloat{1.0} / static_cast<LPFloat>(total_cells_per_dim);
+
+    CenterSampler sampler(*this, cell_width, lower_bound, upper_bound);
+
     for (SInt cell_row = 0; cell_row < cells_per_dim_; ++cell_row) {
         for (SInt cell_column = 0; cell_column < cells_per_dim_; ++cell_column) {
-            const SInt cell_id = EncodeCell(cell_column, cell_row);
+            const auto cell = GetCellPosition(chunk_row, chunk_column, cell_row, cell_column, total_cells_per_dim);
 
-            const SInt global_cell_x  = (chunk_column * cells_per_dim_) + cell_column;
-            const SInt global_cell_y  = (chunk_row * cells_per_dim_) + cell_row;
-            const SInt global_cell_id = (global_cell_y * total_cells_per_dim) + global_cell_x;
-
-            const SInt    base_m     = config_.m / total_cells;
-            const SInt    remainder  = config_.m % total_cells;
-            const SInt    cell_m     = base_m + static_cast<SInt>(global_cell_id < remainder);
-            const LPFloat cell_width = LPFloat{1.0} / static_cast<LPFloat>(total_cells_per_dim);
+            const SInt cell_m = base_m + static_cast<SInt>(cell.global_cell_id < remainder);
 
             for (SInt emitted = 0; emitted < cell_m; emitted++) {
-                const SInt sampled_center_id =
-                    (global_cell_id * base_m) + std::min(global_cell_id, remainder) + emitted;
-
-                const SInt center_seed = sampling::Spooky::hash(config_.seed + (17 * sampled_center_id));
-
-                mersenne.RandomInit(center_seed);
-
-                const LPFloat random_x = static_cast<LPFloat>(mersenne.Random());
-                const LPFloat random_y = static_cast<LPFloat>(mersenne.Random());
-
-                const LPFloat center_x = (static_cast<LPFloat>(global_cell_x) + random_x) * cell_width;
-                const LPFloat center_y = (static_cast<LPFloat>(global_cell_y) + random_y) * cell_width;
-
-                const double lower_bound = policy.MinimumRadius({});
-                const double upper_bound = 1.0;
-
-                const LPFloat radius =
-                    config_.random_radius
-                        ? static_cast<LPFloat>(SampleHyperedgeRadius(config_, lower_bound, upper_bound, mersenne))
-                        : static_cast<LPFloat>(config_.r);
-
-                const HyperRGG2DPolicy::Center center{
-                    .x          = center_x,
-                    .y          = center_y,
-                    .radius     = radius,
-                    .sampled_id = sampled_center_id,
-                    .chunk_id   = chunk_id,
-                    .cell_id    = cell_id,
-                };
-
-                builder.Build(center);
+                builder.Build(sampler.Sample(chunk_id, cell, emitted, base_m, remainder));
             }
         }
     }
@@ -131,6 +129,41 @@ void HyperRGG2D::FinalizeCSR(MPI_Comm comm) {
               << (s.vertices_tested ? static_cast<double>(s.vertices_accepted) / static_cast<double>(s.vertices_tested)
                                     : 0.0)
               << '\n';
+}
+
+HyperRGG2D::CenterSampler::CenterSampler(HyperRGG2D& gen, LPFloat cell_width, LPFloat lower_bound, LPFloat upper_bound)
+    : gen_(gen),
+      cell_width_(cell_width),
+      lower_bound_(lower_bound),
+      upper_bound_(upper_bound) {}
+
+HyperRGG2D::Center
+HyperRGG2D::CenterSampler::Sample(SInt chunk_id, const CellPosition& cell, SInt emitted, SInt base_m, SInt remainder) {
+    const SInt sampled_center_id = (cell.global_cell_id * base_m) + std::min(cell.global_cell_id, remainder) + emitted;
+
+    const SInt center_seed = sampling::Spooky::hash(gen_.config_.seed + (17 * sampled_center_id));
+
+    gen_.mersenne.RandomInit(center_seed);
+
+    const LPFloat random_x = static_cast<LPFloat>(gen_.mersenne.Random());
+    const LPFloat random_y = static_cast<LPFloat>(gen_.mersenne.Random());
+
+    const LPFloat center_x = (static_cast<LPFloat>(cell.global_cell_x) + random_x) * cell_width_;
+    const LPFloat center_y = (static_cast<LPFloat>(cell.global_cell_y) + random_y) * cell_width_;
+
+    const LPFloat radius =
+        gen_.config_.random_radius
+            ? static_cast<LPFloat>(SampleHyperedgeRadius(gen_.config_, lower_bound_, upper_bound_, gen_.mersenne))
+            : static_cast<LPFloat>(gen_.config_.r);
+
+    return {
+        .x          = center_x,
+        .y          = center_y,
+        .radius     = radius,
+        .sampled_id = sampled_center_id,
+        .chunk_id   = chunk_id,
+        .cell_id    = cell.cell_id,
+    };
 }
 
 } // namespace kagen

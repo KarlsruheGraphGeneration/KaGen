@@ -182,6 +182,7 @@ struct PGeneratorConfig {
     double          max_hyperedge_radius      = -1.0;
     double          hyperedge_radius_exponent = 2.5;
     PartialCellMode partial_cell_mode         = PartialCellMode::GenerateAndCheck;
+    SInt            size_dist_pin_budget      = 0;
     double          quantile                  = 1.0;
 
     bool debug = false;
@@ -199,7 +200,6 @@ struct PGeneratorConfig {
     bool                     approx                  = false;
     bool                     size_dist_deterministic = false;
     bool                     allow_duplicates        = false;
-    SInt                     size_dist_pin_budget    = 0;
 
     // CIGAM specific parameters
     double                   cigam_lambda = 0.0;

@@ -198,7 +198,7 @@ long double BinomSmallExactLD(SInt n, SInt q) {
     return result;
 }
 
-inline long double MersenneUniform01(Mersenne& mersenne) {
+long double MersenneUniform01(Mersenne& mersenne) {
     return std::min<long double>(static_cast<long double>(mersenne.Random()), std::nextafter(1.0L, 0.0L));
 }
 std::vector<SInt>
@@ -252,6 +252,26 @@ FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sam
     std::vector<SInt> result(selected.begin(), selected.end());
     std::sort(result.begin(), result.end());
     return result;
+}
+
+std::vector<double> ReadNumericLines(const std::string& filename, const std::string& error_message) {
+    std::ifstream in(filename);
+    if (!in) {
+        throw ConfigurationError(error_message);
+    }
+
+    std::vector<double> values;
+    std::string         line;
+
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        values.push_back(std::stod(line));
+    }
+
+    return values;
 }
 
 } // namespace kagen

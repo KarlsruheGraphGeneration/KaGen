@@ -2,19 +2,25 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/hyper/h_geometric/hyper_rgg2d.h"
+#include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 
 #include <memory>
 
 namespace kagen {
 
-PGeneratorConfig
-HyperRGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID size, const bool output) const {
+PGeneratorConfig HyperRGG2DFactory::NormalizeParameters(
+    PGeneratorConfig config, PEID /*rank*/, const PEID size, const bool output) const {
     using namespace std::string_literals;
 
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
 
     // TODO(clickup)[2026-05-08]: Only supports parameter combination n, r as of now
+
+    if (config.random_radius && config.r == 0) {
+        double expected_vertices = 32.0;
+        config.r                 = std::sqrt(expected_vertices / (M_PI * static_cast<double>(config.n)));
+    }
 
     if (config.k > 1.0 / (config.r * config.r)) {
         throw ConfigurationError(
@@ -29,9 +35,31 @@ HyperRGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID, const PEID
         throw ConfigurationError("edge weights are not implemented for hypergraphs yet");
     }
 
-    if (config.random_radius && config.r == 0) {
-        double expected_vertices = 32.0;
-        config.r                 = std::sqrt(expected_vertices / (M_PI * static_cast<double>(config.n)));
+    if (config.size_dist_pin_budget > 0) {
+        if (config.n <= 0 || config.m <= 0) {
+            throw ConfigurationError("expected total pins requires n > 0 and m > 0");
+        }
+
+        if (!config.random_radius) {
+            throw ConfigurationError("expected total pins requires random_radius=true");
+        }
+
+        double lower_bound = std::sqrt(2.0 / (M_PI * static_cast<double>(config.n)));
+        double upper_bound = 1.0;
+
+        if (config.min_hyperedge_radius != -1.0) {
+            lower_bound = config.min_hyperedge_radius;
+        }
+
+        if (config.max_hyperedge_radius != -1.0) {
+            upper_bound = config.max_hyperedge_radius;
+        }
+
+        const double target_expected_r2 = static_cast<double>(config.size_dist_pin_budget)
+                                          / (static_cast<double>(config.m) * static_cast<double>(config.n) * M_PI);
+
+        config.hyperedge_radius_exponent =
+            SolveRadiusExponentForExpectedPins(target_expected_r2, lower_bound, upper_bound);
     }
 
     return config;

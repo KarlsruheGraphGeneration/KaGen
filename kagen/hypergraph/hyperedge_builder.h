@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kagen/context.h"
+#include "kagen/hypergraph/debug_logger_geometric.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 
@@ -10,8 +11,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-// TODO(clickup)[2026-05-24]: Remove after Debugging
-#include "kagen/hypergraph/debug_logger_geometric.h"
 
 namespace kagen {
 
@@ -22,7 +21,8 @@ public:
     using Cell   = typename GeometryPolicy::Cell;
     using Vertex = typename GeometryPolicy::Vertex;
 
-    using Clock = std::chrono::steady_clock;
+    using Clock  = std::chrono::steady_clock;
+    using Double = decltype(std::declval<GeometryPolicy&>().Radius(std::declval<const Center&>()));
 
     explicit HyperedgeBuilder(GeometryPolicy& geometry, const PGeneratorConfig& config)
         : geometry_(geometry),
@@ -33,7 +33,7 @@ public:
         }
     }
 
-    std::string MakeDebugFilename() {
+    std::string MakeDebugFilename() const {
         int rank = 0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         std::string output = config_.output_graph.filename + "_" + std::to_string(config_.n) + "_"
@@ -43,83 +43,42 @@ public:
     }
 
     void Build(const Center& center) {
-        cells_.clear();
-        pins_.clear();
-        ranges_.clear();
+        ResetBuildState();
         const auto timer_start_total = config_.debug ? Clock::now() : Clock::time_point{};
 
-        geometry_.AddCenter(center, pins_);
-        const auto radius = geometry_.Radius(center);
-        geometry_.CandidateCells(center, radius, cells_);
+        const auto radius = CollectCandidateCells(center);
 
+        BuildStats stats;
+
+        for (const Cell& cell: cells_) {
+            ProcessCell(center, radius, cell, stats);
+        }
+
+        FinalizePinsAndRanges();
+
+        if (config_.debug && logger_) {
+            LogBuildStats(center, radius, stats, timer_start_total);
+        }
+
+        geometry_.EmitHyperedge(pins_, ranges_);
+    }
+
+private:
+    struct BuildStats {
         SInt outside_cells          = 0;
         SInt inside_cells           = 0;
         SInt partial_cells          = 0;
         SInt partial_estimated_size = 0;
         SInt inside_estimated_size  = 0;
+    };
 
-        for (const Cell& cell: cells_) {
-            const CellBallRelation relation = geometry_.ClassifyCell(center, radius, cell);
+    void ResetBuildState() {
+        cells_.clear();
+        pins_.clear();
+        ranges_.clear();
+    }
 
-            switch (relation) {
-                case CellBallRelation::OUTSIDE: {
-                    if (config_.debug) {
-                        ++outside_cells;
-                    }
-                    continue;
-                }
-
-                case CellBallRelation::INSIDE: {
-                    const SInt added = geometry_.AddWholeCell(cell, ranges_);
-                    if (config_.debug) {
-                        inside_estimated_size += added;
-                        ++inside_cells;
-                    }
-                    continue;
-                }
-
-                case CellBallRelation::PARTIAL: {
-                    if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
-                        const SInt added = geometry_.AddPartialCellExact(center, radius, cell, pins_);
-                        if (config_.debug) {
-                            partial_estimated_size += added;
-                            ++partial_cells;
-                        }
-                    } else {
-                        const double coverage = geometry_.CellCoverage(center, radius, cell);
-
-                        if (coverage <= 0.0) {
-                            if (config_.debug) {
-                                ++outside_cells;
-                            }
-                            continue;
-                        }
-
-                        if (coverage >= 1.0) {
-                            const SInt added = geometry_.AddWholeCell(cell, ranges_);
-                            if (config_.debug) {
-                                inside_estimated_size += added;
-                                ++inside_cells;
-                            }
-                        } else if (partial_cell_mode_ == PartialCellMode::EstimateByCoverageRange) {
-                            const SInt added = geometry_.AddPartialCellRange(center, cell, coverage, pins_, ranges_);
-                            if (config_.debug) {
-                                partial_estimated_size += added;
-                                ++partial_cells;
-                            }
-                        } else {
-                            const SInt added = geometry_.AddPartialCellFloyd(center, cell, coverage, pins_, ranges_);
-                            if (config_.debug) {
-                                partial_estimated_size += added;
-                                ++partial_cells;
-                            }
-                        }
-                    }
-                    continue;
-                }
-            }
-        }
-
+    void FinalizePinsAndRanges() {
         if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
             if (!ranges_.empty()) {
                 NormalizeRangesOnly(ranges_);
@@ -127,36 +86,9 @@ public:
         } else {
             Normalize(pins_, ranges_);
         }
-
-        if (config_.debug && logger_) {
-            const auto      timer_end_total = Clock::now();
-            const long long duration_ns =
-                std::chrono::duration_cast<std::chrono::nanoseconds>(timer_end_total - timer_start_total).count();
-            SInt hyperedge_size = static_cast<SInt>(pins_.size());
-            for (const PinRange& range: ranges_) {
-                hyperedge_size += range.end - range.begin;
-            }
-
-            ++counter_;
-            logger_->LogHyperedge(
-                counter_, geometry_.CenterToString(center), static_cast<double>(radius),
-                static_cast<SInt>(cells_.size()), inside_cells, partial_cells, outside_cells,
-                static_cast<SInt>(pins_.size()), static_cast<SInt>(ranges_.size()), hyperedge_size, duration_ns,
-                inside_estimated_size, partial_estimated_size);
-        }
-
-        geometry_.EmitHyperedge(pins_, ranges_);
     }
 
-private:
-    void Normalize(std::vector<SInt>& pins, std::vector<PinRange>& ranges) const {
-        std::sort(pins.begin(), pins.end());
-        pins.erase(std::unique(pins.begin(), pins.end()), pins.end());
-
-        std::sort(ranges.begin(), ranges.end(), [](const PinRange& firstRange, const PinRange& secondRange) {
-            return firstRange.begin < secondRange.begin;
-        });
-
+    std::vector<PinRange> MergeRanges(std::vector<PinRange>& ranges) const {
         std::vector<PinRange> merged_ranges;
 
         for (const PinRange& range: ranges) {
@@ -170,24 +102,46 @@ private:
                 merged_ranges.push_back(range);
             }
         }
+        return merged_ranges;
+    }
 
+    std::vector<SInt>
+    RemovePinsCoveredByRanges(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) const {
         std::vector<SInt> filtered_pins;
         filtered_pins.reserve(pins.size());
 
         std::size_t range_index = 0;
 
         for (const SInt pin: pins) {
-            while (range_index < merged_ranges.size() && merged_ranges[range_index].end <= pin) {
+            while (range_index < ranges.size() && ranges[range_index].end <= pin) {
                 ++range_index;
             }
 
-            const bool covered = range_index < merged_ranges.size() && merged_ranges[range_index].begin <= pin
-                                 && pin < merged_ranges[range_index].end;
+            const bool covered =
+                range_index < ranges.size() && ranges[range_index].begin <= pin && pin < ranges[range_index].end;
 
             if (!covered) {
                 filtered_pins.push_back(pin);
             }
         }
+
+        return filtered_pins;
+    }
+
+    void Normalize(std::vector<SInt>& pins, std::vector<PinRange>& ranges) const {
+        std::sort(pins.begin(), pins.end());
+        pins.erase(std::unique(pins.begin(), pins.end()), pins.end());
+
+        std::sort(ranges.begin(), ranges.end(), [](const PinRange& firstRange, const PinRange& secondRange) {
+            return firstRange.begin < secondRange.begin;
+        });
+
+        std::vector<PinRange> merged_ranges;
+        merged_ranges.reserve(ranges.size());
+
+        merged_ranges = MergeRanges(ranges);
+
+        auto filtered_pins = RemovePinsCoveredByRanges(pins, merged_ranges);
 
         pins   = std::move(filtered_pins);
         ranges = std::move(merged_ranges);
@@ -196,22 +150,97 @@ private:
     void NormalizeRangesOnly(std::vector<PinRange>& ranges) const {
         std::sort(ranges.begin(), ranges.end(), [](const PinRange& a, const PinRange& b) { return a.begin < b.begin; });
 
-        std::vector<PinRange> merged;
-        merged.reserve(ranges.size());
-
-        for (const auto& range: ranges) {
-            if (range.begin >= range.end) {
-                continue;
-            }
-
-            if (!merged.empty() && merged.back().end >= range.begin) {
-                merged.back().end = std::max(merged.back().end, range.end);
-            } else {
-                merged.push_back(range);
-            }
-        }
+        auto merged = MergeRanges(ranges);
 
         ranges = std::move(merged);
+    }
+
+    void CountOutside(BuildStats& stats) const {
+        if (config_.debug) {
+            ++stats.outside_cells;
+        }
+    }
+
+    void CountInside(BuildStats& stats, const SInt added) const {
+        if (config_.debug) {
+            stats.inside_estimated_size += added;
+            ++stats.inside_cells;
+        }
+    }
+
+    void CountPartial(BuildStats& stats, const SInt added) const {
+        if (config_.debug) {
+            stats.partial_estimated_size += added;
+            ++stats.partial_cells;
+        }
+    }
+
+    void ProcessPartialCell(const Center& center, Double radius, const Cell& cell, BuildStats& stats) {
+        if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
+            CountPartial(stats, geometry_.AddPartialCellExact(center, radius, cell, pins_));
+            return;
+        }
+        const Double coverage = geometry_.CellCoverage(center, radius, cell);
+
+        if (coverage <= 0.0) {
+            CountOutside(stats);
+            return;
+        }
+
+        if (coverage >= 1.0) {
+            CountInside(stats, geometry_.AddWholeCell(cell, ranges_));
+            return;
+        }
+        if (partial_cell_mode_ == PartialCellMode::EstimateByCoverageRange) {
+            CountPartial(stats, geometry_.AddPartialCellRange(center, cell, coverage, pins_, ranges_));
+            return;
+        }
+        CountPartial(stats, geometry_.AddPartialCellFloyd(center, cell, coverage, pins_, ranges_));
+    }
+
+    void ProcessCell(const Center& center, Double radius, const Cell& cell, BuildStats& stats) {
+        const CellBallRelation relation = geometry_.ClassifyCell(center, radius, cell);
+
+        switch (relation) {
+            case CellBallRelation::OUTSIDE: {
+                CountOutside(stats);
+                return;
+            }
+
+            case CellBallRelation::INSIDE: {
+                CountInside(stats, geometry_.AddWholeCell(cell, ranges_));
+                return;
+            }
+
+            case CellBallRelation::PARTIAL: {
+                ProcessPartialCell(center, radius, cell, stats);
+                return;
+            }
+        }
+    }
+
+    void LogBuildStats(const Center& center, Double radius, const BuildStats& stats, Clock::time_point start) {
+        const auto      timer_end_total = Clock::now();
+        const long long duration_ns =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(timer_end_total - start).count();
+        SInt hyperedge_size = static_cast<SInt>(pins_.size());
+        for (const PinRange& range: ranges_) {
+            hyperedge_size += range.end - range.begin;
+        }
+
+        ++counter_;
+        logger_->LogHyperedge(
+            counter_, geometry_.CenterToString(center), radius, static_cast<SInt>(cells_.size()), stats.inside_cells,
+            stats.partial_cells, stats.outside_cells, static_cast<SInt>(pins_.size()),
+            static_cast<SInt>(ranges_.size()), hyperedge_size, duration_ns, stats.inside_estimated_size,
+            stats.partial_estimated_size);
+    }
+
+    Double CollectCandidateCells(const Center& center) {
+        geometry_.AddCenter(center, pins_);
+        const auto radius = geometry_.Radius(center);
+        geometry_.CandidateCells(center, radius, cells_);
+        return radius;
     }
 
     GeometryPolicy&                               geometry_;
@@ -222,7 +251,6 @@ private:
     std::vector<SInt>                             pins_;
     std::vector<PinRange>                         ranges_;
     SInt                                          counter_ = 0;
-    int                                           rank_    = 0;
 };
 
 } // namespace kagen

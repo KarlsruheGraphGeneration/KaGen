@@ -150,11 +150,11 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
     auto graph            = generator->Take();
     long max_peak_rss_kib = 0;
     long sum_peak_rss_kib = 0;
-    if (config.debug) {
-        const long local_peak_rss_kib = PeakRSSKiB();
-        MPI_Reduce(&local_peak_rss_kib, &max_peak_rss_kib, 1, MPI_LONG, MPI_MAX, ROOT, comm);
-        MPI_Reduce(&local_peak_rss_kib, &sum_peak_rss_kib, 1, MPI_LONG, MPI_SUM, ROOT, comm);
-    }
+
+    const long local_peak_rss_kib = PeakRSSKiB();
+    MPI_Reduce(&local_peak_rss_kib, &max_peak_rss_kib, 1, MPI_LONG, MPI_MAX, ROOT, comm);
+    MPI_Reduce(&local_peak_rss_kib, &sum_peak_rss_kib, 1, MPI_LONG, MPI_SUM, ROOT, comm);
+
     // Validation
     if (config.validate_simple_graph && !is_hypergraph) {
         if (output_info) {
@@ -178,10 +178,9 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         if (output_info) {
             std::cout << "Generation took " << std::fixed << std::setprecision(3) << t_end_graphgen - t_start_graphgen
                       << " seconds" << '\n';
-            if (config.debug) {
-                std::cout << "Peak RSS max: " << max_peak_rss_kib << " KiB" << '\n';
-                std::cout << "Peak RSS avg: " << (sum_peak_rss_kib / size) << " KiB" << '\n';
-            }
+            std::cout << "Peak RSS max: " << max_peak_rss_kib << " KiB" << '\n';
+            std::cout << "Peak RSS avg: " << (sum_peak_rss_kib / size) << " KiB" << '\n';
+
             std::cout << "-------------------------------------------------------------------------------" << '\n';
         }
 

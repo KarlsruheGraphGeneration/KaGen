@@ -10,6 +10,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <limits>
 #include <unordered_set>
 #include <vector>
@@ -135,6 +136,8 @@ CountInt MinRangeMassExact(SInt begin, SInt end, SInt n, SInt k);
 
 bool MinRangeMassDefinitelyExceedsSInt(SInt begin, SInt end, SInt n, SInt k);
 
+long double MersenneUniform01(Mersenne& mersenne);
+
 long double BinomSmallExactLD(SInt n, SInt q);
 
 std::vector<SInt> FloydSample(SInt universe_offset, SInt universe_size, SInt sample_size, Mersenne& mersenne);
@@ -178,8 +181,6 @@ SInt SampleMinimumFromCDF(const SInt min_begin, const std::vector<long double>& 
 
     return min_begin + static_cast<SInt>(it - cdf.begin());
 }
-
-
 
 template <typename RNG>
 SInt PoissonLocalCountFromScaledMass(
@@ -348,6 +349,7 @@ SInt HypergeometricCountSequential(CountInt population, CountInt successes, cons
     return count;
 }
 
+std::vector<double> ReadNumericLines(const std::string& filename, const std::string& error_message);
 // Fast approximate Boltzmann-style sampler for HGNM pin-budget size counts.
 class BoltzmannPinBudgetSizeCountSampler {
 public:

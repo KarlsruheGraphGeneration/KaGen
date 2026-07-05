@@ -108,5 +108,10 @@ void FloydSampleGeometricAppend(
     out.insert(out.end(), selected.begin(), selected.end());
 }
 
+double ExpectedSquaredHyperedgeRadius(double lower, double upper, double alpha);
+double SolveRadiusExponentForExpectedPins(double target_e_r2, double lower, double upper);
+
+double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& config);
+
 enum class CellBallRelation : std::uint8_t { INSIDE, PARTIAL, OUTSIDE };
 } // namespace kagen

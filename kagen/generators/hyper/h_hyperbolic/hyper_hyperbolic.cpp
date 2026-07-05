@@ -3,6 +3,7 @@
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
 #include "kagen/generators/hyper/h_hyperbolic/hyper_hyperbolic_policy.h"
+#include "kagen/generators/hyper/h_hyperbolic/poincare_geometry.h"
 #include "kagen/hypergraph/hyperedge_builder.h"
 #include "kagen/hypergraph/hyperedge_management.h"
 #include "kagen/hypergraph/hypergraph_utils.h"
@@ -53,6 +54,18 @@ PGeneratorConfig Hyper_HyperbolicFactory::NormalizeParameters(
     }
 
     config.is_hypergraph = true;
+
+    if (config.size_dist_pin_budget > 0) {
+        if (config.n <= 0 || config.m <= 0) {
+            throw ConfigurationError("expected total pins requires n > 0 and m > 0");
+        }
+
+        if (!config.random_radius) {
+            throw ConfigurationError("expected total pins requires random_radius=true");
+        }
+
+        config.hyperedge_radius_exponent = SolveHyperbolicRadiusExponentForExpectedPins(config);
+    }
 
     if (config.streaming) {
         if (config.k < 1) {
@@ -292,11 +305,48 @@ void Hyper_Hyperbolic<Double>::GenerateCenterCells(const SInt annulus_id, SInt c
 
     GenerateCellsInto(annulus_id, chunk_id, center_chunks_, center_annuli_, center_cells_, 9201);
 }
+template <typename Double>
+SInt Hyper_Hyperbolic<Double>::VertexCellSeed(SInt annulus_id, SInt chunk_id, SInt cell_id) {
+    return config_.seed + (annulus_id * config_.k * GridSizeForAnnulus(annulus_id))
+           + (chunk_id * GridSizeForAnnulus(annulus_id)) + cell_id + config_.n;
+}
+
+template <typename Double>
+Hyper_Hyperbolic<Double>::SampledVertex
+Hyper_Hyperbolic<Double>::SampleVertex(Double min_phi, Double max_phi, Double min_cdf, Double max_cdf) {
+    const Double phi = (sorted_mersenne.Random() * (max_phi - min_phi)) + min_phi;
+    const Double r   = std::acosh((mersenne.Random() * (max_cdf - min_cdf)) + min_cdf) / alpha_;
+
+    const Double inv_len    = (std::cosh(r) + Double{1.0}) / Double{2.0};
+    const Double pdm_radius = std::sqrt(Double{1.0} - (Double{1.0} / inv_len));
+    const Double sin_phi    = std::sin(phi);
+    const Double cos_phi    = std::cos(phi);
+
+    return {
+        .r       = r,
+        .phi     = phi,
+        .cosh_r  = std::cosh(r),
+        .sinh_r  = std::sinh(r),
+        .cos_phi = cos_phi,
+        .sin_phi = sin_phi,
+        .x       = pdm_radius * sin_phi,
+        .y       = pdm_radius * cos_phi,
+    };
+}
+template <typename Double>
+void Hyper_Hyperbolic<Double>::AppendVertex(
+    VertexBlock& block, SInt id, const Hyper_Hyperbolic<Double>::SampledVertex& vertex) {
+    block.r.push_back(vertex.r);
+    block.id.push_back(id);
+    block.cosh_r.push_back(vertex.cosh_r);
+    block.sinh_r.push_back(vertex.sinh_r);
+    block.cos_phi.push_back(vertex.cos_phi);
+    block.sin_phi.push_back(vertex.sin_phi);
+    block.phi.push_back(vertex.phi);
+}
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SInt cell_id) {
-    bool clique = false;
-
     if (chunks_.find(chunk_id) == std::end(chunks_)) {
         ComputeChunk(chunk_id);
         ComputeAnnuli(chunk_id);
@@ -322,14 +372,7 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chun
     Double min_r   = std::get<1>(annulus);
     Double max_r   = std::get<2>(annulus);
 
-    SInt seed = 0;
-
-    if (clique) {
-        seed = config_.seed + (annulus_id * config_.k * GridSizeForAnnulus(annulus_id));
-    } else {
-        seed = config_.seed + (annulus_id * config_.k * GridSizeForAnnulus(annulus_id))
-               + (chunk_id * GridSizeForAnnulus(annulus_id)) + cell_id + config_.n;
-    }
+    const SInt seed = VertexCellSeed(annulus_id, chunk_id, cell_id);
 
     SInt hash_value = sampling::Spooky::hash(seed);
     mersenne.RandomInit(hash_value);
@@ -341,31 +384,13 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chun
     VertexBlock& cell_vertices = vertices_[global_cell_id];
     cell_vertices.reserve(size);
 
-    for (SInt i = 0; i < size; i++) {
-        Double angle  = (sorted_mersenne.Random() * (max_phi - min_phi)) + min_phi;
-        Double radius = std::acosh((mersenne.Random() * (maxcdf - mincdf)) + mincdf) / alpha_;
+    for (SInt i = 0; i < size; ++i) {
+        const auto vertex = SampleVertex(min_phi, max_phi, mincdf, maxcdf);
 
-        Double       inv_len    = (std::cosh(radius) + 1.0) / 2.0;
-        Double       pdm_radius = std::sqrt(1.0 - (1.0 / inv_len));
-        const Double sin_phi    = std::sin(angle);
-        const Double cos_phi    = std::cos(angle);
-        Double       x_value    = pdm_radius * sin_phi;
-        Double       y_value    = pdm_radius * cos_phi;
-        const Double cosh_r     = std::cosh(radius);
-        const Double sinh_r     = std::sinh(radius);
+        AppendVertex(cell_vertices, offset + i, vertex);
 
-        cell_vertices.r.push_back(radius);
-        cell_vertices.id.push_back(offset + i);
-        cell_vertices.cosh_r.push_back(cosh_r);
-        cell_vertices.sinh_r.push_back(sinh_r);
-        cell_vertices.cos_phi.push_back(cos_phi);
-        cell_vertices.sin_phi.push_back(sin_phi);
-        cell_vertices.phi.push_back(angle);
-
-        if (pe_min_phi_ <= angle && pe_max_phi_ > angle) {
-            if (config_.coordinates) {
-                PushCoordinate(x_value, y_value);
-            }
+        if (config_.coordinates && pe_min_phi_ <= vertex.phi && vertex.phi < pe_max_phi_) {
+            PushCoordinate(vertex.x, vertex.y);
         }
     }
 
@@ -519,144 +544,6 @@ void Hyper_Hyperbolic<Double>::ComputeAnnuliInto(
 }
 
 template <typename Double>
-Double NormalizePhi(Double phi) {
-    const Double two_pi = 2.0 * M_PI;
-
-    while (phi < 0.0) {
-        phi += two_pi;
-    }
-
-    while (phi >= two_pi) {
-        phi -= two_pi;
-    }
-
-    return phi;
-}
-
-template <typename Double>
-Double CircularPhiWidth(Double min_phi, Double max_phi) {
-    min_phi = NormalizePhi(min_phi);
-    max_phi = NormalizePhi(max_phi);
-
-    if (min_phi <= max_phi) {
-        return max_phi - min_phi;
-    }
-
-    return (2.0 * M_PI - min_phi) + max_phi;
-}
-
-template <typename Double>
-Double HyperbolicCellArea(const Double min_r, const Double max_r, const Double min_phi, const Double max_phi) {
-    const Double phi_width = CircularPhiWidth(min_phi, max_phi);
-
-    if (max_r <= min_r || phi_width <= 0.0) {
-        return 0.0;
-    }
-
-    return phi_width * (std::cosh(max_r) - std::cosh(min_r));
-}
-
-template <typename Double>
-struct PoincareAABB {
-    Double min_x;
-    Double max_x;
-    Double min_y;
-    Double max_y;
-};
-
-template <typename Double>
-PoincareAABB<Double> ComputePoincareCellAABB(
-    const Double min_r, const Double max_r, const Double min_phi, const Double max_phi, const Double cell_eps) {
-    const bool full_circle = std::abs((max_phi - min_phi) - Double{2.0 * M_PI}) <= cell_eps;
-
-    const Double rho_min = std::tanh(min_r / Double{2.0});
-    const Double rho_max = std::tanh(max_r / Double{2.0});
-
-    Double phis[6];
-    int    count = 0;
-
-    phis[count++] = min_phi;
-    phis[count++] = max_phi;
-
-    const Double critical_angles[] = {
-        Double{0.0},
-        Double{M_PI / 2.0},
-        Double{M_PI},
-        Double{3.0 * M_PI / 2.0},
-    };
-
-    auto normalize_phi = [](Double phi) {
-        const Double two_pi = Double{2.0 * M_PI};
-        while (phi < Double{0.0})
-            phi += two_pi;
-        while (phi >= two_pi)
-            phi -= two_pi;
-        return phi;
-    };
-
-    auto angle_in_interval = [&](Double phi, Double begin, Double end) {
-        phi   = normalize_phi(phi);
-        begin = normalize_phi(begin);
-        end   = normalize_phi(end);
-
-        if (begin <= end) {
-            return begin <= phi && phi <= end;
-        }
-
-        return phi >= begin || phi <= end;
-    };
-
-    for (const Double angle: critical_angles) {
-        if (full_circle || angle_in_interval(angle, min_phi, max_phi)) {
-            phis[count++] = angle;
-        }
-    }
-
-    Double min_x = std::numeric_limits<Double>::infinity();
-    Double max_x = -std::numeric_limits<Double>::infinity();
-    Double min_y = std::numeric_limits<Double>::infinity();
-    Double max_y = -std::numeric_limits<Double>::infinity();
-
-    for (int i = 0; i < count; ++i) {
-        for (const Double rho: {rho_min, rho_max}) {
-            const Double x = rho * std::sin(phis[i]);
-            const Double y = rho * std::cos(phis[i]);
-
-            min_x = std::min(min_x, x);
-            max_x = std::max(max_x, x);
-            min_y = std::min(min_y, y);
-            max_y = std::max(max_y, y);
-        }
-    }
-
-    return {.min_x = min_x, .max_x = max_x, .min_y = min_y, .max_y = max_y};
-}
-
-template <typename Double>
-Double HyperbolicAngularReach(
-    const Double center_r, const Double annulus_min_r, const Double annulus_max_r, const Double radius) {
-    const Double r = std::clamp(center_r, annulus_min_r, annulus_max_r);
-
-    const Double denom = std::sinh(center_r) * std::sinh(r);
-
-    if (denom <= 0.0) {
-        return M_PI;
-    }
-
-    const Double x = (std::cosh(center_r) * std::cosh(r) - std::cosh(radius)) / denom;
-
-    if (x <= -1.0) {
-        return M_PI;
-    }
-
-    if (x >= 1.0) {
-        return 0.0;
-    }
-
-    return std::acos(x);
-}
-
-template <typename Double>
 template <typename ChunkMap, typename AnnulusMap, typename CellMap>
 void Hyper_Hyperbolic<Double>::GenerateCellsInto(
     const SInt annulus_id, SInt chunk_id, ChunkMap& chunks, AnnulusMap& annuli, CellMap& cells,
@@ -695,7 +582,7 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
             const Double annulus_max_r = std::get<2>(annulus);
 
             const auto box =
-                ComputePoincareCellAABB(annulus_min_r, annulus_max_r, cell_min_phi, cell_max_phi, cell_eps_);
+                poincare_geometry::ComputeCellAABB(annulus_min_r, annulus_max_r, cell_min_phi, cell_max_phi, cell_eps_);
 
             cells[global_cell_id] = std::make_tuple(
                 n_cell, cell_min_phi, cell_max_phi, false, offset, box.min_x, box.max_x, box.min_y, box.max_y);
@@ -710,6 +597,25 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
 
     std::get<3>(annulus) = true;
 }
+template <typename Double>
+void Hyper_Hyperbolic<Double>::SeedHyperedgeRNG(const SInt sampled_center_id) {
+    const SInt seed = sampling::Spooky::hash(config_.seed + sampled_center_id);
+    mersenne.RandomInit(seed);
+}
+
+template <typename Double>
+HyperbolicHyperedgeCenter<Double>
+Hyper_Hyperbolic<Double>::SampleCenter(SInt annulus_id, SInt sampled_center_id, const CenterSamplingRegion& region) {
+    const Double u_phi = mersenne.Random();
+    const Double u_r   = mersenne.Random();
+
+    return {
+        .phi        = region.min_phi + (u_phi * (region.max_phi - region.min_phi)),
+        .r          = std::acosh((u_r * (region.max_cdf - region.min_cdf)) + region.min_cdf) / alpha_,
+        .sampled_id = sampled_center_id,
+        .annulus_id = annulus_id,
+    };
+}
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const SInt chunk_id) {
@@ -723,48 +629,45 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const S
 
     for (SInt cell_id = 0; cell_id < GridSizeForAnnulus(annulus_id); ++cell_id) {
         current_cell_ = cell_id;
-        geometry.SetStartCell(annulus_id, chunk_id, cell_id);
 
         const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
 
         auto& center_annulus = center_annuli_[ComputeGlobalChunkId(annulus_id, chunk_id)];
         auto& center_cell    = center_cells_[global_cell_id];
 
-        const SInt cell_m = std::get<0>(center_cell);
+        const auto region = BuildCenterSamplingRegion(center_annulus, center_cell);
 
-        if (cell_m == 0) {
+        if (region.count == 0) {
             continue;
         }
 
-        const Double min_r         = std::get<1>(center_annulus);
-        const Double max_r         = std::get<2>(center_annulus);
-        const Double min_phi       = std::get<1>(center_cell);
-        const Double max_phi       = std::get<2>(center_cell);
-        const SInt   center_offset = std::get<4>(center_cell);
+        for (SInt emitted = 0; emitted < region.count; ++emitted) {
+            const SInt sampled_center_id = region.offset + emitted;
 
-        const Double mincdf = std::cosh(alpha_ * min_r);
-        const Double maxcdf = std::cosh(alpha_ * max_r);
+            SeedHyperedgeRNG(sampled_center_id);
 
-        for (SInt emitted = 0; emitted < cell_m; ++emitted) {
-            const SInt sampled_center_id = center_offset + emitted;
-
-            const SInt seed = sampling::Spooky::hash(config_.seed + sampled_center_id);
-            mersenne.RandomInit(seed);
-
-            const Double u_phi = mersenne.Random();
-            const Double u_r   = mersenne.Random();
-
-            const HyperbolicHyperedgeCenter<Double> center{
-                .phi        = min_phi + (u_phi * (max_phi - min_phi)),
-                .r          = std::acosh((u_r * (maxcdf - mincdf)) + mincdf) / alpha_,
-                .sampled_id = sampled_center_id,
-                .annulus_id = annulus_id,
-            };
+            const auto center = SampleCenter(annulus_id, sampled_center_id, region);
 
             BeginHyperedge(center, mersenne);
             builder.Build(center);
         }
     }
+}
+
+template <typename Double>
+Hyper_Hyperbolic<Double>::CenterSamplingRegion Hyper_Hyperbolic<Double>::BuildCenterSamplingRegion(
+    const CenterAnnulus& center_annulus, const CenterCell& center_cell) const {
+    const Double min_r = std::get<1>(center_annulus);
+    const Double max_r = std::get<2>(center_annulus);
+
+    return {
+        .min_phi = std::get<1>(center_cell),
+        .max_phi = std::get<2>(center_cell),
+        .min_cdf = std::cosh(alpha_ * min_r),
+        .max_cdf = std::cosh(alpha_ * max_r),
+        .offset  = std::get<4>(center_cell),
+        .count   = std::get<0>(center_cell),
+    };
 }
 
 template <typename Double>

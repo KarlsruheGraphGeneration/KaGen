@@ -112,10 +112,30 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         add_option_n(cmd)->required();
         add_option_m(cmd)->required();
     };
+    auto add_option_pin_budget = [&](CLI::App* cmd) {
+        auto* opt_log_pin_budget = cmd->add_option_function<SInt>(
+            "--PB,--log-pin-budget",
+            [&](const SInt value) {
+                config.size_dist_pin_budget = static_cast<SInt>(1) << value;
+                config.random_radius        = true;
+            },
+            "Logarithm of the expected total number of pins");
+
+        auto* opt_pin_budget =
+            cmd->add_option("--pin-budget", config.size_dist_pin_budget, "Expected total number of pins");
+
+        opt_pin_budget->each([&](const std::string&) { config.random_radius = true; });
+
+        opt_log_pin_budget->excludes(opt_pin_budget);
+
+        return opt_log_pin_budget;
+    };
+
     auto add_hyperedge_radius_options = [&](CLI::App* cmd) {
         auto* radius_mode = cmd->add_option_group("Hyperedge radius mode");
 
-        radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
+        auto* fixed_radius =
+            radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
 
         auto* radius_exponent = radius_mode->add_option(
             "--radius-exponent", config.hyperedge_radius_exponent,
@@ -123,27 +143,31 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
         radius_exponent->each([&](const std::string&) { config.random_radius = true; });
 
+        auto* pin_budget = add_option_pin_budget(radius_mode);
+
+        pin_budget->excludes(radius_exponent);
+        radius_exponent->excludes(pin_budget);
+
         radius_mode->require_option(1);
         radius_mode->silent();
 
         auto* variable_radius_params = cmd->add_option_group("Variable hyperedge radius parameters");
 
-        variable_radius_params
-            ->add_option(
-                "--minr,--radius-lower-bound", config.min_hyperedge_radius,
-                "Optional lower bound for variable hyperedge radius")
-            ->needs(radius_exponent);
+        auto* minr = variable_radius_params->add_option(
+            "--minr,--radius-lower-bound", config.min_hyperedge_radius,
+            "Optional lower bound for variable hyperedge radius");
 
-        variable_radius_params
-            ->add_option(
-                "--maxr,--radius-upper-bound", config.max_hyperedge_radius,
-                "Optional upper bound for variable hyperedge radius")
-            ->needs(radius_exponent);
+        auto* maxr = variable_radius_params->add_option(
+            "--maxr,--radius-upper-bound", config.max_hyperedge_radius,
+            "Optional upper bound for variable hyperedge radius");
 
-        variable_radius_params
-            ->add_option("--rq,--radius-quantile", config.quantile, "Optional quantile for variable hyperedge radius")
-            ->check(CLI::Range(0.0, 1.0))
-            ->needs(radius_exponent);
+        auto* rq = variable_radius_params
+                       ->add_option(
+                           "--rq,--radius-quantile", config.quantile, "Optional quantile for variable hyperedge radius")
+                       ->check(CLI::Range(0.0, 1.0));
+        rq->needs(radius_exponent);
+
+        return radius_mode;
     };
     auto add_partial_cell_mode = [&](CLI::App* cmd) {
         cmd->add_flag_callback(
@@ -181,17 +205,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         group->silent();
         return group;
     };
-    auto add_option_pin_budget = [&](CLI::App* cmd) {
-        auto* opt_log_pin_budget = cmd->add_option_function<SInt>(
-            "--PB,--log-pin-budget", log_cb(config.size_dist_pin_budget), "Logarithm value");
 
-        auto* opt_pin_budget = cmd->add_option("--pin-budget", config.size_dist_pin_budget, "Exact value");
-
-        auto* group = cmd->add_option_group("Pin budget");
-        group->add_options(opt_log_pin_budget, opt_pin_budget);
-        group->silent();
-        return group;
-    };
     auto add_hgnm_size_distribution = [&](CLI::App* cmd) {
         auto* group = cmd->add_option_group("Hyperedge size distribution");
 
@@ -281,12 +295,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     // General parameters
     app.add_option(
            "--external-k,--external-num-chunks", config.external.num_chunks,
-           "Number of chunks for generating the graph in external memory mode. Set to '1' to disable external memory "
+           "Number of chunks for generating the graph in external memory mode. Set to '1' to disable external "
+           "memory "
            "mode.")
         ->capture_default_str();
     app.add_option(
            "--external-T,--external-tmp-directory", config.external.tmp_directory,
-           "Directory for temporary buffer files (requires free space between ~1x to ~2x the final graph size).")
+           "Directory for temporary buffer files (requires free space between ~1x to ~2x the final graph "
+           "size).")
         ->capture_default_str();
     app.add_flag(
         "!--external-avoid-extra-writes", config.external.cache_aggregated_chunks,
@@ -320,7 +336,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
                 config.statistics_level = StatisticsLevel::ADVANCED;
             }
         },
-        "Controls how much statistics on the generated graph gets calculated; pass flag multiple times to increase "
+        "Controls how much statistics on the generated graph gets calculated; pass flag multiple times to "
+        "increase "
         "extend");
     stats_group->silent();
 
@@ -328,7 +345,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     app.add_option("-k,--num-chunks", config.k, "Number of chunks used for graph generation");
     app.add_option(
         "--automatic-num-chunks-imbalance-threshold", config.max_vertex_imbalance,
-        "Controls the trade-off between vertex imbalance and number of chunks when deducing the number of chunks "
+        "Controls the trade-off between vertex imbalance and number of chunks when deducing the number of "
+        "chunks "
         "automatically");
     app.add_flag("-C,--coordinates", config.coordinates, "Generate coordinates (geometric generators only)");
 
@@ -443,7 +461,12 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_hypergraph_nm(params);
         params->silent();
 
-        add_hyperedge_radius_options(cmd);
+        auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");
+
+        add_hyperedge_radius_options(hyperedge_dist_options);
+        add_hyper_size_bounds(hyperedge_dist_options);
+
+        hyperedge_dist_options->require_option(1);
 
         add_partial_cell_mode(cmd);
     }
@@ -459,7 +482,11 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_hypergraph_nm(params);
         params->silent();
 
-        add_hyperedge_radius_options(cmd);
+        auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");
+
+        add_hyperedge_radius_options(hyperedge_dist_options);
+
+        hyperedge_dist_options->require_option(1);
 
         add_partial_cell_mode(cmd);
     }
@@ -505,7 +532,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
                 ->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for hyperedge sizes")
                 ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
 
-        auto* sizes_opt = size_group->add_option("--sizes", config.cigam_sizes, "Explicit CIGAM hyperedge sizes")
+        auto* sizes_opt = size_group->add_option("--sizes", config.cigam_sizes, "Explicit HGNP hyperedge sizes")
                               ->expected(1, -1)
                               ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
 
@@ -591,7 +618,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_edge_budget(params);
         params->silent();
     }
-
 #ifdef KAGEN_CGAL_FOUND
     { // RDG2D
         auto* cmd = app.add_subcommand("rdg2d", "2D Random Delaunay Graph");
@@ -599,7 +625,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->callback([&] { config.generator = GeneratorType::RDG_2D; });
         cmd->add_flag(
             "--periodic", config.periodic,
-            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
+            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 "
+            "PEs.");
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);
@@ -627,7 +654,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->callback([&] { config.generator = GeneratorType::GRID_2D; });
         cmd->add_flag(
             "--periodic", config.periodic,
-            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
+            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 "
+            "PEs.");
 
         add_option_x(cmd)->required();
         add_option_y(cmd)->required();
@@ -645,7 +673,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->callback([&] { config.generator = GeneratorType::GRID_3D; });
         cmd->add_flag(
             "--periodic", config.periodic,
-            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 PEs.");
+            "Enables the periodic boundary condition. Can yield unexpected results when using less than 9 "
+            "PEs.");
 
         add_option_x(cmd)->required();
         add_option_y(cmd)->required();
@@ -767,7 +796,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
             ->check(CLI::ExistingFile);
         cmd->add_option("--distribution", config.input_graph.distribution)
             ->transform(CLI::CheckedTransformer(GetGraphDistributionMap()).description(""))
-            ->description(R"(The following options for how to distribute the static graph across PEs are available:
+            ->description(
+                R"(The following options for how to distribute the static graph across PEs are available:
   - balance-vertices: assign roughly the same number of nodes to each PE
   - balance-edges:    assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>
   - explicit:         explicitly specify the number of vertices on each PE through a text file specified via the --explicit-distribution=<filename> option)");
@@ -862,7 +892,8 @@ int main(int argc, char* argv[]) {
             config.coordinates = true;
         }
 
-        // If use more than one output format, always make output filenames distinct by appending the default extension
+        // If use more than one output format, always make output filenames distinct by appending the default
+        // extension
         if (config.output_graph.formats.size() > 1) {
             config.output_graph.extension = true;
         }

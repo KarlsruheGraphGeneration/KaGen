@@ -151,6 +151,26 @@ private:
         Double radius;
     };
 
+    struct CenterSamplingRegion {
+        Double min_phi;
+        Double max_phi;
+        Double min_cdf;
+        Double max_cdf;
+        SInt   offset;
+        SInt   count;
+    };
+
+    struct SampledVertex {
+        Double r;
+        Double phi;
+        Double cosh_r;
+        Double sinh_r;
+        Double cos_phi;
+        Double sin_phi;
+        Double x;
+        Double y;
+    };
+
     std::vector<DebugCenter> debug_centers_;
 
     void ComputeAnnuli(SInt chunk_id);
@@ -214,6 +234,20 @@ private:
     Double Radius(const HyperbolicHyperedgeCenter<Double>& center, Mersenne& mersenne);
 
     Double FindRadiusForExpectedPins(const HyperbolicHyperedgeCenter<Double>& center, Double desired_pins);
+
+    HyperbolicHyperedgeCenter<Double>
+    SampleCenter(SInt annulus_id, SInt sampled_center_id, const CenterSamplingRegion& region);
+
+    void SeedHyperedgeRNG(SInt sampled_center_id);
+
+    Hyper_Hyperbolic<Double>::CenterSamplingRegion
+    BuildCenterSamplingRegion(const CenterAnnulus& center_annulus, const CenterCell& center_cell) const;
+
+    SInt VertexCellSeed(SInt annulus_id, SInt chunk_id, SInt cell_id);
+
+    SampledVertex SampleVertex(Double min_phi, Double max_phi, Double min_cdf, Double max_cdf);
+
+    void AppendVertex(VertexBlock& block, SInt id, const SampledVertex& vertex);
 };
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm /*comm*/) {}
