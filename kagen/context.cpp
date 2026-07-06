@@ -140,7 +140,7 @@ std::ostream& printHGNPData(std::ostream& out, const PGeneratorConfig& config) {
 
 std::ostream& printCIGAMData(std::ostream& out, const PGeneratorConfig& config) {
     out << "  Number of vertices:                 " << config.n << "\n";
-    out << "  Number of edges:                    " << config.m << "\n";
+    out << "  Number of sizes:                    " << config.cigam_sizes.size() << "\n";
     out << "  Number of breakpoints:              " << config.cigam_breakpoints.size() << "\n";
     out << "  Lambda:                             " << config.cigam_lambda << "\n";
     return out;

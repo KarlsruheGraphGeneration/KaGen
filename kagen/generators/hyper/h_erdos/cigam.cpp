@@ -6,7 +6,6 @@
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/rng_wrapper.h"
 
-#include <memory>
 namespace kagen {
 std::unique_ptr<Generator>
 HyperCIGAMFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
@@ -132,10 +131,11 @@ void HyperCIGAM<BigInt>::GenerateCSR() {
 #endif
     InitEdgeBudgetScaling();
     auto [local_begin, local_end] = ComputeLocalVertexRange();
+    SetVertexRange(local_begin, local_end);
     if (config_.approx || config_.n > (SInt{1} << 31)) {
-        GenerateApproxCSR(local_begin, local_end);
+        GenerateApproxCSR();
     } else {
-        GenerateExactCSR(local_begin, local_end);
+        GenerateExactCSR();
     }
 #ifndef NDEBUG
     std::cerr << "CIGAM layer statistics:\n";
@@ -159,6 +159,7 @@ template <typename BigInt>
 void HyperCIGAM<BigInt>::InitGenerationState() {
     graph_.hyperedge_offsets.push_back(0);
     ValidateCIGAMConfig(config_);
+    cigam_sizes_ = HyperedgeSizes();
     InitLayerBounds();
     InitProbabilityConstants();
     InitSizeWeights();
@@ -178,7 +179,7 @@ std::pair<SInt, SInt> HyperCIGAM<BigInt>::ComputeLocalVertexRange() {
 template <typename BigInt>
 void HyperCIGAM<BigInt>::InitEdgeBudgetScaling() {
     if (config_.edge_budget > 0.0) {
-        for (const SInt k: HyperedgeSizes()) {
+        for (const SInt k: cigam_sizes_) {
             const long double log_Z_k = log_mass_by_size_.at(k);
 
             if (log_Z_k == -std::numeric_limits<long double>::infinity()) {
@@ -189,7 +190,7 @@ void HyperCIGAM<BigInt>::InitEdgeBudgetScaling() {
                 std::log(static_cast<long double>(config_.edge_budget)) + LogSizeWeight(k) - log_Z_k;
         }
     } else {
-        for (const SInt k: HyperedgeSizes()) {
+        for (const SInt k: cigam_sizes_) {
             log_edge_scaling_by_size_[k] = 0.0L;
         }
     }
@@ -215,21 +216,19 @@ template <typename BigInt>
 void HyperCIGAM<BigInt>::InitSizeWeights() {
     log_size_weight_.clear();
 
-    const auto sizes = HyperedgeSizes();
-
     if (config_.size_decay <= 0.0 || config_.size_decay >= 1.0) {
-        for (const SInt k: sizes) {
+        for (const SInt k: cigam_sizes_) {
             log_size_weight_[k] = 0.0L;
         }
         return;
     }
 
-    const SInt        k_min = sizes.front();
+    const SInt        k_min = cigam_sizes_.front();
     const long double x     = static_cast<long double>(config_.size_decay);
 
     long double log_z = -std::numeric_limits<long double>::infinity();
 
-    for (const SInt k: sizes) {
+    for (const SInt k: cigam_sizes_) {
         const long double log_w = std::log(x) + (static_cast<long double>(k - k_min) * std::log1pl(-x));
         log_size_weight_[k]     = log_w;
         log_z                   = LogAdd(log_z, log_w);
@@ -243,16 +242,27 @@ void HyperCIGAM<BigInt>::InitSizeWeights() {
 template <typename BigInt>
 void HyperCIGAM<BigInt>::InitMassCache() {
     log_mass_by_size_.clear();
+    dominant_mass_prefix_.clear();
+    dominant_mass_prefix_.resize(cigam_sizes_.size() * NumLayers());
 
-    for (const SInt k: HyperedgeSizes()) {
-        LogBinomCache cache(k - 1);
+    for (std::size_t k_idx = 0; k_idx < cigam_sizes_.size(); ++k_idx) {
+        const SInt k = cigam_sizes_[k_idx];
 
-        long double              log_sum = -std::numeric_limits<long double>::infinity();
-        std::vector<long double> layer_mass(NumLayers());
+        LogBinomCache cache(k - 1, std::min<SInt>(config_.n, SInt{1} << 20));
+
+        long double log_sum = -std::numeric_limits<long double>::infinity();
 
         for (SInt layer = 0; layer < NumLayers(); ++layer) {
-            layer_mass[layer] = LogExpectedRangeMass(k, 0, config_.n, layer, cache);
-            log_sum           = LogAdd(log_sum, layer_mass[layer]);
+            auto prefix = BuildDominantMassPrefix(k, layer, cache);
+
+            const long double total_mass = prefix.back();
+
+            const long double log_layer_mass =
+                total_mass > 0.0L ? std::log(total_mass) : -std::numeric_limits<long double>::infinity();
+
+            log_sum = LogAdd(log_sum, log_layer_mass);
+
+            dominant_mass_prefix_[PrefixIndex(k_idx, layer)] = std::move(prefix);
         }
 
         log_mass_by_size_[k] = log_sum;
@@ -279,17 +289,87 @@ std::vector<SInt> HyperCIGAM<BigInt>::HyperedgeSizes() const {
     }
     return sizes;
 }
+template <typename BigInt>
+std::pair<SInt, SInt>
+HyperCIGAM<BigInt>::LocalDominantOwnerRange(const SInt k, const SInt layer, LogBinomCache& cache) const {
+    const auto prefix = BuildDominantMassPrefix(k, layer, cache);
+
+    return {FindDominantBoundaryInPrefix(prefix, rank_, size_), FindDominantBoundaryInPrefix(prefix, rank_ + 1, size_)};
+}
+
+template <typename BigInt>
+std::vector<double>
+HyperCIGAM<BigInt>::BuildDominantMassPrefix(const SInt k, const SInt layer, LogBinomCache& cache) const {
+    std::vector<double> prefix(config_.n + 1, 0.0);
+
+    const SInt j_max = layer_end_[layer] - 1;
+
+    for (SInt i = 0; i < config_.n; ++i) {
+        double mass = 0.0;
+
+        if (config_.n - i - 1 >= k - 1) {
+            const SInt j_min = std::max<SInt>(i + 1, layer_begin_[layer]);
+
+            if (j_min <= j_max && j_max - i >= k - 1) {
+                const SInt high = j_max - i;
+                const SInt low  = j_min - i - 1;
+
+                double log_block_size;
+
+                if (k == 2) {
+                    log_block_size = std::log(static_cast<double>(j_max - j_min + 1));
+                } else if (low < k - 1) {
+                    log_block_size = static_cast<double>(cache.Get(high, k - 1));
+                } else {
+                    log_block_size =
+                        static_cast<double>(LogDifferenceOfExponentials(cache.Get(high, k - 1), cache.Get(low, k - 1)));
+                }
+
+                mass = std::exp(log_block_size + static_cast<double>(LogProbabilityForDominant(i, layer)));
+            }
+        }
+
+        prefix[i + 1] = prefix[i] + mass;
+    }
+
+    return prefix;
+}
+
+template <typename BigInt>
+SInt HyperCIGAM<BigInt>::FindDominantBoundaryInPrefix(
+    const std::vector<double>& prefix, const PEID rank, const PEID size) const {
+    if (rank == 0) {
+        return 0;
+    }
+
+    if (rank == size) {
+        return static_cast<SInt>(prefix.size() - 1);
+    }
+
+    const long double total = prefix.back();
+
+    if (total <= 0.0L) {
+        return static_cast<SInt>(prefix.size() - 1);
+    }
+
+    const long double target = total * static_cast<long double>(rank) / static_cast<long double>(size);
+
+    auto it = std::lower_bound(prefix.begin(), prefix.end(), target);
+    return static_cast<SInt>(std::distance(prefix.begin(), it));
+}
 
 // #### Exact generation ####
 template <typename BigInt>
-void HyperCIGAM<BigInt>::GenerateExactCSR(SInt local_begin, SInt local_end) {
-    SetVertexRange(local_begin, local_end);
-
-    for (const SInt k: HyperedgeSizes()) {
+void HyperCIGAM<BigInt>::GenerateExactCSR() {
+    for (std::size_t k_idx = 0; k_idx < cigam_sizes_.size(); ++k_idx) {
+        const SInt    k = cigam_sizes_[k_idx];
         LogBinomCache binom_cache(k - 1);
 
         for (SInt layer = 0; layer < NumLayers(); ++layer) {
-            const SInt count_stream_seed = sampling::Spooky::hash(
+            const auto& prefix            = dominant_mass_prefix_[PrefixIndex(k_idx, layer)];
+            const auto  owner_begin       = FindDominantBoundaryInPrefix(prefix, rank_, size_);
+            const auto  owner_end         = FindDominantBoundaryInPrefix(prefix, rank_ + 1, size_);
+            const SInt  count_stream_seed = sampling::Spooky::hash(
                 static_cast<unsigned long long>(config_.seed)
                 + (static_cast<unsigned long long>(k) * kCountSeedMultiplier)
                 + (static_cast<unsigned long long>(layer) * kRankSeedMultiplier)
@@ -297,7 +377,7 @@ void HyperCIGAM<BigInt>::GenerateExactCSR(SInt local_begin, SInt local_end) {
 
             count_mersenne_.RandomInit(count_stream_seed);
 
-            for (SInt i = local_begin; i < local_end; ++i) {
+            for (SInt i = owner_begin; i < owner_end; ++i) {
                 if (config_.n - i - 1 < k - 1) {
                     continue;
                 }
@@ -364,12 +444,19 @@ void HyperCIGAM<BigInt>::ValidateExactBlockDensity(const SInt local_m, const lon
 
 // #### Approx generation ####
 template <typename BigInt>
-void HyperCIGAM<BigInt>::GenerateApproxCSR(SInt local_begin, SInt local_end) {
-    for (const SInt k: HyperedgeSizes()) {
+void HyperCIGAM<BigInt>::GenerateApproxCSR() {
+    for (std::size_t k_idx = 0; k_idx < cigam_sizes_.size(); ++k_idx) {
+        const SInt k = cigam_sizes_[k_idx];
+
         LogBinomCache cache(k - 1, std::min<SInt>(config_.n, SInt{1} << 20));
 
         for (SInt layer = 0; layer < NumLayers(); ++layer) {
-            GenerateApproxRange(k, local_begin, local_end, layer, 0, cache);
+            const auto& prefix = dominant_mass_prefix_[PrefixIndex(k_idx, layer)];
+
+            const auto owner_begin = FindDominantBoundaryInPrefix(prefix, rank_, size_);
+            const auto owner_end   = FindDominantBoundaryInPrefix(prefix, rank_ + 1, size_);
+
+            GenerateApproxRange(k, owner_begin, owner_end, layer, 0, cache, prefix);
         }
     }
 }
@@ -381,12 +468,13 @@ void HyperCIGAM<BigInt>::GenerateApproxCSR(SInt local_begin, SInt local_end) {
 // contribution within the leaf
 template <typename BigInt>
 void HyperCIGAM<BigInt>::GenerateApproxRange(
-    const SInt k, const SInt i_begin, const SInt i_end, const SInt layer, const SInt level, LogBinomCache& cache) {
+    const SInt k, const SInt i_begin, const SInt i_end, const SInt layer, const SInt level, LogBinomCache& cache,
+    const std::vector<double>& prefix) {
     if (i_begin >= i_end) {
         return;
     }
 
-    const auto stats = ComputeApproxRangeStats(k, i_begin, i_end, layer, cache);
+    const auto stats = ComputeApproxRangeStats(k, i_begin, i_end, layer, cache, prefix);
     if (!stats) {
         return;
     }
@@ -394,10 +482,10 @@ void HyperCIGAM<BigInt>::GenerateApproxRange(
     const SInt width = i_end - i_begin;
 
     if (ShouldSplitApproxRange(width, stats->expected)) {
-        const SInt mid = ChooseApproxRangeSplit(k, i_begin, i_end, layer, stats->log_expected, cache);
+        const SInt mid = ChooseApproxRangeSplit(i_begin, i_end, prefix);
 
-        GenerateApproxRange(k, i_begin, mid, layer, level + 1, cache);
-        GenerateApproxRange(k, mid, i_end, layer, level + 1, cache);
+        GenerateApproxRange(k, i_begin, mid, layer, level + 1, cache, prefix);
+        GenerateApproxRange(k, mid, i_end, layer, level + 1, cache, prefix);
 
         return;
     }
@@ -405,11 +493,17 @@ void HyperCIGAM<BigInt>::GenerateApproxRange(
 }
 
 template <typename BigInt>
-std::optional<ApproxRangeStatsCIGAM>
-HyperCIGAM<BigInt>::ComputeApproxRangeStats(SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache) const {
+std::optional<ApproxRangeStatsCIGAM> HyperCIGAM<BigInt>::ComputeApproxRangeStats(
+    SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache, const std::vector<double>& prefix) const {
     ApproxRangeStatsCIGAM stats;
 
-    stats.log_expected = LogExpectedRangeMass(k, i_begin, i_end, layer, cache) + log_edge_scaling_by_size_.at(k);
+    const long double local_mass = prefix[i_end] - prefix[i_begin];
+
+    if (local_mass <= 0.0L) {
+        return std::nullopt;
+    }
+
+    stats.log_expected = std::log(local_mass) + log_edge_scaling_by_size_.at(k);
 
     if (stats.log_expected == -std::numeric_limits<long double>::infinity()) {
         return std::nullopt;
@@ -440,8 +534,7 @@ bool HyperCIGAM<BigInt>::ShouldSplitApproxRange(SInt width, long double expected
 
 template <typename BigInt>
 SInt HyperCIGAM<BigInt>::ChooseApproxRangeSplit(
-    const SInt k, const SInt i_begin, const SInt i_end, const SInt layer, const long double log_expected,
-    LogBinomCache& cache) {
+    const SInt i_begin, const SInt i_end, const std::vector<double>& prefix) {
     constexpr SInt kTargetRangeWidth = SInt{1} << 20;
 
     const SInt width = i_end - i_begin;
@@ -450,28 +543,27 @@ SInt HyperCIGAM<BigInt>::ChooseApproxRangeSplit(
         return i_begin + (width / 2);
     }
 
-    return FindApproxMassSplit(k, i_begin, i_end, layer, log_expected - log_edge_scaling_by_size_.at(k), cache);
+    return FindApproxMassSplit(i_begin, i_end, prefix);
 }
 
 template <typename BigInt>
-SInt HyperCIGAM<BigInt>::FindApproxMassSplit(
-    const SInt k, const SInt i_begin, const SInt i_end, const SInt layer, const long double log_total_mass,
-    LogBinomCache& cache) {
+SInt HyperCIGAM<BigInt>::FindApproxMassSplit(const SInt i_begin, const SInt i_end, const std::vector<double>& prefix) {
     if (i_end - i_begin <= 2) {
         return i_begin + 1;
     }
+
+    const long double total_mass = prefix[i_end] - prefix[i_begin];
+    const long double half       = total_mass * 0.5L;
+
     SInt left  = i_begin + 1;
     SInt right = i_end - 1;
     SInt best  = i_begin + ((i_end - i_begin) / 2);
 
-    const long double log_half = log_total_mass + std::log(0.5L);
-
     while (left <= right) {
-        const SInt mid = left + ((right - left) / 2);
+        const SInt        mid       = left + ((right - left) / 2);
+        const long double left_mass = prefix[mid] - prefix[i_begin];
 
-        const long double log_left_mass = LogExpectedRangeMass(k, i_begin, mid, layer, cache);
-
-        if (log_left_mass <= log_half) {
+        if (left_mass <= half) {
             best = mid;
             left = mid + 1;
         } else {

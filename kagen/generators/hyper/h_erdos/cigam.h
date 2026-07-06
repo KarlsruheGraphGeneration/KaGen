@@ -44,14 +44,13 @@ private:
 
     SInt ApproxRangeCountSeed(SInt k, SInt i_begin, SInt layer, SInt level) const;
     bool ShouldSplitApproxRange(SInt width, long double expected) const;
-    SInt ChooseApproxRangeSplit(
-        SInt k, SInt i_begin, SInt i_end, SInt layer, long double log_expected, LogBinomCache& cache);
+    SInt ChooseApproxRangeSplit(SInt i_begin, SInt i_end, const std::vector<double>& prefix);
     bool BuildDominantVertexCDF(
         SInt k, SInt i_begin, SInt i_end, SInt layer, SInt local_m, LogBinomCache& cache, std::vector<SInt>& candidates,
         std::vector<long double>& cdf);
 
-    std::optional<ApproxRangeStatsCIGAM>
-         ComputeApproxRangeStats(SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache) const;
+    std::optional<ApproxRangeStatsCIGAM> ComputeApproxRangeStats(
+        SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache, const std::vector<double>& prefix) const;
     void PushCheckedHyperedge(const std::vector<SInt>& pins, SInt layer);
     void GenerateBoundedBlock(SInt k, SInt i, SInt layer, LogBinomCache& binom_cache);
     SInt SampleEndpoint(SInt k, SInt i, SInt j_min, SInt j_max, long double log_block_size, LogBinomCache& binom_cache);
@@ -66,9 +65,14 @@ private:
     std::pair<SInt, SInt> LayerEndpointRange(SInt i, SInt layer) const;
     void                  PushHyperedge(const std::vector<SInt>& pins);
     std::vector<SInt>     HyperedgeSizes() const;
-    void                  GenerateApproxCSR(SInt local_begin, SInt local_end);
-    void                  GenerateExactCSR(SInt local_begin, SInt local_end);
-    void        GenerateApproxRange(SInt k, SInt i_begin, SInt i_end, SInt layer, SInt level, LogBinomCache& cache);
+    std::pair<SInt, SInt> LocalDominantOwnerRange(SInt k, SInt layer, LogBinomCache& cache) const;
+    std::vector<double>   BuildDominantMassPrefix(SInt k, SInt layer, LogBinomCache& cache) const;
+    SInt                  FindDominantBoundaryInPrefix(const std::vector<double>& prefix, PEID rank, PEID size) const;
+    void                  GenerateApproxCSR();
+    void                  GenerateExactCSR();
+    void                  GenerateApproxRange(
+        SInt k, SInt i_begin, SInt i_end, SInt layer, SInt level, LogBinomCache& cache,
+        const std::vector<double>& prefix);
     long double LogExpectedRangeMass(SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache) const;
     SInt        EstimateEndpointInitialGuess(
         SInt k, SInt i, SInt j_min, SInt j_max, long double log_target_prefix, LogBinomCache& cache);
@@ -76,6 +80,10 @@ private:
 
     SInt NumLayers() const {
         return static_cast<SInt>(config_.cigam_c.size());
+    }
+
+    std::size_t PrefixIndex(const std::size_t k_idx, const SInt layer) const {
+        return (k_idx * NumLayers()) + layer;
     }
 
     PGeneratorConfig                                   config_;
@@ -96,13 +104,14 @@ private:
     long double                           lambda_exp_term_ = 0.0L;
     std::unordered_map<SInt, long double> log_size_weight_;
     std::unordered_map<SInt, long double> log_mass_by_size_;
+    std::vector<std::vector<double>>      dominant_mass_prefix_;
+    std::vector<SInt>                     cigam_sizes_;
 
     void                                  InitMassCache();
     void                                  InitSizeWeights();
     long double                           LogSizeWeight(SInt k) const;
     std::unordered_map<SInt, long double> log_edge_scaling_by_size_;
-    SInt
-    FindApproxMassSplit(SInt k, SInt i_begin, SInt i_end, SInt layer, long double log_total_mass, LogBinomCache& cache);
+    SInt FindApproxMassSplit(SInt i_begin, SInt i_end, const std::vector<double>& prefix);
 
 #ifndef NDEBUG
     std::vector<SInt> debug_edges_per_layer_;
