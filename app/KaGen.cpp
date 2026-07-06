@@ -464,7 +464,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");
 
         add_hyperedge_radius_options(hyperedge_dist_options);
-        add_hyper_size_bounds(hyperedge_dist_options);
 
         hyperedge_dist_options->require_option(1);
 
