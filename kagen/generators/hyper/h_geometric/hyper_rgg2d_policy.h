@@ -4,6 +4,7 @@
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -97,8 +98,11 @@ private:
         std::vector<Vertex> vertices_by_x;
     };
 
-    mutable std::unordered_map<SInt, CachedExactCell> exact_vertices_;
-    mutable std::unordered_set<SInt>                  floyd_scratch_;
+    mutable std::unordered_map<SInt, CachedExactCell>           exact_vertices_;
+    mutable std::list<SInt>                                     exact_lru_;
+    mutable std::unordered_map<SInt, std::list<SInt>::iterator> exact_lru_pos_;
+    std::size_t                                                 exact_remote_cache_limit_ = 8; // configurable later
+    mutable std::unordered_set<SInt>                            floyd_scratch_;
 
     mutable SInt exact_remote_cache_hits_      = 0;
     mutable SInt exact_remote_cache_misses_    = 0;
