@@ -91,9 +91,31 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
             }
         }
     }
+    policy.PrintExactCacheStats();
+}
+
+void HyperRGG2D::ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges) {
+    const std::size_t needed_pins = graph_.hyperedge_pins.size() + pins;
+    if (needed_pins > graph_.hyperedge_pins.capacity()) {
+        const std::size_t slack = std::min<std::size_t>(needed_pins / 8, 1'000'000);
+        graph_.hyperedge_pins.reserve(needed_pins + slack);
+    }
+
+    const std::size_t needed_ranges = graph_.hyperedge_ranges.size() + ranges;
+    if (needed_ranges > graph_.hyperedge_ranges.capacity()) {
+        const std::size_t slack = std::min<std::size_t>(needed_ranges / 8, 100'000);
+        graph_.hyperedge_ranges.reserve(needed_ranges + slack);
+    }
 }
 
 void HyperRGG2D::PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
+    local_memory_stats_.max_pins_per_hyperedge =
+        std::max(local_memory_stats_.max_pins_per_hyperedge, static_cast<SInt>(pins.size()));
+
+    local_memory_stats_.max_ranges_per_hyperedge =
+        std::max(local_memory_stats_.max_ranges_per_hyperedge, static_cast<SInt>(ranges.size()));
+    ObserveHyperedgeAndMaybeReserve(pins.size(), ranges.size());
+
     if (graph_.hyperedge_offsets.empty()) {
         graph_.hyperedge_offsets.push_back(0);
     }
@@ -110,6 +132,8 @@ void HyperRGG2D::PushHyperedgeCompressed(const std::vector<SInt>& pins, const st
 }
 
 void HyperRGG2D::GenerateCSR() {
+    graph_.hyperedge_offsets.reserve(config_.m + 1);
+    graph_.hyperedge_range_offsets.reserve(config_.m + 1);
     GenerateGeometry();
 }
 
@@ -121,14 +145,26 @@ void HyperRGG2D::FinalizeCSR(MPI_Comm comm) {
     int rank = 0;
     MPI_Comm_rank(comm, &rank);
 
-    const auto& s = exact_debug_stats_;
+    const SInt local_pins                 = static_cast<SInt>(graph_.hyperedge_pins.size());
+    const SInt local_max_hyperedge_pins   = local_memory_stats_.max_pins_per_hyperedge;
+    const SInt local_max_hyperedge_ranges = local_memory_stats_.max_ranges_per_hyperedge;
 
-    std::cerr << "[Rank " << rank << "] "
-              << "partial_cells=" << s.partial_cells << " vertices_tested=" << s.vertices_tested
-              << " vertices_accepted=" << s.vertices_accepted << " acceptance="
-              << (s.vertices_tested ? static_cast<double>(s.vertices_accepted) / static_cast<double>(s.vertices_tested)
-                                    : 0.0)
-              << '\n';
+    SInt global_max_pins             = 0;
+    SInt global_sum_pins             = 0;
+    SInt global_max_hyperedge_pins   = 0;
+    SInt global_max_hyperedge_ranges = 0;
+
+    MPI_Reduce(&local_pins, &global_max_pins, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, comm);
+    MPI_Reduce(&local_pins, &global_sum_pins, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&local_max_hyperedge_pins, &global_max_hyperedge_pins, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, comm);
+    MPI_Reduce(&local_max_hyperedge_ranges, &global_max_hyperedge_ranges, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, comm);
+
+    if (rank == 0) {
+        std::cerr << "[HyperRGG2D memory] "
+                  << "sum_pins=" << global_sum_pins << " max_local_pins=" << global_max_pins
+                  << " max_hyperedge_pins=" << global_max_hyperedge_pins
+                  << " max_hyperedge_ranges=" << global_max_hyperedge_ranges << '\n';
+    }
 }
 
 HyperRGG2D::CenterSampler::CenterSampler(HyperRGG2D& gen, LPFloat cell_width, LPFloat lower_bound, LPFloat upper_bound)

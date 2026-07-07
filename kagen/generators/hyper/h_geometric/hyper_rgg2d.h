@@ -44,6 +44,15 @@ private:
 
     SInt SafeTotalCellsPerDim() const;
 
+    struct LocalMemoryStats {
+        SInt max_pins_per_hyperedge   = 0;
+        SInt max_ranges_per_hyperedge = 0;
+    };
+
+    LocalMemoryStats local_memory_stats_;
+
+    void ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges);
+
     void PushHyperedgeCompressed(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
 
     struct CellPosition {

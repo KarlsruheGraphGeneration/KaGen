@@ -248,8 +248,7 @@ SInt HyperRGG2DPolicy::AddPartialCellFloyd(
 
 SInt HyperRGG2DPolicy::AddPartialCellExact(
     const Center& center, LPFloat radius, const Cell& cell, std::vector<SInt>& pins) const {
-    const auto& cached   = ExactCell(cell);
-    const auto& vertices = cached.vertices_by_x;
+    const auto& vertices = ExactVerticesByX(cell);
 
     const double cx = static_cast<double>(center.x);
     const double cy = static_cast<double>(center.y);
@@ -286,22 +285,97 @@ void HyperRGG2DPolicy::EmitHyperedge(const std::vector<SInt>& pins, const std::v
     gen_->PushHyperedgeCompressed(pins, ranges);
 }
 
-const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactCell(const Cell& cell) const {
-    auto it = exact_vertices_.find(cell.global_cell_id);
-    if (it != exact_vertices_.end()) {
+const std::vector<Vertex>& HyperRGG2DPolicy::ExactVerticesByX(const Cell& cell) const {
+    if (IsLocalCell(cell) && !gen_->config_.coordinates) {
+        auto it = gen_->vertices_.find(cell.global_cell_id);
+        if (it == gen_->vertices_.end()) {
+            static const std::vector<Vertex> empty;
+            return empty; // or assert/throw, because this should not happen
+        }
+
+        auto [_, inserted] = local_vertices_sorted_by_x_.insert(cell.global_cell_id);
+        if (inserted) {
+            std::sort(it->second.begin(), it->second.end(), [](const Vertex& a, const Vertex& b) {
+                return std::get<0>(a) < std::get<0>(b);
+            });
+        }
+
         return it->second;
     }
 
-    auto [inserted_it, inserted] = exact_vertices_.emplace(cell.global_cell_id, CachedExactCell{});
+    return ExactRemoteCell(cell).vertices_by_x;
+}
+void HyperRGG2DPolicy::RecordRemoteAccess(SInt global_cell_id) const {
+    const SInt t = ++exact_remote_access_counter_;
 
-    auto& cached = inserted_it->second;
+    auto it = exact_remote_last_access_.find(global_cell_id);
+    if (it == exact_remote_last_access_.end()) {
+        exact_remote_last_access_[global_cell_id] = t;
+        return;
+    }
+
+    const SInt distance = t - it->second;
+    it->second          = t;
+
+    ++exact_remote_reuse_count_;
+    exact_remote_reuse_distance_sum_ += distance;
+    exact_remote_reuse_distance_max_ = std::max(exact_remote_reuse_distance_max_, distance);
+
+    if (distance <= 1) {
+        ++exact_remote_reuse_distance_le_1_;
+    } else if (distance <= 4) {
+        ++exact_remote_reuse_distance_le_4_;
+    } else if (distance <= 16) {
+        ++exact_remote_reuse_distance_le_16_;
+    } else {
+        ++exact_remote_reuse_distance_gt_16_;
+    }
+}
+
+const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const Cell& cell) const {
+    RecordRemoteAccess(cell.global_cell_id);
+    auto it = exact_vertices_.find(cell.global_cell_id);
+    if (it != exact_vertices_.end()) {
+        ++exact_remote_cache_hits_;
+
+        return it->second;
+    }
+
+    ++exact_remote_cache_misses_;
+
+    auto [inserted_it, inserted] = exact_vertices_.emplace(cell.global_cell_id, CachedExactCell{});
+    auto& cached                 = inserted_it->second;
+
     gen_->GenerateVertices(cell.chunk_id, cell.cell_id, cached.vertices_by_x);
+
+    const SInt generated = static_cast<SInt>(cached.vertices_by_x.size());
+
+    exact_remote_cached_vertices_ += generated;
 
     std::sort(cached.vertices_by_x.begin(), cached.vertices_by_x.end(), [](const Vertex& a, const Vertex& b) {
         return std::get<0>(a) < std::get<0>(b);
     });
 
     return cached;
+}
+
+void HyperRGG2DPolicy::PrintExactCacheStats() const {
+    std::cerr << " exact_remote_hits=" << exact_remote_cache_hits_
+              << " exact_remote_misses=" << exact_remote_cache_misses_
+              << " exact_remote_cached_vertices=" << exact_remote_cached_vertices_ << '\n';
+    const double avg_reuse = exact_remote_reuse_count_ ? static_cast<double>(exact_remote_reuse_distance_sum_)
+                                                             / static_cast<double>(exact_remote_reuse_count_)
+                                                       : 0.0;
+
+    std::cerr << " remote_reuse_count=" << exact_remote_reuse_count_ << " remote_reuse_avg=" << avg_reuse
+              << " remote_reuse_max=" << exact_remote_reuse_distance_max_
+              << " reuse<=1=" << exact_remote_reuse_distance_le_1_ << " reuse<=4=" << exact_remote_reuse_distance_le_4_
+              << " reuse<=16=" << exact_remote_reuse_distance_le_16_
+              << " reuse>16=" << exact_remote_reuse_distance_gt_16_ << '\n';
+}
+
+bool HyperRGG2DPolicy::IsLocalCell(const Cell& cell) const {
+    return gen_->IsLocalChunk(cell.chunk_id);
 }
 
 } // namespace kagen

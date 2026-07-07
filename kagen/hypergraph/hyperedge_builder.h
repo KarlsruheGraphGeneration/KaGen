@@ -72,17 +72,24 @@ private:
         SInt inside_estimated_size  = 0;
     };
 
+    template <typename T>
+    void ClearMaybeRelease(std::vector<T>& v, const std::size_t max_keep_capacity = 4096) {
+        if (v.capacity() > max_keep_capacity) {
+            std::vector<T>().swap(v);
+        } else {
+            v.clear();
+        }
+    }
+
     void ResetBuildState() {
-        cells_.clear();
-        pins_.clear();
-        ranges_.clear();
+        ClearMaybeRelease(cells_);
+        ClearMaybeRelease(pins_);
+        ClearMaybeRelease(ranges_);
     }
 
     void FinalizePinsAndRanges() {
-        if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
-            if (!ranges_.empty()) {
-                NormalizeRangesOnly(ranges_);
-            }
+        if (pins_.empty()) {
+            NormalizeRangesOnly(ranges_);
         } else {
             Normalize(pins_, ranges_);
         }
@@ -128,31 +135,55 @@ private:
         return filtered_pins;
     }
 
+    void ExtractRunsAsRanges(std::vector<SInt>& pins, std::vector<PinRange>& ranges) const {
+        constexpr SInt min_run_length = 3; // 3 pins: 24 bytes -> 16 byte range
+
+        std::vector<SInt> remaining;
+        remaining.reserve(pins.size());
+
+        std::size_t i = 0;
+        while (i < pins.size()) {
+            std::size_t j = i + 1;
+
+            while (j < pins.size() && pins[j] == pins[j - 1] + 1) {
+                ++j;
+            }
+
+            const SInt run_length = static_cast<SInt>(j - i);
+
+            if (run_length >= min_run_length) {
+                ranges.push_back({.begin = pins[i], .end = pins[j - 1] + 1});
+            } else {
+                for (std::size_t k = i; k < j; ++k) {
+                    remaining.push_back(pins[k]);
+                }
+            }
+
+            i = j;
+        }
+
+        pins = std::move(remaining);
+    }
+
     void Normalize(std::vector<SInt>& pins, std::vector<PinRange>& ranges) const {
         std::sort(pins.begin(), pins.end());
         pins.erase(std::unique(pins.begin(), pins.end()), pins.end());
 
-        std::sort(ranges.begin(), ranges.end(), [](const PinRange& firstRange, const PinRange& secondRange) {
-            return firstRange.begin < secondRange.begin;
-        });
+        ExtractRunsAsRanges(pins, ranges);
 
-        std::vector<PinRange> merged_ranges;
-        merged_ranges.reserve(ranges.size());
+        NormalizeRangesOnly(ranges);
 
-        merged_ranges = MergeRanges(ranges);
-
-        auto filtered_pins = RemovePinsCoveredByRanges(pins, merged_ranges);
-
-        pins   = std::move(filtered_pins);
-        ranges = std::move(merged_ranges);
+        pins = RemovePinsCoveredByRanges(pins, ranges);
     }
 
     void NormalizeRangesOnly(std::vector<PinRange>& ranges) const {
+        if (ranges.empty()) {
+            return;
+        }
+
         std::sort(ranges.begin(), ranges.end(), [](const PinRange& a, const PinRange& b) { return a.begin < b.begin; });
 
-        auto merged = MergeRanges(ranges);
-
-        ranges = std::move(merged);
+        ranges = MergeRanges(ranges);
     }
 
     void CountOutside(BuildStats& stats) const {
