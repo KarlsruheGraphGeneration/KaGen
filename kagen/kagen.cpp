@@ -142,6 +142,31 @@ std::ostream& operator<<(std::ostream& out, FileFormat output_format) {
     return out << "<invalid>";
 }
 
+std::unordered_map<std::string, CIGAMMode> GetCIGAMModeMap() {
+    return {
+        {"reference", CIGAMMode::PAPER}, {"paper", CIGAMMode::PAPER}, {"python", CIGAMMode::PAPER},
+
+        {"exact", CIGAMMode::EXACT},
+
+        {"approx", CIGAMMode::APPROX},       {"fast", CIGAMMode::APPROX},
+    };
+}
+
+std::ostream& operator<<(std::ostream& out, const CIGAMMode mode) {
+    switch (mode) {
+        case CIGAMMode::PAPER:
+            return out << "paper";
+
+        case CIGAMMode::EXACT:
+            return out << "exact";
+
+        case CIGAMMode::APPROX:
+            return out << "approx";
+    }
+
+    return out << "<invalid>";
+}
+
 std::unordered_map<std::string, GeneratorType> GetGeneratorTypeMap() {
     return {
         {"gnm-directed", GeneratorType::GNM_DIRECTED},

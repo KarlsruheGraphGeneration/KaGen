@@ -555,8 +555,6 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
 
     const double exponent = 0.5 * (lo + hi);
 
-    std::cout << " Chosen radius exponent = " << exponent << '\n';
-
     return exponent;
 }
 

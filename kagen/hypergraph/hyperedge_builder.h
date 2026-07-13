@@ -82,9 +82,9 @@ private:
     }
 
     void ResetBuildState() {
-        ClearMaybeRelease(cells_);
-        ClearMaybeRelease(pins_);
-        ClearMaybeRelease(ranges_);
+        ClearMaybeRelease(cells_, 1 << 15);
+        ClearMaybeRelease(pins_, 1 << 20);
+        ClearMaybeRelease(ranges_, 1 << 18);
     }
 
     void FinalizePinsAndRanges() {
@@ -94,24 +94,6 @@ private:
             Normalize(pins_, ranges_);
         }
     }
-
-    std::vector<PinRange> MergeRanges(std::vector<PinRange>& ranges) const {
-        std::vector<PinRange> merged_ranges;
-
-        for (const PinRange& range: ranges) {
-            if (range.begin >= range.end) {
-                continue;
-            }
-
-            if (!merged_ranges.empty() && merged_ranges.back().end >= range.begin) {
-                merged_ranges.back().end = std::max(merged_ranges.back().end, range.end);
-            } else {
-                merged_ranges.push_back(range);
-            }
-        }
-        return merged_ranges;
-    }
-
     std::vector<SInt>
     RemovePinsCoveredByRanges(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) const {
         std::vector<SInt> filtered_pins;
@@ -183,7 +165,21 @@ private:
 
         std::sort(ranges.begin(), ranges.end(), [](const PinRange& a, const PinRange& b) { return a.begin < b.begin; });
 
-        ranges = MergeRanges(ranges);
+        std::size_t write = 0;
+
+        for (const PinRange& range: ranges) {
+            if (range.begin >= range.end) {
+                continue;
+            }
+
+            if (write > 0 && ranges[write - 1].end >= range.begin) {
+                ranges[write - 1].end = std::max(ranges[write - 1].end, range.end);
+            } else {
+                ranges[write++] = range;
+            }
+        }
+
+        ranges.resize(write);
     }
 
     void CountOutside(BuildStats& stats) const {

@@ -25,6 +25,12 @@ struct HGNMLocalGenerationRange {
     bool use_approx;
 };
 
+struct HGNMSizePlan {
+    SInt                     hyperedge_size;
+    SInt                     m_k;
+    HGNMLocalGenerationRange range;
+};
+
 template <typename BigInt>
 class HyperGNM : public virtual Generator, private CSROnlyGenerator {
 public:
@@ -35,11 +41,9 @@ protected:
     void FinalizeCSR(MPI_Comm comm) final;
 
 private:
-    void GenerateHyperedgesFromSizeCounts(const std::unordered_map<SInt, SInt>& size_counts);
+    void GenerateHyperedgesFromPlan(const std::vector<HGNMSizePlan>& plan);
 
-    std::unordered_set<std::vector<SInt>, VectorHash> MakeLocalSeenSet(SInt local_m) const;
-    void                                              ValidateDuplicateCheckingIsFeasible(SInt local_m) const;
-    SInt ComputeLocalHyperedgeCount(SInt hyperedge_size, SInt m_k, bool use_approx);
+    void ValidateDuplicateCheckingIsFeasible(SInt local_m) const;
     void ValidateExactSparseDensity(SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m) const;
     std::size_t ComputeCacheSize(SInt local_m, SInt local_min_begin, SInt local_min_end) const;
 
@@ -57,21 +61,17 @@ private:
         SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m, SInt& edge_seed,
         LogBinomCache& log_binom_cache);
 
-    void GenerateHyperedgesOfSize(SInt hyperedge_size, SInt m_k);
+    void GenerateHyperedgesOfSize(SInt hyperedge_size, SInt m_k, const HGNMLocalGenerationRange& data);
 
-    bool TryPushHyperedge(const std::vector<SInt>& pins, std::unordered_set<std::vector<SInt>, VectorHash>& local_seen);
+    bool TryPushHyperedge(const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen);
 
-    std::vector<SInt> SampleHyperedge(SInt minimum_vertex, SInt hyperedge_size);
-
-    void PushHyperedge(const std::vector<SInt>& pins);
+    void SampleHyperedgeInto(SInt minimum_vertex, SInt hyperedge_size, std::vector<SInt>& pins);
 
     SInt ApproximateLocalHyperedgeCount(SInt hyperedge_size, SInt m_k);
 
     SInt ApproximateLocalHyperedgeCountRecursive(
         SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt target_rank, long double population_mass, SInt draws,
         SInt level, LogBinomCache& log_binom_cache);
-
-    SInt ExactLocalHyperedgeCount(SInt hyperedge_size, SInt m_k);
 
     void GenerateRandomGeometricSizeCounts(
         SInt lower, SInt upper, double alpha, std::unordered_map<SInt, SInt>& size_counts);
@@ -84,13 +84,11 @@ private:
     void GenerateBoltzmannPinBudgetSizeCounts(
         SInt lower_bound, SInt upper_bound, SInt pin_budget, std::unordered_map<SInt, SInt>& size_counts);
 
-    SInt ExactLocalHyperedgeCountRecursive(
-        SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt target_rank, CountInt population, SInt draws,
-        SInt level);
-
-    const PGeneratorConfig& config_;
-    PEID                    rank_;
-    PEID                    size_;
+    const PGeneratorConfig&  config_;
+    PEID                     rank_;
+    PEID                     size_;
+    HypergraphMemoryStats    memory_stats_;
+    std::unordered_set<SInt> floyd_scratch_;
 
     RNGWrapper<>                              rng_;
     Mersenne                                  mersenne_;

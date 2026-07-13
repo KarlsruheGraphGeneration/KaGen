@@ -9,6 +9,7 @@
 
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
+#include "kagen/hypergraph/hyperedge_builder.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/hash_map.h"
 #include "kagen/tools/mersenne.h"
@@ -73,6 +74,16 @@ public:
 
         std::size_t size() const {
             return id.size();
+        }
+
+        void clear() {
+            r.clear();
+            id.clear();
+            cosh_r.clear();
+            sinh_r.clear();
+            cos_phi.clear();
+            sin_phi.clear();
+            phi.clear();
         }
     };
 
@@ -173,6 +184,15 @@ private:
 
     std::vector<DebugCenter> debug_centers_;
 
+    struct LocalMemoryStats {
+        SInt max_pins_per_hyperedge   = 0;
+        SInt max_ranges_per_hyperedge = 0;
+    };
+
+    LocalMemoryStats local_memory_stats_;
+
+    void ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges);
+
     void ComputeAnnuli(SInt chunk_id);
 
     void ComputeChunk(SInt chunk_id);
@@ -181,13 +201,16 @@ private:
 
     void GenerateVertices(SInt annulus_id, SInt chunk_id, SInt cell_id);
 
+    void GenerateVertices(SInt annulus_id, SInt chunk_id, SInt cell_id, VertexBlock& out);
+
     void ComputeCenterAnnuli(SInt chunk_id);
 
     void ComputeCenterChunk(SInt chunk_id);
 
     void GenerateCenterCells(SInt annulus_id, SInt chunk_id);
 
-    void GenerateHyperedges(SInt annulus_id, SInt chunk_id);
+    void
+    GenerateHyperedges(SInt annulus_id, SInt chunk_id, HyperedgeBuilder<HyperbolicGeometryPolicy<Double>>& builder);
 
     template <typename ChunkMap, typename AnnulusMap>
     void ComputeAnnuliInto(const ChunkMap& chunks, AnnulusMap& annuli, SInt chunk_id, SInt seed_offset);
@@ -249,8 +272,37 @@ private:
 
     void AppendVertex(VertexBlock& block, SInt id, const SampledVertex& vertex);
 };
+
 template <typename Double>
-void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm /*comm*/) {}
+void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm comm) {
+    if (!config_.debug) {
+        return;
+    }
+
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
+
+    const SInt local_pins                 = static_cast<SInt>(graph_.hyperedge_pins.size());
+    const SInt local_max_hyperedge_pins   = local_memory_stats_.max_pins_per_hyperedge;
+    const SInt local_max_hyperedge_ranges = local_memory_stats_.max_ranges_per_hyperedge;
+
+    SInt global_max_pins             = 0;
+    SInt global_sum_pins             = 0;
+    SInt global_max_hyperedge_pins   = 0;
+    SInt global_max_hyperedge_ranges = 0;
+
+    MPI_Reduce(&local_pins, &global_max_pins, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, comm);
+    MPI_Reduce(&local_pins, &global_sum_pins, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&local_max_hyperedge_pins, &global_max_hyperedge_pins, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, comm);
+    MPI_Reduce(&local_max_hyperedge_ranges, &global_max_hyperedge_ranges, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, comm);
+
+    if (rank == 0) {
+        std::cerr << "[HyperRHG memory] "
+                  << "sum_pins=" << global_sum_pins << " max_local_pins=" << global_max_pins
+                  << " max_hyperedge_pins=" << global_max_hyperedge_pins
+                  << " max_hyperedge_ranges=" << global_max_hyperedge_ranges << '\n';
+    }
+}
 
 using LowPrecisionHyperHyperbolic  = Hyper_Hyperbolic<LPFloat>;
 using HighPrecisionHyperHyperbolic = Hyper_Hyperbolic<HPFloat>;

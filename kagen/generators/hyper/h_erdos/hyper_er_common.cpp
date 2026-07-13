@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <vector>
 
@@ -201,56 +202,65 @@ long double BinomSmallExactLD(SInt n, SInt q) {
 long double MersenneUniform01(Mersenne& mersenne) {
     return std::min<long double>(static_cast<long double>(mersenne.Random()), std::nextafter(1.0L, 0.0L));
 }
-std::vector<SInt>
-FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sample_size, Mersenne& mersenne) {
+
+void FloydSampleInto(
+    const SInt universe_offset, const SInt universe_size, const SInt sample_size, Mersenne& mersenne,
+    std::vector<SInt>& out, std::unordered_set<SInt>& scratch, const std::size_t offset) {
     if (sample_size > universe_size) {
         throw ConfigurationError("Cannot sample more pins than available vertices");
     }
 
+    out.resize(offset);
+
     if (sample_size <= 32) {
-        std::vector<SInt> result;
-        result.reserve(sample_size);
+        out.reserve(offset + static_cast<std::size_t>(sample_size));
 
-        while (static_cast<SInt>(result.size()) < sample_size) {
-            const long double x = MersenneUniform01(mersenne);
-
+        while (static_cast<SInt>(out.size() - offset) < sample_size) {
+            const long double x  = MersenneUniform01(mersenne);
             const SInt candidate = universe_offset + static_cast<SInt>(x * static_cast<long double>(universe_size));
 
             bool duplicate = false;
-            for (const SInt v: result) {
-                if (v == candidate) {
+            for (std::size_t i = offset; i < out.size(); ++i) {
+                if (out[i] == candidate) {
                     duplicate = true;
                     break;
                 }
             }
 
             if (!duplicate) {
-                result.push_back(candidate);
+                out.push_back(candidate);
             }
         }
 
-        std::sort(result.begin(), result.end());
-        return result;
+        std::sort(out.begin() + offset, out.end());
+        return;
     }
 
-    std::unordered_set<SInt> selected;
-    selected.reserve(static_cast<std::size_t>(sample_size));
+    scratch.clear();
+    scratch.reserve(static_cast<std::size_t>(sample_size));
 
     const SInt start = universe_size - sample_size;
 
     for (SInt j = start; j < universe_size; ++j) {
         const long double x = MersenneUniform01(mersenne);
-
-        const SInt t = static_cast<SInt>(x * static_cast<long double>(j + 1));
+        const SInt        t = static_cast<SInt>(x * static_cast<long double>(j + 1));
 
         const SInt candidate = universe_offset + t;
         const SInt fallback  = universe_offset + j;
 
-        selected.insert(selected.contains(candidate) ? fallback : candidate);
+        scratch.insert(scratch.contains(candidate) ? fallback : candidate);
     }
 
-    std::vector<SInt> result(selected.begin(), selected.end());
-    std::sort(result.begin(), result.end());
+    out.reserve(offset + scratch.size());
+    out.insert(out.end(), scratch.begin(), scratch.end());
+    std::sort(out.begin() + offset, out.end());
+}
+
+std::vector<SInt>
+FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sample_size, Mersenne& mersenne) {
+    std::vector<SInt>        result;
+    std::unordered_set<SInt> scratch;
+    FloydSampleInto(universe_offset, universe_size, sample_size, mersenne, result, scratch, 0);
     return result;
 }
 
@@ -273,5 +283,363 @@ std::vector<double> ReadNumericLines(const std::string& filename, const std::str
 
     return values;
 }
+
+SInt MersenneUniformSIntBelow(const SInt upper, Mersenne& mersenne) {
+    if (upper == 0) {
+        throw ConfigurationError("MersenneUniformSIntBelow requires upper > 0");
+    }
+
+    const auto bound = static_cast<std::uint64_t>(upper);
+
+    const std::uint64_t threshold = static_cast<std::uint64_t>(-bound) % bound;
+
+    while (true) {
+        const std::uint64_t value =
+            static_cast<std::uint64_t>(mersenne.BRandom()) | (static_cast<std::uint64_t>(mersenne.BRandom()) << 32);
+
+        if (value >= threshold) {
+            return static_cast<SInt>(value % bound);
+        }
+    }
+}
+
+/**
+    Returns exact C(n, k) if it fits in SInt, else std::nullopt
+*/
+std::optional<SInt> TryBinomialSInt(SInt n, SInt k) {
+    if (k > n) {
+        return SInt{0};
+    }
+
+    k = std::min(k, n - k);
+
+    unsigned __int128       result = 1;
+    const unsigned __int128 limit  = std::numeric_limits<SInt>::max();
+
+    for (SInt i = 1; i <= k; ++i) {
+        unsigned __int128 numerator   = n - k + i;
+        unsigned __int128 denominator = i;
+
+        const auto g1 = std::gcd(static_cast<std::uint64_t>(numerator), static_cast<std::uint64_t>(denominator));
+
+        numerator /= g1;
+        denominator /= g1;
+
+        const auto g2 =
+            std::gcd(static_cast<std::uint64_t>(result % denominator), static_cast<std::uint64_t>(denominator));
+
+        result /= g2;
+        denominator /= g2;
+
+        if (numerator != 0 && result > limit / numerator) {
+            return std::nullopt;
+        }
+
+        result *= numerator;
+        result /= denominator;
+
+        if (result > limit) {
+            return std::nullopt;
+        }
+    }
+
+    return static_cast<SInt>(result);
+}
+
+template <typename BigInt>
+ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
+    const PGeneratorConfig& config, const PEID rank, const PEID size, RNGWrapper<>& rng, Mersenne& mersenne,
+    Graph& graph, HypergraphMemoryStats& memory_stats, std::unordered_set<SInt>& floyd_scratch)
+    : config_(config),
+      rank_(rank),
+      size_(size),
+      rng_(rng),
+      mersenne_(mersenne),
+      graph_(graph),
+      memory_stats_(memory_stats),
+      floyd_scratch_(floyd_scratch) {}
+
+template <typename BigInt>
+void ExactFixedCountHyperedgeGenerator<BigInt>::ValidateDuplicateCheckingIsFeasible(const SInt local_m) const {
+    if (!config_.allow_duplicates && local_m > (SInt{1} << 26)) {
+        throw ConfigurationError(
+            "Duplicate checking for huge hypergraph generation "
+            "is infeasible; use --fast");
+    }
+}
+
+template <typename BigInt>
+std::size_t ExactFixedCountHyperedgeGenerator<BigInt>::ComputeCacheSize(
+    const SInt local_m, const SInt local_min_begin, const SInt local_min_end) const {
+    const SInt search_width = local_min_end - local_min_begin;
+
+    const SInt scaled_m =
+        local_m > std::numeric_limits<SInt>::max() / 8 ? std::numeric_limits<SInt>::max() : local_m * 8;
+
+    return static_cast<std::size_t>(
+        std::min<SInt>(config_.n, std::max<SInt>(4096, std::min<SInt>(search_width, scaled_m))));
+}
+
+template <typename BigInt>
+SInt ExactFixedCountHyperedgeGenerator<BigInt>::EdgeSeed(const SInt hyperedge_size) const {
+    return sampling::Spooky::hash(
+        static_cast<unsigned long long>(config_.seed)
+        + (static_cast<unsigned long long>(rank_) * kEdgeRankSeedMultiplier)
+        + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
+}
+
+template <typename BigInt>
+SInt ExactFixedCountHyperedgeGenerator<BigInt>::RankSplitSeed(
+    const SInt hyperedge_size, const SInt rank_begin, const SInt rank_end, const SInt level) const {
+    return sampling::Spooky::hash(
+        (static_cast<unsigned long long>(config_.seed) * kGNMCountSeedMultiplier)
+        + (static_cast<unsigned long long>(hyperedge_size) * kCountSeedMultiplier)
+        + (static_cast<unsigned long long>(rank_begin) * kRankSeedMultiplier)
+        + (static_cast<unsigned long long>(rank_end) * kEdgeRankSeedMultiplier)
+        + static_cast<unsigned long long>(level));
+}
+
+template <typename BigInt>
+double ExactFixedCountHyperedgeGenerator<BigInt>::SplitProbability(
+    const CountInt& child_population, const CountInt& parent_population) const {
+    if (child_population <= 0) {
+        return 0.0;
+    }
+    if (child_population >= parent_population) {
+        return 1.0;
+    }
+
+    // This conversion is performed only once per level of the rank's
+    // root-to-leaf path. Using a high-precision floating ratio avoids
+    // magnitude-dependent native-integer dispatch and does not require
+    // materializing or sampling from a machine-sized population.
+    using ProbabilityFloat = boost::multiprecision::cpp_dec_float_50;
+
+    const ProbabilityFloat numerator   = child_population.convert_to<ProbabilityFloat>();
+    const ProbabilityFloat denominator = parent_population.convert_to<ProbabilityFloat>();
+    const ProbabilityFloat probability = numerator / denominator;
+
+    return std::clamp(probability.convert_to<double>(), 0.0, 1.0);
+}
+
+template <typename BigInt>
+MinimumPartitionLocalCount
+ExactFixedCountHyperedgeGenerator<BigInt>::ComputeLocalCount(const SInt hyperedge_size, const SInt global_m) {
+    const CountInt total_population = BinomialExact(config_.n, hyperedge_size);
+
+    if (CountInt(global_m) > total_population) {
+        throw ConfigurationError("Fixed-count generation exceeds the hyperedge population");
+    }
+
+    if (size_ <= 0 || (size_ & (size_ - 1)) != 0) {
+        throw ConfigurationError("Minimum-partition fixed-count generation requires a power-of-two PE count");
+    }
+
+    if (size_ == 1) {
+        return {
+            .local_m          = global_m,
+            .local_population = total_population,
+        };
+    }
+
+    const SInt num_minima = config_.n - hyperedge_size + 1;
+
+    return ComputeLocalCountRecursive(hyperedge_size, 0, size_, rank_, 0, num_minima, total_population, global_m, 0);
+}
+
+template <typename BigInt>
+MinimumPartitionLocalCount ExactFixedCountHyperedgeGenerator<BigInt>::ComputeLocalCountRecursive(
+    const SInt hyperedge_size, const SInt rank_begin, const SInt rank_end, const SInt target_rank, const SInt min_begin,
+    const SInt min_end, const CountInt& population, const SInt draws, const SInt level) {
+    if (rank_end - rank_begin == 1) {
+        return {
+            .local_m          = draws,
+            .local_population = population,
+        };
+    }
+
+    const SInt rank_mid = rank_begin + ((rank_end - rank_begin) / 2);
+    const SInt min_mid  = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_mid, size_);
+
+    const CountInt left_population  = MinRangeMassExact(min_begin, min_mid, config_.n, hyperedge_size);
+    const CountInt right_population = population - left_population;
+
+    if (left_population < 0 || right_population < 0) {
+        throw ConfigurationError("Invalid minimum-partition population split");
+    }
+
+    SInt left_draws = 0;
+
+    if (draws != 0 && left_population != 0) {
+        if (right_population == 0) {
+            left_draws = draws;
+        } else {
+            const double probability = SplitProbability(left_population, population);
+            const SInt   seed        = RankSplitSeed(hyperedge_size, rank_begin, rank_end, level);
+
+            // The split is pseudorandom and independently reproducible on every
+            // descendant rank. It conserves the exact parent count because the
+            // right child receives draws - left_draws.
+            left_draws = rng_.GenerateBinomial(seed, draws, probability);
+
+            // A binomial proposal may leave the finite-population support in
+            // dense cases. Clamp to the exact feasible support, calculated from
+            // the combinatorial interval populations.
+            const auto [minimum_left, maximum_left] = HypergeometricSupport(population, left_population, draws);
+            left_draws                              = std::clamp(left_draws, minimum_left, maximum_left);
+        }
+    }
+
+    const SInt right_draws = draws - left_draws;
+
+    if (CountInt(left_draws) > left_population || CountInt(right_draws) > right_population) {
+        throw ConfigurationError("Minimum-partition rank split exceeds child population");
+    }
+
+    if (target_rank < rank_mid) {
+        return ComputeLocalCountRecursive(
+            hyperedge_size, rank_begin, rank_mid, target_rank, min_begin, min_mid, left_population, left_draws,
+            level + 1);
+    }
+
+    return ComputeLocalCountRecursive(
+        hyperedge_size, rank_mid, rank_end, target_rank, min_mid, min_end, right_population, right_draws, level + 1);
+}
+
+template <typename BigInt>
+void ExactFixedCountHyperedgeGenerator<BigInt>::ValidateExactSparseDensity(
+    const SInt local_m, const CountInt& local_population) const {
+    if (CountInt(local_m) > local_population) {
+        throw ConfigurationError(
+            "Exact fixed-count local edge count exceeds "
+            "the local hyperedge population");
+    }
+
+    if (local_population == 0) {
+        return;
+    }
+
+    const long double density = static_cast<long double>(local_m) / local_population.convert_to<long double>();
+
+    if (density > 0.25L) {
+        throw ConfigurationError(
+            "Dense exact fixed-count hypergraph generation "
+            "is not implemented");
+    }
+}
+
+template <typename BigInt>
+FixedCountLocalRange
+ExactFixedCountHyperedgeGenerator<BigInt>::PrepareLocalRange(const SInt hyperedge_size, const SInt global_m) {
+    if (hyperedge_size == 0 || hyperedge_size > config_.n || global_m == 0) {
+        return {};
+    }
+
+    // Minimum-vertex ownership remains the work partition. Each rank needs
+    // only its own two boundaries and its O(log P) deterministic split path.
+    const SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
+    const SInt min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+
+    const MinimumPartitionLocalCount local = ComputeLocalCount(hyperedge_size, global_m);
+
+    ValidateDuplicateCheckingIsFeasible(local.local_m);
+    ValidateExactSparseDensity(local.local_m, local.local_population);
+
+    return {
+        .min_begin = min_begin,
+        .min_end   = min_end,
+        .local_m   = local.local_m,
+    };
+}
+
+template <typename BigInt>
+void ExactFixedCountHyperedgeGenerator<BigInt>::SampleHyperedgeInto(
+    const SInt minimum_vertex, const SInt hyperedge_size, std::vector<SInt>& pins) {
+    pins.clear();
+    pins.push_back(minimum_vertex);
+
+    FloydSampleInto(
+        minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_, pins, floyd_scratch_, 1);
+}
+
+template <typename BigInt>
+bool ExactFixedCountHyperedgeGenerator<BigInt>::TryPushHyperedge(
+    const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen) {
+    if (config_.allow_duplicates || local_seen.insert(FingerprintPins(pins)).second) {
+        PushUncompressedHyperedge(graph_, memory_stats_, pins);
+
+        return true;
+    }
+
+    return false;
+}
+
+template <typename BigInt>
+void ExactFixedCountHyperedgeGenerator<BigInt>::GenerateSampledHyperedges(
+    const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, const SInt local_m,
+    SInt& edge_seed, LogBinomCache& log_binom_cache) {
+    if (local_m == 0) {
+        return;
+    }
+
+    auto local_seen = MakeLocalSeenSet(config_.allow_duplicates, local_m);
+
+    std::vector<SInt> pins;
+    pins.reserve(static_cast<std::size_t>(hyperedge_size));
+
+    const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
+
+    CountInt attempts  = 0;
+    SInt     generated = 0;
+
+    while (generated < local_m) {
+        const SInt minimum_vertex = SampleMinimumImplicit(
+            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
+
+        SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
+
+        if (TryPushHyperedge(pins, local_seen)) {
+            ++generated;
+        }
+
+        if (++attempts > max_attempts) {
+            throw ConfigurationError(
+                "Exact fixed-count rejection sampling "
+                "exceeded the attempt limit");
+        }
+    }
+}
+
+template <typename BigInt>
+void ExactFixedCountHyperedgeGenerator<BigInt>::Generate(const SInt hyperedge_size, const FixedCountLocalRange& range) {
+    if (hyperedge_size == 0 || hyperedge_size > config_.n || range.local_m == 0) {
+        return;
+    }
+
+    if (range.min_begin >= range.min_end) {
+        throw ConfigurationError(
+            "Nonzero local edge count assigned to an "
+            "empty minimum range");
+    }
+
+    LogBinomCache log_binom_cache(hyperedge_size, ComputeCacheSize(range.local_m, range.min_begin, range.min_end));
+
+    log_binom_cache.InitializeRange(config_.n, range.min_begin, range.min_end);
+
+    SInt edge_seed = EdgeSeed(hyperedge_size);
+
+    mersenne_.RandomInit(edge_seed);
+
+    GenerateSampledHyperedges(
+        hyperedge_size, range.min_begin, range.min_end, range.local_m, edge_seed, log_binom_cache);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
+template class ExactFixedCountHyperedgeGenerator<SInt>;
+template class ExactFixedCountHyperedgeGenerator<__int128>;
+
+#pragma GCC diagnostic pop
 
 } // namespace kagen

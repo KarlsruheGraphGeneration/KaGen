@@ -9,8 +9,8 @@
 
 namespace kagen {
 
-PGeneratorConfig HyperRGG2DFactory::NormalizeParameters(
-    PGeneratorConfig config, PEID /*rank*/, const PEID size, const bool output) const {
+PGeneratorConfig
+HyperRGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID rank, const PEID size, const bool output) const {
     using namespace std::string_literals;
 
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
@@ -60,6 +60,10 @@ PGeneratorConfig HyperRGG2DFactory::NormalizeParameters(
 
         config.hyperedge_radius_exponent =
             SolveRadiusExponentForExpectedPins(target_expected_r2, lower_bound, upper_bound);
+
+        if (rank == 0) {
+            std::cout << " Chosen radius exponent = " << config.hyperedge_radius_exponent << '\n';
+        }
     }
 
     return config;

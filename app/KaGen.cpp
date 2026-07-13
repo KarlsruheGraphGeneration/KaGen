@@ -16,6 +16,7 @@
 #include <mpi.h>
 
 #include "CLI11.h"
+#include <cmath>
 #include <iostream>
 #include <limits>
 
@@ -102,49 +103,50 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     auto add_option_avg_deg = [&](CLI::App* cmd) {
         return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
     };
-    auto set_hypergraph_generator = [&](GeneratorType generator) {
+    auto set_hypergraph_generator = [&](const GeneratorType generator) {
         return [&config, generator] {
             config.generator     = generator;
             config.is_hypergraph = true;
         };
     };
+
     auto add_hypergraph_nm = [&](CLI::App* cmd) {
         add_option_n(cmd)->required();
         add_option_m(cmd)->required();
     };
+
+    auto set_random_radius = [&config](const std::string&) {
+        config.random_radius = true;
+    };
+
     auto add_option_pin_budget = [&](CLI::App* cmd) {
-        auto* opt_log_pin_budget = cmd->add_option_function<SInt>(
+        auto* exact_option =
+            cmd->add_option("--pin-budget", config.size_dist_pin_budget, "Expected total number of pins");
+        auto* log_option = cmd->add_option_function<SInt>(
             "--PB,--log-pin-budget",
-            [&](const SInt value) {
-                config.size_dist_pin_budget = static_cast<SInt>(1) << value;
+            [&](const SInt exponent) {
+                config.size_dist_pin_budget = static_cast<SInt>(1) << exponent;
                 config.random_radius        = true;
             },
             "Logarithm of the expected total number of pins");
 
-        auto* opt_pin_budget =
-            cmd->add_option("--pin-budget", config.size_dist_pin_budget, "Expected total number of pins");
+        exact_option->each(set_random_radius);
+        exact_option->excludes(log_option);
+        log_option->excludes(exact_option);
 
-        opt_pin_budget->each([&](const std::string&) { config.random_radius = true; });
-
-        opt_log_pin_budget->excludes(opt_pin_budget);
-
-        return opt_log_pin_budget;
+        return log_option;
     };
 
     auto add_hyperedge_radius_options = [&](CLI::App* cmd) {
         auto* radius_mode = cmd->add_option_group("Hyperedge radius mode");
-
-        auto* fixed_radius =
-            radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
+        radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
 
         auto* radius_exponent = radius_mode->add_option(
             "--radius-exponent", config.hyperedge_radius_exponent,
             "Use variable hyperedge radii with the given distribution exponent");
-
-        radius_exponent->each([&](const std::string&) { config.random_radius = true; });
+        radius_exponent->each(set_random_radius);
 
         auto* pin_budget = add_option_pin_budget(radius_mode);
-
         pin_budget->excludes(radius_exponent);
         radius_exponent->excludes(pin_budget);
 
@@ -152,52 +154,74 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         radius_mode->silent();
 
         auto* variable_radius_params = cmd->add_option_group("Variable hyperedge radius parameters");
-
-        auto* minr = variable_radius_params->add_option(
+        variable_radius_params->add_option(
             "--minr,--radius-lower-bound", config.min_hyperedge_radius,
             "Optional lower bound for variable hyperedge radius");
-
-        auto* maxr = variable_radius_params->add_option(
+        variable_radius_params->add_option(
             "--maxr,--radius-upper-bound", config.max_hyperedge_radius,
             "Optional upper bound for variable hyperedge radius");
-
-        auto* rq = variable_radius_params
-                       ->add_option(
-                           "--rq,--radius-quantile", config.quantile, "Optional quantile for variable hyperedge radius")
-                       ->check(CLI::Range(0.0, 1.0));
-        rq->needs(radius_exponent);
+        variable_radius_params
+            ->add_option("--rq,--radius-quantile", config.quantile, "Optional quantile for variable hyperedge radius")
+            ->check(CLI::Range(0.0, 1.0))
+            ->needs(radius_exponent);
 
         return radius_mode;
     };
+
     auto add_partial_cell_mode = [&](CLI::App* cmd) {
         cmd->add_flag_callback(
             "--exact,-e", [&config]() { config.partial_cell_mode = PartialCellMode::GenerateAndCheck; },
             "Generate and check all vertices in boundary cells");
-
         cmd->add_flag_callback(
             "--approx-range", [&config]() { config.partial_cell_mode = PartialCellMode::EstimateByCoverageRange; },
             "Approximate boundary cells by sampling one random pin range per cell");
-
         cmd->add_flag_callback(
             "--approx-floyd,-a", [&config]() { config.partial_cell_mode = PartialCellMode::EstimateByCoverageFloyd; },
             "Approximate boundary cells by Floyd-sampling vertices uniformly in cell");
-        return cmd;
     };
-    auto add_option_edge_budget = [&](CLI::App* cmd) {
-        auto* opt_log_budget = cmd->add_option_function<SInt>(
-            "--EB,--log-edge-budget",
-            [&](const SInt value) { config.edge_budget = static_cast<double>(static_cast<SInt>(1) << value); },
-            "Logarithm value for expected total hyperedges");
 
-        auto* opt_budget =
-            cmd->add_option("--eb,--edge-budget", config.edge_budget, "Expected total number of hyperedges");
+    auto add_power_of_two_budget = [&](CLI::App* parent, const std::string& group_name, const std::string& exact_flags,
+                                       const std::string& log_flags, double& destination,
+                                       const std::string& quantity_name,
+                                       const bool         required = false) -> std::pair<CLI::Option*, CLI::Option*> {
+        auto* group        = parent->add_option_group(group_name);
+        auto* exact_option = group->add_option(exact_flags, destination, "Expected total number of " + quantity_name)
+                                 ->ignore_case(false);
 
-        auto* group = cmd->add_option_group("Edge budget");
-        group->add_options(opt_log_budget, opt_budget);
-        group->require_option(1);
+        auto* log_option =
+            group
+                ->add_option_function<SInt>(
+                    log_flags,
+                    [&](const SInt exponent) {
+                        if (exponent < 0
+                            || exponent > static_cast<SInt>(std::numeric_limits<double>::max_exponent - 1)) {
+                            throw CLI::ValidationError(log_flags, "exponent is outside the supported range");
+                        }
+
+                        destination = std::ldexp(1.0, static_cast<int>(exponent));
+                    },
+                    "Base-2 logarithm of the expected total number of " + quantity_name)
+                ->ignore_case(false);
+
+        exact_option->check(CLI::PositiveNumber);
+        log_option->check(CLI::NonNegativeNumber);
+        exact_option->excludes(log_option);
+        log_option->excludes(exact_option);
+
+        if (required) {
+            group->require_option(1);
+        }
         group->silent();
-        return group;
+
+        return {exact_option, log_option};
     };
+
+    auto add_edge_budget = [&](CLI::App* cmd, const bool required = false) {
+        return add_power_of_two_budget(
+            cmd, "Expected hyperedges", "--edge-budget,--eb", "--log-edge-budget,--EB", config.edge_budget,
+            "hyperedges", required);
+    };
+
     auto add_hyper_size_bounds = [&](CLI::App* cmd) {
         auto* group = cmd->add_option_group("Hyperedge size bounds");
         group->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for hyperedge sizes");
@@ -206,56 +230,82 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         return group;
     };
 
+    auto add_explicit_hyperedge_sizes = [&](CLI::App* cmd, const std::string& explicit_description,
+                                            const bool required) {
+        const auto min_hyperedge_size = static_cast<SInt>(2);
+        const auto max_hyperedge_size = std::numeric_limits<SInt>::max();
+
+        auto* group = cmd->add_option_group("Hyperedge sizes");
+        auto* lower =
+            group->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for hyperedge sizes")
+                ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
+        auto* upper =
+            group->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for hyperedge sizes")
+                ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
+        auto* sizes = group->add_option("--sizes", config.cigam_sizes, explicit_description)
+                          ->expected(1, -1)
+                          ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
+
+        lower->needs(upper);
+        upper->needs(lower);
+        sizes->excludes(lower);
+        sizes->excludes(upper);
+
+        if (required) {
+            group->require_option(1);
+        }
+        group->silent();
+        return group;
+    };
+
+    auto add_approximation_options = [&](CLI::App* cmd) {
+        auto* group = cmd->add_option_group("Approximation");
+        group->add_flag("--approx", config.approx, "Use approximate generation");
+        group->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
+        group->silent();
+    };
+
     auto add_hgnm_size_distribution = [&](CLI::App* cmd) {
         auto* group = cmd->add_option_group("Hyperedge size distribution");
-
         auto* alpha = group->add_option("--alpha,--decay", config.size_dist_alpha, "Geometric distribution alpha")
                           ->check(CLI::Range(0.0, 1.0));
-
         auto* deterministic = group->add_flag(
             "--deterministic-size-distribution", config.size_dist_deterministic,
             "Use deterministic size counts instead of sampled counts");
-
         auto* size_decay =
             group
                 ->add_option(
                     "--size-decay", config.size_decay, "Decay parameter for deterministic hyperedge size counts")
                 ->check(CLI::Range(0.0, 1.0));
-
         auto* pin_budget = add_option_pin_budget(group);
 
         pin_budget->excludes(alpha);
         pin_budget->excludes(deterministic);
         pin_budget->excludes(size_decay);
-
         size_decay->needs(deterministic);
 
         group->silent();
         return group;
     };
+
     auto add_hgnp_probabilities = [&](CLI::App* cmd) {
         auto* probabilities = cmd->add_option_group("Probabilities");
-
         add_option_p(probabilities);
-
         probabilities
             ->add_option(
                 "--size-probs", config.size_probabilities,
                 "Comma-separated probabilities by hyperedge size, starting at lower-size-bound")
             ->delimiter(',');
-
         probabilities
             ->add_option(
                 "--size-probs-file", config.size_probabilities_file,
                 "File with one probability per line, starting at lower-size-bound")
             ->check(CLI::ExistingFile);
-
         probabilities
             ->add_option(
                 "--size-expected", config.size_expected_counts,
                 "Expected hyperedge counts by size, starting at lower-size-bound")
             ->delimiter(',');
-
         probabilities
             ->add_option(
                 "--size-expected-file", config.size_expected_counts_file,
@@ -263,16 +313,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             ->check(CLI::ExistingFile);
 
         auto* budget_params = probabilities->add_option_group("Budget Parameters");
-
-        add_option_edge_budget(budget_params);
-
+        add_edge_budget(budget_params);
+        add_option_pin_budget(budget_params);
         budget_params
             ->add_option("--sd,--size-decay", config.size_decay, "Geometric decay parameter for expected counts")
             ->check(CLI::Range(0.0, 1.0));
 
         probabilities->require_option(1);
         probabilities->silent();
-
         return probabilities;
     };
 
@@ -499,13 +547,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_hypergraph_nm(params);
         add_hyper_size_bounds(params);
         add_hgnm_size_distribution(params);
-        auto* approximation = cmd->add_option_group("Approximation");
-
-        approximation->add_flag("--approx", config.approx, "Use approximate generation");
-
-        approximation->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
-
-        approximation->silent();
+        add_approximation_options(cmd);
 
         cmd->add_flag("--fast", config.allow_duplicates, "Do not check for duplicate edges in order to speed up");
         params->silent();
@@ -518,34 +560,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params)->required();
-        auto*      size_group         = params->add_option_group("Hyperedge sizes");
-        const auto min_hyperedge_size = static_cast<SInt>(2);
-        const auto max_hyperedge_size = std::numeric_limits<SInt>::max();
-        auto*      lower_opt =
-            size_group
-                ->add_option("-l,--lower-size-bound", config.size_dist_lower_bound, "Lower bound for hyperedge sizes")
-                ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
-
-        auto* upper_opt =
-            size_group
-                ->add_option("-u,--upper-size-bound", config.size_dist_upper_bound, "Upper bound for hyperedge sizes")
-                ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
-
-        auto* sizes_opt = size_group->add_option("--sizes", config.cigam_sizes, "Explicit HGNP hyperedge sizes")
-                              ->expected(1, -1)
-                              ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
-
-        lower_opt->needs(upper_opt);
-        upper_opt->needs(lower_opt);
-
-        sizes_opt->excludes(lower_opt);
-        sizes_opt->excludes(upper_opt);
-
-        auto* approximation = cmd->add_option_group("Approximation");
-
-        approximation->add_flag("--approx", config.approx, "Use approximate generation");
-
-        approximation->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
+        add_explicit_hyperedge_sizes(params, "Explicit HGNP hyperedge sizes", false);
+        add_approximation_options(cmd);
 
         cmd->add_flag("--fast", config.allow_duplicates, "Do not check for duplicate edges in order to speed up");
         params->silent();
@@ -554,68 +570,110 @@ This is mostly useful for experimental graph generators or when using KaGen to l
     }
     { // CIGAM
         auto* cmd = app.add_subcommand("cigam", "CIGAM Hypergraph Generator");
+
         cmd->callback(set_hypergraph_generator(GeneratorType::CIGAM));
 
-        auto* params = cmd->add_option_group("Parameters");
-        add_option_n(params);
-        auto* size_group = params->add_option_group("Hyperedge sizes");
-        size_group->require_option(1);
-        auto* bounds_group = add_hyper_size_bounds(size_group);
-        bounds_group->require_option(2);
-        auto* explicit_group = size_group->add_option_group("Explicit sizes");
-        explicit_group->add_option("--sizes", config.cigam_sizes, "Explicit CIGAM hyperedge sizes")
-            ->expected(1, -1)
-            ->check(
-                CLI::Validator(
-                    [](const std::string& value) {
-                        const auto k = std::stoull(value);
-                        return k >= 2 ? std::string{} : "hyperedge size must be >= 2";
-                    },
-                    "k >= 2"));
+        /*
+         * Vertex count.
+         */
+        add_option_n(cmd)->required();
 
-        params->add_option("--sd,--size-decay", config.size_decay, "Geometric decay parameter for expected counts")
-            ->check(CLI::Range(0.0, 1.0));
+        /*
+         * Hyperedge sizes.
+         */
+        auto* size_group = add_explicit_hyperedge_sizes(cmd, "Explicit CIGAM hyperedge sizes", true);
+        size_group->get_option("-l")->description("Minimum hyperedge size");
+        size_group->get_option("-u")->description("Maximum hyperedge size");
 
-        explicit_group->require_option(1);
+        /*
+         * CIGAM model parameters.
+         */
+        auto* model_group = cmd->add_option_group("CIGAM model");
 
-        params->add_option("--lambda", config.cigam_lambda, "Truncated exponential parameter for rank calculation")
+        model_group->add_option("--lambda", config.cigam_lambda, "Truncated-exponential prestige parameter")
             ->required()
             ->check(CLI::PositiveNumber);
 
-        params->add_option("--c", config.cigam_c, "CIGAM density parameters, one value per layer")
+        model_group->add_option("--c", config.cigam_c, "Density parameters, one per layer")
             ->required()
             ->expected(1, -1)
             ->check(
                 CLI::Validator(
                     [](const std::string& value) {
-                        const auto c = std::stold(value);
-                        return c > 1.0L ? std::string{} : "CIGAM density parameters must be > 1";
+                        const long double c = std::stold(value);
+
+                        if (!std::isfinite(c) || c <= 1.0L) {
+                            return std::string(
+                                "CIGAM density parameters "
+                                "must be finite and greater than 1");
+                        }
+
+                        return std::string{};
                     },
-                    "c > 1"));
-        params
+                    "finite c > 1"));
+
+        model_group
             ->add_option(
                 "--breakpoints", config.cigam_breakpoints,
-                "CIGAM layer breakpoints H_l in (0,1], strictly increasing, last must be 1")
+                "Layer breakpoints in (0,1], "
+                "strictly increasing, last equal to 1")
             ->required()
             ->expected(1, -1)
             ->check(
                 CLI::Validator(
                     [](const std::string& value) {
-                        const auto bp = std::stold(value);
-                        return bp > 0.0L && bp <= 1.0L ? std::string{} : "CIGAM breakpoints must be in (0,1]";
+                        const long double breakpoint = std::stold(value);
+
+                        if (!std::isfinite(breakpoint) || breakpoint <= 0.0L || breakpoint > 1.0L) {
+                            return std::string(
+                                "CIGAM breakpoints must be "
+                                "finite and lie in (0,1]");
+                        }
+
+                        return std::string{};
                     },
-                    "0 < H <= 1"));
+                    "finite 0 < H <= 1"));
 
-        auto* approximation = cmd->add_option_group("Approximation");
+        model_group->silent();
 
-        approximation->add_flag("--approx", config.approx, "Use approximate generation");
+        /*
+         * Generation mode.
+         */
+        auto* mode_group = cmd->add_option_group("Generation mode");
 
-        approximation->add_flag("--exact", [&config](auto) { config.approx = false; }, "Use exact generation");
+        mode_group->add_option("--mode", config.cigam_mode, "CIGAM generation mode")
+            ->transform(CLI::CheckedTransformer(GetCIGAMModeMap(), CLI::ignore_case))
+            ->description(
+                R"(Selects the CIGAM generation strategy:
+  - paper:  sampled IID prestige ranks and paper-reference generation
+  - exact:  deterministic quantile ranks with binomial block counts
+  - approx: deterministic quantile ranks with Poissonized range counts)")
+            ->capture_default_str();
 
-        cmd->add_flag("--fast", config.allow_duplicates, "Do not check for duplicate edges in order to speed up");
+        mode_group->silent();
 
-        add_option_edge_budget(params);
-        params->silent();
+        /*
+         * Target output volume.
+         *
+         * These two groups are individually optional. Validation after parsing
+         * determines whether the chosen combination is supported.
+         */
+        const auto [edge_budget, log_edge_budget] = add_edge_budget(cmd);
+
+        /*
+         * Neither target is mandatory at CLI parsing time because paper mode
+         * may be controlled directly through c.
+         */
+        edge_budget->group("");
+        log_edge_budget->group("");
+
+        /*
+         * Optional size weighting when multiple hyperedge sizes are used.
+         */
+        cmd->add_option("--size-decay", config.size_decay, "Geometric weighting across configured hyperedge sizes")
+            ->check(CLI::Range(0.0, 1.0));
+
+        cmd->add_flag("--fast", config.allow_duplicates, "Skip duplicate checking where supported");
     }
 #ifdef KAGEN_CGAL_FOUND
     { // RDG2D

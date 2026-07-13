@@ -1,3 +1,5 @@
+#pragma once
+
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -25,7 +27,5 @@ protected:
 private:
     std::ofstream out_;
 };
-
-
 
 } // namespace kagen

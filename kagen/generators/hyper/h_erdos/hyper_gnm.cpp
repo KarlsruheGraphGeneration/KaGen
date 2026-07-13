@@ -86,13 +86,7 @@ void HyperGNM<BigInt>::GenerateSizeCountsForConfig(
 }
 template <typename BigInt>
 std::pair<SInt, SInt> HyperGNM<BigInt>::ComputeLocalVertexRange() const {
-    const SInt vertices_per_pe = config_.n / size_;
-    const SInt remainder       = config_.n % size_;
-
-    const SInt start = (rank_ * vertices_per_pe) + std::min<SInt>(rank_, remainder);
-    const SInt end   = start + vertices_per_pe + static_cast<SInt>(static_cast<SInt>(rank_) < remainder);
-
-    return {start, end};
+    return BalancedVertexRange(config_.n, rank_, size_);
 }
 
 template <typename BigInt>
@@ -111,21 +105,14 @@ void HyperGNM<BigInt>::LogSizeCounts(const std::unordered_map<SInt, SInt>& size_
 }
 
 template <typename BigInt>
-void HyperGNM<BigInt>::GenerateHyperedgesFromSizeCounts(const std::unordered_map<SInt, SInt>& size_counts) {
-    for (const auto& [k, m_k]: size_counts) {
-        if (debug_logger_) {
-            const char* size_mode = config_.size_dist_pin_budget > 0 ? "boltzmann_pin_budget" : "implicit_min_owner";
-            debug_logger_->LogSize(rank_, k, m_k, config_.m, size_mode);
-        }
-
-        GenerateHyperedgesOfSize(k, m_k);
+void HyperGNM<BigInt>::GenerateHyperedgesFromPlan(const std::vector<HGNMSizePlan>& plan) {
+    for (const auto& entry: plan) {
+        GenerateHyperedgesOfSize(entry.hyperedge_size, entry.m_k, entry.range);
     }
 }
 
 template <typename BigInt>
 void HyperGNM<BigInt>::GenerateCSR() {
-    graph_.hyperedge_offsets.push_back(0);
-
     auto [lower_bound, hard_upper_bound] = ResolveSizeRange();
     double alpha                         = ValidateAndGetSizeAlpha();
 
@@ -135,7 +122,30 @@ void HyperGNM<BigInt>::GenerateCSR() {
 
     LogSizeCounts(size_counts);
 
-    GenerateHyperedgesFromSizeCounts(size_counts);
+    std::vector<HGNMSizePlan> plan;
+    plan.reserve(size_counts.size());
+
+    std::size_t expected_local_edges = 0;
+    std::size_t expected_local_pins  = 0;
+
+    for (const auto& [k, m_k]: size_counts) {
+        auto range = PrepareLocalGenerationRange(k, m_k);
+
+        expected_local_edges += static_cast<std::size_t>(range.local_m);
+        expected_local_pins += static_cast<std::size_t>(range.local_m) * static_cast<std::size_t>(k);
+
+        plan.push_back({
+            .hyperedge_size = k,
+            .m_k            = m_k,
+            .range          = range,
+        });
+    }
+
+    graph_.hyperedge_offsets.reserve(expected_local_edges + 1);
+    graph_.hyperedge_pins.reserve(expected_local_pins);
+    graph_.hyperedge_offsets.push_back(0);
+
+    GenerateHyperedgesFromPlan(plan);
 
     auto [start, end] = ComputeLocalVertexRange();
     SetVertexRange(start, end);
@@ -242,25 +252,6 @@ template <typename BigInt>
 void HyperGNM<BigInt>::FinalizeCSR(MPI_Comm /*comm*/) {}
 
 template <typename BigInt>
-std::unordered_set<std::vector<SInt>, VectorHash> HyperGNM<BigInt>::MakeLocalSeenSet(const SInt local_m) const {
-    std::unordered_set<std::vector<SInt>, VectorHash> local_seen;
-
-    if (!config_.allow_duplicates) {
-        local_seen.max_load_factor(0.5);
-        local_seen.reserve(static_cast<std::size_t>(local_m));
-    }
-
-    return local_seen;
-}
-
-template <typename BigInt>
-void HyperGNM<BigInt>::ValidateDuplicateCheckingIsFeasible(const SInt local_m) const {
-    if (!config_.allow_duplicates && local_m > (SInt{1} << 26)) {
-        throw ConfigurationError("Duplicate checking for huge hypergraph generation is infeasible; use --fast");
-    }
-}
-
-template <typename BigInt>
 void HyperGNM<BigInt>::ValidateExactSparseDensity(
     SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m) const {
     const CountInt local_population = MinRangeMassExact(local_min_begin, local_min_end, config_.n, hyperedge_size);
@@ -274,12 +265,6 @@ void HyperGNM<BigInt>::ValidateExactSparseDensity(
     if (CountInt(local_m) > local_population) {
         throw ConfigurationError("Exact HGNM local_m exceeds local population");
     }
-}
-
-template <typename BigInt>
-SInt HyperGNM<BigInt>::ComputeLocalHyperedgeCount(const SInt hyperedge_size, const SInt m_k, const bool use_approx) {
-    return use_approx ? ApproximateLocalHyperedgeCount(hyperedge_size, m_k)
-                      : ExactLocalHyperedgeCount(hyperedge_size, m_k);
 }
 
 template <typename BigInt>
@@ -297,20 +282,20 @@ SInt HyperGNM<BigInt>::EdgeSeed(SInt hyperedge_size) const {
         + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
 }
 template <typename BigInt>
-std::vector<SInt> HyperGNM<BigInt>::SampleHyperedge(SInt minimum_vertex, SInt hyperedge_size) {
-    auto pins = FloydSample(minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_);
+void HyperGNM<BigInt>::SampleHyperedgeInto(
+    const SInt minimum_vertex, const SInt hyperedge_size, std::vector<SInt>& pins) {
+    pins.clear();
+    pins.resize(hyperedge_size);
+    pins[0] = minimum_vertex;
 
-    pins.push_back(minimum_vertex);
-    std::sort(pins.begin(), pins.end());
-
-    return pins;
+    FloydSampleInto(
+        minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_, pins, floyd_scratch_, 1);
 }
 
 template <typename BigInt>
-bool HyperGNM<BigInt>::TryPushHyperedge(
-    const std::vector<SInt>& pins, std::unordered_set<std::vector<SInt>, VectorHash>& local_seen) {
-    if (config_.allow_duplicates || local_seen.insert(pins).second) {
-        PushHyperedge(pins);
+bool HyperGNM<BigInt>::TryPushHyperedge(const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen) {
+    if (config_.allow_duplicates || local_seen.insert(FingerprintPins(pins)).second) {
+        PushUncompressedHyperedge(graph_, memory_stats_, pins);
         return true;
     }
 
@@ -321,7 +306,9 @@ template <typename BigInt>
 void HyperGNM<BigInt>::GenerateSampledHyperedges(
     SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m, SInt& edge_seed,
     LogBinomCache& log_binom_cache) {
-    auto local_seen = MakeLocalSeenSet(local_m);
+    auto              local_seen = MakeLocalSeenSet(config_.allow_duplicates, local_m);
+    std::vector<SInt> pins;
+    pins.reserve(hyperedge_size);
 
     const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
 
@@ -332,7 +319,7 @@ void HyperGNM<BigInt>::GenerateSampledHyperedges(
         const SInt minimum_vertex = SampleMinimumImplicit(
             local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
 
-        auto pins = SampleHyperedge(minimum_vertex, hyperedge_size);
+        SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
 
         if (TryPushHyperedge(pins, local_seen)) {
             ++generated;
@@ -345,35 +332,64 @@ void HyperGNM<BigInt>::GenerateSampledHyperedges(
 }
 
 template <typename BigInt>
-HGNMLocalGenerationRange HyperGNM<BigInt>::PrepareLocalGenerationRange(SInt hyperedge_size, SInt m_k) {
-    const bool use_approx = config_.approx || config_.size_dist_pin_budget > 0;
+HGNMLocalGenerationRange HyperGNM<BigInt>::PrepareLocalGenerationRange(const SInt hyperedge_size, const SInt m_k) {
+    if (!config_.approx) {
+        ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
+            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_);
 
-    SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
-    SInt min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
-    SInt local_m   = ComputeLocalHyperedgeCount(hyperedge_size, m_k, use_approx);
+        const FixedCountLocalRange exact_range = exact_generator.PrepareLocalRange(hyperedge_size, m_k);
 
-    ValidateDuplicateCheckingIsFeasible(local_m);
-
-    if (!use_approx) {
-        ValidateExactSparseDensity(hyperedge_size, min_begin, min_end, local_m);
+        return {
+            .min_begin  = exact_range.min_begin,
+            .min_end    = exact_range.min_end,
+            .local_m    = exact_range.local_m,
+            .use_approx = false,
+        };
     }
 
-    return {.min_begin = min_begin, .min_end = min_end, .local_m = local_m, .use_approx = use_approx};
+    const SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
+
+    const SInt min_end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+
+    const SInt local_m = ApproximateLocalHyperedgeCount(hyperedge_size, m_k);
+
+    return {
+        .min_begin  = min_begin,
+        .min_end    = min_end,
+        .local_m    = local_m,
+        .use_approx = true,
+    };
 }
 
 template <typename BigInt>
-void HyperGNM<BigInt>::GenerateHyperedgesOfSize(const SInt hyperedge_size, const SInt m_k) {
-    if (hyperedge_size > config_.n || m_k == 0) {
+void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
+    const SInt hyperedge_size, const SInt m_k, const HGNMLocalGenerationRange& data) {
+    if (hyperedge_size == 0 || hyperedge_size > config_.n || m_k == 0) {
         return;
     }
 
-    auto data = PrepareLocalGenerationRange(hyperedge_size, m_k);
+    if (!data.use_approx) {
+        ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
+            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_);
+
+        exact_generator.Generate(
+            hyperedge_size, FixedCountLocalRange{
+                                .min_begin = data.min_begin,
+                                .min_end   = data.min_end,
+                                .local_m   = data.local_m,
+                            });
+
+        return;
+    }
 
     LogBinomCache log_binom_cache(hyperedge_size, ComputeCacheSize(data.local_m, data.min_begin, data.min_end));
+
+    log_binom_cache.InitializeRange(config_.n, data.min_begin, data.min_end);
 
     SInt edge_seed = EdgeSeed(hyperedge_size);
 
     mersenne_.RandomInit(edge_seed);
+
     GenerateSampledHyperedges(hyperedge_size, data.min_begin, data.min_end, data.local_m, edge_seed, log_binom_cache);
 }
 
@@ -450,79 +466,6 @@ SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCountRecursive(
     return ApproximateLocalHyperedgeCountRecursive(
         hyperedge_size, rank_mid, rank_end, target_rank, population_mass - left_mass, draws - left_draws, level + 1,
         log_binom_cache);
-}
-
-template <typename BigInt>
-SInt HyperGNM<BigInt>::ExactLocalHyperedgeCount(const SInt hyperedge_size, const SInt m_k) {
-    const CountInt total_population = BinomialExact(config_.n, hyperedge_size);
-
-    if (CountInt(m_k) > total_population) {
-        throw ConfigurationError("Exact HGNM m_k exceeds hyperedge population");
-    }
-
-    return ExactLocalHyperedgeCountRecursive(hyperedge_size, 0, size_, rank_, total_population, m_k, 0);
-}
-
-template <typename BigInt>
-SInt HyperGNM<BigInt>::ExactLocalHyperedgeCountRecursive(
-    const SInt hyperedge_size, const SInt rank_begin, const SInt rank_end, const SInt target_rank,
-    const CountInt population, const SInt draws, const SInt level) {
-    if (draws == 0 || population == 0) {
-        return 0;
-    }
-
-    if (rank_end - rank_begin == 1) {
-        return draws;
-    }
-
-    const SInt rank_mid = rank_begin + ((rank_end - rank_begin) / 2);
-
-    const SInt left_min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_begin, size_);
-    const SInt left_min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_mid, size_);
-
-    const CountInt left_population = MinRangeMassExact(left_min_begin, left_min_end, config_.n, hyperedge_size);
-
-    if (left_population == 0) {
-        if (target_rank < rank_mid) {
-            return 0;
-        }
-
-        return ExactLocalHyperedgeCountRecursive(
-            hyperedge_size, rank_mid, rank_end, target_rank, population, draws, level + 1);
-    }
-
-    if (left_population == population) {
-        if (target_rank >= rank_mid) {
-            return 0;
-        }
-
-        return ExactLocalHyperedgeCountRecursive(
-            hyperedge_size, rank_begin, rank_mid, target_rank, population, draws, level + 1);
-    }
-
-    SInt seed = RankSplitSeed(hyperedge_size, rank_begin, rank_end, level);
-
-    SInt left_draws = 0;
-    if (population <= std::numeric_limits<SInt>::max() && left_population <= std::numeric_limits<SInt>::max()) {
-        left_draws =
-            rng_.GenerateHypergeometric(seed, left_population.convert_to<SInt>(), draws, population.convert_to<SInt>());
-    } else {
-        left_draws = HypergeometricCountSequential(population, left_population, draws, rng_, seed);
-    }
-
-    if (target_rank < rank_mid) {
-        return ExactLocalHyperedgeCountRecursive(
-            hyperedge_size, rank_begin, rank_mid, target_rank, left_population, left_draws, level + 1);
-    }
-
-    return ExactLocalHyperedgeCountRecursive(
-        hyperedge_size, rank_mid, rank_end, target_rank, population - left_population, draws - left_draws, level + 1);
-}
-
-template <typename BigInt>
-void HyperGNM<BigInt>::PushHyperedge(const std::vector<SInt>& pins) {
-    graph_.hyperedge_pins.insert(graph_.hyperedge_pins.end(), pins.begin(), pins.end());
-    graph_.hyperedge_offsets.push_back(static_cast<SInt>(graph_.hyperedge_pins.size()));
 }
 
 #pragma GCC diagnostic push

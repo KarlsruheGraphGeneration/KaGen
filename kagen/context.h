@@ -105,6 +105,22 @@ struct Graph500RMATDefaults {
 // Handles behavior of by hyperballs partially covered cells
 enum class PartialCellMode { EstimateByCoverageRange, EstimateByCoverageFloyd, GenerateAndCheck };
 
+// Selects the CIGAM rank and edge-count generation strategy.
+enum class CIGAMMode {
+    // Paper-accurate implementation:
+    // sample IID prestige values, sort them, and generate each block
+    // according to the original CIGAM sampling algorithm.
+    PAPER,
+
+    // Scalable deterministic-quantile prestige profile with exact
+    // binomial block counts.
+    EXACT,
+
+    // Scalable deterministic-quantile prestige profile with
+    // Poissonized range counts.
+    APPROX,
+};
+
 // Configuration for the generator.
 struct PGeneratorConfig {
     // General settings
@@ -202,6 +218,7 @@ struct PGeneratorConfig {
     bool                     allow_duplicates        = false;
 
     // CIGAM specific parameters
+    CIGAMMode                cigam_mode   = CIGAMMode::EXACT;
     double                   cigam_lambda = 0.0;
     std::vector<long double> cigam_c;
     std::vector<long double> cigam_breakpoints;
@@ -218,6 +235,10 @@ struct PGeneratorConfig {
 };
 
 void PrintHeader(const PGeneratorConfig& config);
+
+std::unordered_map<std::string, CIGAMMode> GetCIGAMModeMap();
+
+std::ostream& operator<<(std::ostream& out, CIGAMMode mode);
 
 std::unordered_map<std::string, OutputHeader> GetOutputHeaderMap();
 

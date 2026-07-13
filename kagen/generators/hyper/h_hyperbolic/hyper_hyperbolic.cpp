@@ -13,9 +13,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 namespace kagen {
 
@@ -25,8 +28,8 @@ constexpr double HIGH_PRECISION_THRESHOLD_LOG2_N = 29.0;
 template <typename Double>
 constexpr Double EPSILON_SCALE = 1000.0;
 
-PGeneratorConfig Hyper_HyperbolicFactory::NormalizeParameters(
-    PGeneratorConfig config, PEID /*rank*/, PEID size, const bool output) const {
+PGeneratorConfig
+Hyper_HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, const bool output) const {
     config.setChunkSizeIfMissing(size);
 
     EnsureOneChunkPerPE(config, size);
@@ -65,6 +68,10 @@ PGeneratorConfig Hyper_HyperbolicFactory::NormalizeParameters(
         }
 
         config.hyperedge_radius_exponent = SolveHyperbolicRadiusExponentForExpectedPins(config);
+
+        if (rank == 0) {
+            std::cout << " Chosen radius exponent = " << config.hyperedge_radius_exponent << '\n';
+        }
     }
 
     if (config.streaming) {
@@ -347,6 +354,22 @@ void Hyper_Hyperbolic<Double>::AppendVertex(
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SInt cell_id) {
+    const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
+    auto&      cell           = cells_[global_cell_id];
+
+    if (std::get<3>(cell)) {
+        return;
+    }
+
+    VertexBlock& cell_vertices = vertices_[global_cell_id];
+    GenerateVertices(annulus_id, chunk_id, cell_id, cell_vertices);
+
+    std::get<3>(cell) = true;
+}
+
+template <typename Double>
+void Hyper_Hyperbolic<Double>::GenerateVertices(
+    const SInt annulus_id, SInt chunk_id, const SInt cell_id, VertexBlock& out) {
     if (chunks_.find(chunk_id) == std::end(chunks_)) {
         ComputeChunk(chunk_id);
         ComputeAnnuli(chunk_id);
@@ -358,43 +381,37 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chun
         GenerateCells(annulus_id, chunk_id);
     }
 
-    SInt  global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
-    auto& cell           = cells_[global_cell_id];
+    const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
+    auto&      cell           = cells_[global_cell_id];
 
-    if (std::get<3>(cell)) {
-        return;
-    }
+    out.clear();
 
-    SInt   size    = std::get<0>(cell);
-    SInt   offset  = std::get<4>(cell);
-    Double min_phi = std::get<1>(cell);
-    Double max_phi = std::get<2>(cell);
-    Double min_r   = std::get<1>(annulus);
-    Double max_r   = std::get<2>(annulus);
+    const SInt   size    = std::get<0>(cell);
+    const SInt   offset  = std::get<4>(cell);
+    const Double min_phi = std::get<1>(cell);
+    const Double max_phi = std::get<2>(cell);
+    const Double min_r   = std::get<1>(annulus);
+    const Double max_r   = std::get<2>(annulus);
 
     const SInt seed = VertexCellSeed(annulus_id, chunk_id, cell_id);
 
-    SInt hash_value = sampling::Spooky::hash(seed);
+    const SInt hash_value = sampling::Spooky::hash(seed);
     mersenne.RandomInit(hash_value);
     sorted_mersenne.RandomInit(hash_value, size);
 
     const Double mincdf = std::cosh(alpha_ * min_r);
     const Double maxcdf = std::cosh(alpha_ * max_r);
 
-    VertexBlock& cell_vertices = vertices_[global_cell_id];
-    cell_vertices.reserve(size);
+    out.reserve(size);
 
     for (SInt i = 0; i < size; ++i) {
         const auto vertex = SampleVertex(min_phi, max_phi, mincdf, maxcdf);
-
-        AppendVertex(cell_vertices, offset + i, vertex);
+        AppendVertex(out, offset + i, vertex);
 
         if (config_.coordinates && pe_min_phi_ <= vertex.phi && vertex.phi < pe_max_phi_) {
             PushCoordinate(vertex.x, vertex.y);
         }
     }
-
-    std::get<3>(cell) = true;
 }
 
 template <typename Double>
@@ -409,6 +426,8 @@ inline SInt Hyper_Hyperbolic<Double>::GridSizeForAnnulus(const SInt annulus_id) 
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateCSR() {
+    graph_.hyperedge_offsets.reserve(config_.m + 1);
+    graph_.hyperedge_range_offsets.reserve(config_.m + 1);
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         ComputeChunk(i);
         ComputeAnnuli(i);
@@ -431,11 +450,17 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
             }
         }
     }
+    HyperbolicGeometryPolicy<Double>                   geometry(*this, 0, 0);
+    HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(geometry, config_);
 
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
-            GenerateHyperedges(j, i);
+            GenerateHyperedges(j, i, builder);
         }
+    }
+
+    if (config_.debug) {
+        geometry.PrintExactCacheStats();
     }
 }
 
@@ -461,8 +486,30 @@ void Hyper_Hyperbolic<Double>::EndHyperedge() {
 }
 
 template <typename Double>
+void Hyper_Hyperbolic<Double>::ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges) {
+    const std::size_t needed_pins = graph_.hyperedge_pins.size() + pins;
+    if (needed_pins > graph_.hyperedge_pins.capacity()) {
+        const std::size_t slack = std::min<std::size_t>(needed_pins / 8, 1'000'000);
+        graph_.hyperedge_pins.reserve(needed_pins + slack);
+    }
+
+    const std::size_t needed_ranges = graph_.hyperedge_ranges.size() + ranges;
+    if (needed_ranges > graph_.hyperedge_ranges.capacity()) {
+        const std::size_t slack = std::min<std::size_t>(needed_ranges / 8, 100'000);
+        graph_.hyperedge_ranges.reserve(needed_ranges + slack);
+    }
+}
+
+template <typename Double>
 void kagen::Hyper_Hyperbolic<Double>::PushHyperedgeCompressed(
     const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
+    local_memory_stats_.max_pins_per_hyperedge =
+        std::max(local_memory_stats_.max_pins_per_hyperedge, static_cast<SInt>(pins.size()));
+
+    local_memory_stats_.max_ranges_per_hyperedge =
+        std::max(local_memory_stats_.max_ranges_per_hyperedge, static_cast<SInt>(ranges.size()));
+
+    ObserveHyperedgeAndMaybeReserve(pins.size(), ranges.size());
     if (graph_.hyperedge_offsets.empty()) {
         graph_.hyperedge_offsets.push_back(0);
     }
@@ -618,14 +665,12 @@ Hyper_Hyperbolic<Double>::SampleCenter(SInt annulus_id, SInt sampled_center_id, 
 }
 
 template <typename Double>
-void Hyper_Hyperbolic<Double>::GenerateHyperedges(const SInt annulus_id, const SInt chunk_id) {
+void Hyper_Hyperbolic<Double>::GenerateHyperedges(
+    const SInt annulus_id, const SInt chunk_id, HyperedgeBuilder<HyperbolicGeometryPolicy<Double>>& builder) {
     current_annulus_ = annulus_id;
     current_chunk_   = chunk_id;
 
     GenerateCenterCells(annulus_id, chunk_id);
-
-    HyperbolicGeometryPolicy<Double>                   geometry(*this, annulus_id, chunk_id);
-    HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(geometry, config_);
 
     for (SInt cell_id = 0; cell_id < GridSizeForAnnulus(annulus_id); ++cell_id) {
         current_cell_ = cell_id;

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <list>
 #include <optional>
 #include <string>
 #include <vector>
@@ -60,6 +61,10 @@ public:
     CellBallRelation ClassifyCell(const Center& /*center*/, const Double /*radius*/, const Cell& cell) const {
         if (CellAABBOutsideBall(cell)) {
             return CellBallRelation::OUTSIDE;
+        }
+
+        if (!IsLocalCell(cell)) {
+            return CellBallRelation::PARTIAL;
         }
 
         if (ShouldTryInside(cell) && HyperbolicCellInside(cell)) {
@@ -149,13 +154,11 @@ public:
         FloydSampleGeometricAppend(info->offset, info->size, info->k, rng_, seed, pins, floyd_scratch_);
         return info->k;
     }
-    SInt AddPartialCellExact(const Center& center, const Double /*radius*/, const Cell& cell, std::vector<SInt>& pins) {
-        const auto* vertices = EnsureVerticesForCell(cell);
-        if (vertices == nullptr) {
-            return 0;
-        }
+    SInt AddPartialCellExact(
+        const Center& center, const Double /*radius*/, const Cell& cell, std::vector<SInt>& pins) const {
+        const auto& vertices = ExactVertices(cell);
 
-        return gen_.config_.debug ? AddExactVerticesChecked(*vertices, pins) : AddExactVerticesFast(*vertices, pins);
+        return gen_.config_.debug ? AddExactVerticesChecked(vertices, pins) : AddExactVerticesFast(vertices, pins);
     }
 
     void EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
@@ -233,6 +236,11 @@ private:
             const auto query_parts = circular_interval::Split(min_phi, max_phi, gen().cell_eps_);
 
             for (SInt chunk_id = 0; chunk_id < gen().config_.k; ++chunk_id) {
+                if (gen().chunks_.find(chunk_id) == std::end(gen().chunks_)) {
+                    gen().ComputeChunk(chunk_id);
+                    gen().ComputeAnnuli(chunk_id);
+                }
+
                 const auto& chunk = gen().chunks_[chunk_id];
 
                 const Double chunk_min_phi = std::get<1>(chunk);
@@ -479,21 +487,117 @@ private:
     }
 
     // ===== Exact vertex checks =====
-    const typename GeneratorT::VertexBlock* EnsureVerticesForCell(const Cell& cell) {
-        auto it = gen_.vertices_.find(cell.global_cell_id);
+    struct CachedExactCell {
+        typename GeneratorT::VertexBlock vertices;
+    };
 
-        if (it == gen_.vertices_.end()) {
+    const typename GeneratorT::VertexBlock& ExactVertices(const Cell& cell) const {
+        if (IsLocalCell(cell)) {
             gen_.GenerateVertices(cell.annulus_id, cell.chunk_id, cell.cell_id);
-            it = gen_.vertices_.find(cell.global_cell_id);
+
+            static const typename GeneratorT::VertexBlock empty;
+
+            const auto it = gen_.vertices_.find(cell.global_cell_id);
+            if (it == gen_.vertices_.end()) {
+                return empty;
+            }
+
+            return it->second;
         }
 
-        if (it == gen_.vertices_.end()) {
-            return nullptr;
-        }
-
-        return &it->second;
+        return ExactRemoteCell(cell).vertices;
     }
 
+    const CachedExactCell& ExactRemoteCell(const Cell& cell) const {
+        RecordRemoteAccess(cell.global_cell_id);
+
+        auto it = exact_vertices_.find(cell.global_cell_id);
+        if (it != exact_vertices_.end()) {
+            ++exact_remote_cache_hits_;
+            exact_lru_.splice(exact_lru_.begin(), exact_lru_, exact_lru_pos_[cell.global_cell_id]);
+            return it->second;
+        }
+
+        ++exact_remote_cache_misses_;
+
+        auto [inserted_it, inserted] = exact_vertices_.emplace(cell.global_cell_id, CachedExactCell{});
+
+        exact_lru_.push_front(cell.global_cell_id);
+        exact_lru_pos_[cell.global_cell_id] = exact_lru_.begin();
+
+        auto& cached = inserted_it->second;
+
+        gen_.GenerateVertices(cell.annulus_id, cell.chunk_id, cell.cell_id, cached.vertices);
+
+        exact_remote_cached_vertices_ += static_cast<SInt>(cached.vertices.size());
+
+        while (exact_vertices_.size() > exact_remote_cache_limit_) {
+            const SInt victim = exact_lru_.back();
+
+            const auto victim_it = exact_vertices_.find(victim);
+            if (victim_it != exact_vertices_.end()) {
+                exact_remote_cached_vertices_ -= static_cast<SInt>(victim_it->second.vertices.size());
+                exact_vertices_.erase(victim_it);
+            }
+
+            exact_lru_.pop_back();
+            exact_lru_pos_.erase(victim);
+        }
+
+        return cached;
+    }
+
+    bool IsLocalCell(const Cell& cell) const {
+        return gen_.IsLocalChunk(cell.chunk_id);
+    }
+
+    void RecordRemoteAccess(const SInt global_cell_id) const {
+        const SInt t = ++exact_remote_access_counter_;
+
+        auto it = exact_remote_last_access_.find(global_cell_id);
+        if (it == exact_remote_last_access_.end()) {
+            exact_remote_last_access_[global_cell_id] = t;
+            return;
+        }
+
+        const SInt distance = t - it->second;
+        it->second          = t;
+
+        ++exact_remote_reuse_count_;
+        exact_remote_reuse_distance_sum_ += distance;
+        exact_remote_reuse_distance_max_ = std::max(exact_remote_reuse_distance_max_, distance);
+
+        if (distance <= 1) {
+            ++exact_remote_reuse_distance_le_1_;
+        } else if (distance <= 4) {
+            ++exact_remote_reuse_distance_le_4_;
+        } else if (distance <= 16) {
+            ++exact_remote_reuse_distance_le_16_;
+        } else {
+            ++exact_remote_reuse_distance_gt_16_;
+        }
+    }
+
+public:
+    void PrintExactCacheStats() const {
+        std::cerr << " exact_remote_hits=" << exact_remote_cache_hits_
+                  << " exact_remote_misses=" << exact_remote_cache_misses_
+                  << " exact_remote_cached_vertices=" << exact_remote_cached_vertices_ << '\n';
+
+        const double avg_reuse =
+            (exact_remote_reuse_count_ != 0u)
+                ? static_cast<double>(exact_remote_reuse_distance_sum_) / static_cast<double>(exact_remote_reuse_count_)
+                : 0.0;
+
+        std::cerr << " remote_reuse_count=" << exact_remote_reuse_count_ << " remote_reuse_avg=" << avg_reuse
+                  << " remote_reuse_max=" << exact_remote_reuse_distance_max_
+                  << " reuse<=1=" << exact_remote_reuse_distance_le_1_
+                  << " reuse<=4=" << exact_remote_reuse_distance_le_4_
+                  << " reuse<=16=" << exact_remote_reuse_distance_le_16_
+                  << " reuse>16=" << exact_remote_reuse_distance_gt_16_ << '\n';
+    }
+
+private:
     bool IsInsideHyperbolicBallFast(
         const Double v_cosh_r, const Double v_sinh_r, const Double v_cos_phi, const Double v_sin_phi) const {
         const Double term_a       = center_cosh_r_ * v_cosh_r;
@@ -603,7 +707,27 @@ private:
         Double sinh_r;
     };
 
-    std::vector<AnnulusMidpoint> annulus_mid_;
+    std::vector<AnnulusMidpoint>                                annulus_mid_;
+    mutable std::unordered_map<SInt, CachedExactCell>           exact_vertices_;
+    mutable std::list<SInt>                                     exact_lru_;
+    mutable std::unordered_map<SInt, std::list<SInt>::iterator> exact_lru_pos_;
+    std::size_t                                                 exact_remote_cache_limit_ = 1024;
+
+    mutable SInt exact_remote_cache_hits_      = 0;
+    mutable SInt exact_remote_cache_misses_    = 0;
+    mutable SInt exact_remote_cached_vertices_ = 0;
+
+    mutable SInt                           exact_remote_access_counter_ = 0;
+    mutable std::unordered_map<SInt, SInt> exact_remote_last_access_;
+
+    mutable SInt exact_remote_reuse_count_        = 0;
+    mutable SInt exact_remote_reuse_distance_sum_ = 0;
+    mutable SInt exact_remote_reuse_distance_max_ = 0;
+
+    mutable SInt exact_remote_reuse_distance_le_1_  = 0;
+    mutable SInt exact_remote_reuse_distance_le_4_  = 0;
+    mutable SInt exact_remote_reuse_distance_le_16_ = 0;
+    mutable SInt exact_remote_reuse_distance_gt_16_ = 0;
 };
 
 } // namespace kagen
