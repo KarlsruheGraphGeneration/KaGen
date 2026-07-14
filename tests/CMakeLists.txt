@@ -94,3 +94,7 @@ kagen_add_test(test_redistribute_edges
 kagen_add_test(test_rmat_distribution
         FILES rmat/rmat_distribution_test.cpp
         CORES 1 2 4)
+
+kagen_add_test(test_gnm_distribution
+        FILES gnm/gnm_distribution_test.cpp
+        CORES 1 2 4)

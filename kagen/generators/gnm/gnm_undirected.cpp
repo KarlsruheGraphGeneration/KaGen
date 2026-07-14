@@ -1,6 +1,7 @@
 #include "kagen/generators/gnm/gnm_undirected.h"
 
 #include "kagen/sampling/hash.hpp"
+#include "kagen/tools/postprocessor.h"
 
 namespace kagen {
 std::unique_ptr<Generator>
@@ -46,6 +47,30 @@ void GNMUndirected<BigInt>::GenerateEdgeList() {
     }
 
     SetVertexRange(start_node_, start_node_ + num_nodes_);
+}
+
+template <typename BigInt>
+void GNMUndirected<BigInt>::FinalizeEdgeList(MPI_Comm comm) {
+    const bool remap_round_robin = false;
+    switch (config_.redistribution) {
+        case GraphRedistribution::BALANCE_VERTICES:
+            // GenerateChunks()/QueryTriangular()/QueryRectangle() only ever push an edge whose tail lies within
+            // this PE's own [start_node_, end_node_) chunk range (see the local_row / to >= start_node_ guards),
+            // so the graph is already vertex-balanced by construction; no redistribution needed.
+            graph_.edges = std::move(local_edges_);
+            break;
+        case GraphRedistribution::BALANCE_EDGES:
+            graph_.vertex_range =
+                RedistributeEdgesBalanced(local_edges_, graph_.edges, config_.n, remap_round_robin, comm);
+            break;
+        case GraphRedistribution::BALANCE_EDGES_TRUE: {
+            const EdgeBalancedDistribution distribution =
+                RedistributeEdgesTrueBalance(local_edges_, graph_.edges, config_.n, remap_round_robin, comm);
+            graph_.vertex_range = distribution.fully_owned_vertex_range;
+            SetHasSplitVertices(distribution.has_split_vertices);
+            break;
+        }
+    }
 }
 
 template <typename BigInt>
@@ -256,9 +281,9 @@ void GNMUndirected<BigInt>::GenerateTriangularEdges(const SInt m, const SInt row
         SInt from = i + offset_row;
         SInt to   = j + offset_column;
 
-        PushEdge(from, to);
+        local_edges_.emplace_back(from, to);
         if (to >= start_node_ && to < end_node_) {
-            PushEdge(to, from);
+            local_edges_.emplace_back(to, from);
         }
     });
 }
@@ -285,10 +310,10 @@ void GNMUndirected<BigInt>::GenerateRectangleEdges(const SInt m, const SInt row_
         SInt to   = j + offset_column;
 
         if (local_row) {
-            PushEdge(from, to);
+            local_edges_.emplace_back(from, to);
         }
         if (to >= start_node_ && to < end_node_) {
-            PushEdge(to, from);
+            local_edges_.emplace_back(to, from);
         }
     });
 }

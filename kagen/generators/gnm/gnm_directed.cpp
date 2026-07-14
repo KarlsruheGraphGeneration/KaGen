@@ -1,6 +1,7 @@
 #include "kagen/generators/gnm/gnm_directed.h"
 
 #include "kagen/sampling/hash.hpp"
+#include "kagen/tools/postprocessor.h"
 
 namespace kagen {
 std::unique_ptr<Generator>
@@ -85,7 +86,29 @@ void GNMDirected::GenerateEdges(const SInt n, const SInt m, const SInt chunk_id,
         SInt target = (sample - 1) % edges_per_node_;
         if (!config_.self_loops)
             target += (((sample - 1) % edges_per_node_) >= source);
-        PushEdge(source, target);
+        local_edges_.emplace_back(source, target);
     });
+}
+
+void GNMDirected::FinalizeEdgeList(MPI_Comm comm) {
+    const bool remap_round_robin = false;
+    switch (config_.redistribution) {
+        case GraphRedistribution::BALANCE_VERTICES:
+            // GenerateEdges() confines every sampled source to this PE's own [start_node_, end_node_) chunk
+            // range, so the graph is already vertex-balanced by construction; no redistribution needed.
+            graph_.edges = std::move(local_edges_);
+            break;
+        case GraphRedistribution::BALANCE_EDGES:
+            graph_.vertex_range =
+                RedistributeEdgesBalanced(local_edges_, graph_.edges, config_.n, remap_round_robin, comm);
+            break;
+        case GraphRedistribution::BALANCE_EDGES_TRUE: {
+            const EdgeBalancedDistribution distribution =
+                RedistributeEdgesTrueBalance(local_edges_, graph_.edges, config_.n, remap_round_robin, comm);
+            graph_.vertex_range = distribution.fully_owned_vertex_range;
+            SetHasSplitVertices(distribution.has_split_vertices);
+            break;
+        }
+    }
 }
 } // namespace kagen
