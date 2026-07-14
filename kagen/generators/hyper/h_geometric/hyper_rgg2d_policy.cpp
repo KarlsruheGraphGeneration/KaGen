@@ -332,40 +332,82 @@ void HyperRGG2DPolicy::RecordRemoteAccess(SInt global_cell_id) const {
     }
 }
 
-const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const Cell& cell) const {
+const HyperRGG2DPolicy::CachedExactCell&
+HyperRGG2DPolicy::ExactRemoteCell(const Cell& cell) const {
     RecordRemoteAccess(cell.global_cell_id);
+
     auto it = exact_vertices_.find(cell.global_cell_id);
+
     if (it != exact_vertices_.end()) {
         ++exact_remote_cache_hits_;
-        exact_lru_.splice(exact_lru_.begin(), exact_lru_, exact_lru_pos_[cell.global_cell_id]);
-        return it->second;
 
-        ++exact_remote_cache_misses_;
+        const auto lru_it = exact_lru_pos_.find(cell.global_cell_id);
+        if (lru_it != exact_lru_pos_.end()) {
+            exact_lru_.splice(
+                exact_lru_.begin(),
+                exact_lru_,
+                lru_it->second
+            );
 
-        auto [inserted_it, inserted] = exact_vertices_.emplace(cell.global_cell_id, CachedExactCell{});
-
-        exact_lru_.push_front(cell.global_cell_id);
-        exact_lru_pos_[cell.global_cell_id] = exact_lru_.begin();
-
-        auto& cached = inserted_it->second;
-
-        gen_->GenerateVertices(cell.chunk_id, cell.cell_id, cached.vertices_by_x);
-
-        std::sort(cached.vertices_by_x.begin(), cached.vertices_by_x.end(), [](const Vertex& a, const Vertex& b) {
-            return std::get<0>(a) < std::get<0>(b);
-        });
-
-        exact_remote_cached_vertices_ += static_cast<SInt>(cached.vertices_by_x.size());
-
-        while (exact_vertices_.size() > exact_remote_cache_limit_) {
-            const SInt victim = exact_lru_.back();
-            exact_lru_.pop_back();
-            exact_lru_pos_.erase(victim);
-            exact_vertices_.erase(victim);
+            lru_it->second = exact_lru_.begin();
         }
 
-        return cached;
+        return it->second;
     }
+
+    ++exact_remote_cache_misses_;
+
+    auto [inserted_it, inserted] =
+        exact_vertices_.emplace(
+            cell.global_cell_id,
+            CachedExactCell{}
+        );
+
+    if (!inserted) {
+        throw std::logic_error(
+            "failed to insert exact remote cell into cache"
+        );
+    }
+
+    exact_lru_.push_front(cell.global_cell_id);
+    exact_lru_pos_[cell.global_cell_id] = exact_lru_.begin();
+
+    auto& cached = inserted_it->second;
+
+    gen_->GenerateVertices(
+        cell.chunk_id,
+        cell.cell_id,
+        cached.vertices_by_x
+    );
+
+    std::sort(
+        cached.vertices_by_x.begin(),
+        cached.vertices_by_x.end(),
+        [](const Vertex& a, const Vertex& b) {
+            return std::get<0>(a) < std::get<0>(b);
+        }
+    );
+
+    exact_remote_cached_vertices_ +=
+        static_cast<SInt>(cached.vertices_by_x.size());
+
+    while (exact_vertices_.size() > exact_remote_cache_limit_) {
+        const SInt victim = exact_lru_.back();
+
+        exact_lru_.pop_back();
+        exact_lru_pos_.erase(victim);
+
+        // Do not evict the newly inserted cell before returning it.
+        if (victim == cell.global_cell_id) {
+            throw std::logic_error(
+                "exact remote cache limit is too small"
+            );
+        }
+
+        exact_vertices_.erase(victim);
+    }
+
+    return cached;
 }
 
 void HyperRGG2DPolicy::PrintExactCacheStats() const {
