@@ -430,6 +430,7 @@ void Graph::Clear() {
     edge_weights.clear();
     coordinates.first.clear();
     coordinates.second.clear();
+    has_split_vertices = false;
 }
 
 void Graph::FreeEdgelist() {

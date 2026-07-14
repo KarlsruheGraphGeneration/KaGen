@@ -375,4 +375,233 @@ RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool re
 
     return vertex_range;
 }
+
+EdgeBalancedDistribution RedistributeEdgesTrueBalance(
+    Edgelist& source, Edgelist& destination, const SInt n, bool remap_round_robin, MPI_Comm comm) {
+    PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    SortAndRemoveDuplicates(source);
+
+    // A rough vertex distribution used only to route lightweight per-vertex metadata (never edge payloads) to a
+    // deterministic "owner" PE for each vertex; this does not influence the final edge-balanced assignment.
+    std::vector<SInt> vertex_distribution;
+    if (remap_round_robin) {
+        vertex_distribution = RoundRobinRemapping(source, n, comm);
+        // Remapping changes vertex IDs, so the (tail, head) sort order computed above no longer holds.
+        SortAndRemoveDuplicates(source);
+    } else {
+        vertex_distribution = ComputeBalancedVertexDistribution(n, comm);
+    }
+    Distribution vertex_owner_dist(vertex_distribution);
+
+    // Group local edges into contiguous per-vertex runs (source is sorted by (tail, head), so all of one
+    // vertex's local edges are contiguous).
+    struct Run {
+        SInt vertex;
+        SInt start;
+        SInt count;
+    };
+    std::vector<Run> runs;
+    for (std::size_t i = 0; i < source.size();) {
+        const SInt  v = source[i].first;
+        std::size_t j = i;
+        while (j < source.size() && source[j].first == v) {
+            ++j;
+        }
+        runs.push_back({v, static_cast<SInt>(i), static_cast<SInt>(j - i)});
+        i = j;
+    }
+
+    // Send (vertex, local degree) pairs to each vertex's nominal owner, remembering -- for each local run -- the
+    // exact slot its entry ends up in, so a later reply (see below) can be matched back to it in O(1).
+    std::vector<int> send_counts(size, 0);
+    for (const auto& run: runs) {
+        send_counts[vertex_owner_dist.compute_owner(run.vertex)] += 2; // 2 SInts per entry: vertex + count
+    }
+    std::vector<int> send_displs(size);
+    std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
+    std::vector<SInt> send_buf(send_displs.back() + send_counts.back());
+    std::vector<std::size_t> run_reply_slot(runs.size());
+    {
+        auto write_offsets = send_displs;
+        for (std::size_t r = 0; r < runs.size(); ++r) {
+            const auto& run   = runs[r];
+            const PEID  owner = vertex_owner_dist.compute_owner(run.vertex);
+            auto&       pos   = write_offsets[owner];
+            send_buf[pos]     = run.vertex;
+            send_buf[pos + 1] = run.count;
+            run_reply_slot[r] = static_cast<std::size_t>(pos) / 2;
+            pos += 2;
+        }
+    }
+
+    std::vector<int> recv_counts(size);
+    MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
+    std::vector<int> recv_displs(size);
+    std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
+    std::vector<SInt> recv_buf(recv_displs.back() + recv_counts.back());
+    MPI_Alltoallv(
+        send_buf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_buf.data(), recv_counts.data(),
+        recv_displs.data(), KAGEN_MPI_SINT, comm);
+
+    // Group received (vertex, count) contributions by local vertex index. Processing recv_buf in ascending
+    // sender-PE block order means each vertex's contributions end up ordered by ascending sender PE (each sender
+    // contributes at most one entry per vertex, since runs groups a sender's own edges by vertex already).
+    const SInt                                       local_n = vertex_owner_dist.local_count(rank);
+    std::vector<SInt>                                local_degree(local_n, 0);
+    std::vector<std::vector<std::pair<PEID, SInt>>>  contributions(local_n);
+    for (PEID sender = 0; sender < size; ++sender) {
+        const int begin = recv_displs[sender];
+        const int end   = recv_displs[sender] + recv_counts[sender];
+        for (int pos = begin; pos < end; pos += 2) {
+            const SInt v      = recv_buf[pos];
+            const SInt degree = recv_buf[pos + 1];
+            const SInt li     = vertex_owner_dist.compute_local_index(v, rank);
+            contributions[li].emplace_back(sender, degree);
+            local_degree[li] += degree;
+        }
+    }
+
+    SInt total_degree = std::accumulate(local_degree.begin(), local_degree.end(), SInt{0});
+    SInt prefix_sum    = 0;
+    MPI_Exscan(&total_degree, &prefix_sum, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+    if (rank == 0) {
+        prefix_sum = 0;
+    }
+    SInt m = total_degree;
+    MPI_Allreduce(MPI_IN_PLACE, &m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+
+    if (m == 0) {
+        destination.clear();
+        EdgeBalancedDistribution result;
+        result.fully_owned_vertex_range = rank == 0 ? VertexRange{0, n} : VertexRange{n, n};
+        result.has_split_vertices       = false;
+        return result;
+    }
+
+    // Closed-form balanced distribution of global edge ranks [0, m) across PEs: PE p owns
+    // [edge_distribution[p], edge_distribution[p + 1]).
+    const std::vector<SInt> edge_distribution = ComputeBalancedVertexDistribution(m, comm);
+    Distribution             edge_owner_dist(edge_distribution);
+
+    // For each local vertex (in ascending order), compute each contributing sender's base global edge rank --
+    // the global rank of that sender's first local edge of this vertex -- and reply directly to that sender.
+    // This is lightweight metadata only (one SInt per (vertex, sender) pair); no edge payload is sent here.
+    std::vector<std::vector<SInt>> reply_send_bufs(size);
+    SInt                            cur_sum = 0;
+    for (SInt li = 0; li < local_n; ++li) {
+        SInt within_vertex_offset = 0;
+        for (const auto& [sender, degree]: contributions[li]) {
+            reply_send_bufs[sender].push_back(prefix_sum + cur_sum + within_vertex_offset);
+            within_vertex_offset += degree;
+        }
+        cur_sum += local_degree[li];
+    }
+
+    std::vector<int> reply_send_counts(size);
+    for (PEID pe = 0; pe < size; ++pe) {
+        reply_send_counts[pe] = static_cast<int>(reply_send_bufs[pe].size());
+    }
+    std::vector<int> reply_send_displs(size);
+    std::exclusive_scan(reply_send_counts.begin(), reply_send_counts.end(), reply_send_displs.begin(), 0);
+    std::vector<SInt> reply_send_buf(reply_send_displs.back() + reply_send_counts.back());
+    for (PEID pe = 0; pe < size; ++pe) {
+        std::copy(
+            reply_send_bufs[pe].begin(), reply_send_bufs[pe].end(), reply_send_buf.begin() + reply_send_displs[pe]);
+    }
+
+    // The reply traverses the same communication graph as the initial metadata exchange, but in reverse: this
+    // PE's original send_counts/send_displs (halved, since the reply carries 1 SInt per original 2-SInt entry)
+    // become its receive counts/displs here.
+    std::vector<int> reply_recv_counts(size);
+    std::vector<int> reply_recv_displs(size);
+    for (PEID pe = 0; pe < size; ++pe) {
+        reply_recv_counts[pe] = send_counts[pe] / 2;
+        reply_recv_displs[pe] = send_displs[pe] / 2;
+    }
+    std::vector<SInt> reply_recv_buf(reply_recv_displs.back() + reply_recv_counts.back());
+    MPI_Alltoallv(
+        reply_send_buf.data(), reply_send_counts.data(), reply_send_displs.data(), KAGEN_MPI_SINT,
+        reply_recv_buf.data(), reply_recv_counts.data(), reply_recv_displs.data(), KAGEN_MPI_SINT, comm);
+
+    // Route every local edge to its final target PE using the base global rank of its run plus its offset within
+    // the run, resolved against the shared closed-form edge distribution -- no further coordination required.
+    // This is the single Alltoallv-style shuffle of the actual edge payload straight to its final target.
+    std::unordered_map<PEID, std::vector<SInt>> send_buffers;
+    for (std::size_t r = 0; r < runs.size(); ++r) {
+        const auto& run       = runs[r];
+        const SInt  base_rank = reply_recv_buf[run_reply_slot[r]];
+        for (SInt k = 0; k < run.count; ++k) {
+            const SInt          global_rank = base_rank + k;
+            const PEID          target      = edge_owner_dist.compute_owner(global_rank);
+            const auto&         edge        = source[run.start + k];
+            std::vector<SInt>&  buf         = send_buffers[target];
+            buf.push_back(edge.first);
+            buf.push_back(edge.second);
+        }
+    }
+    auto recv_edges = ExchangeMessageBuffers(std::move(send_buffers), KAGEN_MPI_SINT, comm);
+    destination.clear();
+    destination.reserve(recv_edges.size() / 2);
+    for (std::size_t i = 0; i < recv_edges.size(); i += 2) {
+        destination.emplace_back(recv_edges[i], recv_edges[i + 1]);
+    }
+    SortAndRemoveDuplicates(destination);
+
+    // Determine which of this PE's boundary vertices are shared with an adjacent PE via a cheap point-to-point
+    // exchange -- no broadcast, no further edge data movement.
+    const bool has_local_edges = !destination.empty();
+    const SInt my_first_tail   = has_local_edges ? destination.front().first : n;
+    const SInt my_last_tail    = has_local_edges ? destination.back().first : n;
+
+    const PEID left_neighbor  = rank > 0 ? rank - 1 : MPI_PROC_NULL;
+    const PEID right_neighbor = rank + 1 < size ? rank + 1 : MPI_PROC_NULL;
+
+    SInt neighbor_last_tail = n;
+    MPI_Sendrecv(
+        &my_first_tail, 1, KAGEN_MPI_SINT, left_neighbor, 0, &neighbor_last_tail, 1, KAGEN_MPI_SINT, left_neighbor, 0,
+        comm, MPI_STATUS_IGNORE);
+    SInt neighbor_first_tail = n;
+    MPI_Sendrecv(
+        &my_last_tail, 1, KAGEN_MPI_SINT, right_neighbor, 0, &neighbor_first_tail, 1, KAGEN_MPI_SINT, right_neighbor,
+        0, comm, MPI_STATUS_IGNORE);
+
+    const bool is_left_partial  = has_local_edges && left_neighbor != MPI_PROC_NULL && neighbor_last_tail == my_first_tail;
+    const bool is_right_partial = has_local_edges && right_neighbor != MPI_PROC_NULL && neighbor_first_tail == my_last_tail;
+
+    EdgeBalancedDistribution result;
+    if (has_local_edges) {
+        const SInt range_start = my_first_tail + (is_left_partial ? 1 : 0);
+        const SInt range_end   = my_last_tail + (is_right_partial ? 0 : 1);
+        result.fully_owned_vertex_range =
+            (range_start <= range_end) ? VertexRange{range_start, range_end} : VertexRange{range_start, range_start};
+
+        auto tail_less = [](const std::pair<SInt, SInt>& edge, SInt v) {
+            return edge.first < v;
+        };
+        auto tail_greater = [](SInt v, const std::pair<SInt, SInt>& edge) {
+            return v < edge.first;
+        };
+        if (is_left_partial) {
+            const auto first_run_end = std::upper_bound(destination.begin(), destination.end(), my_first_tail, tail_greater);
+            const auto count         = static_cast<SInt>(std::distance(destination.begin(), first_run_end));
+            result.partial_vertices.push_back({my_first_tail, 0, count});
+        }
+        if (is_right_partial) {
+            const auto last_run_begin = std::lower_bound(destination.begin(), destination.end(), my_last_tail, tail_less);
+            const auto offset         = static_cast<SInt>(std::distance(destination.begin(), last_run_begin));
+            result.partial_vertices.push_back({my_last_tail, offset, static_cast<SInt>(destination.size()) - offset});
+        }
+    } else {
+        result.fully_owned_vertex_range = {0, 0};
+    }
+
+    bool any_split = is_left_partial || is_right_partial;
+    MPI_Allreduce(MPI_IN_PLACE, &any_split, 1, MPI_C_BOOL, MPI_LOR, comm);
+    result.has_split_vertices = any_split;
+
+    return result;
+}
 } // namespace kagen

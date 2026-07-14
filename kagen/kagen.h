@@ -224,6 +224,12 @@ struct Graph {
     EdgeWeights   edge_weights;
     Coordinates   coordinates;
 
+    // True only for GraphRedistribution::BALANCE_EDGES_TRUE / GraphDistribution::BALANCE_EDGES_TRUE: whether any
+    // vertex anywhere in the graph had its own edges split across multiple PEs, breaking the invariant that a
+    // single PE owns a vertex's whole adjacency. Adjacency-grouped output formats, --validate-simple-graph, and
+    // some edge-weight/statistics code rely on that invariant and are incompatible with a graph where this is true.
+    bool has_split_vertices = false;
+
     SInt NumberOfLocalVertices() const;
 
     SInt NumberOfGlobalVertices() const;

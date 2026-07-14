@@ -23,6 +23,8 @@ public:
 
     SInt GetNumberOfEdges() const;
 
+    bool HasSplitVertices() const;
+
     Graph Take();
 
     virtual void PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm);
@@ -39,6 +41,8 @@ protected:
     virtual void FinalizeCSR(MPI_Comm comm);
 
     void SetVertexRange(VertexRange vetrex_range);
+
+    void SetHasSplitVertices(bool has_split_vertices);
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y) {
         graph_.coordinates.first.emplace_back(x, y);

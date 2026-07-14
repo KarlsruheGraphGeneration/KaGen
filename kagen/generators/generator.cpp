@@ -418,6 +418,10 @@ SInt Generator::GetNumberOfEdges() const {
     return std::max(graph_.adjncy.size(), graph_.edges.size());
 }
 
+bool Generator::HasSplitVertices() const {
+    return graph_.has_split_vertices;
+}
+
 Graph Generator::Take() {
     return std::move(graph_);
 }
@@ -428,6 +432,10 @@ Edgelist Generator::TakeNonlocalEdges() {
 
 void Generator::SetVertexRange(const VertexRange vertex_range) {
     graph_.vertex_range = vertex_range;
+}
+
+void Generator::SetHasSplitVertices(const bool has_split_vertices) {
+    graph_.has_split_vertices = has_split_vertices;
 }
 
 void Generator::FilterDuplicateEdges() {
