@@ -407,6 +407,17 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     // Otherwise, we have generated the graph in edge list representation, but
     // actually want CSR format --> transform graph
     FinalizeEdgeList(comm);
+    if (graph_.has_split_vertices) {
+        // BuildCSRFromEdgeList(vertex_range, edges, ...) assumes every edge's tail lies within vertex_range,
+        // which does not hold for a split/boundary vertex's edges (from --redistribution=balance-edges-strict)
+        // -- would corrupt or crash building the resulting xadj/adjncy arrays. has_split_vertices is already
+        // collectively consistent across all PEs (RedistributeEdgesTrueBalance Allreduces it), so every PE
+        // reaches this same conclusion and throws together.
+        throw ConfigurationError(
+            "CSR representation requires single-PE vertex ownership and is not supported together with a graph "
+            "that has split vertices (from --redistribution=balance-edges-strict); use the edge list "
+            "representation instead");
+    }
     std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
     {
         Edgelist tmp;

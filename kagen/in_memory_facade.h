@@ -11,13 +11,14 @@ Graph GenerateInMemory(const PGeneratorConfig& config, GraphRepresentation repre
 
 /*!
  * Throws ConfigurationError if a graph with split vertices (any_split, already collectively agreed on across
- * all PEs by the caller) is combined with something that requires single-PE vertex ownership: an
- * adjacency-grouped output format, --validate-simple-graph, a cross-PE-lookup edge-weight generator, or
- * statistics. Split into its own function (rather than inlined in GenerateInMemory) so the decision logic can be
- * unit-tested directly without driving the full MPI generation pipeline.
+ * all PEs by the caller) is combined with something that requires single-PE vertex ownership: CSR
+ * representation, an adjacency-grouped output format, --validate-simple-graph, a cross-PE-lookup edge-weight
+ * generator, or statistics. Split into its own function (rather than inlined in GenerateInMemory) so the
+ * decision logic can be unit-tested directly without driving the full MPI generation pipeline.
  *
  * @param any_split Whether any vertex anywhere in the graph was actually split, already reduced across all PEs.
+ * @param representation The graph representation requested for this generation.
  * @param config The (already-normalized) generator configuration.
  */
-void CheckSplitVertexCompatibility(bool any_split, const PGeneratorConfig& config);
+void CheckSplitVertexCompatibility(bool any_split, GraphRepresentation representation, const PGeneratorConfig& config);
 } // namespace kagen

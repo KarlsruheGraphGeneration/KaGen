@@ -53,6 +53,19 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
     if (fragment_.graph.representation == GraphRepresentation::EDGE_LIST) {
         FinalizeEdgeList(comm);
 
+        if (graph_.has_split_vertices) {
+            // BuildCSRFromEdgeList(vertex_range, edges, ...) assumes every edge's tail lies within vertex_range,
+            // which does not hold for a split/boundary vertex's edges (from
+            // --distribution=balance-edges-strict) -- would corrupt or crash building the resulting
+            // xadj/adjncy arrays. has_split_vertices is already collectively consistent across all PEs
+            // (RedistributeEdgesTrueBalance Allreduces it), so every PE reaches this same conclusion and
+            // throws together.
+            throw ConfigurationError(
+                "CSR representation requires single-PE vertex ownership and is not supported together with a "
+                "graph that has split vertices (from --distribution=balance-edges-strict); use the edge list "
+                "representation instead");
+        }
+
         if (Output()) {
             std::cout << "converting to CSR ... " << std::flush;
         }

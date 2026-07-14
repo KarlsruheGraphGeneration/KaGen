@@ -17,7 +17,8 @@ TEST(CompatibilityGuardTest, NoSplitAlwaysSucceeds) {
     config.edge_weights.generator_type = EdgeWeightGeneratorType::HASHING_BASED;
     config.statistics_level             = StatisticsLevel::ADVANCED;
 
-    EXPECT_NO_THROW(CheckSplitVertexCompatibility(false, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(false, GraphRepresentation::CSR, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(false, GraphRepresentation::EDGE_LIST, config));
 }
 
 TEST(CompatibilityGuardTest, SplitWithEdgeListFormatSucceeds) {
@@ -25,7 +26,18 @@ TEST(CompatibilityGuardTest, SplitWithEdgeListFormatSucceeds) {
     config.output_graph.formats = {FileFormat::EDGE_LIST, FileFormat::BINARY_EDGE_LIST};
     config.statistics_level     = StatisticsLevel::NONE;
 
-    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
+}
+
+TEST(CompatibilityGuardTest, SplitWithCSRRepresentationThrows) {
+    // BuildCSRFromEdgeList(vertex_range, edges, ...) assumes every edge's tail lies within vertex_range, which
+    // does not hold for a split/boundary vertex's edges (they fall outside fully_owned_vertex_range) -- this
+    // corrupts or crashes building the resulting xadj/adjncy arrays if not caught here.
+    PGeneratorConfig config;
+    config.output_graph.formats = {FileFormat::EDGE_LIST}; // otherwise-compatible output format
+    config.statistics_level     = StatisticsLevel::NONE;
+
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::CSR, config), ConfigurationError);
 }
 
 struct AdjacencyGroupedFormatParam : public ::testing::TestWithParam<FileFormat> {};
@@ -42,7 +54,7 @@ TEST_P(AdjacencyGroupedFormatParam, SplitWithAdjacencyGroupedFormatThrows) {
     config.output_graph.formats = {GetParam()};
     config.statistics_level     = StatisticsLevel::NONE;
 
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }
 
 TEST(CompatibilityGuardTest, SplitWithValidateSimpleGraphThrows) {
@@ -51,7 +63,7 @@ TEST(CompatibilityGuardTest, SplitWithValidateSimpleGraphThrows) {
     config.validate_simple_graph = true;
     config.statistics_level      = StatisticsLevel::NONE;
 
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }
 
 TEST(CompatibilityGuardTest, SplitWithHashingBasedEdgeWeightsThrows) {
@@ -60,7 +72,7 @@ TEST(CompatibilityGuardTest, SplitWithHashingBasedEdgeWeightsThrows) {
     config.edge_weights.generator_type = EdgeWeightGeneratorType::HASHING_BASED;
     config.statistics_level            = StatisticsLevel::NONE;
 
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }
 
 TEST(CompatibilityGuardTest, SplitWithUniformRandomEdgeWeightsThrows) {
@@ -69,7 +81,7 @@ TEST(CompatibilityGuardTest, SplitWithUniformRandomEdgeWeightsThrows) {
     config.edge_weights.generator_type = EdgeWeightGeneratorType::UNIFORM_RANDOM;
     config.statistics_level            = StatisticsLevel::NONE;
 
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }
 
 TEST(CompatibilityGuardTest, SplitWithDefaultOrVoidingEdgeWeightsSucceeds) {
@@ -78,13 +90,13 @@ TEST(CompatibilityGuardTest, SplitWithDefaultOrVoidingEdgeWeightsSucceeds) {
     config.statistics_level     = StatisticsLevel::NONE;
 
     config.edge_weights.generator_type = EdgeWeightGeneratorType::DEFAULT;
-    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
 
     config.edge_weights.generator_type = EdgeWeightGeneratorType::VOIDING;
-    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
 
     config.edge_weights.generator_type = EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE;
-    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
 }
 
 TEST(CompatibilityGuardTest, SplitWithStatisticsThrows) {
@@ -93,10 +105,10 @@ TEST(CompatibilityGuardTest, SplitWithStatisticsThrows) {
     config.quiet                = false;
 
     config.statistics_level = StatisticsLevel::BASIC;
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 
     config.statistics_level = StatisticsLevel::ADVANCED;
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }
 
 TEST(CompatibilityGuardTest, SplitWithStatisticsButQuietSucceeds) {
@@ -107,7 +119,7 @@ TEST(CompatibilityGuardTest, SplitWithStatisticsButQuietSucceeds) {
     config.quiet                = true;
     config.statistics_level     = StatisticsLevel::ADVANCED;
 
-    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
 }
 
 TEST(CompatibilityGuardTest, SplitWithMultipleFormatsThrowsIfAnyIsIncompatible) {
@@ -115,5 +127,5 @@ TEST(CompatibilityGuardTest, SplitWithMultipleFormatsThrowsIfAnyIsIncompatible) 
     config.output_graph.formats = {FileFormat::EDGE_LIST, FileFormat::METIS, FileFormat::BINARY_EDGE_LIST};
     config.statistics_level     = StatisticsLevel::NONE;
 
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, config), ConfigurationError);
+    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }

@@ -39,9 +39,19 @@ bool RequiresSingleVertexOwnership(const FileFormat format) {
 }
 } // namespace
 
-void CheckSplitVertexCompatibility(const bool any_split, const PGeneratorConfig& config) {
+void CheckSplitVertexCompatibility(
+    const bool any_split, const GraphRepresentation representation, const PGeneratorConfig& config) {
     if (!any_split) {
         return;
+    }
+    if (representation == GraphRepresentation::CSR) {
+        // CSR is built from the edge list via BuildCSRFromEdgeList(vertex_range, edges, ...), which assumes
+        // every edge's tail lies within vertex_range -- not true for a split/boundary vertex's edges, which
+        // corrupts (or crashes building) the resulting xadj/adjncy arrays.
+        throw ConfigurationError(
+            "CSR representation requires single-PE vertex ownership and is not supported together with a graph "
+            "that has split vertices (from --redistribution=balance-edges-strict); use the edge list "
+            "representation instead");
     }
     for (const FileFormat& format: config.output_graph.formats) {
         if (RequiresSingleVertexOwnership(format)) {
@@ -176,7 +186,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
         // data-dependent property -- is known.
         bool any_split = generator->HasSplitVertices();
         MPI_Allreduce(MPI_IN_PLACE, &any_split, 1, MPI_C_BOOL, MPI_LOR, comm);
-        CheckSplitVertexCompatibility(any_split, config);
+        CheckSplitVertexCompatibility(any_split, representation, config);
 
         if (output_info) {
             std::cout << "Generating weights ... " << std::flush;
