@@ -87,6 +87,10 @@ kagen_add_test(test_edge_range
         FILES edge_range.cpp
         CORES 1)
 
+kagen_add_test(test_compatibility_guard
+        FILES compatibility_guard_test.cpp
+        CORES 1)
+
 kagen_add_test(test_find_pe_in_range
         FILES utils/find_pe_in_range_test.cpp
         CORES 1)

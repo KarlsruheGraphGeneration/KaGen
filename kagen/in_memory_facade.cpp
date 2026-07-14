@@ -13,8 +13,68 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 namespace kagen {
+namespace {
+// Output formats that require a single PE to own a vertex's whole adjacency (i.e. they group edges by vertex on
+// one PE), incompatible with a graph that has split vertices (see the compatibility guard in GenerateInMemory).
+bool RequiresSingleVertexOwnership(const FileFormat format) {
+    switch (format) {
+        case FileFormat::METIS:
+        case FileFormat::HMETIS:
+        case FileFormat::HMETIS_DIRECTED:
+        case FileFormat::HMETIS_EP:
+        case FileFormat::DOT:
+        case FileFormat::DOT_DIRECTED:
+        case FileFormat::PARHIP:
+        case FileFormat::XTRAPULP:
+        case FileFormat::FREIGHT_NETL:
+        case FileFormat::FREIGHT_NETL_EP:
+        case FileFormat::NETD_ARE:
+            return true;
+        default:
+            return false;
+    }
+}
+} // namespace
+
+void CheckSplitVertexCompatibility(const bool any_split, const PGeneratorConfig& config) {
+    if (!any_split) {
+        return;
+    }
+    for (const FileFormat& format: config.output_graph.formats) {
+        if (RequiresSingleVertexOwnership(format)) {
+            std::stringstream msg;
+            msg << "the generated graph has vertices whose own edges are split across multiple PEs (from "
+                   "--redistribution=balance-edges-strict), which is incompatible with the adjacency-grouped "
+                   "output format '"
+                << format << "'; use an edge-list-shaped format (edgelist, binary-edgelist) instead";
+            throw ConfigurationError(msg.str());
+        }
+    }
+    if (config.validate_simple_graph) {
+        throw ConfigurationError(
+            "--validate-simple-graph is not supported together with a graph that has split vertices (from "
+            "--redistribution=balance-edges-strict)");
+    }
+    if (config.edge_weights.generator_type == EdgeWeightGeneratorType::HASHING_BASED
+        || config.edge_weights.generator_type == EdgeWeightGeneratorType::UNIFORM_RANDOM) {
+        std::stringstream msg;
+        msg << "edge weight generator '" << config.edge_weights.generator_type
+            << "' relies on single-PE vertex ownership and is not supported together with a graph that has "
+               "split vertices (from --redistribution=balance-edges-strict)";
+        throw ConfigurationError(msg.str());
+    }
+    if (!config.quiet && config.statistics_level != StatisticsLevel::NONE) {
+        // Matches the actual gating in GenerateInMemory ("if (!config.quiet) { ... if (statistics_level >=
+        // BASIC) ... }"): with --quiet, no statistics are computed regardless of statistics_level.
+        throw ConfigurationError(
+            "statistics are not supported together with a graph that has split vertices (from "
+            "--redistribution=balance-edges-strict)");
+    }
+}
+
 void GenerateInMemoryToDisk(PGeneratorConfig config, MPI_Comm comm) {
     PEID size, rank;
     MPI_Comm_size(comm, &size);
@@ -107,6 +167,16 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
             std::cout << "OK" << std::endl;
         }
         const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
+
+        // Compatibility guard: BALANCE_EDGES_TRUE may split a vertex's own edges across multiple PEs, breaking
+        // the invariant that a single PE owns a vertex's whole adjacency. Several consumers below (and further
+        // downstream, in WriteGraph) rely on that invariant and would silently misbehave -- not just produce a
+        // suboptimal result -- if it doesn't hold, so fail fast here instead. This is the one place all CLI and
+        // library entry points funnel through, and the only point where has_split_vertices -- a runtime,
+        // data-dependent property -- is known.
+        bool any_split = generator->HasSplitVertices();
+        MPI_Allreduce(MPI_IN_PLACE, &any_split, 1, MPI_C_BOOL, MPI_LOR, comm);
+        CheckSplitVertexCompatibility(any_split, config);
 
         if (output_info) {
             std::cout << "Generating weights ... " << std::flush;
