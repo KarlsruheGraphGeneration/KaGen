@@ -80,6 +80,32 @@ static Edgelist BuildHubWithUniformOverlay(SInt n, SInt hub_degree, SInt overlay
     return edges;
 }
 
+// Build a graph where *every* PE independently contributes an identical copy of the same hub_degree hub edges
+// (0, 1), ..., (0, hub_degree) -- modeling how a generator like RMAT can independently sample the same edge on
+// different PEs (e.g. via symmetrization of two independently-sampled directed pairs (u, v) and (v, u); see
+// discussion in DedupsHubEdgesDuplicatedAcrossSourcePEs) -- plus a uniform overlay so non-hub vertices have
+// plenty of legitimate edges too.
+static Edgelist BuildHubWithDuplicatesAcrossPEs(SInt n, SInt hub_degree, SInt overlay_edges_per_pe) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    Edgelist edges;
+    for (SInt target = 1; target <= hub_degree; ++target) {
+        edges.emplace_back(0, target);
+    }
+
+    const SInt overlay_base = hub_degree + 2;
+    for (SInt i = 0; i < overlay_edges_per_pe; ++i) {
+        const SInt u = overlay_base + (static_cast<SInt>(rank) * 37 + i * 7) % (n - overlay_base);
+        const SInt v = overlay_base + (static_cast<SInt>(rank) * 53 + i * 11 + 1) % (n - overlay_base);
+        if (u != v) {
+            edges.emplace_back(u, v);
+        }
+    }
+
+    return edges;
+}
+
 // ---- Parameterized tests over generator, redistribution function, and round-robin remapping ---
 
 using GeneratorParam    = std::tuple<std::string, GeneratorFunc>;
@@ -383,4 +409,32 @@ TEST(RedistributeEdgesTrueBalanceHubTest, SplitsDominantHubForExactBalance) {
         EXPECT_GT(num_pes_with_hub_edge, 1) << "hub vertex's edges ended up entirely on a single PE";
         EXPECT_TRUE(dist.has_split_vertices);
     }
+}
+
+// Regression test: a generator like RMAT can independently sample the same undirected edge twice (once as
+// (u, v), once as (v, u)) on two *different* PEs, since it symmetrizes every directed sample unconditionally
+// and samples independently per chunk. If a vertex involved in such a duplicate gets split across PEs, the two
+// copies are not guaranteed to be routed to the same target PE by position alone, so the final per-PE
+// SortAndRemoveDuplicates -- which only catches duplicates that happen to co-locate -- misses them. This models
+// the extreme case where the duplication is total (every PE contributes an identical copy of the whole hub).
+TEST(RedistributeEdgesTrueBalanceHubTest, DedupsHubEdgesDuplicatedAcrossSourcePEs) {
+    const SInt n                    = 4000;
+    const SInt hub_degree           = 1000;
+    const SInt overlay_edges_per_pe = 50;
+
+    Edgelist input = BuildHubWithDuplicatesAcrossPEs(n, hub_degree, overlay_edges_per_pe);
+
+    Edgelist destination;
+    RedistributeEdgesTrueBalance(input, destination, n, /*remap_round_robin=*/false, MPI_COMM_WORLD);
+
+    Edgelist result = GatherAllEdges(destination);
+    std::sort(result.begin(), result.end());
+    auto dup = std::adjacent_find(result.begin(), result.end());
+    EXPECT_EQ(dup, result.end()) << "duplicate edge survived redistribution";
+
+    const auto hub_edges_in_result =
+        std::count_if(result.begin(), result.end(), [](const auto& edge) { return edge.first == 0; });
+    EXPECT_EQ(static_cast<SInt>(hub_edges_in_result), hub_degree)
+        << "expected exactly hub_degree unique hub edges; duplicates contributed by different source PEs should "
+           "have been removed";
 }

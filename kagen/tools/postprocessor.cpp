@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <numeric>
 #include <unordered_map>
 #include <vector>
@@ -486,18 +487,45 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     const std::vector<SInt> edge_distribution = ComputeBalancedVertexDistribution(m, comm);
     Distribution             edge_owner_dist(edge_distribution);
 
-    // For each local vertex (in ascending order), compute each contributing sender's base global edge rank --
-    // the global rank of that sender's first local edge of this vertex -- and reply directly to that sender.
-    // This is lightweight metadata only (one SInt per (vertex, sender) pair); no edge payload is sent here.
+    // For each local vertex (in ascending order), determine whether its degree crosses more than one PE's fair
+    // edge share ("split") and, if not, each contributing sender's base global edge rank -- the global rank of
+    // that sender's first local edge of this vertex -- to reply directly to that sender. This is lightweight
+    // metadata only (one SInt per (vertex, sender) pair); no edge payload is sent here.
+    //
+    // A non-split vertex's edges all go to the same single target PE by construction (its whole [cur_sum,
+    // cur_sum + degree) range falls in one bucket), so any cross-PE duplicate of one of its edges still ends up
+    // co-located and is caught by the final SortAndRemoveDuplicates(destination) below, exactly as for the
+    // vertex-atomic modes. That guarantee does *not* hold for a split vertex purely by sender-then-local-offset
+    // position (two duplicate copies held by different source PEs could straddle the split and never meet) --
+    // see the escalation path further down, which resolves split vertices by actual (deduplicated) edge value
+    // instead of by position.
+    constexpr SInt kEscalate = std::numeric_limits<SInt>::max(); // never a valid base global rank ([0, m))
+    std::vector<bool> is_split(local_n, false);
+    std::vector<SInt> cur_sum_before(local_n);
     std::vector<std::vector<SInt>> reply_send_bufs(size);
-    SInt                            cur_sum = 0;
-    for (SInt li = 0; li < local_n; ++li) {
-        SInt within_vertex_offset = 0;
-        for (const auto& [sender, degree]: contributions[li]) {
-            reply_send_bufs[sender].push_back(prefix_sum + cur_sum + within_vertex_offset);
-            within_vertex_offset += degree;
+    {
+        SInt cur_sum = 0;
+        for (SInt li = 0; li < local_n; ++li) {
+            cur_sum_before[li]  = cur_sum;
+            const SInt degree = local_degree[li];
+            if (degree > 0) {
+                const PEID first_owner = edge_owner_dist.compute_owner(prefix_sum + cur_sum);
+                const PEID last_owner  = edge_owner_dist.compute_owner(prefix_sum + cur_sum + degree - 1);
+                is_split[li]           = first_owner != last_owner;
+            }
+            if (is_split[li]) {
+                for (const auto& [sender, degree_ignored]: contributions[li]) {
+                    reply_send_bufs[sender].push_back(kEscalate);
+                }
+            } else {
+                SInt within_vertex_offset = 0;
+                for (const auto& [sender, sender_degree]: contributions[li]) {
+                    reply_send_bufs[sender].push_back(prefix_sum + cur_sum + within_vertex_offset);
+                    within_vertex_offset += sender_degree;
+                }
+            }
+            cur_sum += degree;
         }
-        cur_sum += local_degree[li];
     }
 
     std::vector<int> reply_send_counts(size);
@@ -526,22 +554,68 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         reply_send_buf.data(), reply_send_counts.data(), reply_send_displs.data(), KAGEN_MPI_SINT,
         reply_recv_buf.data(), reply_recv_counts.data(), reply_recv_displs.data(), KAGEN_MPI_SINT, comm);
 
-    // Route every local edge to its final target PE using the base global rank of its run plus its offset within
-    // the run, resolved against the shared closed-form edge distribution -- no further coordination required.
-    // This is the single Alltoallv-style shuffle of the actual edge payload straight to its final target.
+    // Route every local edge of a non-split run directly to its final target PE using the base global rank of
+    // its run plus its offset within the run. A split run's actual (vertex, head) values are instead escalated
+    // to the vertex's owner, which can resolve exact (deduplicated) positions once it has seen every
+    // contributing sender's data -- something no single sender can determine on its own.
     std::unordered_map<PEID, std::vector<SInt>> send_buffers;
+    std::unordered_map<PEID, std::vector<SInt>> escalate_buffers;
     for (std::size_t r = 0; r < runs.size(); ++r) {
-        const auto& run       = runs[r];
-        const SInt  base_rank = reply_recv_buf[run_reply_slot[r]];
-        for (SInt k = 0; k < run.count; ++k) {
-            const SInt          global_rank = base_rank + k;
-            const PEID          target      = edge_owner_dist.compute_owner(global_rank);
-            const auto&         edge        = source[run.start + k];
-            std::vector<SInt>&  buf         = send_buffers[target];
-            buf.push_back(edge.first);
-            buf.push_back(edge.second);
+        const auto& run   = runs[r];
+        const SInt  reply = reply_recv_buf[run_reply_slot[r]];
+        if (reply == kEscalate) {
+            const PEID          owner = vertex_owner_dist.compute_owner(run.vertex);
+            std::vector<SInt>&  buf   = escalate_buffers[owner];
+            for (SInt k = 0; k < run.count; ++k) {
+                buf.push_back(run.vertex);
+                buf.push_back(source[run.start + k].second);
+            }
+        } else {
+            const SInt base_rank = reply;
+            for (SInt k = 0; k < run.count; ++k) {
+                const SInt          global_rank = base_rank + k;
+                const PEID          target      = edge_owner_dist.compute_owner(global_rank);
+                const auto&         edge        = source[run.start + k];
+                std::vector<SInt>&  buf         = send_buffers[target];
+                buf.push_back(edge.first);
+                buf.push_back(edge.second);
+            }
         }
     }
+
+    // Resolve escalated split vertices: gather every contributing sender's actual edges of that vertex (bounded
+    // by the split vertices' own total degree, not the whole graph), deduplicate by head value, and forward each
+    // remaining edge directly to its true target PE. Because equal head values are adjacent once sorted, this
+    // also means any surviving cross-PE duplicate of a split vertex's edge can only ever straddle one boundary
+    // between two adjacent PEs -- the same invariant the vertex-atomic modes get for free from single ownership.
+    auto escalated = ExchangeMessageBuffers(std::move(escalate_buffers), KAGEN_MPI_SINT, comm);
+    {
+        std::vector<std::vector<SInt>> split_heads(local_n);
+        for (std::size_t i = 0; i < escalated.size(); i += 2) {
+            const SInt v  = escalated[i];
+            const SInt h  = escalated[i + 1];
+            const SInt li = vertex_owner_dist.compute_local_index(v, rank);
+            split_heads[li].push_back(h);
+        }
+        for (SInt li = 0; li < local_n; ++li) {
+            if (split_heads[li].empty()) {
+                continue;
+            }
+            auto& heads = split_heads[li];
+            std::sort(heads.begin(), heads.end());
+            heads.erase(std::unique(heads.begin(), heads.end()), heads.end());
+
+            const SInt vertex = li + vertex_distribution[rank];
+            for (std::size_t k = 0; k < heads.size(); ++k) {
+                const SInt          global_rank = prefix_sum + cur_sum_before[li] + static_cast<SInt>(k);
+                const PEID          target      = edge_owner_dist.compute_owner(global_rank);
+                std::vector<SInt>&  buf         = send_buffers[target];
+                buf.push_back(vertex);
+                buf.push_back(heads[k]);
+            }
+        }
+    }
+
     auto recv_edges = ExchangeMessageBuffers(std::move(send_buffers), KAGEN_MPI_SINT, comm);
     destination.clear();
     destination.reserve(recv_edges.size() / 2);

@@ -22,6 +22,13 @@ void Graph500Generator::FinalizeEdgeList(MPI_Comm comm) {
         case kagen::GraphRedistribution::BALANCE_VERTICES:
             graph_.vertex_range = RedistributeEdges(local_edges_, graph_.edges, n, remap_round_robin, comm);
             break;
+        case kagen::GraphRedistribution::BALANCE_EDGES_TRUE: {
+            const EdgeBalancedDistribution distribution =
+                RedistributeEdgesTrueBalance(local_edges_, graph_.edges, n, remap_round_robin, comm);
+            graph_.vertex_range = distribution.fully_owned_vertex_range;
+            SetHasSplitVertices(distribution.has_split_vertices);
+            break;
+        }
     }
 }
 } // namespace kagen
