@@ -45,7 +45,7 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
         graph_.representation = GraphRepresentation::EDGE_LIST;
         graph_.FreeCSR();
     } else {
-        graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
+        graph_ = FinalizeGraphFragment(std::move(fragment_), config_.input_graph, Output(), comm);
     }
 }
 
@@ -62,7 +62,7 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
         graph_.representation = GraphRepresentation::CSR;
         graph_.FreeEdgelist();
     } else {
-        graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
+        graph_ = FinalizeGraphFragment(std::move(fragment_), config_.input_graph, Output(), comm);
     }
 }
 

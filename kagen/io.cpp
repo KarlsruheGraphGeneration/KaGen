@@ -1,6 +1,7 @@
 #include "kagen/io.h"
 
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/io/coordinates.h"
 #include "kagen/io/dot.h"
 #include "kagen/io/edgelist.h"
@@ -150,14 +151,12 @@ GraphFragment ReadGraphFragment(
     const PEID size) {
     const auto [n, m] = reader.ReadSize();
 
-    if (reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION)
-        && config.distribution == GraphDistribution::BALANCE_EDGES) {
-        throw std::invalid_argument("not implemented");
-    }
+    const bool reader_requires_redistribution = reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION);
+    const bool needs_postprocessing =
+        reader_requires_redistribution || config.distribution == GraphDistribution::BALANCE_EDGES_TRUE;
 
     // If we need postprocessing, always generate an edge list because postprocessing is not implemented for CSR
-    GraphRepresentation actual_representation =
-        reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION) ? GraphRepresentation::EDGE_LIST : representation;
+    GraphRepresentation actual_representation = needs_postprocessing ? GraphRepresentation::EDGE_LIST : representation;
 
     SInt from    = 0;
     SInt to_node = std::numeric_limits<SInt>::max();
@@ -175,15 +174,28 @@ GraphFragment ReadGraphFragment(
             break;
         }
 
-        case GraphDistribution::BALANCE_VERTICES: {
+        case GraphDistribution::BALANCE_VERTICES:
+        case GraphDistribution::BALANCE_EDGES_TRUE: {
+            // True edge-balancing needs the real (deduplicated, exactly-balanced) edge positions, which
+            // FindNodeByEdge below cannot provide -- it only supports the vertex-atomic approximation used by
+            // BALANCE_EDGES. Read an ordinary vertex-balanced partition here (works for every reader, including
+            // METIS/ParHIP, since it's just a plain vertex-range read) and let FinalizeGraphFragment's
+            // postprocessing pass do the real redistribution.
             std::tie(from, to_node) = ComputeRange(n, size, rank);
             break;
         }
 
         case GraphDistribution::BALANCE_EDGES: {
-            const auto edge_range = ComputeRange(m, size, rank);
-            from                  = reader.FindNodeByEdge(edge_range.first);
-            to_edge               = edge_range.second;
+            if (reader_requires_redistribution) {
+                // FindNodeByEdge is not meaningful for these readers (e.g. plain edgelist, where it's an
+                // unimplemented stub); read an arbitrary partition instead and let FinalizeGraphFragment's
+                // postprocessing pass do the real edge-balanced redistribution.
+                std::tie(from, to_node) = ComputeRange(n, size, rank);
+            } else {
+                const auto edge_range = ComputeRange(m, size, rank);
+                from                  = reader.FindNodeByEdge(edge_range.first);
+                to_edge               = edge_range.second;
+            }
             break;
         }
 
@@ -202,10 +214,32 @@ GraphFragment ReadGraphFragment(
     };
 }
 
-Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, MPI_Comm comm) {
-    if (fragment.deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION) {
+Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& config, const bool output, MPI_Comm comm) {
+    const bool needs_postprocessing = (fragment.deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION)
+                                       || config.distribution == GraphDistribution::BALANCE_EDGES_TRUE;
+    if (needs_postprocessing) {
         if (fragment.graph.representation == GraphRepresentation::CSR) {
             throw std::invalid_argument("not implemented");
+        }
+
+        if (config.distribution == GraphDistribution::BALANCE_EDGES
+            || config.distribution == GraphDistribution::BALANCE_EDGES_TRUE) {
+            // A PE with an empty local partition (possible for a small graph split across many PEs) would see
+            // empty weight arrays locally even though the graph as a whole is weighted, so this check must be
+            // collective -- otherwise some PEs would throw while others proceed into the (also collective)
+            // redistribution below, deadlocking.
+            bool has_weights = !fragment.graph.edge_weights.empty() || !fragment.graph.vertex_weights.empty();
+            MPI_Allreduce(MPI_IN_PLACE, &has_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
+            if (has_weights) {
+                // None of the redistribution primitives below carry edge_weights/vertex_weights alongside the
+                // Edgelist they redistribute -- doing so would desync the weights from their edges/vertices
+                // rather than just reordering them, since redistribution changes both which PE holds which
+                // edges and which vertex range each PE owns.
+                throw ConfigurationError(
+                    "edge-balanced redistribution (--distribution=balance-edges or balance-edges-strict) is not "
+                    "supported together with vertex- or edge-weighted input; use --distribution=balance-vertices, "
+                    "--drop-edge-weights, and/or --drop-vertex-weights");
+            }
         }
 
         const PEID size = GetCommSize(comm);
@@ -226,8 +260,32 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const bool output, MPI_Comm 
             return n;
         }();
 
-        std::tie(fragment.graph.vertex_range.first, fragment.graph.vertex_range.second) = ComputeRange(n, size, rank);
-        RedistributeEdgesByVertexRange(fragment.graph.edges, fragment.graph.vertex_range, comm);
+        // remap_round_robin=false throughout: file-graph vertex IDs are the user's own on-disk IDs, so they
+        // must not be remapped.
+        switch (config.distribution) {
+            case GraphDistribution::ROOT:
+            case GraphDistribution::EXPLICIT:
+            case GraphDistribution::BALANCE_VERTICES: {
+                std::tie(fragment.graph.vertex_range.first, fragment.graph.vertex_range.second) =
+                    ComputeRange(n, size, rank);
+                RedistributeEdgesByVertexRange(fragment.graph.edges, fragment.graph.vertex_range, comm);
+                break;
+            }
+            case GraphDistribution::BALANCE_EDGES: {
+                Edgelist source = std::move(fragment.graph.edges);
+                fragment.graph.vertex_range =
+                    RedistributeEdgesBalanced(source, fragment.graph.edges, n, /*remap_round_robin=*/false, comm);
+                break;
+            }
+            case GraphDistribution::BALANCE_EDGES_TRUE: {
+                Edgelist                       source = std::move(fragment.graph.edges);
+                const EdgeBalancedDistribution distribution =
+                    RedistributeEdgesTrueBalance(source, fragment.graph.edges, n, /*remap_round_robin=*/false, comm);
+                fragment.graph.vertex_range      = distribution.fully_owned_vertex_range;
+                fragment.graph.has_split_vertices = distribution.has_split_vertices;
+                break;
+            }
+        }
     }
 
     return std::move(fragment.graph);

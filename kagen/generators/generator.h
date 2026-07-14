@@ -1,11 +1,11 @@
 #pragma once
 
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/kagen.h"
 
 #include <mpi.h>
 
-#include <exception>
 #include <memory>
 
 namespace kagen {
@@ -80,18 +80,6 @@ protected:
 
 private:
     void Reset();
-};
-
-class ConfigurationError : public std::exception {
-public:
-    ConfigurationError(std::string what) : _what(std::move(what)) {}
-
-    const char* what() const noexcept override {
-        return _what.c_str();
-    }
-
-private:
-    std::string _what;
 };
 
 class EdgeListOnlyGenerator : virtual Generator {
