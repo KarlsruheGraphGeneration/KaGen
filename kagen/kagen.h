@@ -158,6 +158,7 @@ std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 enum class GraphRedistribution {
     BALANCE_VERTICES,
     BALANCE_EDGES,
+    BALANCE_EDGES_TRUE,
 };
 
 std::unordered_map<std::string, GraphRedistribution> GetGraphRedistributionMap();
@@ -168,6 +169,7 @@ enum class GraphDistribution {
     ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
+    BALANCE_EDGES_TRUE,
     EXPLICIT,
 };
 

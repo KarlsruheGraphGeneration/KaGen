@@ -401,8 +401,14 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--redistribution", config.redistribution)
             ->transform(CLI::CheckedTransformer(GetGraphRedistributionMap()).description(""))
             ->description(R"(How to distribute the generated graph across PEs:
-  - balance-vertices: assign roughly the same number of vertices to each PE
-  - balance-edges:    assign roughly the same number of edges to each PE)");
+  - balance-vertices:    assign roughly the same number of vertices to each PE
+  - balance-edges:       assign roughly the same number of edges to each PE, without splitting any
+                          single vertex's edges across multiple PEs
+  - balance-edges-strict: assign exactly (+/-1) the same number of edges to each PE, splitting a
+                          single vertex's edges across multiple PEs if necessary; only compatible
+                          with edge-list-shaped output (plain edgelist/binary-edgelist, in-memory
+                          Edgelist API), not with adjacency-grouped formats (METIS, ParHIP, HMETIS,
+                          DOT, freight-netl), --validate-simple-graph, or statistics)");
     }
 
     { // ImageMesh
@@ -447,9 +453,10 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--distribution", config.input_graph.distribution)
             ->transform(CLI::CheckedTransformer(GetGraphDistributionMap()).description(""))
             ->description(R"(The following options for how to distribute the static graph across PEs are available:
-  - balance-vertices: assign roughly the same number of nodes to each PE
-  - balance-edges:    assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>
-  - explicit:         explicitly specify the number of vertices on each PE through a text file specified via the --explicit-distribution=<filename> option)");
+  - balance-vertices:     assign roughly the same number of nodes to each PE
+  - balance-edges:        assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>
+  - balance-edges-strict: assign exactly (+/-1) the same number of edges to each PE, splitting a single vertex's edges across multiple PEs if necessary; only supported for plain edgelist-shaped formats, not for formats read via an efficient offset-based range read (metis, parhip)
+  - explicit:             explicitly specify the number of vertices on each PE through a text file specified via the --explicit-distribution=<filename> option)");
         cmd->add_option(
             "--explicit-distribution", config.input_graph.explicit_distribution_filename,
             "A text file containing the number of vertices on each PE, one line per PE. Only used when "
