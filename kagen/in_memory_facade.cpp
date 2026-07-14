@@ -80,56 +80,71 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
 
     const auto t_start_graphgen = MPI_Wtime();
 
-    auto generator = factory->Create(config, rank, size);
-    generator->Generate(representation);
-    MPI_Barrier(comm);
-
-    if (output_info) {
-        std::cout << "OK" << std::endl;
-    }
-
-    const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
-    if (output_info) {
-        std::cout << "Finalizing graph ... " << std::flush;
-    }
-    if (!config.skip_postprocessing) {
-        generator->Finalize(comm);
+    // Any of the following stages may throw a ConfigurationError for a runtime-data-dependent condition (e.g. a
+    // split vertex combined with an incompatible output format) that could not be caught by NormalizeParameters
+    // above; handle it the same way here so it fails fast with a clear message instead of an uncaught abort.
+    std::unique_ptr<Generator> generator;
+    Graph                      graph;
+    double                     t_end_graphgen = t_start_graphgen;
+    try {
+        generator = factory->Create(config, rank, size);
+        generator->Generate(representation);
         MPI_Barrier(comm);
-    }
-    if (output_info) {
-        std::cout << "OK" << std::endl;
-    }
-    const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
 
-    if (output_info) {
-        std::cout << "Generating weights ... " << std::flush;
-    }
-    generator->GenerateEdgeWeights(config.edge_weights, comm);
-    generator->GenerateVertexWeights(config.vertex_weights, comm);
-    if (output_info) {
-        std::cout << "OK" << std::endl;
-    }
-
-    const auto t_end_graphgen = MPI_Wtime();
-
-    if (!config.skip_postprocessing && !config.quiet) {
-        SInt num_global_edges_before, num_global_edges_after;
-        MPI_Reduce(&num_edges_before_finalize, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
-        MPI_Reduce(&num_edges_after_finalize, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
-
-        if (num_global_edges_before != num_global_edges_after && output_info) {
-            std::cout << "The number of edges changed from " << num_global_edges_before << " to "
-                      << num_global_edges_after << " during finalization (= by "
-                      << std::abs(
-                             static_cast<SSInt>(num_global_edges_after) - static_cast<SSInt>(num_global_edges_before))
-                      << ")" << std::endl;
+        if (output_info) {
+            std::cout << "OK" << std::endl;
         }
-    }
-    if (config.permute) {
-        generator->PermuteVertices(config, comm);
-    }
 
-    auto graph = generator->Take();
+        const SInt num_edges_before_finalize = generator->GetNumberOfEdges();
+        if (output_info) {
+            std::cout << "Finalizing graph ... " << std::flush;
+        }
+        if (!config.skip_postprocessing) {
+            generator->Finalize(comm);
+            MPI_Barrier(comm);
+        }
+        if (output_info) {
+            std::cout << "OK" << std::endl;
+        }
+        const SInt num_edges_after_finalize = generator->GetNumberOfEdges();
+
+        if (output_info) {
+            std::cout << "Generating weights ... " << std::flush;
+        }
+        generator->GenerateEdgeWeights(config.edge_weights, comm);
+        generator->GenerateVertexWeights(config.vertex_weights, comm);
+        if (output_info) {
+            std::cout << "OK" << std::endl;
+        }
+
+        t_end_graphgen = MPI_Wtime();
+
+        if (!config.skip_postprocessing && !config.quiet) {
+            SInt num_global_edges_before, num_global_edges_after;
+            MPI_Reduce(&num_edges_before_finalize, &num_global_edges_before, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+            MPI_Reduce(&num_edges_after_finalize, &num_global_edges_after, 1, KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+
+            if (num_global_edges_before != num_global_edges_after && output_info) {
+                std::cout << "The number of edges changed from " << num_global_edges_before << " to "
+                          << num_global_edges_after << " during finalization (= by "
+                          << std::abs(
+                                 static_cast<SSInt>(num_global_edges_after)
+                                 - static_cast<SSInt>(num_global_edges_before))
+                          << ")" << std::endl;
+            }
+        }
+        if (config.permute) {
+            generator->PermuteVertices(config, comm);
+        }
+
+        graph = generator->Take();
+    } catch (const kagen::ConfigurationError& ex) {
+        if (output_error) {
+            std::cerr << "Error: " << ex.what() << "\n";
+        }
+        MPI_Barrier(comm);
+        MPI_Abort(comm, 1);
+    }
 
     // Validation
     if (config.validate_simple_graph) {

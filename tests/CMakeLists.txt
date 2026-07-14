@@ -67,6 +67,10 @@ kagen_add_test(test_rgg3d
         FILES geometric/rgg3d_test.cpp
         CORES 1 2 3 4 5 6)
 
+kagen_add_test(test_rgg_distribution
+        FILES geometric/rgg_distribution_test.cpp
+        CORES 1 2 4)
+
 kagen_add_test(test_hyperbolic
         FILES geometric/hyperbolic_test.cpp
         CORES 1 2 3 4 5 6)

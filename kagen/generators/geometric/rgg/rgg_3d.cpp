@@ -1,5 +1,7 @@
 #include "kagen/generators/geometric/rgg/rgg_3d.h"
 
+#include "kagen/tools/postprocessor.h"
+
 #include <algorithm>
 
 namespace kagen {
@@ -22,6 +24,42 @@ RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     }
 
     InitDatastructures();
+}
+
+void RGG3D::FinalizeEdgeList(MPI_Comm comm) {
+    if (config_.coordinates && config_.redistribution != GraphRedistribution::BALANCE_VERTICES) {
+        throw ConfigurationError(
+            "coordinate output is not supported together with edge-balanced redistribution for RGG generators; "
+            "use --redistribution=balance-vertices or disable --coordinates");
+    }
+    if (config_.edge_weights.generator_type == EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE
+        && config_.redistribution != GraphRedistribution::BALANCE_VERTICES) {
+        throw ConfigurationError(
+            "euclidean-distance edge weights are not supported together with edge-balanced redistribution for RGG "
+            "generators (weights are computed during generation and would desync from the redistributed edges); "
+            "use --redistribution=balance-vertices or a different --edgeweights-generator");
+    }
+
+    switch (config_.redistribution) {
+        case GraphRedistribution::BALANCE_VERTICES:
+            // Geometric3D::GenerateEdgeList() already confines every edge's tail to this PE's own chunk-assigned
+            // vertex_range, which also encodes spatial locality worth preserving; no redistribution needed.
+            break;
+        case GraphRedistribution::BALANCE_EDGES: {
+            Edgelist local_edges = std::move(graph_.edges);
+            graph_.vertex_range =
+                RedistributeEdgesBalanced(local_edges, graph_.edges, config_.n, /*remap_round_robin=*/false, comm);
+            break;
+        }
+        case GraphRedistribution::BALANCE_EDGES_TRUE: {
+            Edgelist                       local_edges = std::move(graph_.edges);
+            const EdgeBalancedDistribution distribution =
+                RedistributeEdgesTrueBalance(local_edges, graph_.edges, config_.n, /*remap_round_robin=*/false, comm);
+            graph_.vertex_range = distribution.fully_owned_vertex_range;
+            SetHasSplitVertices(distribution.has_split_vertices);
+            break;
+        }
+    }
 }
 
 void RGG3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, const SInt chunk_depth) {

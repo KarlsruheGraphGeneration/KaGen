@@ -354,7 +354,7 @@ std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorT
         {"default", EdgeWeightGeneratorType::DEFAULT},
         {"voiding", EdgeWeightGeneratorType::VOIDING},
         {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED},
-        {"euclidean_distance", EdgeWeightGeneratorType::HASHING_BASED},
+        {"euclidean_distance", EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE},
         {"uniform_random", EdgeWeightGeneratorType::UNIFORM_RANDOM}};
 }
 
