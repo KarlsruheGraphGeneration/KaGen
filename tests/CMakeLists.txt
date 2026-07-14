@@ -57,6 +57,10 @@ kagen_add_test(test_parhip_reader_writer
     FILES file/parhip_reader_writer.cpp
     CORES 1 2 3 4 8)
 
+kagen_add_test(test_plain_edgelist_distribution
+    FILES file/plain_edgelist_distribution_test.cpp
+    CORES 1 2 4)
+
 
 # Geometric Generator
 kagen_add_test(test_rgg2d
@@ -101,6 +105,10 @@ kagen_add_test(test_redistribute_edges
 
 kagen_add_test(test_rmat_distribution
         FILES rmat/rmat_distribution_test.cpp
+        CORES 1 2 4)
+
+kagen_add_test(test_kronecker_distribution
+        FILES kronecker/kronecker_distribution_test.cpp
         CORES 1 2 4)
 
 kagen_add_test(test_gnm_distribution
