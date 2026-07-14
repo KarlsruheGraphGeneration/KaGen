@@ -40,7 +40,9 @@ struct RMATDistributionFixture : public ::testing::TestWithParam<DistributionPar
 
 INSTANTIATE_TEST_SUITE_P(
     RMATDistributionTests, RMATDistributionFixture,
-    ::testing::Combine(::testing::Values("balance-vertices", "balance-edges"), ::testing::Values(0.5, 4.0, 16.0)),
+    ::testing::Combine(
+        ::testing::Values("balance-vertices", "balance-edges", "balance-edges-strict"),
+        ::testing::Values(0.5, 4.0, 16.0)),
     [](const ::testing::TestParamInfo<DistributionParam>& info) {
         std::string name = std::get<0>(info.param);
         std::replace(name.begin(), name.end(), '-', '_');
@@ -52,9 +54,15 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(RMATDistributionFixture, OwnershipInvariant) {
     auto [distribution, factor] = GetParam();
-    const SInt n                = 1024;
-    const SInt m                = static_cast<SInt>(factor * n);
-    const int  seed             = 42;
+
+    if (distribution == "balance-edges-strict") {
+        GTEST_SKIP() << "true edge-balancing intentionally splits a vertex's edges across PEs, so a single PE's "
+                        "vertex range does not bound the tails of its edges";
+    }
+
+    const SInt n = 1024;
+    const SInt m = static_cast<SInt>(factor * n);
+    const int  seed = 42;
 
     Graph graph = GenerateRMATWithDistribution(distribution, n, m, seed);
 
@@ -100,9 +108,16 @@ TEST_P(RMATCrossDistributionFixture, EdgeSetIdenticalAcrossDistributions) {
 
     Graph graph_bv = GenerateRMATWithDistribution("balance-vertices", n, m, seed);
     Graph graph_be = GenerateRMATWithDistribution("balance-edges", n, m, seed);
+    Graph graph_bes = GenerateRMATWithDistribution("balance-edges-strict", n, m, seed);
 
-    Edgelist edges_bv = GatherSortedDeduplicatedEdges(graph_bv.edges);
-    Edgelist edges_be = GatherSortedDeduplicatedEdges(graph_be.edges);
+    Edgelist edges_bv  = GatherSortedDeduplicatedEdges(graph_bv.edges);
+    Edgelist edges_be  = GatherSortedDeduplicatedEdges(graph_be.edges);
+    Edgelist edges_bes = GatherSortedDeduplicatedEdges(graph_bes.edges);
 
     EXPECT_EQ(edges_bv, edges_be);
+    // RMAT symmetrizes every directed sample independently per chunk, so it can legitimately draw the same
+    // undirected edge twice on two different PEs; balance-edges-strict routes a split vertex's edges by
+    // position rather than by co-location, so this specifically exercises that its dedup still produces the
+    // exact same edge set as the other two distributions (see RedistributeEdgesTrueBalance's escalation path).
+    EXPECT_EQ(edges_bv, edges_bes);
 }
