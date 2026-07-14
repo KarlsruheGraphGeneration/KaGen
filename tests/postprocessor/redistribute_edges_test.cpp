@@ -40,6 +40,37 @@ static Edgelist BuildStarOnPE0(SInt n) {
     return edges;
 }
 
+// Build a graph with one dominant hub vertex (degree = hub_degree, several times any single PE's fair
+// share) plus a uniform overlay of edges among the remaining vertices. The hub's edges are scattered
+// evenly across all PEs (as they would be for a real generator like RMAT before redistribution, where
+// a hub vertex's edges are not pre-located on a single source PE).
+static Edgelist BuildHubWithUniformOverlay(SInt n, SInt hub_degree, SInt overlay_edges_per_pe) {
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    Edgelist edges;
+
+    const SInt per_pe    = hub_degree / static_cast<SInt>(size);
+    const SInt remainder = hub_degree % static_cast<SInt>(size);
+    const SInt local_hub_edges = per_pe + (static_cast<SInt>(rank) < remainder ? 1 : 0);
+    const SInt local_hub_start = static_cast<SInt>(rank) * per_pe + std::min<SInt>(rank, remainder);
+    for (SInt i = 0; i < local_hub_edges; ++i) {
+        const SInt target = 1 + (local_hub_start + i) % (n - 1);
+        edges.emplace_back(0, target);
+    }
+
+    for (SInt i = 0; i < overlay_edges_per_pe; ++i) {
+        const SInt u = 1 + (static_cast<SInt>(rank) * 37 + i * 7) % (n - 1);
+        const SInt v = 1 + (static_cast<SInt>(rank) * 53 + i * 11 + 1) % (n - 1);
+        if (u != v) {
+            edges.emplace_back(u, v);
+        }
+    }
+
+    return edges;
+}
+
 // ---- Parameterized tests over generator, redistribution function, and round-robin remapping ---
 
 using GeneratorParam    = std::tuple<std::string, GeneratorFunc>;
@@ -261,4 +292,34 @@ TEST_P(RedistributeEdgesSimpleFixture, SingleEdge) {
         EXPECT_GE(edge.first, vr.first);
         EXPECT_LT(edge.first, vr.second);
     }
+}
+
+// ---- Adversarial hub vertex test (regression test for the vertex-atomic breakpoint bug) --------
+
+// Before the fix, a single vertex whose degree spans multiple bucket boundaries would be emitted as a
+// breakpoint once per boundary crossed, making Distribution hand several *other*, unrelated PEs an
+// empty (v, v) vertex range -- i.e. those PEs get spuriously starved to zero vertices/edges even though
+// there are plenty of edges (and other vertices) to go around.
+TEST(RedistributeEdgesHubStarvationTest, NoPEIsStarvedWithDominantHub) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    const SInt n = 4000;
+    // The hub degree comfortably overflows a single PE's fair bucket share (to exercise the "absorb the
+    // overflow" path), but the uniform overlay is dense enough that every *other* PE still has plenty of
+    // edges to legitimately own -- unlike an extreme hub that swamps the entire graph, this does not
+    // require more than one PE to go empty, so a real regression here is distinguishable from the
+    // inherent, documented limit of vertex-atomic balancing (a hub that alone exceeds several PEs' worth
+    // of edges necessarily forces neighboring PEs to be under-filled; that is what
+    // RedistributeEdgesTrueBalance is for).
+    const SInt hub_degree           = 1000;
+    const SInt overlay_edges_per_pe = 400;
+
+    Edgelist input = BuildHubWithUniformOverlay(n, hub_degree, overlay_edges_per_pe);
+
+    Edgelist    redistributed_edges;
+    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, n, /*remap_round_robin=*/false,
+                                                MPI_COMM_WORLD);
+
+    EXPECT_LT(vr.first, vr.second) << "PE " << rank << " was starved to an empty vertex range";
 }

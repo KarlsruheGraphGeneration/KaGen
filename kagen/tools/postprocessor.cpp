@@ -278,6 +278,14 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
     // Find vertex breakpoints that split the edge set into ~equal-sized buckets (one per PE).
     // Walk through owned vertices in global order; whenever the cumulative degree crosses
     // a bucket boundary, record that vertex as a breakpoint in the new distribution.
+    //
+    // A vertex is only ever recorded as a breakpoint *once*, even if its own degree spans
+    // multiple bucket boundaries (i.e. a single hub vertex's degree exceeds bucket_size). This
+    // means a hub-owning PE simply absorbs the overflow instead of the naive approach of
+    // emitting the same breakpoint repeatedly, which would make Distribution hand several
+    // consecutive PEs an empty (v, v) range, starving them entirely. The residual imbalance
+    // this leaves behind is bounded by O(max single-vertex degree) on at most one PE; use
+    // RedistributeEdgesTrueBalance if that bound is not tight enough.
     std::vector<SInt> breakpoints;
     SInt              cur_sum = prefix_sum;
     assert(size > 0); // size = 0 is not possible in MPI code
@@ -292,8 +300,13 @@ ComputeBalancedEdgeDistribution(Edgelist const& edges, const std::vector<SInt>& 
         SInt degree = local_degree[i];
         SInt low    = (cur_sum + bucket_size - 1) / bucket_size; // ceil(cur_sum / bucket_size)
         SInt start  = std::max(static_cast<SInt>(1), low);
-        for (std::size_t j = start * bucket_size; j < cur_sum + degree; j += bucket_size) {
-            breakpoints.push_back(i + vertex_distribution[rank]);
+        if (start * bucket_size < cur_sum + degree) {
+            // Vertex i itself is the one whose degree crosses the boundary: keep it (and its whole degree) in
+            // the *current* bucket -- i.e. actually absorb the overflow here -- and start the next bucket at
+            // the following vertex. This breakpoint is therefore always strictly greater than any previously
+            // recorded one (i + 1 > i), so it can never collide with -- and spuriously empty out -- an
+            // adjacent PE's range, even if vertex i alone already exceeds an entire PE's fair share.
+            breakpoints.push_back(i + 1 + vertex_distribution[rank]);
         }
         cur_sum += local_degree[i];
     }
