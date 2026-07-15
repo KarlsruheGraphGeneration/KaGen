@@ -143,6 +143,7 @@ Graph PlainEdgelistReader::Read(const SInt from, const SInt to, SInt, GraphRepre
     }
 
     Graph graph;
+    graph.representation = GraphRepresentation::EDGE_LIST;
     while (toker_.ValidPosition() && toker_.Position() < to) {
         const SInt u = toker_.ScanUnsigned();
         const SInt v = toker_.ScanUnsigned();
@@ -230,6 +231,7 @@ Graph WeightedBinaryEdgelistReader::Read(const SInt from, const SInt to, SInt, G
     }
 
     Graph graph;
+    graph.representation = GraphRepresentation::EDGE_LIST;
     for (std::size_t i = 0; i < data.size();) {
         SInt from = 0;
         std::memcpy(&from, data.data() + i, vtx_width_);
