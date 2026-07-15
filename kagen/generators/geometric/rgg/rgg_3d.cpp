@@ -55,8 +55,9 @@ void RGG3D::FinalizeEdgeList(MPI_Comm comm) {
             Edgelist                       local_edges = std::move(graph_.edges);
             const EdgeBalancedDistribution distribution =
                 RedistributeEdgesTrueBalance(local_edges, graph_.edges, config_.n, /*remap_round_robin=*/false, comm);
-            graph_.vertex_range = distribution.fully_owned_vertex_range;
+            graph_.vertex_range = distribution.vertex_range;
             SetHasSplitVertices(distribution.has_split_vertices);
+            SetPartialVertices(distribution.partial_vertices);
             break;
         }
     }

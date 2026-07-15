@@ -281,8 +281,9 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
                 Edgelist                       source = std::move(fragment.graph.edges);
                 const EdgeBalancedDistribution distribution =
                     RedistributeEdgesTrueBalance(source, fragment.graph.edges, n, /*remap_round_robin=*/false, comm);
-                fragment.graph.vertex_range      = distribution.fully_owned_vertex_range;
+                fragment.graph.vertex_range       = distribution.vertex_range;
                 fragment.graph.has_split_vertices = distribution.has_split_vertices;
+                fragment.graph.partial_vertices   = distribution.partial_vertices;
                 break;
             }
         }

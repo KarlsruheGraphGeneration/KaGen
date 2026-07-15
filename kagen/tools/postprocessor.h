@@ -82,20 +82,26 @@ VertexRange
 RedistributeEdgesBalanced(Edgelist& source, Edgelist& destination, SInt n, bool remap_round_robin, MPI_Comm comm);
 
 /**
- * @brief Describes a vertex whose own edges were split across a boundary with an adjacent PE.
- */
-struct SplitVertexInfo {
-    SInt vertex;       //!< The (global) vertex ID.
-    SInt local_offset; //!< Offset of this vertex's edges within the local (sorted) destination edge list.
-    SInt local_count;  //!< Number of this vertex's edges held locally.
-};
-
-/**
  * @brief Result of RedistributeEdgesTrueBalance().
  */
 struct EdgeBalancedDistribution {
-    //! Contiguous range of vertices fully (and exclusively) owned by this PE, i.e. every edge of every vertex in
-    //! this range is present on this PE and nowhere else. Isolated (degree-0) vertices are not represented here.
+    //! A complete, gap-free partition of [0, n): every vertex in the graph, including isolated (degree-0)
+    //! vertices, is covered by exactly one PE's range, so summing NumberOfLocalVertices()-equivalent sizes
+    //! across all PEs always yields exactly n. This is the right range to use for Graph::vertex_range: headers,
+    //! global-vertex-count, and per-vertex-weight-generation code all need exactly this "every vertex counted
+    //! once" property, which the graph-generation and I/O guard rails rely on whether or not any split occurred.
+    //! It does *not* imply this PE holds every one of a vertex's edges, though: a shared boundary vertex (see
+    //! partial_vertices) is resolved to exactly one (the lower-rank) of the two PEs sharing it for counting
+    //! purposes, but the higher-rank PE still physically holds some of that vertex's edges too -- see
+    //! fully_owned_vertex_range for a range that excludes this case.
+    VertexRange vertex_range;
+
+    //! The strict subset of vertex_range whose vertices are *exclusively* owned by this PE: every edge of every
+    //! vertex in this range is present on this PE and nowhere else (isolated, degree-0 vertices trivially
+    //! qualify). A shared boundary vertex -- see partial_vertices -- is excluded from *both* PEs sharing it,
+    //! since neither alone holds its whole adjacency. Always a subset of vertex_range (equal to it whenever
+    //! has_split_vertices is false); use this instead of vertex_range for anything that assumes single-PE
+    //! ownership of a vertex's whole adjacency (e.g. treating a local id range as directly CSR-indexable).
     VertexRange fully_owned_vertex_range;
 
     //! At most 2 boundary vertices (this PE's first and/or last local vertex) whose edges are shared with an

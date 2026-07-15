@@ -209,7 +209,24 @@ enum class StreamingMode {
 
 #ifdef __cplusplus
 namespace kagen {
+/*!
+ * Describes a vertex whose own edges are split across a boundary with an adjacent PE (only possible after
+ * GraphRedistribution::BALANCE_EDGES_TRUE / GraphDistribution::BALANCE_EDGES_TRUE; see
+ * Graph::has_split_vertices).
+ */
+struct SplitVertexInfo {
+    SInt vertex;       //!< The (global) vertex ID.
+    SInt local_offset; //!< Offset of this vertex's edges within this PE's local (sorted) edge list.
+    SInt local_count;  //!< Number of this vertex's edges held on this PE.
+};
+
 struct Graph {
+    // Complete, gap-free partition of [0, n): every vertex, including isolated (degree-0) ones, is covered by
+    // exactly one PE's range, so summing local sizes across all PEs always yields exactly n. Does not by itself
+    // imply this PE holds every edge of every vertex in the range: after GraphRedistribution::BALANCE_EDGES_TRUE
+    // / GraphDistribution::BALANCE_EDGES_TRUE, a shared boundary vertex is resolved to exactly one (the
+    // lowest-rank) PE here for counting purposes even though another PE may hold some of its edges too -- see
+    // has_split_vertices/partial_vertices.
     VertexRange         vertex_range;
     GraphRepresentation representation;
 
@@ -229,6 +246,16 @@ struct Graph {
     // single PE owns a vertex's whole adjacency. Adjacency-grouped output formats, --validate-simple-graph, and
     // some edge-weight/statistics code rely on that invariant and are incompatible with a graph where this is true.
     bool has_split_vertices = false;
+
+    // At most 2 entries (this PE's first and/or last local vertex) describing a vertex whose own edges are
+    // shared with an adjacent PE, only ever non-empty when has_split_vertices is true. A consumer that wants to
+    // treat a split vertex as, e.g., a chain of per-PE replicas can use this to locate exactly which of its
+    // local edges belong to the shared vertex, without having to re-derive split detection (a global
+    // communication step) itself. A single vertex whose degree spans more than one PE's fair share can appear
+    // here on more than 2 PEs in total (up to 2 per PE: one at each end of its own local range); which PE
+    // "canonically" owns the vertex ID itself (as opposed to holding a share of its edges) is not represented
+    // here -- see vertex_range, which resolves every shared vertex to exactly one (the lowest-rank) PE.
+    std::vector<SplitVertexInfo> partial_vertices;
 
     SInt NumberOfLocalVertices() const;
 

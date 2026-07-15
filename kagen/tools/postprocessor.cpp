@@ -477,7 +477,8 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     if (m == 0) {
         destination.clear();
         EdgeBalancedDistribution result;
-        result.fully_owned_vertex_range = rank == 0 ? VertexRange{0, n} : VertexRange{n, n};
+        result.vertex_range             = rank == 0 ? VertexRange{0, n} : VertexRange{n, n};
+        result.fully_owned_vertex_range = result.vertex_range;
         result.has_split_vertices       = false;
         return result;
     }
@@ -624,34 +625,98 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     }
     SortAndRemoveDuplicates(destination);
 
-    // Determine which of this PE's boundary vertices are shared with an adjacent PE via a cheap point-to-point
-    // exchange -- no broadcast, no further edge data movement.
+    // Stage 2: fix residual drift from pre-dedup bucket boundaries. Everything above placed bucket boundaries
+    // using *pre-deduplication* degree estimates (m, prefix_sum, edge_owner_dist), so each PE's now-exact local
+    // edge count (post dedup) can drift from its +/-1 target by however many duplicate edges were counted in
+    // upstream of it -- bounded by total duplicate volume, not by any single vertex's degree (splitting a
+    // dominant hub was already handled correctly above, without ever concentrating its whole edge set on one
+    // PE). Since every PE now knows its *exact* local count, correcting this is a second, much smaller, purely
+    // rank-based rebalance: no vertex grouping, no escalation, no reply protocol needed -- just move each edge
+    // to the target PE implied by its exact global rank among the now-deduplicated total.
+    {
+        SInt exact_local_count = static_cast<SInt>(destination.size());
+        SInt exact_prefix      = 0;
+        MPI_Exscan(&exact_local_count, &exact_prefix, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+        if (rank == 0) {
+            exact_prefix = 0;
+        }
+        SInt exact_m = exact_local_count;
+        MPI_Allreduce(MPI_IN_PLACE, &exact_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
+
+        if (exact_m > 0) {
+            Distribution exact_edge_owner_dist(ComputeBalancedVertexDistribution(exact_m, comm));
+
+            std::unordered_map<PEID, std::vector<SInt>> rebalance_buffers;
+            for (std::size_t i = 0; i < destination.size(); ++i) {
+                const SInt global_rank = exact_prefix + static_cast<SInt>(i);
+                const PEID target      = exact_edge_owner_dist.compute_owner(global_rank);
+                auto&      buf         = rebalance_buffers[target];
+                buf.push_back(destination[i].first);
+                buf.push_back(destination[i].second);
+            }
+
+            auto rebalanced = ExchangeMessageBuffers(std::move(rebalance_buffers), KAGEN_MPI_SINT, comm);
+            destination.clear();
+            destination.reserve(rebalanced.size() / 2);
+            for (std::size_t i = 0; i < rebalanced.size(); i += 2) {
+                destination.emplace_back(rebalanced[i], rebalanced[i + 1]);
+            }
+            std::sort(destination.begin(), destination.end());
+        }
+    }
+
+    // Determine which of this PE's boundary vertices are shared with an adjacent PE, and derive a complete
+    // (gap-free) partition of [0, n) for this PE's vertex ownership. Both need to see past an empty neighbor to
+    // find the next PE that actually holds edges, so both are computed from one cheap MPI_Allgather of every
+    // PE's (first tail, last tail) rather than a pairwise exchange.
     const bool has_local_edges = !destination.empty();
     const SInt my_first_tail   = has_local_edges ? destination.front().first : n;
     const SInt my_last_tail    = has_local_edges ? destination.back().first : n;
 
+    std::vector<SInt> all_first_tails(static_cast<std::size_t>(size));
+    std::vector<SInt> all_last_tails(static_cast<std::size_t>(size));
+    MPI_Allgather(&my_first_tail, 1, KAGEN_MPI_SINT, all_first_tails.data(), 1, KAGEN_MPI_SINT, comm);
+    MPI_Allgather(&my_last_tail, 1, KAGEN_MPI_SINT, all_last_tails.data(), 1, KAGEN_MPI_SINT, comm);
+
     const PEID left_neighbor  = rank > 0 ? rank - 1 : MPI_PROC_NULL;
     const PEID right_neighbor = rank + 1 < size ? rank + 1 : MPI_PROC_NULL;
 
-    SInt neighbor_last_tail = n;
-    MPI_Sendrecv(
-        &my_first_tail, 1, KAGEN_MPI_SINT, left_neighbor, 0, &neighbor_last_tail, 1, KAGEN_MPI_SINT, left_neighbor, 0,
-        comm, MPI_STATUS_IGNORE);
-    SInt neighbor_first_tail = n;
-    MPI_Sendrecv(
-        &my_last_tail, 1, KAGEN_MPI_SINT, right_neighbor, 0, &neighbor_first_tail, 1, KAGEN_MPI_SINT, right_neighbor,
-        0, comm, MPI_STATUS_IGNORE);
-
-    const bool is_left_partial  = has_local_edges && left_neighbor != MPI_PROC_NULL && neighbor_last_tail == my_first_tail;
-    const bool is_right_partial = has_local_edges && right_neighbor != MPI_PROC_NULL && neighbor_first_tail == my_last_tail;
+    const bool is_left_partial =
+        has_local_edges && left_neighbor != MPI_PROC_NULL
+        && all_last_tails[static_cast<std::size_t>(left_neighbor)] == my_first_tail;
+    const bool is_right_partial =
+        has_local_edges && right_neighbor != MPI_PROC_NULL
+        && all_first_tails[static_cast<std::size_t>(right_neighbor)] == my_last_tail;
 
     EdgeBalancedDistribution result;
-    if (has_local_edges) {
-        const SInt range_start = my_first_tail + (is_left_partial ? 1 : 0);
-        const SInt range_end   = my_last_tail + (is_right_partial ? 0 : 1);
-        result.fully_owned_vertex_range =
-            (range_start <= range_end) ? VertexRange{range_start, range_end} : VertexRange{range_start, range_start};
 
+    // Complete, gap-free partition of [0, n): walk all PEs in rank order. A PE with local edges owns through
+    // (its own last tail + 1); this resolves a shared boundary vertex to the lower-rank PE (whichever PE's last
+    // tail equals it), and lets an empty PE -- or a run of several -- defer the running boundary forward
+    // without owning anything new, which is exactly what's needed to absorb a stretch of isolated (degree-0)
+    // vertices into whichever PE precedes it. The last PE always closes the partition at n, absorbing any
+    // trailing isolated vertices (or, in the degenerate case where no PE has any edges at all, the entire
+    // vertex set).
+    SInt running_boundary = 0;
+    SInt my_range_start   = 0;
+    SInt my_range_end     = 0;
+    for (PEID pe = 0; pe < size; ++pe) {
+        if (pe == rank) {
+            my_range_start = running_boundary;
+        }
+        if (all_last_tails[static_cast<std::size_t>(pe)] != n) {
+            running_boundary = all_last_tails[static_cast<std::size_t>(pe)] + 1;
+        }
+        if (pe == size - 1) {
+            running_boundary = n;
+        }
+        if (pe == rank) {
+            my_range_end = running_boundary;
+        }
+    }
+    result.vertex_range = {my_range_start, my_range_end};
+
+    if (has_local_edges) {
         auto tail_less = [](const std::pair<SInt, SInt>& edge, SInt v) {
             return edge.first < v;
         };
@@ -668,9 +733,16 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
             const auto offset         = static_cast<SInt>(std::distance(destination.begin(), last_run_begin));
             result.partial_vertices.push_back({my_last_tail, offset, static_cast<SInt>(destination.size()) - offset});
         }
-    } else {
-        result.fully_owned_vertex_range = {0, 0};
     }
+
+    // fully_owned_vertex_range is the strict subset of vertex_range excluding a shared boundary vertex from
+    // *both* sides sharing it (neither alone holds its whole adjacency) -- a cheap trim of the already-computed
+    // complete range, no new communication needed. Clamp to an empty range at my_range_start if trimming both
+    // ends would cross (this PE's only local vertices were entirely boundary-shared ones).
+    const SInt owned_start = my_range_start + (is_left_partial ? 1 : 0);
+    const SInt owned_end   = my_range_end - (is_right_partial ? 1 : 0);
+    result.fully_owned_vertex_range = (owned_start <= owned_end) ? VertexRange{owned_start, owned_end}
+                                                                   : VertexRange{owned_start, owned_start};
 
     bool any_split = is_left_partial || is_right_partial;
     MPI_Allreduce(MPI_IN_PLACE, &any_split, 1, MPI_C_BOOL, MPI_LOR, comm);

@@ -449,6 +449,10 @@ void Generator::SetHasSplitVertices(const bool has_split_vertices) {
     graph_.has_split_vertices = has_split_vertices;
 }
 
+void Generator::SetPartialVertices(std::vector<SplitVertexInfo> partial_vertices) {
+    graph_.partial_vertices = std::move(partial_vertices);
+}
+
 void Generator::FilterDuplicateEdges() {
     std::sort(graph_.edges.begin(), graph_.edges.end());
     auto it = std::unique(graph_.edges.begin(), graph_.edges.end());

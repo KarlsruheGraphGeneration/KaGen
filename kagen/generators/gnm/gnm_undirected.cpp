@@ -66,8 +66,9 @@ void GNMUndirected<BigInt>::FinalizeEdgeList(MPI_Comm comm) {
         case GraphRedistribution::BALANCE_EDGES_TRUE: {
             const EdgeBalancedDistribution distribution =
                 RedistributeEdgesTrueBalance(local_edges_, graph_.edges, config_.n, remap_round_robin, comm);
-            graph_.vertex_range = distribution.fully_owned_vertex_range;
+            graph_.vertex_range = distribution.vertex_range;
             SetHasSplitVertices(distribution.has_split_vertices);
+            SetPartialVertices(distribution.partial_vertices);
             break;
         }
     }

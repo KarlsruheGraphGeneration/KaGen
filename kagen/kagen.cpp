@@ -431,6 +431,7 @@ void Graph::Clear() {
     coordinates.first.clear();
     coordinates.second.clear();
     has_split_vertices = false;
+    partial_vertices.clear();
 }
 
 void Graph::FreeEdgelist() {

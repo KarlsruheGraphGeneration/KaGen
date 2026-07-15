@@ -16,12 +16,12 @@ using GeneratorFunc    = std::function<Graph(KaGen&, SInt, SInt)>;
 using RedistributeFunc = std::function<VertexRange(Edgelist&, Edgelist&, SInt, bool, MPI_Comm)>;
 
 // Wraps RedistributeEdgesTrueBalance's richer EdgeBalancedDistribution return type down to a plain VertexRange
-// (its fully_owned_vertex_range) so it fits RedistributeFunc and can be used interchangeably with the other
-// redistribution functions in tests that only care about the final edge multiset, not about exact ownership of
-// boundary/split vertices.
+// (its vertex_range, the complete gap-free partition -- see EdgeBalancedDistribution) so it fits
+// RedistributeFunc and can be used interchangeably with the other redistribution functions in tests that only
+// care about the final edge multiset, not about exact ownership of boundary/split vertices.
 static VertexRange RedistributeEdgesTrueBalanceWrapped(
     Edgelist& source, Edgelist& destination, SInt n, bool remap_round_robin, MPI_Comm comm) {
-    return RedistributeEdgesTrueBalance(source, destination, n, remap_round_robin, comm).fully_owned_vertex_range;
+    return RedistributeEdgesTrueBalance(source, destination, n, remap_round_robin, comm).vertex_range;
 }
 
 static Graph MakeEdgeListGraph(const Edgelist& edges) {
@@ -408,6 +408,32 @@ TEST(RedistributeEdgesTrueBalanceHubTest, SplitsDominantHubForExactBalance) {
     if (size > 1) {
         EXPECT_GT(num_pes_with_hub_edge, 1) << "hub vertex's edges ended up entirely on a single PE";
         EXPECT_TRUE(dist.has_split_vertices);
+
+        // (c) fully_owned_vertex_range is a strict subset of vertex_range on every PE that actually shares a
+        // boundary vertex (partial_vertices non-empty), and every vertex it reports is excluded from
+        // fully_owned_vertex_range -- i.e. the trim is neither missing nor over-eager. For vertex_range itself
+        // (the complete partition), a shared vertex spanning more than 2 PEs is resolved to exactly the
+        // lowest-rank PE holding any of its edges: on that PE it's credited into vertex_range (a "right
+        // partial" entry, shared with a higher-rank neighbor); on every other PE holding a share of it, it was
+        // already ceded away and so must fall strictly below vertex_range.first (a "left partial" entry, shared
+        // with a lower-rank neighbor).
+        for (const auto& split_vertex: dist.partial_vertices) {
+            EXPECT_FALSE(
+                split_vertex.vertex >= dist.fully_owned_vertex_range.first
+                && split_vertex.vertex < dist.fully_owned_vertex_range.second)
+                << "shared boundary vertex " << split_vertex.vertex << " must be excluded from "
+                << "fully_owned_vertex_range";
+            const bool credited_here =
+                split_vertex.vertex >= dist.vertex_range.first && split_vertex.vertex < dist.vertex_range.second;
+            const bool ceded_to_lower_rank = split_vertex.vertex < dist.vertex_range.first;
+            EXPECT_TRUE(credited_here || ceded_to_lower_rank)
+                << "shared boundary vertex " << split_vertex.vertex << " neither credited to this PE's "
+                << "vertex_range nor ceded to a lower rank";
+        }
+        if (dist.partial_vertices.empty()) {
+            EXPECT_EQ(dist.fully_owned_vertex_range, dist.vertex_range)
+                << "with no shared boundary vertex on this PE, fully_owned_vertex_range should equal vertex_range";
+        }
     }
 }
 
@@ -417,6 +443,11 @@ TEST(RedistributeEdgesTrueBalanceHubTest, SplitsDominantHubForExactBalance) {
 // copies are not guaranteed to be routed to the same target PE by position alone, so the final per-PE
 // SortAndRemoveDuplicates -- which only catches duplicates that happen to co-locate -- misses them. This models
 // the extreme case where the duplication is total (every PE contributes an identical copy of the whole hub).
+//
+// This also regression-tests the balance side of the same bug: the bucket boundaries used to route edges are
+// computed from *pre-deduplication* degree counts, so if duplicates aren't accounted for before dedup happens,
+// the post-dedup per-PE edge counts drift away from their +/-1 target (holes left behind by removed
+// duplicates). See Stage 2 in RedistributeEdgesTrueBalance.
 TEST(RedistributeEdgesTrueBalanceHubTest, DedupsHubEdgesDuplicatedAcrossSourcePEs) {
     const SInt n                    = 4000;
     const SInt hub_degree           = 1000;
@@ -437,4 +468,81 @@ TEST(RedistributeEdgesTrueBalanceHubTest, DedupsHubEdgesDuplicatedAcrossSourcePE
     EXPECT_EQ(static_cast<SInt>(hub_edges_in_result), hub_degree)
         << "expected exactly hub_degree unique hub edges; duplicates contributed by different source PEs should "
            "have been removed";
+
+    int local_count = static_cast<int>(destination.size());
+    int min_count, max_count;
+    MPI_Allreduce(&local_count, &min_count, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&local_count, &max_count, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    EXPECT_LE(max_count - min_count, 1)
+        << "local edge counts are not balanced to within 1 across PEs once cross-PE duplicates are removed";
+}
+
+// Regression test for the "isolated vertices silently dropped" bug: vertex_range must be a complete, gap-free
+// partition of [0, n) -- covering isolated (degree-0) vertices too, and resolving a shared boundary vertex to
+// exactly one PE -- not just the vertices that happen to have local edges. Before the fix, a graph with
+// mostly-isolated vertices (e.g. 16 vertices, 1 edge) would have its global vertex count silently collapse to
+// just the handful of vertices touched by an edge.
+TEST(RedistributeEdgesTrueBalanceRangeTest, VertexRangeCoversAllVerticesIncludingIsolated) {
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    const SInt n = 16;
+    Edgelist   input;
+    if (rank == 0) {
+        input.emplace_back(2, 7);
+    }
+
+    Edgelist                 destination;
+    EdgeBalancedDistribution dist =
+        RedistributeEdgesTrueBalance(input, destination, n, /*remap_round_robin=*/false, MPI_COMM_WORLD);
+
+    // fully_owned_vertex_range is always a subset of vertex_range, and this graph is far too sparse to trigger
+    // an actual split, so the two should coincide exactly here.
+    EXPECT_EQ(dist.fully_owned_vertex_range, dist.vertex_range)
+        << "no split should have occurred for a single edge among mostly-isolated vertices";
+
+    std::vector<SInt> starts(static_cast<std::size_t>(size));
+    std::vector<SInt> ends(static_cast<std::size_t>(size));
+    MPI_Allgather(&dist.vertex_range.first, 1, KAGEN_MPI_SINT, starts.data(), 1, KAGEN_MPI_SINT, MPI_COMM_WORLD);
+    MPI_Allgather(&dist.vertex_range.second, 1, KAGEN_MPI_SINT, ends.data(), 1, KAGEN_MPI_SINT, MPI_COMM_WORLD);
+
+    EXPECT_EQ(starts.front(), 0) << "the partition of [0, n) must start at 0";
+    EXPECT_EQ(ends.back(), n) << "the partition of [0, n) must end at n, including any trailing isolated vertices";
+    for (int pe = 0; pe < size; ++pe) {
+        EXPECT_LE(starts[static_cast<std::size_t>(pe)], ends[static_cast<std::size_t>(pe)])
+            << "PE " << pe << " has an invalid (start > end) range";
+    }
+    for (int pe = 0; pe + 1 < size; ++pe) {
+        EXPECT_EQ(ends[static_cast<std::size_t>(pe)], starts[static_cast<std::size_t>(pe + 1)])
+            << "gap or overlap between PE " << pe << " and PE " << pe + 1;
+    }
+}
+
+// General regression net: for every redistribution mode (including true edge-balancing), the returned vertex
+// range's sizes must sum to exactly the graph's vertex count across all PEs -- i.e. no PE's range overlaps
+// another's and no vertex (isolated or not) is left uncovered.
+TEST_P(RedistributeEdgesFixture, VertexRangeSizesSumToN) {
+    auto [gen_pair, redist_pair, remap_round_robin] = GetParam();
+    auto generate                                   = std::get<1>(gen_pair);
+    auto redistribute                               = std::get<1>(redist_pair);
+
+    const SInt n = 1000;
+    const SInt m = 4 * n;
+
+    kagen::KaGen generator(MPI_COMM_WORLD);
+    generator.UseEdgeListRepresentation();
+    Graph graph = generate(generator, n, m);
+
+    Edgelist input        = graph.edges;
+    SInt     num_vertices = graph.vertex_range.second;
+    MPI_Allreduce(MPI_IN_PLACE, &num_vertices, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
+
+    Edgelist    redistributed_edges;
+    VertexRange vr = redistribute(input, redistributed_edges, num_vertices, remap_round_robin, MPI_COMM_WORLD);
+
+    SInt local_n = vr.second - vr.first;
+    SInt total_n = 0;
+    MPI_Allreduce(&local_n, &total_n, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
+    EXPECT_EQ(total_n, num_vertices);
 }
