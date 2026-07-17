@@ -16,6 +16,7 @@
 
 #include <mpi.h>
 
+#include <algorithm>
 #include <memory>
 #include <sstream>
 
@@ -144,12 +145,170 @@ std::vector<SInt> ReadExplicitVertexDistribution(const std::string& filename, co
     return number_of_vertices;
 }
 
+// Collectively checks that the union of all PEs' local edge slices is globally sorted by tail vertex: each PE's
+// edges are non-decreasing by tail, and the last tail of the nearest non-empty PE to the left is <= this PE's
+// first tail (equality is allowed -- that is a split boundary vertex). Only then does a contiguous global edge
+// range map to a coherent, splittable vertex partition, which the direct strict-read path requires for
+// edge-list readers (whose on-disk order is otherwise arbitrary). Empty PEs contribute the sentinel n.
+bool CheckGloballyTailSorted(const Edgelist& edges, const SInt n, MPI_Comm comm) {
+    PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    const bool local_sorted = std::is_sorted(edges.begin(), edges.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    const bool has_local  = !edges.empty();
+    const SInt first_tail = has_local ? edges.front().first : n;
+    const SInt last_tail  = has_local ? edges.back().first : n;
+
+    std::vector<SInt> all_last_tails(static_cast<std::size_t>(size));
+    MPI_Allgather(&last_tail, 1, KAGEN_MPI_SINT, all_last_tails.data(), 1, KAGEN_MPI_SINT, comm);
+
+    bool boundary_ok = true;
+    if (has_local) {
+        for (PEID pe = rank - 1; pe >= 0; --pe) {
+            if (all_last_tails[static_cast<std::size_t>(pe)] != n) { // nearest non-empty predecessor
+                boundary_ok = all_last_tails[static_cast<std::size_t>(pe)] <= first_tail;
+                break;
+            }
+        }
+    }
+
+    bool ok = local_sorted && boundary_ok;
+    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_C_BOOL, MPI_LAND, comm);
+    return ok;
+}
+
+// Heals a directly-read strict edge slice (edge list, globally tail-sorted) to whole-vertex ("vertex-atomic")
+// ownership for --distribution=balance-edges: each PE hands its leading partial boundary vertex's edges to its
+// left neighbor (the lower-rank PE, which owns the whole vertex) and receives its right neighbor's, via a single
+// neighbor exchange. Edge weights travel with their edges. Returns false -- signalling the caller to fall back to
+// RedistributeEdgesBalanced -- when a single exchange cannot resolve ownership: any empty PE, or a vertex whose
+// degree spans more than two PEs.
+bool HealToVertexAtomic(Graph& graph, const SInt n, MPI_Comm comm) {
+    PEID rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    Edgelist&    edges   = graph.edges;
+    EdgeWeights& weights = graph.edge_weights;
+    const bool   weighted   = !weights.empty();
+    const bool   has_local  = !edges.empty();
+    const SInt   first_tail = has_local ? edges.front().first : n;
+    const SInt   last_tail  = has_local ? edges.back().first : n;
+
+    const BoundaryOwnership bo = ComputeBoundaryOwnership(first_tail, last_tail, has_local, n, comm);
+
+    bool needs_fallback =
+        !has_local || (bo.is_left_partial && bo.is_right_partial && first_tail == last_tail);
+    MPI_Allreduce(MPI_IN_PLACE, &needs_fallback, 1, MPI_C_BOOL, MPI_LOR, comm);
+    if (needs_fallback) {
+        return false;
+    }
+
+    // Split off the leading run (all edges whose tail == first_tail) to send left, if this PE shares first_tail
+    // with its left neighbor.
+    std::vector<SInt>  send_edges;
+    std::vector<SSInt> send_weights;
+    SInt               keep_from = 0;
+    if (bo.is_left_partial) {
+        auto tail_greater = [](SInt v, const std::pair<SInt, SInt>& e) {
+            return v < e.first;
+        };
+        const auto split_it = std::upper_bound(edges.begin(), edges.end(), first_tail, tail_greater);
+        keep_from           = static_cast<SInt>(std::distance(edges.begin(), split_it));
+        send_edges.reserve(static_cast<std::size_t>(keep_from) * 2);
+        for (SInt i = 0; i < keep_from; ++i) {
+            send_edges.push_back(edges[i].first);
+            send_edges.push_back(edges[i].second);
+            if (weighted) {
+                send_weights.push_back(weights[i]);
+            }
+        }
+    }
+
+    const PEID left_dest = bo.is_left_partial ? rank - 1 : MPI_PROC_NULL;
+    const PEID right_src = bo.is_right_partial ? rank + 1 : MPI_PROC_NULL;
+
+    SInt send_count = static_cast<SInt>(send_edges.size());
+    SInt recv_count = 0;
+    MPI_Sendrecv(
+        &send_count, 1, KAGEN_MPI_SINT, left_dest, 0, &recv_count, 1, KAGEN_MPI_SINT, right_src, 0, comm,
+        MPI_STATUS_IGNORE);
+    std::vector<SInt> recv_edges(static_cast<std::size_t>(recv_count));
+    MPI_Sendrecv(
+        send_edges.data(), send_count, KAGEN_MPI_SINT, left_dest, 1, recv_edges.data(), recv_count, KAGEN_MPI_SINT,
+        right_src, 1, comm, MPI_STATUS_IGNORE);
+
+    std::vector<SSInt> recv_weights;
+    if (weighted) {
+        SInt send_w = static_cast<SInt>(send_weights.size());
+        SInt recv_w = 0;
+        MPI_Sendrecv(
+            &send_w, 1, KAGEN_MPI_SINT, left_dest, 2, &recv_w, 1, KAGEN_MPI_SINT, right_src, 2, comm,
+            MPI_STATUS_IGNORE);
+        recv_weights.resize(static_cast<std::size_t>(recv_w));
+        MPI_Sendrecv(
+            send_weights.data(), send_w, KAGEN_MPI_SSINT, left_dest, 3, recv_weights.data(), recv_w,
+            KAGEN_MPI_SSINT, right_src, 3, comm, MPI_STATUS_IGNORE);
+    }
+
+    // Rebuild: drop the sent leading run, keep the rest, append the received run (all for last_tail, so tail
+    // order is preserved).
+    Edgelist    new_edges;
+    EdgeWeights new_weights;
+    new_edges.reserve((edges.size() - static_cast<std::size_t>(keep_from)) + recv_edges.size() / 2);
+    for (SInt i = keep_from; i < static_cast<SInt>(edges.size()); ++i) {
+        new_edges.push_back(edges[i]);
+        if (weighted) {
+            new_weights.push_back(weights[i]);
+        }
+    }
+    for (std::size_t i = 0; i < recv_edges.size(); i += 2) {
+        new_edges.emplace_back(recv_edges[i], recv_edges[i + 1]);
+    }
+    if (weighted) {
+        new_weights.insert(new_weights.end(), recv_weights.begin(), recv_weights.end());
+    }
+
+    edges   = std::move(new_edges);
+    weights = std::move(new_weights);
+    return true;
+}
+
 } // namespace
 
 GraphFragment ReadGraphFragment(
     GraphReader& reader, const GraphRepresentation representation, const InputGraphConfig& config, const PEID rank,
     const PEID size) {
     const auto [n, m] = reader.ReadSize();
+
+    // Direct edge-balanced read: each PE reads its own contiguous edge slice [from_edge, to_edge) straight from
+    // disk -- the same closed-form partition the redistribution primitives target -- without the vertex-balanced
+    // read + all-to-all. No edge movement, no second in-memory copy of the input.
+    //  - BALANCE_EDGES_TRUE takes it whenever the reader supports a strict edge-range read (ParHIP/METIS always;
+    //    a globally tail-sorted edge list after a cheap check).
+    //  - BALANCE_EDGES takes it only for readers that would otherwise redistribute (the sortedness-check readers,
+    //    i.e. edge lists); ParHIP/METIS already serve BALANCE_EDGES directly via FindNodeByEdge below. The strict
+    //    slice is then healed to whole-vertex ownership in FinalizeGraphFragment.
+    const bool direct_strict = config.distribution == GraphDistribution::BALANCE_EDGES_TRUE;
+    const bool direct_balance_edges =
+        config.distribution == GraphDistribution::BALANCE_EDGES && reader.StrictEdgeRangeRequiresSortednessCheck();
+    if ((direct_strict || direct_balance_edges) && reader.CanReadStrictEdgeRange()
+        && !reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_EDGES)) {
+        const auto [from_edge, to_edge] = ComputeRange(m, size, rank);
+
+        GraphFragment fragment;
+        fragment.graph                   = reader.ReadStrictEdgeRange(from_edge, to_edge, representation);
+        fragment.deficits                = reader.Deficits();
+        fragment.strict_edge_direct      = true;
+        fragment.strict_needs_sort_check = reader.StrictEdgeRangeRequiresSortednessCheck();
+        fragment.heal_to_vertex_atomic   = direct_balance_edges;
+        fragment.n                       = reader.HasDeficit(ReaderDeficits::UNKNOWN_NUM_VERTICES) ? 0 : n;
+        return fragment;
+    }
 
     const bool reader_requires_redistribution = reader.HasDeficit(ReaderDeficits::REQUIRES_REDISTRIBUTION);
     const bool needs_postprocessing =
@@ -215,6 +374,68 @@ GraphFragment ReadGraphFragment(
 }
 
 Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& config, const bool output, MPI_Comm comm) {
+    // Direct strict edge-balanced read: the fragment already holds this PE's exact edge slice. All that remains
+    // is to compute the gap-free vertex_range and split-vertex metadata from one MPI_Allgather of the per-PE
+    // boundary tails -- no edge movement, no in-memory duplication. Edge-list inputs are first checked for
+    // global tail-sortedness; if that fails, fall back to the redistribution path (reusing the edges already in
+    // memory, no re-read).
+    if (fragment.strict_edge_direct) {
+        Graph& graph = fragment.graph;
+        // Trust the reader's exact vertex count when it has one (even if it is 0, i.e. an empty graph); only
+        // edge-list readers (UNKNOWN_NUM_VERTICES) must derive it from the gathered edges.
+        const SInt n = (fragment.deficits & ReaderDeficits::UNKNOWN_NUM_VERTICES)
+                           ? FindNumberOfVerticesInEdgelist(graph.edges, comm)
+                           : fragment.n;
+
+        const bool sorted_ok = !fragment.strict_needs_sort_check || CheckGloballyTailSorted(graph.edges, n, comm);
+
+        // --distribution=balance-edges: heal the strict slice to whole-vertex ownership. If that is not possible
+        // (empty PE or a vertex spanning >2 PEs), fall back to the redistribution path below.
+        if (sorted_ok && fragment.heal_to_vertex_atomic && !HealToVertexAtomic(graph, n, comm)) {
+            fragment.strict_edge_direct = false;
+        } else if (sorted_ok) {
+            if (output) {
+                std::cout << "reading edge-balanced ... " << std::flush;
+            }
+
+            if (graph.representation == GraphRepresentation::EDGE_LIST) {
+                const EdgeBalancedDistribution dist = ComputeEdgeBalancedBoundaries(graph.edges, n, comm);
+                graph.vertex_range       = dist.vertex_range;
+                graph.has_split_vertices = dist.has_split_vertices;
+                graph.partial_vertices   = dist.partial_vertices;
+            } else {
+                // CSR: vertex_range stays the physically-present row space [first_tail, last_tail + 1] that xadj
+                // indexes (the reader's provisional range), NOT the tail-based gap-free range. A split boundary
+                // vertex genuinely has a (partial) row on both PEs sharing it, so a non-overlapping gap-free CSR
+                // is impossible; instead the two PEs' ranges overlap by one vertex at each split boundary, which
+                // partial_vertices/has_split_vertices describe. When nothing is split, this row space is exactly
+                // the ordinary contiguous vertex range and every existing CSR consumer works unchanged. The first
+                // and last rows are guaranteed non-empty, so their tails are the boundary tails.
+                const bool has_local  = !graph.adjncy.empty();
+                const SInt first_tail = has_local ? graph.vertex_range.first : n;
+                const SInt last_tail  = has_local ? graph.vertex_range.second - 1 : n;
+
+                const BoundaryOwnership bo = ComputeBoundaryOwnership(first_tail, last_tail, has_local, n, comm);
+                if (has_local) {
+                    const SInt num_rows = graph.vertex_range.second - graph.vertex_range.first;
+                    if (bo.is_left_partial) {
+                        graph.partial_vertices.push_back({first_tail, 0, graph.xadj[1] - graph.xadj[0]});
+                    }
+                    if (bo.is_right_partial) {
+                        const SInt offset = graph.xadj[num_rows - 1];
+                        graph.partial_vertices.push_back({last_tail, offset, graph.xadj[num_rows] - offset});
+                    }
+                }
+                graph.has_split_vertices = bo.has_split_vertices;
+            }
+
+            return std::move(fragment.graph);
+        }
+
+        // Not globally tail-sorted: fall through to the redistribution path with the edges already in memory.
+        fragment.strict_edge_direct = false;
+    }
+
     const bool needs_postprocessing = (fragment.deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION)
                                        || config.distribution == GraphDistribution::BALANCE_EDGES_TRUE;
     if (needs_postprocessing) {

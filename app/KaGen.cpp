@@ -463,7 +463,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
             ->description(R"(The following options for how to distribute the static graph across PEs are available:
   - balance-vertices:     assign roughly the same number of nodes to each PE
   - balance-edges:        assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>
-  - balance-edges-strict: assign exactly (+/-1) the same number of edges to each PE, splitting a single vertex's edges across multiple PEs if necessary; only supported for plain edgelist-shaped formats, not for formats read via an efficient offset-based range read (metis, parhip)
+  - balance-edges-strict: assign exactly (+/-1) the same number of edges to each PE, splitting a single vertex's edges across multiple PEs if necessary. For parhip, metis, and (globally tail-sorted) weighted-binary-edgelist inputs this reads each PE's edge slice directly, with no redistribution; other inputs (e.g. plain-edgelist, or an unsorted edge list) fall back to reading a vertex-balanced partition and redistributing. Vertex-weighted input is not supported on the direct path.
   - explicit:             explicitly specify the number of vertices on each PE through a text file specified via the --explicit-distribution=<filename> option)");
         cmd->add_option(
             "--explicit-distribution", config.input_graph.explicit_distribution_filename,

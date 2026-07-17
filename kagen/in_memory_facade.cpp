@@ -40,19 +40,17 @@ bool RequiresSingleVertexOwnership(const FileFormat format) {
 } // namespace
 
 void CheckSplitVertexCompatibility(
-    const bool any_split, const GraphRepresentation representation, const PGeneratorConfig& config) {
+    const bool any_split, [[maybe_unused]] const GraphRepresentation representation, const PGeneratorConfig& config) {
     if (!any_split) {
         return;
     }
-    if (representation == GraphRepresentation::CSR) {
-        // CSR is built from the edge list via BuildCSRFromEdgeList(vertex_range, edges, ...), which assumes
-        // every edge's tail lies within vertex_range -- not true for a split/boundary vertex's edges, which
-        // corrupts (or crashes building) the resulting xadj/adjncy arrays.
-        throw ConfigurationError(
-            "CSR representation requires single-PE vertex ownership and is not supported together with a graph "
-            "that has split vertices (from --redistribution=balance-edges-strict); use the edge list "
-            "representation instead");
-    }
+    // Note: CSR representation is *not* rejected here. A split-vertex CSR graph is only ever produced by the
+    // direct strict edge-balanced file read (ParhipReader::ReadStrictEdgeRange), which builds valid xadj/adjncy
+    // with partial leading/trailing rows (described by partial_vertices). The paths that would build a
+    // *corrupt* CSR from a split edge list -- EdgeListOnlyGenerator::FinalizeCSR and
+    // FileGraphGenerator::FinalizeCSR's edge-list branch -- throw before reaching this guard, so any CSR+split
+    // graph that gets here is the well-formed kind. A consumer iterating local CSR rows must still honor
+    // partial_vertices at the boundaries; the output-format check below rejects adjacency-grouped writers.
     for (const FileFormat& format: config.output_graph.formats) {
         if (RequiresSingleVertexOwnership(format)) {
             std::stringstream msg;

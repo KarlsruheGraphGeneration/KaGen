@@ -29,15 +29,17 @@ TEST(CompatibilityGuardTest, SplitWithEdgeListFormatSucceeds) {
     EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
 }
 
-TEST(CompatibilityGuardTest, SplitWithCSRRepresentationThrows) {
-    // BuildCSRFromEdgeList(vertex_range, edges, ...) assumes every edge's tail lies within vertex_range, which
-    // does not hold for a split/boundary vertex's edges (they fall outside fully_owned_vertex_range) -- this
-    // corrupts or crashes building the resulting xadj/adjncy arrays if not caught here.
+TEST(CompatibilityGuardTest, SplitWithCSRRepresentationSucceeds) {
+    // A split-vertex CSR graph is only ever produced by the direct strict edge-balanced file read
+    // (ParhipReader::ReadStrictEdgeRange), which builds valid xadj/adjncy with partial leading/trailing rows
+    // (described by partial_vertices) -- it never goes through BuildCSRFromEdgeList. The paths that WOULD build
+    // a corrupt CSR from a split edge list throw earlier (EdgeListOnlyGenerator::FinalizeCSR,
+    // FileGraphGenerator::FinalizeCSR), so this guard no longer rejects CSR here.
     PGeneratorConfig config;
     config.output_graph.formats = {FileFormat::EDGE_LIST}; // otherwise-compatible output format
     config.statistics_level     = StatisticsLevel::NONE;
 
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::CSR, config), ConfigurationError);
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::CSR, config));
 }
 
 struct AdjacencyGroupedFormatParam : public ::testing::TestWithParam<FileFormat> {};

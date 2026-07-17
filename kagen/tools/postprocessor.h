@@ -117,6 +117,52 @@ struct EdgeBalancedDistribution {
 };
 
 /**
+ * @brief Which of this PE's two boundary vertices are shared with an adjacent PE, plus the resulting
+ * gap-free vertex ownership. Computed purely from every PE's (first tail, last tail) via one MPI_Allgather
+ * plus one MPI_Allreduce(LOR); carries no edge payload, so it is reusable by both the redistribution path
+ * and the direct edge-range read path.
+ */
+struct BoundaryOwnership {
+    //! Complete, gap-free partition of [0, n): boundary vertex resolved to the lower-rank PE; absorbs runs
+    //! of isolated (degree-0) vertices into the preceding PE. See EdgeBalancedDistribution::vertex_range.
+    VertexRange vertex_range;
+    //! Strict subset of vertex_range excluding a boundary vertex shared with a neighbor from both sides.
+    VertexRange fully_owned_vertex_range;
+    //! This PE's first local vertex is shared with (owned by) the left neighbor.
+    bool is_left_partial = false;
+    //! This PE's last local vertex is shared with the right neighbor (and owned by this PE).
+    bool is_right_partial = false;
+    //! True if any vertex anywhere in the graph was split across PEs (MPI_Allreduce(LOR) of the above).
+    bool has_split_vertices = false;
+};
+
+/**
+ * @brief Computes gap-free vertex ownership and split-boundary flags from this PE's first/last tail vertex.
+ * One MPI_Allgather of (first_tail, last_tail) + one MPI_Allreduce(LOR); no edge movement. When
+ * has_local_edges is false, pass any first_tail/last_tail (they are ignored in favor of the sentinel n).
+ *
+ * @param first_tail The tail vertex of this PE's first local edge (ignored if has_local_edges is false).
+ * @param last_tail The tail vertex of this PE's last local edge (ignored if has_local_edges is false).
+ * @param has_local_edges Whether this PE holds any local edges.
+ * @param n The number of vertices in the graph.
+ * @param comm The MPI communicator.
+ */
+BoundaryOwnership
+ComputeBoundaryOwnership(SInt first_tail, SInt last_tail, bool has_local_edges, SInt n, MPI_Comm comm);
+
+/**
+ * @brief Derives the full EdgeBalancedDistribution (vertex_range, fully_owned_vertex_range, partial_vertices,
+ * has_split_vertices) for a PE that already holds its sorted, edge-balanced local edge list. Wraps
+ * ComputeBoundaryOwnership and fills partial_vertices via binary search over the (tail-sorted) edges.
+ * No edge movement occurs.
+ *
+ * @param sorted_local_edges This PE's local edges, sorted by (tail, head).
+ * @param n The number of vertices in the graph.
+ * @param comm The MPI communicator.
+ */
+EdgeBalancedDistribution ComputeEdgeBalancedBoundaries(const Edgelist& sorted_local_edges, SInt n, MPI_Comm comm);
+
+/**
  * @brief Redistributes edges so that each PE owns exactly (+/-1) the same number of edges, splitting a single
  * vertex's own edges across multiple PEs if its degree exceeds one PE's fair share. Unlike
  * RedistributeEdgesBalanced(), this breaks the invariant that a single PE owns a vertex's whole adjacency; only

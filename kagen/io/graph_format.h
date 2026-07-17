@@ -6,6 +6,7 @@
 #include <mpi.h>
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace kagen {
@@ -69,6 +70,47 @@ public:
      * @return The tail vertex of the given edge ID.
      */
     virtual SInt FindNodeByEdge(SInt edge) = 0;
+
+    /*!
+     * Whether this reader can read exactly the contiguous global edge range `[from_edge, to_edge)` directly
+     * from disk via `ReadStrictEdgeRange()`, starting and/or ending mid-adjacency if a strict edge boundary
+     * falls inside a vertex. This enables reading a strictly edge-balanced (`GraphDistribution::BALANCE_EDGES_TRUE`)
+     * partition without the vertex-balanced-read + redistribution postprocessing pass. Requires the number of
+     * edges reported by `ReadSize()` to be exact (i.e., the `UNKNOWN_NUM_EDGES` deficit must not be set).
+     */
+    virtual bool CanReadStrictEdgeRange() const {
+        return false;
+    }
+
+    /*!
+     * Whether a `ReadStrictEdgeRange()` result may only be trusted after collectively verifying that the input
+     * is globally tail-sorted. This is `true` for edge-list readers, whose on-disk edge order is arbitrary
+     * (a contiguous edge range only maps to a coherent vertex partition if the edges are sorted by tail), and
+     * `false` for readers whose on-disk order is tail-grouped by construction (ParHIP, METIS). If the sortedness
+     * check fails, the caller falls back to the redistribution path.
+     */
+    virtual bool StrictEdgeRangeRequiresSortednessCheck() const {
+        return false;
+    }
+
+    /*!
+     * Reads exactly the contiguous global edge range `[from_edge, to_edge)` directly from disk. The returned
+     * graph holds this PE's local edges (edge list) or the CSR slice spanning the physically-present tail
+     * vertices; the first and/or last vertex may be partial (its adjacency shared with an adjacent PE). The
+     * returned `vertex_range` is provisional (the physically-present tail vertices `[first_tail, last_tail + 1)`);
+     * the caller replaces it with the gap-free partition and fills in the split-vertex metadata. Only called
+     * when `CanReadStrictEdgeRange()` returns `true`.
+     *
+     * @param from_edge The first global edge ID to read (inclusive).
+     * @param to_edge The last global edge ID to read (exclusive).
+     * @param representation Whether to return the slice as an edge list or in CSR.
+     * @return The read graph slice.
+     */
+    virtual Graph ReadStrictEdgeRange(
+        [[maybe_unused]] SInt from_edge, [[maybe_unused]] SInt to_edge,
+        [[maybe_unused]] GraphRepresentation representation) {
+        throw std::runtime_error("this reader does not support direct strict edge-range reads");
+    }
 
     virtual int Deficits() const {
         return ReaderDeficits::NONE;

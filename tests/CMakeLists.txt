@@ -61,6 +61,14 @@ kagen_add_test(test_plain_edgelist_distribution
     FILES file/plain_edgelist_distribution_test.cpp
     CORES 1 2 4)
 
+kagen_add_test(test_strict_edge_balance
+    FILES file/strict_edge_balance_test.cpp
+    CORES 1 2 3 4 8 16)
+
+kagen_add_test(test_weighted_edgelist_distribution
+    FILES file/weighted_edgelist_distribution_test.cpp
+    CORES 1 2 3 4 8)
+
 
 # Geometric Generator
 kagen_add_test(test_rgg2d

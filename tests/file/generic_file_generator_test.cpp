@@ -268,11 +268,8 @@ TEST_P(GenericGeneratorTestFixture, loads_unweighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
-    if (RedistributesEdges(distribution)) {
-        EXPECT_THROW(ReadStaticGraph(EDGE_WEIGHTED_K3, distribution, format, representation), ConfigurationError);
-        return;
-    }
-
+    // METIS/ParHIP BALANCE_EDGES_TRUE now reads each PE's edge slice directly, with no redistribution, so edge
+    // weights stay attached to their edges and the read succeeds (only vertex-weighted input is rejected).
     const auto local_graph  = ReadStaticGraph(EDGE_WEIGHTED_K3, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
     ExpectK3(global_graph);
@@ -328,11 +325,7 @@ TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_P2) {
 TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
 
-    if (RedistributesEdges(distribution)) {
-        EXPECT_THROW(ReadStaticGraph(EDGE_WEIGHTED_P2, distribution, format, representation), ConfigurationError);
-        return;
-    }
-
+    // See loads_edge_weighted_K3: edge-weighted input now succeeds on the direct strict edge-balanced path.
     const auto local_graph  = ReadStaticGraph(EDGE_WEIGHTED_P2, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
     ExpectP2(global_graph);
