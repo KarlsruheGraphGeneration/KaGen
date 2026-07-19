@@ -221,23 +221,23 @@ struct SplitVertexInfo {
 };
 
 struct Graph {
-    // Partition of [0, n) by vertex ownership. In the EDGE_LIST representation (and after any
-    // GraphRedistribution::BALANCE_EDGES_TRUE / GraphDistribution::BALANCE_EDGES_TRUE redistribution) this is
-    // complete and gap-free: every vertex, including isolated (degree-0) ones, is covered by exactly one PE's
-    // range, so summing local sizes across all PEs always yields exactly n, and a shared boundary vertex is
-    // resolved to exactly one (the lowest-rank) PE for counting purposes -- see has_split_vertices/
-    // partial_vertices. This does not by itself imply this PE holds every edge of every vertex in the range:
-    // another PE may hold some of a boundary vertex's edges too.
+    // Partition of [0, n) by vertex ownership. Complete and gap-free in every case but one (see below): every
+    // vertex, including isolated (degree-0) ones, is covered by exactly one PE's range, so summing local sizes
+    // across all PEs yields exactly n, and -- after GraphRedistribution/GraphDistribution::BALANCE_EDGES_TRUE --
+    // a shared boundary (split) vertex is resolved to exactly one (the lowest-rank) PE for counting purposes;
+    // see has_split_vertices/partial_vertices. Being in the range does not by itself imply this PE holds every
+    // edge of every vertex in it: another PE may hold part of a split vertex's edges (in the EDGE_LIST
+    // representation the range stays gap-free even though such an edge's source then lies outside it).
     //
-    // Exception -- the CSR representation under direct strict edge-balanced reading (ParhipReader::
-    // ReadStrictEdgeRange + FinalizeGraphFragment): vertex_range is instead the physically-present row space
-    // [first_tail, last_tail + 1] that xadj indexes. A split boundary vertex genuinely has a (partial) row on
-    // both PEs sharing it, so a gap-free CSR is impossible; adjacent PEs' ranges then OVERLAP by one vertex at
-    // each split boundary (that vertex is the last entry of the lower-rank PE's range and the first of the
-    // higher-rank PE's). This overlap only ever arises from a strict file read: in-memory generators produce an
-    // edge list, and converting a split edge list to CSR is rejected outright (EdgeListOnlyGenerator::
-    // FinalizeCSR throws), so a generated graph is never both CSR and split. When nothing is split this row
-    // space equals the ordinary contiguous range and every existing CSR consumer is unaffected.
+    // The one exception is a split graph in the CSR representation. CSR indexes rows by vertex within the range,
+    // and a split vertex genuinely has a (partial) row on both PEs sharing it, so a gap-free CSR is impossible:
+    // vertex_range is instead the physically-present row space [first_tail, last_tail + 1] that xadj indexes, and
+    // adjacent PEs' ranges OVERLAP by one vertex at each split (that vertex is the last entry of the lower-rank
+    // PE's range and the first of the higher-rank PE's). Both CSR paths produce this shape: the direct strict
+    // edge-balanced file read (ParhipReader::ReadStrictEdgeRange) and the edge-list-to-CSR conversion
+    // (EdgeListOnlyGenerator::FinalizeCSR, FileGraphGenerator::FinalizeCSR, which extend the row space down by
+    // one for a left-partial replica). When nothing is split, CSR too is the ordinary contiguous gap-free range.
+    // Because of the overlap, a split CSR's summed local sizes exceed n by the number of split boundaries.
     VertexRange         vertex_range;
     GraphRepresentation representation;
 
@@ -266,7 +266,7 @@ struct Graph {
     // here on more than 2 PEs in total (up to 2 per PE: one at each end of its own local range); which PE
     // "canonically" owns the vertex ID itself (as opposed to holding a share of its edges) is not represented
     // here -- see vertex_range, which resolves every shared vertex to exactly one (the lowest-rank) PE, except
-    // in the CSR strict-read representation where adjacent ranges overlap by one at each split (noted there).
+    // for a split graph in the CSR representation, where adjacent ranges overlap by one at each split (noted there).
     std::vector<SplitVertexInfo> partial_vertices;
 
     SInt NumberOfLocalVertices() const;
