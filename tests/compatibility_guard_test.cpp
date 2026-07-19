@@ -30,11 +30,12 @@ TEST(CompatibilityGuardTest, SplitWithEdgeListFormatSucceeds) {
 }
 
 TEST(CompatibilityGuardTest, SplitWithCSRRepresentationSucceeds) {
-    // A split-vertex CSR graph is only ever produced by the direct strict edge-balanced file read
-    // (ParhipReader::ReadStrictEdgeRange), which builds valid xadj/adjncy with partial leading/trailing rows
-    // (described by partial_vertices) -- it never goes through BuildCSRFromEdgeList. The paths that WOULD build
-    // a corrupt CSR from a split edge list throw earlier (EdgeListOnlyGenerator::FinalizeCSR,
-    // FileGraphGenerator::FinalizeCSR), so this guard no longer rejects CSR here.
+    // A split-vertex CSR graph is valid: it is built over the physically-present row space with partial
+    // leading/trailing rows (described by partial_vertices) and adjacent PEs' ranges overlapping by one vertex at
+    // each split. Both the direct strict edge-balanced file read (ParhipReader::ReadStrictEdgeRange) and the
+    // edge-list-to-CSR conversion (EdgeListOnlyGenerator::FinalizeCSR, FileGraphGenerator::FinalizeCSR, which
+    // extend the row space down by one for a left-partial replica) produce this well-formed shape, so the guard
+    // does not reject CSR here.
     PGeneratorConfig config;
     config.output_graph.formats = {FileFormat::EDGE_LIST}; // otherwise-compatible output format
     config.statistics_level     = StatisticsLevel::NONE;
@@ -101,15 +102,26 @@ TEST(CompatibilityGuardTest, SplitWithDefaultOrVoidingEdgeWeightsSucceeds) {
     EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
 }
 
-TEST(CompatibilityGuardTest, SplitWithStatisticsThrows) {
+TEST(CompatibilityGuardTest, SplitWithBasicStatisticsSucceeds) {
+    // Basic statistics (vertex/edge counts + imbalance) need only per-PE counts, which stay valid for a split
+    // graph -- edge imbalance is exactly what balance-edges-strict targets -- so they are not rejected.
     PGeneratorConfig config;
     config.output_graph.formats = {FileFormat::EDGE_LIST};
     config.quiet                = false;
+    config.statistics_level     = StatisticsLevel::BASIC;
 
-    config.statistics_level = StatisticsLevel::BASIC;
-    EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config));
+    EXPECT_NO_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::CSR, config));
+}
 
-    config.statistics_level = StatisticsLevel::ADVANCED;
+TEST(CompatibilityGuardTest, SplitWithAdvancedStatisticsThrows) {
+    // Advanced statistics (per-vertex degree distribution, density, locality, ghost nodes) assume a vertex's
+    // whole adjacency lives on one PE, which a split vertex violates.
+    PGeneratorConfig config;
+    config.output_graph.formats = {FileFormat::EDGE_LIST};
+    config.quiet                = false;
+    config.statistics_level     = StatisticsLevel::ADVANCED;
+
     EXPECT_THROW(CheckSplitVertexCompatibility(true, GraphRepresentation::EDGE_LIST, config), ConfigurationError);
 }
 

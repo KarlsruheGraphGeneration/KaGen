@@ -407,18 +407,27 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     // Otherwise, we have generated the graph in edge list representation, but
     // actually want CSR format --> transform graph
     FinalizeEdgeList(comm);
-    if (graph_.has_split_vertices) {
-        // BuildCSRFromEdgeList(vertex_range, edges, ...) assumes every edge's tail lies within vertex_range,
-        // which does not hold for a split/boundary vertex's edges (from --redistribution=balance-edges-strict)
-        // -- would corrupt or crash building the resulting xadj/adjncy arrays. has_split_vertices is already
-        // collectively consistent across all PEs (RedistributeEdgesTrueBalance Allreduces it), so every PE
-        // reaches this same conclusion and throws together.
-        throw ConfigurationError(
-            "CSR representation requires single-PE vertex ownership and is not supported together with a graph "
-            "that has split vertices (from --redistribution=balance-edges-strict); use the edge list "
-            "representation instead");
+
+    // BuildCSRFromEdgeList gives every vertex in [vertex_range.first, vertex_range.second) a row (indexing by
+    // `from - vertex_range.first`), isolated vertices included as empty rows -- a complete, contiguous CSR. A
+    // split graph needs exactly one adjustment to that range: on a PE holding a *replica* of its first vertex (a
+    // left-partial split, local_offset == 0), that vertex is credited to the lower-rank canonical PE and so lies
+    // just below this PE's gap-free vertex_range, yet its edges are physically here -- so
+    // `from - vertex_range.first` would underflow. Extend the row space down by one to give the replica its row.
+    // Adjacent PEs' ranges then overlap by exactly one vertex at each split: the same physically-present
+    // row-space layout the strict CSR file reader produces (see FinalizeGraphFragment) and that split-aware
+    // consumers expect. Everything else is unchanged from the non-split path -- trailing isolated vertices are
+    // still absorbed as empty rows, the right-partial canonical vertex is still owned here, and the
+    // partial_vertices/has_split_vertices set by the redistribution carry over unchanged (edges are from-sorted,
+    // so a split vertex's edge block is contiguous and its local_offset already is the CSR adjncy offset).
+    VertexRange csr_range = graph_.vertex_range;
+    for (const auto& partial: graph_.partial_vertices) {
+        if (partial.local_offset == 0) {
+            csr_range.first = partial.vertex;
+        }
     }
-    std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
+    graph_.vertex_range                  = csr_range;
+    std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
     {
         Edgelist tmp;
         std::swap(graph_.edges, tmp);

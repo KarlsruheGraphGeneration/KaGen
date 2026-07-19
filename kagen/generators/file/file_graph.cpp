@@ -53,25 +53,24 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
     if (fragment_.graph.representation == GraphRepresentation::EDGE_LIST) {
         FinalizeEdgeList(comm);
 
-        if (graph_.has_split_vertices) {
-            // BuildCSRFromEdgeList(vertex_range, edges, ...) assumes every edge's tail lies within vertex_range,
-            // which does not hold for a split/boundary vertex's edges (from
-            // --distribution=balance-edges-strict) -- would corrupt or crash building the resulting
-            // xadj/adjncy arrays. has_split_vertices is already collectively consistent across all PEs
-            // (RedistributeEdgesTrueBalance Allreduces it), so every PE reaches this same conclusion and
-            // throws together.
-            throw ConfigurationError(
-                "CSR representation requires single-PE vertex ownership and is not supported together with a "
-                "graph that has split vertices (from --distribution=balance-edges-strict); use the edge list "
-                "representation instead");
-        }
-
         if (Output()) {
             std::cout << "converting to CSR ... " << std::flush;
         }
 
+        // Split graphs are supported: extend the CSR row space down by one on a PE that holds a replica of its
+        // first vertex (left-partial, local_offset == 0), whose edges sit just below the gap-free vertex_range
+        // and would otherwise underflow BuildCSRFromEdgeList's `from - vertex_range.first`. This yields the
+        // overlapping physically-present row space the strict CSR reader also produces; see
+        // EdgeListOnlyGenerator::FinalizeCSR for the full rationale.
+        VertexRange csr_range = graph_.vertex_range;
+        for (const auto& partial: graph_.partial_vertices) {
+            if (partial.local_offset == 0) {
+                csr_range.first = partial.vertex;
+            }
+        }
+        graph_.vertex_range = csr_range;
         std::tie(graph_.xadj, graph_.adjncy) =
-            BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
+            BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
         graph_.representation = GraphRepresentation::CSR;
         graph_.FreeEdgelist();
     } else {
