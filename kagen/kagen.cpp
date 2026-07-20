@@ -398,6 +398,27 @@ SInt Graph::NumberOfLocalVertices() const {
     return vertex_range.second - vertex_range.first;
 }
 
+VertexRange Graph::TrueVertexRange() const {
+    if (representation != GraphRepresentation::CSR || !has_split_vertices) {
+        return vertex_range;
+    }
+
+    // CSR keeps the overlapping physically-present row space in vertex_range when vertices are split (see its
+    // doc comment): a shared first row (left_partial_vertex) is a replica of a boundary vertex whose canonical
+    // owner -- for counting purposes -- is the lower-rank neighbor sharing it, so drop it here. A shared last
+    // row (right_partial_vertex) is not dropped: it is always credited to this (lower-rank) PE.
+    VertexRange true_range = vertex_range;
+    if (left_partial_vertex) {
+        ++true_range.first;
+    }
+    return true_range;
+}
+
+SInt Graph::TrueNumberOfLocalVertices() const {
+    const auto [first, second] = TrueVertexRange();
+    return second - first;
+}
+
 SInt Graph::NumberOfGlobalVertices() const {
     SInt number_vertices = NumberOfLocalVertices();
     MPI_Allreduce(MPI_IN_PLACE, &number_vertices, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
@@ -431,7 +452,8 @@ void Graph::Clear() {
     coordinates.first.clear();
     coordinates.second.clear();
     has_split_vertices = false;
-    partial_vertices.clear();
+    left_partial_vertex.reset();
+    right_partial_vertex.reset();
 }
 
 void Graph::FreeEdgelist() {

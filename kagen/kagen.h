@@ -5,6 +5,7 @@
     #include <cstdint>
     #include <limits>
     #include <memory>
+    #include <optional>
     #include <string>
     #include <tuple>
     #include <type_traits>
@@ -225,9 +226,10 @@ struct Graph {
     // vertex, including isolated (degree-0) ones, is covered by exactly one PE's range, so summing local sizes
     // across all PEs yields exactly n, and -- after GraphRedistribution/GraphDistribution::BALANCE_EDGES_TRUE --
     // a shared boundary (split) vertex is resolved to exactly one (the lowest-rank) PE for counting purposes;
-    // see has_split_vertices/partial_vertices. Being in the range does not by itself imply this PE holds every
-    // edge of every vertex in it: another PE may hold part of a split vertex's edges (in the EDGE_LIST
-    // representation the range stays gap-free even though such an edge's source then lies outside it).
+    // see has_split_vertices/left_partial_vertex/right_partial_vertex. Being in the range does not by itself
+    // imply this PE holds every edge of every vertex in it: another PE may hold part of a split vertex's edges
+    // (in the EDGE_LIST representation the range stays gap-free even though such an edge's source then lies
+    // outside it).
     //
     // The one exception is a split graph in the CSR representation. CSR indexes rows by vertex within the range,
     // and a split vertex genuinely has a (partial) row on both PEs sharing it, so a gap-free CSR is impossible:
@@ -237,7 +239,8 @@ struct Graph {
     // edge-balanced file read (ParhipReader::ReadStrictEdgeRange) and the edge-list-to-CSR conversion
     // (EdgeListOnlyGenerator::FinalizeCSR, FileGraphGenerator::FinalizeCSR, which extend the row space down by
     // one for a left-partial replica). When nothing is split, CSR too is the ordinary contiguous gap-free range.
-    // Because of the overlap, a split CSR's summed local sizes exceed n by the number of split boundaries.
+    // Because of the overlap, a split CSR's summed local sizes exceed n by the number of split boundaries; use
+    // TrueVertexRange()/TrueNumberOfLocalVertices() instead when a gap-free count is required.
     VertexRange         vertex_range;
     GraphRepresentation representation;
 
@@ -258,18 +261,35 @@ struct Graph {
     // some edge-weight/statistics code rely on that invariant and are incompatible with a graph where this is true.
     bool has_split_vertices = false;
 
-    // At most 2 entries (this PE's first and/or last local vertex) describing a vertex whose own edges are
-    // shared with an adjacent PE, only ever non-empty when has_split_vertices is true. A consumer that wants to
-    // treat a split vertex as, e.g., a chain of per-PE replicas can use this to locate exactly which of its
-    // local edges belong to the shared vertex, without having to re-derive split detection (a global
-    // communication step) itself. A single vertex whose degree spans more than one PE's fair share can appear
-    // here on more than 2 PEs in total (up to 2 per PE: one at each end of its own local range); which PE
-    // "canonically" owns the vertex ID itself (as opposed to holding a share of its edges) is not represented
-    // here -- see vertex_range, which resolves every shared vertex to exactly one (the lowest-rank) PE, except
-    // for a split graph in the CSR representation, where adjacent ranges overlap by one at each split (noted there).
-    std::vector<SplitVertexInfo> partial_vertices;
+    // This PE's first local vertex, if its own edges are shared with the lower-rank neighbor (only ever set when
+    // has_split_vertices is true). That neighbor -- not this PE -- is the vertex's canonical owner: it is
+    // credited into the neighbor's vertex_range (as that neighbor's right_partial_vertex) and excluded from
+    // this PE's TrueVertexRange(). A consumer that wants to treat a split vertex as, e.g., a chain of per-PE
+    // replicas can use this to locate exactly which of its local edges belong to the shared vertex, without
+    // having to re-derive split detection (a global communication step) itself.
+    std::optional<SplitVertexInfo> left_partial_vertex;
+
+    // This PE's last local vertex, if its own edges are shared with the higher-rank neighbor (only ever set when
+    // has_split_vertices is true). This PE -- being the lower-rank of the two sharing it -- is the vertex's
+    // canonical owner: it is credited into this PE's vertex_range and TrueVertexRange(), even though the
+    // higher-rank neighbor also physically holds a share of its edges (as that neighbor's left_partial_vertex).
+    std::optional<SplitVertexInfo> right_partial_vertex;
 
     SInt NumberOfLocalVertices() const;
+
+    //! The gap-free vertex range this PE truly owns for counting purposes, i.e. what vertex_range would be if it
+    //! always resolved a shared boundary vertex to the lower-rank PE (see vertex_range's own doc comment). Equal
+    //! to vertex_range in every case except a split graph (has_split_vertices) in the CSR representation, where
+    //! vertex_range instead holds the overlapping physically-present row space: there, this trims away this PE's
+    //! first row if left_partial_vertex is set (it is then a replica of a boundary vertex owned by the
+    //! lower-rank neighbor). The shared last row, described by right_partial_vertex if set, is left in place: it
+    //! is always owned by this (lower-rank) PE.
+    VertexRange TrueVertexRange() const;
+
+    //! NumberOfLocalVertices() computed from TrueVertexRange() instead of vertex_range. Use this instead of
+    //! NumberOfLocalVertices() when summing local counts across PEs must yield exactly n even for a split CSR
+    //! graph, where vertex_range's overlap would otherwise double-count a shared boundary vertex on both PEs.
+    SInt TrueNumberOfLocalVertices() const;
 
     SInt NumberOfGlobalVertices() const;
 

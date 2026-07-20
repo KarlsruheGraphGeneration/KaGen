@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 #include <mpi.h>
+#include <unistd.h>
 
 #include "tests/gather.h"
 #include <algorithm>
@@ -10,7 +11,6 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 using namespace kagen;
@@ -56,15 +56,15 @@ void WriteParhip(const std::string& filename, const SInt n, const std::vector<st
         adjncy.push_back(static_cast<std::uint64_t>(v));
     }
 
-    const std::uint64_t m             = edges.size();
-    const std::uint64_t header_bytes  = 3 * sizeof(std::uint64_t);
-    const std::uint64_t offsets_bytes = (n + 1) * sizeof(std::uint64_t);
+    const std::uint64_t        m             = edges.size();
+    const std::uint64_t        header_bytes  = 3 * sizeof(std::uint64_t);
+    const std::uint64_t        offsets_bytes = (n + 1) * sizeof(std::uint64_t);
     std::vector<std::uint64_t> offsets(n + 1);
     for (SInt v = 0; v <= n; ++v) {
         offsets[v] = header_bytes + offsets_bytes + xadj[v] * sizeof(std::uint64_t);
     }
 
-    std::ofstream out(filename, std::ios::binary);
+    std::ofstream       out(filename, std::ios::binary);
     const std::uint64_t version = 3;
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
     out.write(reinterpret_cast<const char*>(&n), sizeof(std::uint64_t));
@@ -134,9 +134,9 @@ void ExpectBalancedWithinOne(const SInt local_edges) {
 class StrictEdgeBalanceTest : public ::testing::TestWithParam<FileFormat> {
 protected:
     void SetUp() override {
-        n_             = 500;
+        n_              = 500;
         expected_edges_ = BuildHubAndRingEdges(n_);
-        format_        = GetParam();
+        format_         = GetParam();
 
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -177,8 +177,7 @@ protected:
     std::vector<std::pair<SInt, SInt>> expected_edges_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    Formats, StrictEdgeBalanceTest, ::testing::Values(FileFormat::PARHIP, FileFormat::METIS));
+INSTANTIATE_TEST_SUITE_P(Formats, StrictEdgeBalanceTest, ::testing::Values(FileFormat::PARHIP, FileFormat::METIS));
 
 TEST_P(StrictEdgeBalanceTest, EdgeListPreservesAllEdges) {
     Graph global = kagen::testing::GatherEdgeLists(Read(GraphRepresentation::EDGE_LIST));
@@ -218,6 +217,16 @@ TEST_P(StrictEdgeBalanceTest, CsrPreservesAllEdges) {
     EXPECT_EQ(global.edges, expected_edges_);
 }
 
+TEST_P(StrictEdgeBalanceTest, CsrTrueVertexRangeIsGapFree) {
+    Graph      local   = Read(GraphRepresentation::CSR);
+    const SInt local_n = local.TrueNumberOfLocalVertices();
+    EXPECT_EQ(local.TrueVertexRange().second - local.TrueVertexRange().first, local_n);
+
+    SInt total_n = local_n;
+    MPI_Allreduce(MPI_IN_PLACE, &total_n, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
+    EXPECT_EQ(total_n, n_); // gap-free partition of [0, n), unlike vertex_range's overlap at split boundaries
+}
+
 TEST_P(StrictEdgeBalanceTest, SplitMetadataIsCollectivelyConsistent) {
     Graph local = Read(GraphRepresentation::CSR);
 
@@ -227,10 +236,13 @@ TEST_P(StrictEdgeBalanceTest, SplitMetadataIsCollectivelyConsistent) {
     MPI_Allreduce(&has_split, &max_split, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     EXPECT_EQ(min_split, max_split);
 
-    for (const auto& pv: local.partial_vertices) {
-        EXPECT_GE(pv.vertex, local.vertex_range.first);
-        EXPECT_LT(pv.vertex, local.vertex_range.second);
-        EXPECT_LE(pv.local_offset + pv.local_count, static_cast<SInt>(local.adjncy.size()));
+    for (const auto& pv: {local.left_partial_vertex, local.right_partial_vertex}) {
+        if (!pv) {
+            continue;
+        }
+        EXPECT_GE(pv->vertex, local.vertex_range.first);
+        EXPECT_LT(pv->vertex, local.vertex_range.second);
+        EXPECT_LE(pv->local_offset + pv->local_count, static_cast<SInt>(local.adjncy.size()));
     }
 }
 

@@ -18,7 +18,7 @@ RGG3D::RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size) :
     target_r_        = config_.r * config_.r;
 
     if (config_.streaming) {
-        if (config_.k > 1/(config_.r * config_.r * config_.r)) {
+        if (config_.k > 1 / (config_.r * config_.r * config_.r)) {
             throw ConfigurationError("Radius does not match the given number of chunks");
         }
     }
@@ -57,7 +57,7 @@ void RGG3D::FinalizeEdgeList(MPI_Comm comm) {
                 RedistributeEdgesTrueBalance(local_edges, graph_.edges, config_.n, /*remap_round_robin=*/false, comm);
             graph_.vertex_range = distribution.vertex_range;
             SetHasSplitVertices(distribution.has_split_vertices);
-            SetPartialVertices(distribution.partial_vertices);
+            SetPartialVertices(distribution.left_partial_vertex, distribution.right_partial_vertex);
             break;
         }
     }
@@ -109,9 +109,9 @@ void RGG3D::GenerateEdges(const SInt chunk_row, const SInt chunk_column, const S
                                 continue;
 
                             // Get grid buckets for each cell
-                            SInt chunk_id = Encode(chunk_column, chunk_row, chunk_depth);
-                            SInt cell_id  = cell_row * cells_per_dim_ + cell_column
-                                           + (cells_per_dim_ * cells_per_dim_) * cell_depth;
+                            SInt chunk_id    = Encode(chunk_column, chunk_row, chunk_depth);
+                            SInt cell_id     = cell_row * cells_per_dim_ + cell_column
+                                               + (cells_per_dim_ * cells_per_dim_) * cell_depth;
                             SInt neighbor_id = Encode(
                                 chunk_column + horizontal_diff, chunk_row + vertical_diff, chunk_depth + depth_diff);
                             SInt neighbor_cell_id = neighbor_cell_row * cells_per_dim_ + neighbor_cell_column
@@ -215,8 +215,8 @@ void RGG3D::GenerateCells(const SInt chunk_id) {
     LPFloat cell_area  = cell_size_ * cell_size_ * cell_size_;
 
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
-        seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
-        SInt    h             = sampling::Spooky::hash(seed);
+        seed   = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
+        SInt h = sampling::Spooky::hash(seed);
         // due to potential floating point inaccuracies clamp probability
         SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 1.0));
         LPFloat cell_start_x  = std::get<1>(chunk) + ((i / cells_per_dim_) % cells_per_dim_) * cell_size_;

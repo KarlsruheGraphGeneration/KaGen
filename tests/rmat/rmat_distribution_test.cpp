@@ -86,8 +86,8 @@ TEST_P(RMATDistributionFixture, OwnershipInvariant) {
                         "vertex range does not bound the tails of its edges";
     }
 
-    const SInt n = 1024;
-    const SInt m = static_cast<SInt>(factor * n);
+    const SInt n    = 1024;
+    const SInt m    = static_cast<SInt>(factor * n);
     const int  seed = 42;
 
     Graph graph = GenerateRMATWithDistribution(distribution, n, m, seed);
@@ -157,13 +157,16 @@ TEST(RMATStrictEdgeBalanceCSR, ProducesConsumableSplitCSR) {
     // partial vertex sits inside the row-space range, its edge block fits, and a left-partial replica's vertex is
     // exactly vertex_range.first (row 0 of the extended row space).
     if (csr.has_split_vertices) {
-        for (const auto& pv: csr.partial_vertices) {
-            EXPECT_GE(pv.vertex, csr.vertex_range.first);
-            EXPECT_LT(pv.vertex, csr.vertex_range.second);
-            EXPECT_LE(pv.local_offset + pv.local_count, static_cast<SInt>(csr.adjncy.size()));
-            if (pv.local_offset == 0) {
-                EXPECT_EQ(pv.vertex, csr.vertex_range.first);
+        for (const auto& pv: {csr.left_partial_vertex, csr.right_partial_vertex}) {
+            if (!pv) {
+                continue;
             }
+            EXPECT_GE(pv->vertex, csr.vertex_range.first);
+            EXPECT_LT(pv->vertex, csr.vertex_range.second);
+            EXPECT_LE(pv->local_offset + pv->local_count, static_cast<SInt>(csr.adjncy.size()));
+        }
+        if (csr.left_partial_vertex) {
+            EXPECT_EQ(csr.left_partial_vertex->vertex, csr.vertex_range.first);
         }
     }
 }
@@ -174,8 +177,8 @@ TEST_P(RMATCrossDistributionFixture, EdgeSetIdenticalAcrossDistributions) {
     const SInt   m      = static_cast<SInt>(factor * n);
     const int    seed   = 42;
 
-    Graph graph_bv = GenerateRMATWithDistribution("balance-vertices", n, m, seed);
-    Graph graph_be = GenerateRMATWithDistribution("balance-edges", n, m, seed);
+    Graph graph_bv  = GenerateRMATWithDistribution("balance-vertices", n, m, seed);
+    Graph graph_be  = GenerateRMATWithDistribution("balance-edges", n, m, seed);
     Graph graph_bes = GenerateRMATWithDistribution("balance-edges-strict", n, m, seed);
 
     Edgelist edges_bv  = GatherSortedDeduplicatedEdges(graph_bv.edges);

@@ -58,20 +58,17 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
         }
 
         // Split graphs are supported: extend the CSR row space down by one on a PE that holds a replica of its
-        // first vertex (left-partial, local_offset == 0), whose edges sit just below the gap-free vertex_range
-        // and would otherwise underflow BuildCSRFromEdgeList's `from - vertex_range.first`. This yields the
-        // overlapping physically-present row space the strict CSR reader also produces; see
-        // EdgeListOnlyGenerator::FinalizeCSR for the full rationale.
+        // first vertex (left_partial_vertex set), whose edges sit just below the gap-free vertex_range and would
+        // otherwise underflow BuildCSRFromEdgeList's `from - vertex_range.first`. This yields the overlapping
+        // physically-present row space the strict CSR reader also produces; see EdgeListOnlyGenerator::FinalizeCSR
+        // for the full rationale.
         VertexRange csr_range = graph_.vertex_range;
-        for (const auto& partial: graph_.partial_vertices) {
-            if (partial.local_offset == 0) {
-                csr_range.first = partial.vertex;
-            }
+        if (graph_.left_partial_vertex) {
+            csr_range.first = graph_.left_partial_vertex->vertex;
         }
-        graph_.vertex_range = csr_range;
-        std::tie(graph_.xadj, graph_.adjncy) =
-            BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
-        graph_.representation = GraphRepresentation::CSR;
+        graph_.vertex_range                  = csr_range;
+        std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
+        graph_.representation                = GraphRepresentation::CSR;
         graph_.FreeEdgelist();
     } else {
         graph_ = FinalizeGraphFragment(std::move(fragment_), config_.input_graph, Output(), comm);

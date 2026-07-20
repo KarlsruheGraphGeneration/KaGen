@@ -45,12 +45,13 @@ void CheckSplitVertexCompatibility(
         return;
     }
     // Note: CSR representation is *not* rejected here. Every split-vertex CSR path builds valid xadj/adjncy over
-    // the physically-present row space, with partial leading/trailing rows described by partial_vertices and
-    // adjacent PEs' ranges overlapping by one vertex at each split: the direct strict edge-balanced file read
-    // (ParhipReader::ReadStrictEdgeRange), and -- for a redistributed edge list converted to CSR --
-    // EdgeListOnlyGenerator::FinalizeCSR and FileGraphGenerator::FinalizeCSR's edge-list branch (both extend the
-    // row space down by one for a left-partial replica). A consumer iterating local CSR rows must honor
-    // partial_vertices at the boundaries; the output-format check below rejects adjacency-grouped writers.
+    // the physically-present row space, with partial leading/trailing rows described by left_partial_vertex/
+    // right_partial_vertex and adjacent PEs' ranges overlapping by one vertex at each split: the direct strict
+    // edge-balanced file read (ParhipReader::ReadStrictEdgeRange), and -- for a redistributed edge list converted
+    // to CSR -- EdgeListOnlyGenerator::FinalizeCSR and FileGraphGenerator::FinalizeCSR's edge-list branch (both
+    // extend the row space down by one for a left-partial replica). A consumer iterating local CSR rows must
+    // honor left_partial_vertex/right_partial_vertex at the boundaries; the output-format check below rejects
+    // adjacency-grouped writers.
     for (const FileFormat& format: config.output_graph.formats) {
         if (RequiresSingleVertexOwnership(format)) {
             std::stringstream msg;

@@ -15,7 +15,6 @@ GNMDirected::GNMDirected(const PGeneratorConfig& config, const PEID rank, const 
       size_(size),
       rng_(config),
       edges_per_node_(config_.self_loops ? config_.n : config_.n - 1) {
-
     if (config_.streaming) {
         if (config_.k > config_.n) {
             throw ConfigurationError("Number of chunks must not exceed number of nodes");
@@ -107,7 +106,7 @@ void GNMDirected::FinalizeEdgeList(MPI_Comm comm) {
                 RedistributeEdgesTrueBalance(local_edges_, graph_.edges, config_.n, remap_round_robin, comm);
             graph_.vertex_range = distribution.vertex_range;
             SetHasSplitVertices(distribution.has_split_vertices);
-            SetPartialVertices(distribution.partial_vertices);
+            SetPartialVertices(distribution.left_partial_vertex, distribution.right_partial_vertex);
             break;
         }
     }

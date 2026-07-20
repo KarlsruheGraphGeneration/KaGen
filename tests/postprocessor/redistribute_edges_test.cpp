@@ -60,8 +60,8 @@ static Edgelist BuildHubWithUniformOverlay(SInt n, SInt hub_degree, SInt overlay
 
     Edgelist edges;
 
-    const SInt per_pe    = hub_degree / static_cast<SInt>(size);
-    const SInt remainder = hub_degree % static_cast<SInt>(size);
+    const SInt per_pe          = hub_degree / static_cast<SInt>(size);
+    const SInt remainder       = hub_degree % static_cast<SInt>(size);
     const SInt local_hub_edges = per_pe + (static_cast<SInt>(rank) < remainder ? 1 : 0);
     const SInt local_hub_start = static_cast<SInt>(rank) * per_pe + std::min<SInt>(rank, remainder);
     for (SInt i = 0; i < local_hub_edges; ++i) {
@@ -276,8 +276,8 @@ TEST_P(RedistributeEdgesSimpleFixture, PreservesEdgeSet_Star) {
 }
 
 TEST_P(RedistributeEdgesSimpleFixture, OwnershipInvariant_Star) {
-    auto [redist_pair, remap_round_robin]   = GetParam();
-    auto [redist_name, redistribute]        = redist_pair;
+    auto [redist_pair, remap_round_robin] = GetParam();
+    auto [redist_name, redistribute]      = redist_pair;
 
     if (redist_name == "EdgeBalancedTrue") {
         GTEST_SKIP() << "the star's hub vertex may legitimately be split across PEs under true edge-balancing";
@@ -365,8 +365,8 @@ TEST(RedistributeEdgesHubStarvationTest, NoPEIsStarvedWithDominantHub) {
     Edgelist input = BuildHubWithUniformOverlay(n, hub_degree, overlay_edges_per_pe);
 
     Edgelist    redistributed_edges;
-    VertexRange vr = RedistributeEdgesBalanced(input, redistributed_edges, n, /*remap_round_robin=*/false,
-                                                MPI_COMM_WORLD);
+    VertexRange vr =
+        RedistributeEdgesBalanced(input, redistributed_edges, n, /*remap_round_robin=*/false, MPI_COMM_WORLD);
 
     EXPECT_LT(vr.first, vr.second) << "PE " << rank << " was starved to an empty vertex range";
 }
@@ -410,27 +410,30 @@ TEST(RedistributeEdgesTrueBalanceHubTest, SplitsDominantHubForExactBalance) {
         EXPECT_TRUE(dist.has_split_vertices);
 
         // (c) fully_owned_vertex_range is a strict subset of vertex_range on every PE that actually shares a
-        // boundary vertex (partial_vertices non-empty), and every vertex it reports is excluded from
-        // fully_owned_vertex_range -- i.e. the trim is neither missing nor over-eager. For vertex_range itself
-        // (the complete partition), a shared vertex spanning more than 2 PEs is resolved to exactly the
-        // lowest-rank PE holding any of its edges: on that PE it's credited into vertex_range (a "right
-        // partial" entry, shared with a higher-rank neighbor); on every other PE holding a share of it, it was
-        // already ceded away and so must fall strictly below vertex_range.first (a "left partial" entry, shared
-        // with a lower-rank neighbor).
-        for (const auto& split_vertex: dist.partial_vertices) {
+        // boundary vertex (left_partial_vertex/right_partial_vertex set), and every vertex it reports is
+        // excluded from fully_owned_vertex_range -- i.e. the trim is neither missing nor over-eager. For
+        // vertex_range itself (the complete partition), a shared vertex spanning more than 2 PEs is resolved to
+        // exactly the lowest-rank PE holding any of its edges: on that PE it's credited into vertex_range (as
+        // that PE's right_partial_vertex, shared with a higher-rank neighbor); on every other PE holding a share
+        // of it, it was already ceded away and so must fall strictly below vertex_range.first (as that PE's
+        // left_partial_vertex, shared with a lower-rank neighbor).
+        for (const auto& split_vertex: {dist.left_partial_vertex, dist.right_partial_vertex}) {
+            if (!split_vertex) {
+                continue;
+            }
             EXPECT_FALSE(
-                split_vertex.vertex >= dist.fully_owned_vertex_range.first
-                && split_vertex.vertex < dist.fully_owned_vertex_range.second)
-                << "shared boundary vertex " << split_vertex.vertex << " must be excluded from "
+                split_vertex->vertex >= dist.fully_owned_vertex_range.first
+                && split_vertex->vertex < dist.fully_owned_vertex_range.second)
+                << "shared boundary vertex " << split_vertex->vertex << " must be excluded from "
                 << "fully_owned_vertex_range";
             const bool credited_here =
-                split_vertex.vertex >= dist.vertex_range.first && split_vertex.vertex < dist.vertex_range.second;
-            const bool ceded_to_lower_rank = split_vertex.vertex < dist.vertex_range.first;
+                split_vertex->vertex >= dist.vertex_range.first && split_vertex->vertex < dist.vertex_range.second;
+            const bool ceded_to_lower_rank = split_vertex->vertex < dist.vertex_range.first;
             EXPECT_TRUE(credited_here || ceded_to_lower_rank)
-                << "shared boundary vertex " << split_vertex.vertex << " neither credited to this PE's "
+                << "shared boundary vertex " << split_vertex->vertex << " neither credited to this PE's "
                 << "vertex_range nor ceded to a lower rank";
         }
-        if (dist.partial_vertices.empty()) {
+        if (!dist.left_partial_vertex && !dist.right_partial_vertex) {
             EXPECT_EQ(dist.fully_owned_vertex_range, dist.vertex_range)
                 << "with no shared boundary vertex on this PE, fully_owned_vertex_range should equal vertex_range";
         }

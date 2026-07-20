@@ -1,10 +1,9 @@
 #include "kagen/generators/geometric/rgg/rgg_2d.h"
 
+#include "kagen/tools/geometry.h"
 #include "kagen/tools/postprocessor.h"
 
 #include <algorithm>
-
-#include "kagen/tools/geometry.h"
 
 namespace kagen {
 RGG2D::RGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size) : Geometric2D(config, rank, size) {
@@ -55,7 +54,7 @@ void RGG2D::FinalizeEdgeList(MPI_Comm comm) {
                 RedistributeEdgesTrueBalance(local_edges, graph_.edges, config_.n, /*remap_round_robin=*/false, comm);
             graph_.vertex_range = distribution.vertex_range;
             SetHasSplitVertices(distribution.has_split_vertices);
-            SetPartialVertices(distribution.partial_vertices);
+            SetPartialVertices(distribution.left_partial_vertex, distribution.right_partial_vertex);
             break;
         }
     }
@@ -191,8 +190,8 @@ void RGG2D::GenerateCells(const SInt chunk_id) {
     LPFloat cell_area  = cell_size_ * cell_size_;
 
     for (SInt i = 0; i < cells_per_chunk_; ++i) {
-        seed                  = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
-        SInt    h             = sampling::Spooky::hash(seed);
+        seed   = config_.seed + chunk_id * cells_per_chunk_ + i + total_chunks_ * cells_per_chunk_;
+        SInt h = sampling::Spooky::hash(seed);
         // due to potential floating point inaccuracies clamp probability
         SInt    cell_vertices = rng_.GenerateBinomial(h, n, std::clamp(cell_area / total_area, 0.0, 1.0));
         LPFloat cell_start_x  = std::get<1>(chunk) + (i / cells_per_dim_) * cell_size_;

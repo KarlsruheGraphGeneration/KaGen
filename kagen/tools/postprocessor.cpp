@@ -377,8 +377,8 @@ RedistributeEdges(Edgelist& source, Edgelist& destination, const SInt n, bool re
     return vertex_range;
 }
 
-BoundaryOwnership
-ComputeBoundaryOwnership(const SInt first_tail, const SInt last_tail, const bool has_local_edges, const SInt n, MPI_Comm comm) {
+BoundaryOwnership ComputeBoundaryOwnership(
+    const SInt first_tail, const SInt last_tail, const bool has_local_edges, const SInt n, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
@@ -399,12 +399,10 @@ ComputeBoundaryOwnership(const SInt first_tail, const SInt last_tail, const bool
     const PEID right_neighbor = rank + 1 < size ? rank + 1 : MPI_PROC_NULL;
 
     BoundaryOwnership result;
-    result.is_left_partial =
-        has_local_edges && left_neighbor != MPI_PROC_NULL
-        && all_last_tails[static_cast<std::size_t>(left_neighbor)] == my_first_tail;
-    result.is_right_partial =
-        has_local_edges && right_neighbor != MPI_PROC_NULL
-        && all_first_tails[static_cast<std::size_t>(right_neighbor)] == my_last_tail;
+    result.is_left_partial  = has_local_edges && left_neighbor != MPI_PROC_NULL
+                              && all_last_tails[static_cast<std::size_t>(left_neighbor)] == my_first_tail;
+    result.is_right_partial = has_local_edges && right_neighbor != MPI_PROC_NULL
+                              && all_first_tails[static_cast<std::size_t>(right_neighbor)] == my_last_tail;
 
     // Complete, gap-free partition of [0, n): walk all PEs in rank order. A PE with local edges owns through
     // (its own last tail + 1); this resolves a shared boundary vertex to the lower-rank PE (whichever PE's last
@@ -438,8 +436,8 @@ ComputeBoundaryOwnership(const SInt first_tail, const SInt last_tail, const bool
     // ends would cross (this PE's only local vertices were entirely boundary-shared ones).
     const SInt owned_start = my_range_start + (result.is_left_partial ? 1 : 0);
     const SInt owned_end   = my_range_end - (result.is_right_partial ? 1 : 0);
-    result.fully_owned_vertex_range = (owned_start <= owned_end) ? VertexRange{owned_start, owned_end}
-                                                                 : VertexRange{owned_start, owned_start};
+    result.fully_owned_vertex_range =
+        (owned_start <= owned_end) ? VertexRange{owned_start, owned_end} : VertexRange{owned_start, owned_start};
 
     bool any_split = result.is_left_partial || result.is_right_partial;
     MPI_Allreduce(MPI_IN_PLACE, &any_split, 1, MPI_C_BOOL, MPI_LOR, comm);
@@ -468,14 +466,14 @@ EdgeBalancedDistribution ComputeEdgeBalancedBoundaries(const Edgelist& edges, co
             return v < edge.first;
         };
         if (bo.is_left_partial) {
-            const auto first_run_end = std::upper_bound(edges.begin(), edges.end(), first_tail, tail_greater);
-            const auto count         = static_cast<SInt>(std::distance(edges.begin(), first_run_end));
-            result.partial_vertices.push_back({first_tail, 0, count});
+            const auto first_run_end   = std::upper_bound(edges.begin(), edges.end(), first_tail, tail_greater);
+            const auto count           = static_cast<SInt>(std::distance(edges.begin(), first_run_end));
+            result.left_partial_vertex = SplitVertexInfo{first_tail, 0, count};
         }
         if (bo.is_right_partial) {
-            const auto last_run_begin = std::lower_bound(edges.begin(), edges.end(), last_tail, tail_less);
-            const auto offset         = static_cast<SInt>(std::distance(edges.begin(), last_run_begin));
-            result.partial_vertices.push_back({last_tail, offset, static_cast<SInt>(edges.size()) - offset});
+            const auto last_run_begin   = std::lower_bound(edges.begin(), edges.end(), last_tail, tail_less);
+            const auto offset           = static_cast<SInt>(std::distance(edges.begin(), last_run_begin));
+            result.right_partial_vertex = SplitVertexInfo{last_tail, offset, static_cast<SInt>(edges.size()) - offset};
         }
     }
 
@@ -528,7 +526,7 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     }
     std::vector<int> send_displs(size);
     std::exclusive_scan(send_counts.begin(), send_counts.end(), send_displs.begin(), 0);
-    std::vector<SInt> send_buf(send_displs.back() + send_counts.back());
+    std::vector<SInt>        send_buf(send_displs.back() + send_counts.back());
     std::vector<std::size_t> run_reply_slot(runs.size());
     {
         auto write_offsets = send_displs;
@@ -555,9 +553,9 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     // Group received (vertex, count) contributions by local vertex index. Processing recv_buf in ascending
     // sender-PE block order means each vertex's contributions end up ordered by ascending sender PE (each sender
     // contributes at most one entry per vertex, since runs groups a sender's own edges by vertex already).
-    const SInt                                       local_n = vertex_owner_dist.local_count(rank);
-    std::vector<SInt>                                local_degree(local_n, 0);
-    std::vector<std::vector<std::pair<PEID, SInt>>>  contributions(local_n);
+    const SInt                                      local_n = vertex_owner_dist.local_count(rank);
+    std::vector<SInt>                               local_degree(local_n, 0);
+    std::vector<std::vector<std::pair<PEID, SInt>>> contributions(local_n);
     for (PEID sender = 0; sender < size; ++sender) {
         const int begin = recv_displs[sender];
         const int end   = recv_displs[sender] + recv_counts[sender];
@@ -571,7 +569,7 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     }
 
     SInt total_degree = std::accumulate(local_degree.begin(), local_degree.end(), SInt{0});
-    SInt prefix_sum    = 0;
+    SInt prefix_sum   = 0;
     MPI_Exscan(&total_degree, &prefix_sum, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
     if (rank == 0) {
         prefix_sum = 0;
@@ -591,7 +589,7 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     // Closed-form balanced distribution of global edge ranks [0, m) across PEs: PE p owns
     // [edge_distribution[p], edge_distribution[p + 1]).
     const std::vector<SInt> edge_distribution = ComputeBalancedVertexDistribution(m, comm);
-    Distribution             edge_owner_dist(edge_distribution);
+    Distribution            edge_owner_dist(edge_distribution);
 
     // For each local vertex (in ascending order), determine whether its degree crosses more than one PE's fair
     // edge share ("split") and, if not, each contributing sender's base global edge rank -- the global rank of
@@ -605,15 +603,15 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     // position (two duplicate copies held by different source PEs could straddle the split and never meet) --
     // see the escalation path further down, which resolves split vertices by actual (deduplicated) edge value
     // instead of by position.
-    constexpr SInt kEscalate = std::numeric_limits<SInt>::max(); // never a valid base global rank ([0, m))
+    constexpr SInt    kEscalate = std::numeric_limits<SInt>::max(); // never a valid base global rank ([0, m))
     std::vector<bool> is_split(local_n, false);
     std::vector<SInt> cur_sum_before(local_n);
     std::vector<std::vector<SInt>> reply_send_bufs(size);
     {
         SInt cur_sum = 0;
         for (SInt li = 0; li < local_n; ++li) {
-            cur_sum_before[li]  = cur_sum;
-            const SInt degree = local_degree[li];
+            cur_sum_before[li] = cur_sum;
+            const SInt degree  = local_degree[li];
             if (degree > 0) {
                 const PEID first_owner = edge_owner_dist.compute_owner(prefix_sum + cur_sum);
                 const PEID last_owner  = edge_owner_dist.compute_owner(prefix_sum + cur_sum + degree - 1);
@@ -670,8 +668,8 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         const auto& run   = runs[r];
         const SInt  reply = reply_recv_buf[run_reply_slot[r]];
         if (reply == kEscalate) {
-            const PEID          owner = vertex_owner_dist.compute_owner(run.vertex);
-            std::vector<SInt>&  buf   = escalate_buffers[owner];
+            const PEID         owner = vertex_owner_dist.compute_owner(run.vertex);
+            std::vector<SInt>& buf   = escalate_buffers[owner];
             for (SInt k = 0; k < run.count; ++k) {
                 buf.push_back(run.vertex);
                 buf.push_back(source[run.start + k].second);
@@ -679,10 +677,10 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         } else {
             const SInt base_rank = reply;
             for (SInt k = 0; k < run.count; ++k) {
-                const SInt          global_rank = base_rank + k;
-                const PEID          target      = edge_owner_dist.compute_owner(global_rank);
-                const auto&         edge        = source[run.start + k];
-                std::vector<SInt>&  buf         = send_buffers[target];
+                const SInt         global_rank = base_rank + k;
+                const PEID         target      = edge_owner_dist.compute_owner(global_rank);
+                const auto&        edge        = source[run.start + k];
+                std::vector<SInt>& buf         = send_buffers[target];
                 buf.push_back(edge.first);
                 buf.push_back(edge.second);
             }
@@ -713,9 +711,9 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
 
             const SInt vertex = li + vertex_distribution[rank];
             for (std::size_t k = 0; k < heads.size(); ++k) {
-                const SInt          global_rank = prefix_sum + cur_sum_before[li] + static_cast<SInt>(k);
-                const PEID          target      = edge_owner_dist.compute_owner(global_rank);
-                std::vector<SInt>&  buf         = send_buffers[target];
+                const SInt         global_rank = prefix_sum + cur_sum_before[li] + static_cast<SInt>(k);
+                const PEID         target      = edge_owner_dist.compute_owner(global_rank);
+                std::vector<SInt>& buf         = send_buffers[target];
                 buf.push_back(vertex);
                 buf.push_back(heads[k]);
             }

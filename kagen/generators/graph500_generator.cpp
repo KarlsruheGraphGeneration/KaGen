@@ -27,7 +27,7 @@ void Graph500Generator::FinalizeEdgeList(MPI_Comm comm) {
                 RedistributeEdgesTrueBalance(local_edges_, graph_.edges, n, remap_round_robin, comm);
             graph_.vertex_range = distribution.vertex_range;
             SetHasSplitVertices(distribution.has_split_vertices);
-            SetPartialVertices(distribution.partial_vertices);
+            SetPartialVertices(distribution.left_partial_vertex, distribution.right_partial_vertex);
             break;
         }
     }

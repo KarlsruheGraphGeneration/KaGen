@@ -98,16 +98,21 @@ struct EdgeBalancedDistribution {
 
     //! The strict subset of vertex_range whose vertices are *exclusively* owned by this PE: every edge of every
     //! vertex in this range is present on this PE and nowhere else (isolated, degree-0 vertices trivially
-    //! qualify). A shared boundary vertex -- see partial_vertices -- is excluded from *both* PEs sharing it,
-    //! since neither alone holds its whole adjacency. Always a subset of vertex_range (equal to it whenever
-    //! has_split_vertices is false); use this instead of vertex_range for anything that assumes single-PE
-    //! ownership of a vertex's whole adjacency (e.g. treating a local id range as directly CSR-indexable).
+    //! qualify). A shared boundary vertex -- see left_partial_vertex/right_partial_vertex -- is excluded from
+    //! *both* PEs sharing it, since neither alone holds its whole adjacency. Always a subset of vertex_range
+    //! (equal to it whenever has_split_vertices is false); use this instead of vertex_range for anything that
+    //! assumes single-PE ownership of a vertex's whole adjacency (e.g. treating a local id range as directly
+    //! CSR-indexable).
     VertexRange fully_owned_vertex_range;
 
-    //! At most 2 boundary vertices (this PE's first and/or last local vertex) whose edges are shared with an
-    //! adjacent PE. A single vertex whose degree spans more than one PE's fair share can appear as a boundary
-    //! vertex on more than 2 PEs in total (up to 2 per PE: one at each end of its own local range).
-    std::vector<SplitVertexInfo> partial_vertices;
+    //! This PE's first local vertex, if its own edges are shared with (and owned by) the lower-rank neighbor.
+    std::optional<SplitVertexInfo> left_partial_vertex;
+
+    //! This PE's last local vertex, if its own edges are shared with the higher-rank neighbor. Owned by this
+    //! (lower-rank) PE. A single vertex whose degree spans more than one PE's fair share can appear as a
+    //! boundary vertex on more than 2 PEs in total: as right_partial_vertex on the lowest-rank PE holding a
+    //! share of it, as left_partial_vertex on the highest-rank one, and as both on every PE strictly in between.
+    std::optional<SplitVertexInfo> right_partial_vertex;
 
     //! True if any vertex anywhere in the graph (on any PE) was split, i.e. some PE's adjacency-grouped view of
     //! the graph is no longer valid. False if this redistribution happened to produce no actual split (e.g. no
@@ -179,6 +184,6 @@ EdgeBalancedDistribution ComputeEdgeBalancedBoundaries(const Edgelist& sorted_lo
  * @param comm The MPI communicator.
  * @return Description of this PE's resulting vertex ownership; see EdgeBalancedDistribution.
  */
-EdgeBalancedDistribution RedistributeEdgesTrueBalance(
-    Edgelist& source, Edgelist& destination, SInt n, bool remap_round_robin, MPI_Comm comm);
+EdgeBalancedDistribution
+RedistributeEdgesTrueBalance(Edgelist& source, Edgelist& destination, SInt n, bool remap_round_robin, MPI_Comm comm);
 } // namespace kagen

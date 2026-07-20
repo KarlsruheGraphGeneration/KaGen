@@ -155,9 +155,8 @@ bool CheckGloballyTailSorted(const Edgelist& edges, const SInt n, MPI_Comm comm)
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    const bool local_sorted = std::is_sorted(edges.begin(), edges.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
+    const bool local_sorted =
+        std::is_sorted(edges.begin(), edges.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
     const bool has_local  = !edges.empty();
     const SInt first_tail = has_local ? edges.front().first : n;
@@ -192,8 +191,8 @@ bool HealToVertexAtomic(Graph& graph, const SInt n, MPI_Comm comm) {
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    Edgelist&    edges   = graph.edges;
-    EdgeWeights& weights = graph.edge_weights;
+    Edgelist&    edges      = graph.edges;
+    EdgeWeights& weights    = graph.edge_weights;
     const bool   weighted   = !weights.empty();
     const bool   has_local  = !edges.empty();
     const SInt   first_tail = has_local ? edges.front().first : n;
@@ -201,8 +200,7 @@ bool HealToVertexAtomic(Graph& graph, const SInt n, MPI_Comm comm) {
 
     const BoundaryOwnership bo = ComputeBoundaryOwnership(first_tail, last_tail, has_local, n, comm);
 
-    bool needs_fallback =
-        !has_local || (bo.is_left_partial && bo.is_right_partial && first_tail == last_tail);
+    bool needs_fallback = !has_local || (bo.is_left_partial && bo.is_right_partial && first_tail == last_tail);
     MPI_Allreduce(MPI_IN_PLACE, &needs_fallback, 1, MPI_C_BOOL, MPI_LOR, comm);
     if (needs_fallback) {
         return false;
@@ -251,8 +249,8 @@ bool HealToVertexAtomic(Graph& graph, const SInt n, MPI_Comm comm) {
             MPI_STATUS_IGNORE);
         recv_weights.resize(static_cast<std::size_t>(recv_w));
         MPI_Sendrecv(
-            send_weights.data(), send_w, KAGEN_MPI_SSINT, left_dest, 3, recv_weights.data(), recv_w,
-            KAGEN_MPI_SSINT, right_src, 3, comm, MPI_STATUS_IGNORE);
+            send_weights.data(), send_w, KAGEN_MPI_SSINT, left_dest, 3, recv_weights.data(), recv_w, KAGEN_MPI_SSINT,
+            right_src, 3, comm, MPI_STATUS_IGNORE);
     }
 
     // Rebuild: drop the sent leading run, keep the rest, append the received run (all for last_tail, so tail
@@ -400,17 +398,19 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
 
             if (graph.representation == GraphRepresentation::EDGE_LIST) {
                 const EdgeBalancedDistribution dist = ComputeEdgeBalancedBoundaries(graph.edges, n, comm);
-                graph.vertex_range       = dist.vertex_range;
-                graph.has_split_vertices = dist.has_split_vertices;
-                graph.partial_vertices   = dist.partial_vertices;
+                graph.vertex_range                  = dist.vertex_range;
+                graph.has_split_vertices            = dist.has_split_vertices;
+                graph.left_partial_vertex           = dist.left_partial_vertex;
+                graph.right_partial_vertex          = dist.right_partial_vertex;
             } else {
                 // CSR: vertex_range stays the physically-present row space [first_tail, last_tail + 1] that xadj
                 // indexes (the reader's provisional range), NOT the tail-based gap-free range. A split boundary
                 // vertex genuinely has a (partial) row on both PEs sharing it, so a non-overlapping gap-free CSR
                 // is impossible; instead the two PEs' ranges overlap by one vertex at each split boundary, which
-                // partial_vertices/has_split_vertices describe. When nothing is split, this row space is exactly
-                // the ordinary contiguous vertex range and every existing CSR consumer works unchanged. The first
-                // and last rows are guaranteed non-empty, so their tails are the boundary tails.
+                // left_partial_vertex/right_partial_vertex/has_split_vertices describe. When nothing is split,
+                // this row space is exactly the ordinary contiguous vertex range and every existing CSR consumer
+                // works unchanged. The first and last rows are guaranteed non-empty, so their tails are the
+                // boundary tails.
                 const bool has_local  = !graph.adjncy.empty();
                 const SInt first_tail = has_local ? graph.vertex_range.first : n;
                 const SInt last_tail  = has_local ? graph.vertex_range.second - 1 : n;
@@ -419,11 +419,11 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
                 if (has_local) {
                     const SInt num_rows = graph.vertex_range.second - graph.vertex_range.first;
                     if (bo.is_left_partial) {
-                        graph.partial_vertices.push_back({first_tail, 0, graph.xadj[1] - graph.xadj[0]});
+                        graph.left_partial_vertex = SplitVertexInfo{first_tail, 0, graph.xadj[1] - graph.xadj[0]};
                     }
                     if (bo.is_right_partial) {
-                        const SInt offset = graph.xadj[num_rows - 1];
-                        graph.partial_vertices.push_back({last_tail, offset, graph.xadj[num_rows] - offset});
+                        const SInt offset          = graph.xadj[num_rows - 1];
+                        graph.right_partial_vertex = SplitVertexInfo{last_tail, offset, graph.xadj[num_rows] - offset};
                     }
                 }
                 graph.has_split_vertices = bo.has_split_vertices;
@@ -437,7 +437,7 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
     }
 
     const bool needs_postprocessing = (fragment.deficits & ReaderDeficits::REQUIRES_REDISTRIBUTION)
-                                       || config.distribution == GraphDistribution::BALANCE_EDGES_TRUE;
+                                      || config.distribution == GraphDistribution::BALANCE_EDGES_TRUE;
     if (needs_postprocessing) {
         if (fragment.graph.representation == GraphRepresentation::CSR) {
             throw std::invalid_argument("not implemented");
@@ -502,9 +502,10 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
                 Edgelist                       source = std::move(fragment.graph.edges);
                 const EdgeBalancedDistribution distribution =
                     RedistributeEdgesTrueBalance(source, fragment.graph.edges, n, /*remap_round_robin=*/false, comm);
-                fragment.graph.vertex_range       = distribution.vertex_range;
-                fragment.graph.has_split_vertices = distribution.has_split_vertices;
-                fragment.graph.partial_vertices   = distribution.partial_vertices;
+                fragment.graph.vertex_range         = distribution.vertex_range;
+                fragment.graph.has_split_vertices   = distribution.has_split_vertices;
+                fragment.graph.left_partial_vertex  = distribution.left_partial_vertex;
+                fragment.graph.right_partial_vertex = distribution.right_partial_vertex;
                 break;
             }
         }

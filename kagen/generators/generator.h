@@ -44,7 +44,8 @@ protected:
 
     void SetHasSplitVertices(bool has_split_vertices);
 
-    void SetPartialVertices(std::vector<SplitVertexInfo> partial_vertices);
+    void SetPartialVertices(
+        std::optional<SplitVertexInfo> left_partial_vertex, std::optional<SplitVertexInfo> right_partial_vertex);
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y) {
         graph_.coordinates.first.emplace_back(x, y);
