@@ -768,9 +768,9 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         }
     }
 
-    // Derive the gap-free vertex_range, fully_owned_vertex_range, partial_vertices, and has_split_vertices from
-    // this PE's now-final sorted local edges. This is the same boundary computation the direct edge-range read
-    // path uses, so it lives in a shared helper.
+    // Derive the gap-free vertex_range, fully_owned_vertex_range, left_partial_vertex/right_partial_vertex, and
+    // has_split_vertices from this PE's now-final sorted local edges. This is the same boundary computation the
+    // direct edge-range read path uses, so it lives in a shared helper.
     return ComputeEdgeBalancedBoundaries(destination, n, comm);
 }
 } // namespace kagen

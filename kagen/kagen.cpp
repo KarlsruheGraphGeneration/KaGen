@@ -398,25 +398,17 @@ SInt Graph::NumberOfLocalVertices() const {
     return vertex_range.second - vertex_range.first;
 }
 
-VertexRange Graph::TrueVertexRange() const {
-    if (representation != GraphRepresentation::CSR || !has_split_vertices) {
-        return vertex_range;
-    }
-
-    // CSR keeps the overlapping physically-present row space in vertex_range when vertices are split (see its
-    // doc comment): a shared first row (left_partial_vertex) is a replica of a boundary vertex whose canonical
-    // owner -- for counting purposes -- is the lower-rank neighbor sharing it, so drop it here. A shared last
-    // row (right_partial_vertex) is not dropped: it is always credited to this (lower-rank) PE.
-    VertexRange true_range = vertex_range;
+VertexRange Graph::PhysicalVertexRange() const {
+    // A left-partial boundary vertex's neighborhood is (partially) held here -- this PE has edges for it -- even
+    // though it's credited to the lower-rank neighbor and so excluded from vertex_range; add it back. This holds
+    // the same way for both representations (whether that neighborhood information is stored as entries in
+    // `edges` or as an entry in `xadj`/`adjncy` is incidental). The shared right-partial boundary vertex, if any,
+    // is already inside vertex_range.
+    VertexRange physical_range = vertex_range;
     if (left_partial_vertex) {
-        ++true_range.first;
+        --physical_range.first;
     }
-    return true_range;
-}
-
-SInt Graph::TrueNumberOfLocalVertices() const {
-    const auto [first, second] = TrueVertexRange();
-    return second - first;
+    return physical_range;
 }
 
 SInt Graph::NumberOfGlobalVertices() const {

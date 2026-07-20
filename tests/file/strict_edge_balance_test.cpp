@@ -108,13 +108,14 @@ Graph ReadFile(
 }
 
 // Turns a (possibly split-aware) local CSR fragment into its local edge list, using the row space
-// [vertex_range.first, vertex_range.second) that xadj actually indexes.
+// [PhysicalVertexRange().first, PhysicalVertexRange().second) that xadj actually indexes.
 Graph LocalCsrToEdgeList(const Graph& csr) {
     Graph out;
-    out.representation  = GraphRepresentation::EDGE_LIST;
-    const SInt num_rows = csr.vertex_range.second - csr.vertex_range.first;
+    out.representation         = GraphRepresentation::EDGE_LIST;
+    const VertexRange rows     = csr.PhysicalVertexRange();
+    const SInt        num_rows = rows.second - rows.first;
     for (SInt i = 0; i < num_rows; ++i) {
-        const SInt tail = csr.vertex_range.first + i;
+        const SInt tail = rows.first + i;
         for (SInt e = csr.xadj[i]; e < csr.xadj[i + 1]; ++e) {
             out.edges.emplace_back(tail, csr.adjncy[e]);
         }
@@ -201,7 +202,10 @@ TEST_P(StrictEdgeBalanceTest, CsrIsInternallyConsistent) {
     Graph local = Read(GraphRepresentation::CSR);
     ASSERT_EQ(local.representation, GraphRepresentation::CSR);
     ASSERT_FALSE(local.xadj.empty());
-    EXPECT_EQ(local.xadj.size() - 1, local.vertex_range.second - local.vertex_range.first);
+    // xadj indexes PhysicalVertexRange() (the physically-present, possibly-overlapping row space), not
+    // vertex_range (the gap-free ownership range) -- they differ by one row on a left-partial split boundary.
+    const VertexRange rows = local.PhysicalVertexRange();
+    EXPECT_EQ(local.xadj.size() - 1, rows.second - rows.first);
     EXPECT_EQ(local.xadj.back(), local.adjncy.size());
 }
 
@@ -217,14 +221,13 @@ TEST_P(StrictEdgeBalanceTest, CsrPreservesAllEdges) {
     EXPECT_EQ(global.edges, expected_edges_);
 }
 
-TEST_P(StrictEdgeBalanceTest, CsrTrueVertexRangeIsGapFree) {
+TEST_P(StrictEdgeBalanceTest, CsrVertexRangeIsGapFree) {
     Graph      local   = Read(GraphRepresentation::CSR);
-    const SInt local_n = local.TrueNumberOfLocalVertices();
-    EXPECT_EQ(local.TrueVertexRange().second - local.TrueVertexRange().first, local_n);
+    const SInt local_n = local.NumberOfLocalVertices();
 
     SInt total_n = local_n;
     MPI_Allreduce(MPI_IN_PLACE, &total_n, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
-    EXPECT_EQ(total_n, n_); // gap-free partition of [0, n), unlike vertex_range's overlap at split boundaries
+    EXPECT_EQ(total_n, n_); // gap-free partition of [0, n), even though PhysicalVertexRange() overlaps at splits
 }
 
 TEST_P(StrictEdgeBalanceTest, SplitMetadataIsCollectivelyConsistent) {
@@ -236,12 +239,18 @@ TEST_P(StrictEdgeBalanceTest, SplitMetadataIsCollectivelyConsistent) {
     MPI_Allreduce(&has_split, &max_split, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     EXPECT_EQ(min_split, max_split);
 
+    // right_partial_vertex is credited into vertex_range (its vertex is the last one in it); left_partial_vertex
+    // is ceded to the lower-rank neighbor and so sits one below vertex_range.first (= PhysicalVertexRange().first).
+    if (local.right_partial_vertex) {
+        EXPECT_EQ(local.right_partial_vertex->vertex, local.vertex_range.second - 1);
+    }
+    if (local.left_partial_vertex) {
+        EXPECT_EQ(local.left_partial_vertex->vertex, local.PhysicalVertexRange().first);
+    }
     for (const auto& pv: {local.left_partial_vertex, local.right_partial_vertex}) {
         if (!pv) {
             continue;
         }
-        EXPECT_GE(pv->vertex, local.vertex_range.first);
-        EXPECT_LT(pv->vertex, local.vertex_range.second);
         EXPECT_LE(pv->local_offset + pv->local_count, static_cast<SInt>(local.adjncy.size()));
     }
 }

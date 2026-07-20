@@ -45,13 +45,13 @@ void CheckSplitVertexCompatibility(
         return;
     }
     // Note: CSR representation is *not* rejected here. Every split-vertex CSR path builds valid xadj/adjncy over
-    // the physically-present row space, with partial leading/trailing rows described by left_partial_vertex/
-    // right_partial_vertex and adjacent PEs' ranges overlapping by one vertex at each split: the direct strict
-    // edge-balanced file read (ParhipReader::ReadStrictEdgeRange), and -- for a redistributed edge list converted
-    // to CSR -- EdgeListOnlyGenerator::FinalizeCSR and FileGraphGenerator::FinalizeCSR's edge-list branch (both
-    // extend the row space down by one for a left-partial replica). A consumer iterating local CSR rows must
-    // honor left_partial_vertex/right_partial_vertex at the boundaries; the output-format check below rejects
-    // adjacency-grouped writers.
+    // Graph::PhysicalVertexRange() -- the physically-present row space, which can overlap an adjacent PE's by one
+    // vertex at each split (unlike vertex_range itself, which stays the gap-free ownership range for both
+    // representations): the direct strict edge-balanced file read (ParhipReader::ReadStrictEdgeRange), and -- for
+    // a redistributed edge list converted to CSR -- EdgeListOnlyGenerator::FinalizeCSR and
+    // FileGraphGenerator::FinalizeCSR's edge-list branch. A consumer iterating local CSR rows must use
+    // PhysicalVertexRange() (not vertex_range) to map a row index to a global vertex id; the output-format check
+    // below rejects adjacency-grouped writers, which assume otherwise.
     for (const FileFormat& format: config.output_graph.formats) {
         if (RequiresSingleVertexOwnership(format)) {
             std::stringstream msg;
@@ -77,12 +77,12 @@ void CheckSplitVertexCompatibility(
     }
     if (!config.quiet && config.statistics_level >= StatisticsLevel::ADVANCED) {
         // Basic statistics (vertex/edge counts + their imbalance) need only per-PE counts and stay valid for a
-        // split graph -- edge imbalance in particular is exactly what balance-edges-strict targets. Only advanced
-        // statistics assume a vertex's whole adjacency lives on one PE (per-vertex degree distribution, density,
-        // edge locality, ghost nodes), which a split vertex violates, so only those are rejected. (Note: with a
-        // split graph the reported vertex count/imbalance is inflated by the one-vertex range overlap at each
-        // split boundary -- one extra counted vertex per split; edge counts/imbalance are exact.) Matches the
-        // actual gating in GenerateInMemory: with --quiet no statistics are computed regardless of level.
+        // split graph -- edge imbalance in particular is exactly what balance-edges-strict targets, and vertex
+        // counts are exact too (they use the gap-free vertex_range, not the overlapping PhysicalVertexRange()).
+        // Only advanced statistics assume a vertex's whole adjacency lives on one PE (per-vertex degree
+        // distribution, density, edge locality, ghost nodes), which a split vertex violates, so only those are
+        // rejected. Matches the actual gating in GenerateInMemory: with --quiet no statistics are computed
+        // regardless of level.
         throw ConfigurationError(
             "advanced statistics (--statistics-level=advanced) are not supported together with a graph that has "
             "split vertices (from --redistribution=balance-edges-strict); use --statistics-level=basic for vertex/"

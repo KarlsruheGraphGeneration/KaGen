@@ -403,14 +403,14 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
                 graph.left_partial_vertex           = dist.left_partial_vertex;
                 graph.right_partial_vertex          = dist.right_partial_vertex;
             } else {
-                // CSR: vertex_range stays the physically-present row space [first_tail, last_tail + 1] that xadj
-                // indexes (the reader's provisional range), NOT the tail-based gap-free range. A split boundary
-                // vertex genuinely has a (partial) row on both PEs sharing it, so a non-overlapping gap-free CSR
-                // is impossible; instead the two PEs' ranges overlap by one vertex at each split boundary, which
-                // left_partial_vertex/right_partial_vertex/has_split_vertices describe. When nothing is split,
-                // this row space is exactly the ordinary contiguous vertex range and every existing CSR consumer
-                // works unchanged. The first and last rows are guaranteed non-empty, so their tails are the
-                // boundary tails.
+                // CSR: the reader gives us the physically-present row space [first_tail, last_tail + 1] that xadj
+                // indexes -- a split boundary vertex genuinely has a (partial) row on both PEs sharing it, so
+                // this row space can overlap the neighbors' by one vertex at each split. Use it (via first/last
+                // tail) to compute left_partial_vertex/right_partial_vertex/has_split_vertices below, then
+                // replace graph.vertex_range with the gap-free ownership range (same meaning as for EDGE_LIST);
+                // PhysicalVertexRange() reconstructs the row space from vertex_range + left_partial_vertex for
+                // anything that needs to index xadj/adjncy by global vertex id. The first and last rows are
+                // guaranteed non-empty, so their tails are the boundary tails.
                 const bool has_local  = !graph.adjncy.empty();
                 const SInt first_tail = has_local ? graph.vertex_range.first : n;
                 const SInt last_tail  = has_local ? graph.vertex_range.second - 1 : n;
@@ -427,6 +427,7 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
                     }
                 }
                 graph.has_split_vertices = bo.has_split_vertices;
+                graph.vertex_range       = bo.vertex_range;
             }
 
             return std::move(fragment.graph);

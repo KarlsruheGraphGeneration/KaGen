@@ -384,7 +384,7 @@ void CSROnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
     // Otherwise, we have generated the graph in CSR representation, but
     // actually want edge list representation -> transform graph
     FinalizeCSR(comm);
-    graph_.edges = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
+    graph_.edges = BuildEdgeListFromCSR(graph_.PhysicalVertexRange(), graph_.xadj, graph_.adjncy);
     {
         XadjArray tmp;
         std::swap(graph_.xadj, tmp);
@@ -408,23 +408,15 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     // actually want CSR format --> transform graph
     FinalizeEdgeList(comm);
 
-    // BuildCSRFromEdgeList gives every vertex in [vertex_range.first, vertex_range.second) a row (indexing by
-    // `from - vertex_range.first`), isolated vertices included as empty rows -- a complete, contiguous CSR. A
-    // split graph needs exactly one adjustment to that range: on a PE holding a *replica* of its first vertex
-    // (left_partial_vertex set), that vertex is credited to the lower-rank canonical PE and so lies just below
-    // this PE's gap-free vertex_range, yet its edges are physically here -- so `from - vertex_range.first` would
-    // underflow. Extend the row space down by one to give the replica its row. Adjacent PEs' ranges then overlap
-    // by exactly one vertex at each split: the same physically-present row-space layout the strict CSR file
-    // reader produces (see FinalizeGraphFragment) and that split-aware consumers expect. Everything else is
-    // unchanged from the non-split path -- trailing isolated vertices are still absorbed as empty rows, the
-    // right-partial canonical vertex is still owned here, and left_partial_vertex/right_partial_vertex/
-    // has_split_vertices set by the redistribution carry over unchanged (edges are from-sorted, so a split
-    // vertex's edge block is contiguous and its local_offset already is the CSR adjncy offset).
-    VertexRange csr_range = graph_.vertex_range;
-    if (graph_.left_partial_vertex) {
-        csr_range.first = graph_.left_partial_vertex->vertex;
-    }
-    graph_.vertex_range                  = csr_range;
+    // BuildCSRFromEdgeList gives every vertex in the given range a row (indexing by `from - range.first`),
+    // isolated vertices included as empty rows. Building from vertex_range (the gap-free ownership range) would
+    // underflow on a PE holding a *replica* of its first vertex (left_partial_vertex set): that vertex is
+    // credited to the lower-rank canonical PE and so lies just below vertex_range, yet its edges are physically
+    // here. PhysicalVertexRange() is exactly vertex_range extended down by one to cover that replica row, giving
+    // the same physically-present row-space layout the strict CSR file reader produces (see
+    // FinalizeGraphFragment). graph_.vertex_range itself is left untouched -- it keeps meaning the gap-free
+    // ownership range, same as for the edge-list representation.
+    const VertexRange csr_range          = graph_.PhysicalVertexRange();
     std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
     {
         Edgelist tmp;

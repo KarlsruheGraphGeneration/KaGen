@@ -43,14 +43,15 @@ static Graph GenerateRMATCSRWithDistribution(const std::string& distribution, SI
     return generator.GenerateFromOptionString(options);
 }
 
-// Reconstruct this PE's (from, to) edges from a CSR graph. Row i is vertex vertex_range.first + i -- so this
-// only yields the right sources if vertex_range is the physically-present row space that xadj indexes (which,
-// for a left-partial split PE, means vertex_range.first is the shared replica vertex, one below the gap-free
-// range). Mirrors BuildEdgeListFromCSR.
+// Reconstruct this PE's (from, to) edges from a CSR graph. Row i is vertex PhysicalVertexRange().first + i --
+// that range (not the gap-free vertex_range) is the physically-present row space xadj actually indexes; for a
+// left-partial split PE it starts one below vertex_range.first, at the shared replica vertex. Mirrors
+// BuildEdgeListFromCSR.
 static Edgelist EdgesFromCSR(const Graph& g) {
-    Edgelist edges;
+    Edgelist          edges;
+    const VertexRange rows = g.PhysicalVertexRange(); // xadj indexes this, not the gap-free vertex_range
     for (std::size_t i = 0; i + 1 < g.xadj.size(); ++i) {
-        const SInt from = g.vertex_range.first + static_cast<SInt>(i);
+        const SInt from = rows.first + static_cast<SInt>(i);
         for (SInt e = g.xadj[i]; e < g.xadj[i + 1]; ++e) {
             edges.emplace_back(from, g.adjncy[e]);
         }
@@ -142,10 +143,10 @@ TEST(RMATStrictEdgeBalanceCSR, ProducesConsumableSplitCSR) {
     ASSERT_EQ(csr.representation, GraphRepresentation::CSR);
     ASSERT_FALSE(csr.xadj.empty());
 
-    // Reconstructing the edges from the CSR (row i -> vertex_range.first + i) must yield exactly the same global
-    // edge set as generating the same graph directly as an edge list. Holds whether or not a vertex actually
-    // splits at this PE count, and fails if the row space / vertex_range is wrong (e.g. the pre-fix gap-free
-    // range, which mislabels the leading replica row's source), so it pins the fix.
+    // Reconstructing the edges from the CSR (row i -> PhysicalVertexRange().first + i) must yield exactly the
+    // same global edge set as generating the same graph directly as an edge list. Holds whether or not a vertex
+    // actually splits at this PE count, and fails if the row space is wrong (e.g. using vertex_range directly,
+    // which mislabels the leading replica row's source), so it pins the fix.
     Graph    el       = GenerateRMATWithDistribution("balance-edges-strict", n, m, seed);
     Edgelist from_csr = GatherSortedDeduplicatedEdges(EdgesFromCSR(csr));
     Edgelist from_el  = GatherSortedDeduplicatedEdges(el.edges);
@@ -153,20 +154,22 @@ TEST(RMATStrictEdgeBalanceCSR, ProducesConsumableSplitCSR) {
 
     // Whether this config actually splits a vertex depends on the PE count (guaranteed at higher counts; may not
     // at 1-4 PEs, where the top RMAT hub still fits within one PE's edge budget) -- deterministic split-CSR
-    // coverage lives in StrictEdgeBalanceTest. When a split does occur, its metadata must be well-formed: every
-    // partial vertex sits inside the row-space range, its edge block fits, and a left-partial replica's vertex is
-    // exactly vertex_range.first (row 0 of the extended row space).
+    // coverage lives in StrictEdgeBalanceTest. When a split does occur, its metadata must be well-formed:
+    // right_partial_vertex is credited into vertex_range (it's the last vertex in it); left_partial_vertex is
+    // ceded to the lower-rank neighbor and so sits one below vertex_range.first, at row 0 of the extended row
+    // space (PhysicalVertexRange().first).
     if (csr.has_split_vertices) {
+        if (csr.right_partial_vertex) {
+            EXPECT_EQ(csr.right_partial_vertex->vertex, csr.vertex_range.second - 1);
+        }
+        if (csr.left_partial_vertex) {
+            EXPECT_EQ(csr.left_partial_vertex->vertex, csr.PhysicalVertexRange().first);
+        }
         for (const auto& pv: {csr.left_partial_vertex, csr.right_partial_vertex}) {
             if (!pv) {
                 continue;
             }
-            EXPECT_GE(pv->vertex, csr.vertex_range.first);
-            EXPECT_LT(pv->vertex, csr.vertex_range.second);
             EXPECT_LE(pv->local_offset + pv->local_count, static_cast<SInt>(csr.adjncy.size()));
-        }
-        if (csr.left_partial_vertex) {
-            EXPECT_EQ(csr.left_partial_vertex->vertex, csr.vertex_range.first);
         }
     }
 }

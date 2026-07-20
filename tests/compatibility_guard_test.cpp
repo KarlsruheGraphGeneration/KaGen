@@ -12,10 +12,10 @@ using namespace kagen;
 
 TEST(CompatibilityGuardTest, NoSplitAlwaysSucceeds) {
     PGeneratorConfig config;
-    config.output_graph.formats = {FileFormat::METIS};
-    config.validate_simple_graph = true;
+    config.output_graph.formats        = {FileFormat::METIS};
+    config.validate_simple_graph       = true;
     config.edge_weights.generator_type = EdgeWeightGeneratorType::HASHING_BASED;
-    config.statistics_level             = StatisticsLevel::ADVANCED;
+    config.statistics_level            = StatisticsLevel::ADVANCED;
 
     EXPECT_NO_THROW(CheckSplitVertexCompatibility(false, GraphRepresentation::CSR, config));
     EXPECT_NO_THROW(CheckSplitVertexCompatibility(false, GraphRepresentation::EDGE_LIST, config));
@@ -30,12 +30,12 @@ TEST(CompatibilityGuardTest, SplitWithEdgeListFormatSucceeds) {
 }
 
 TEST(CompatibilityGuardTest, SplitWithCSRRepresentationSucceeds) {
-    // A split-vertex CSR graph is valid: it is built over the physically-present row space with partial
-    // leading/trailing rows (described by partial_vertices) and adjacent PEs' ranges overlapping by one vertex at
-    // each split. Both the direct strict edge-balanced file read (ParhipReader::ReadStrictEdgeRange) and the
-    // edge-list-to-CSR conversion (EdgeListOnlyGenerator::FinalizeCSR, FileGraphGenerator::FinalizeCSR, which
-    // extend the row space down by one for a left-partial replica) produce this well-formed shape, so the guard
-    // does not reject CSR here.
+    // A split-vertex CSR graph is valid: its xadj/adjncy are built over Graph::PhysicalVertexRange() (the
+    // physically-present row space, described by left_partial_vertex/right_partial_vertex), which can overlap an
+    // adjacent PE's by one vertex at each split boundary even though vertex_range itself stays the gap-free
+    // ownership range. Both the direct strict edge-balanced file read (ParhipReader::ReadStrictEdgeRange) and the
+    // edge-list-to-CSR conversion (EdgeListOnlyGenerator::FinalizeCSR, FileGraphGenerator::FinalizeCSR) produce
+    // this well-formed shape, so the guard does not reject CSR here.
     PGeneratorConfig config;
     config.output_graph.formats = {FileFormat::EDGE_LIST}; // otherwise-compatible output format
     config.statistics_level     = StatisticsLevel::NONE;

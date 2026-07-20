@@ -91,9 +91,9 @@ struct EdgeBalancedDistribution {
     //! global-vertex-count, and per-vertex-weight-generation code all need exactly this "every vertex counted
     //! once" property, which the graph-generation and I/O guard rails rely on whether or not any split occurred.
     //! It does *not* imply this PE holds every one of a vertex's edges, though: a shared boundary vertex (see
-    //! partial_vertices) is resolved to exactly one (the lower-rank) of the two PEs sharing it for counting
-    //! purposes, but the higher-rank PE still physically holds some of that vertex's edges too -- see
-    //! fully_owned_vertex_range for a range that excludes this case.
+    //! left_partial_vertex/right_partial_vertex) is resolved to exactly one (the lower-rank) of the two PEs
+    //! sharing it for counting purposes, but the higher-rank PE still physically holds some of that vertex's
+    //! edges too -- see fully_owned_vertex_range for a range that excludes this case.
     VertexRange vertex_range;
 
     //! The strict subset of vertex_range whose vertices are *exclusively* owned by this PE: every edge of every
@@ -156,10 +156,10 @@ BoundaryOwnership
 ComputeBoundaryOwnership(SInt first_tail, SInt last_tail, bool has_local_edges, SInt n, MPI_Comm comm);
 
 /**
- * @brief Derives the full EdgeBalancedDistribution (vertex_range, fully_owned_vertex_range, partial_vertices,
- * has_split_vertices) for a PE that already holds its sorted, edge-balanced local edge list. Wraps
- * ComputeBoundaryOwnership and fills partial_vertices via binary search over the (tail-sorted) edges.
- * No edge movement occurs.
+ * @brief Derives the full EdgeBalancedDistribution (vertex_range, fully_owned_vertex_range, left_partial_vertex,
+ * right_partial_vertex, has_split_vertices) for a PE that already holds its sorted, edge-balanced local edge
+ * list. Wraps ComputeBoundaryOwnership and fills left_partial_vertex/right_partial_vertex via binary search over
+ * the (tail-sorted) edges. No edge movement occurs.
  *
  * @param sorted_local_edges This PE's local edges, sorted by (tail, head).
  * @param n The number of vertices in the graph.
