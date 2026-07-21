@@ -98,40 +98,39 @@ getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offse
 
 double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config) {
     if (!config.random_radius) {
-        return config.r;
-    }
+        if (config.r <= 0.0 || !std::isfinite(config.r)) {
+            throw ConfigurationError("Constant hyperedge radius must be positive and finite");
+        }
 
-    if (config.n <= 0) {
-        throw ConfigurationError("Quantile radius requires n > 0");
+        return config.r;
     }
 
     const double alpha = config.hyperedge_radius_exponent;
     if (alpha <= 0.0 || !std::isfinite(alpha)) {
-        throw ConfigurationError("Quantile radius requires exponent > 0");
+        throw ConfigurationError("Random hyperedge radius requires a positive finite exponent");
     }
 
-    const double lower = std::sqrt(2.0 / (M_PI * static_cast<double>(config.n)));
-    const double upper = 1.0;
-    const double q     = std::clamp(config.quantile, 0.0, 1.0);
+    const double default_lower = std::sqrt(2.0 / (M_PI * static_cast<double>(config.n)));
 
-    if (q <= 0.0) {
-        return lower;
+    const double lower = config.min_hyperedge_radius == -1.0 ? default_lower : config.min_hyperedge_radius;
+
+    const double upper = config.max_hyperedge_radius == -1.0 ? 1.0 : config.max_hyperedge_radius;
+
+    if (lower <= 0.0 || upper <= 0.0 || !std::isfinite(lower) || !std::isfinite(upper)) {
+        throw ConfigurationError("Hyperedge radius bounds must be positive and finite");
     }
-    if (q >= 1.0) {
-        return upper;
+
+    if (lower > upper) {
+        throw ConfigurationError("Minimum hyperedge radius must not exceed maximum hyperedge radius");
     }
 
-    const double log_lower = -alpha * std::log(lower);
-    const double log_upper = -alpha * std::log(upper); // 0 for upper=1
+    const double q = config.quantile;
 
-    const double max_log = std::max(log_lower, log_upper);
+    if (!std::isfinite(q) || q < 0.0 || q > 1.0) {
+        throw ConfigurationError("Hyperedge radius quantile must be finite and in [0, 1]");
+    }
 
-    const double a = std::exp(log_lower - max_log);
-    const double b = std::exp(log_upper - max_log);
-
-    const double mixed = ((1.0 - q) * a) + (q * b);
-
-    return std::exp(-(std::log(mixed) + max_log) / alpha);
+    return SampleHyperedgeRadiusFromUniform(config, q, lower, upper);
 }
 
 double ExpectedSquaredHyperedgeRadius(const double lower, const double upper, const double alpha) {

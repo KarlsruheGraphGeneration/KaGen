@@ -107,6 +107,8 @@ private:
     mutable SInt exact_remote_cache_hits_      = 0;
     mutable SInt exact_remote_cache_misses_    = 0;
     mutable SInt exact_remote_cached_vertices_ = 0;
+    mutable SInt exact_remote_live_vertices_   = 0;
+    mutable SInt exact_remote_peak_vertices_   = 0;
 
     mutable SInt exact_remote_access_counter_ = 0;
 
@@ -121,6 +123,18 @@ private:
     mutable SInt exact_remote_reuse_distance_le_16_ = 0;
     mutable SInt exact_remote_reuse_distance_gt_16_ = 0;
 
+    mutable SInt local_exact_access_counter_     = 0;
+    mutable SInt local_exact_reuse_count_        = 0;
+    mutable SInt local_exact_reuse_distance_sum_ = 0;
+    mutable SInt local_exact_reuse_distance_max_ = 0;
+
+    mutable SInt local_exact_reuse_distance_le_1_  = 0;
+    mutable SInt local_exact_reuse_distance_le_4_  = 0;
+    mutable SInt local_exact_reuse_distance_le_16_ = 0;
+    mutable SInt local_exact_reuse_distance_gt_16_ = 0;
+
+    mutable HashMap<SInt, SInt> local_exact_last_access_;
+
     mutable RNGWrapper<> rng_;
 
     const std::vector<Vertex>& ExactVerticesByX(const Cell& cell) const;
@@ -130,6 +144,8 @@ private:
 
     bool IsLocalCell(const Cell& cell) const;
     void RecordRemoteAccess(SInt global_cell_id) const;
+
+    void RecordLocalExactAccess(SInt global_cell_id) const;
 
 public:
     void PrintExactCacheStats() const;

@@ -199,7 +199,7 @@ struct PGeneratorConfig {
     double          hyperedge_radius_exponent = 2.5;
     PartialCellMode partial_cell_mode         = PartialCellMode::GenerateAndCheck;
     SInt            size_dist_pin_budget      = 0;
-    double          quantile                  = 1.0;
+    double          quantile                  = 0.95;
 
     bool debug = false;
 

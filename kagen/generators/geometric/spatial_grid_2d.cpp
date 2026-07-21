@@ -15,27 +15,33 @@ SpatialGrid2D::SpatialGrid2D(const PGeneratorConfig& config, const PEID rank, co
 }
 
 void SpatialGrid2D::InitSpatialGrid2D(const PGeneratorConfig& config) {
-    const LPFloat grid_radius = config.random_radius ? static_cast<LPFloat>(QuantileOrConstantHyperedgeRadius(config))
-                                                     : static_cast<LPFloat>(config.r);
-    if (grid_radius <= 0.0 || !std::isfinite(grid_radius)) {
-        throw ConfigurationError("SpatialGrid2D requires positive finite grid radius");
-    }
+    const LPFloat representative_radius = static_cast<LPFloat>(QuantileOrConstantHyperedgeRadius(config));
 
-    if (!config.random_radius) {
-        target_r_ = config.r * config.r;
-    } else {
-        target_r_ = grid_radius * grid_radius; // harmless if unused
+    if (representative_radius <= 0.0 || !std::isfinite(representative_radius)) {
+        throw ConfigurationError("SpatialGrid2D requires a positive finite representative radius");
     }
 
     total_chunks_ = config.k;
 
     chunks_per_dim_ = static_cast<SInt>(std::sqrt(total_chunks_));
-    chunk_size_     = 1.0 / static_cast<LPFloat>(chunks_per_dim_);
 
-    cells_per_dim_   = static_cast<SInt>(std::floor(chunk_size_ / grid_radius));
-    cells_per_dim_   = std::max<SInt>(1, cells_per_dim_);
+    chunk_size_ = 1.0 / static_cast<LPFloat>(chunks_per_dim_);
+
+    const LPFloat desired_cell_size = 2.0 * representative_radius;
+
+    cells_per_dim_ = static_cast<SInt>(std::floor(chunk_size_ / desired_cell_size));
+
+    cells_per_dim_ = std::max<SInt>(1, cells_per_dim_);
+
     cells_per_chunk_ = cells_per_dim_ * cells_per_dim_;
-    cell_size_       = chunk_size_ / static_cast<LPFloat>(cells_per_dim_);
+
+    cell_size_ = chunk_size_ / static_cast<LPFloat>(cells_per_dim_);
+
+    if (!config.random_radius) {
+        target_r_ = config.r * config.r;
+    } else {
+        target_r_ = representative_radius * representative_radius;
+    }
 }
 
 SInt SpatialGrid2D::EncodeCell(SInt x, SInt y) const {

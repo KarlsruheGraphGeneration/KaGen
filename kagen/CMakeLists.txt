@@ -22,6 +22,9 @@ if (NOT MKL_FOUND)
 endif ()
 
 add_library(KaGen ${KAGEN_SOURCE_FILES})
+target_compile_definitions(KaGen PRIVATE
+    $<$<CONFIG:Debug>:KAGEN_ENABLE_HYPER_INSTRUMENTATION>
+)
 target_compile_features(KaGen PRIVATE cxx_std_17)
 target_link_libraries(KaGen PUBLIC ${KAGEN_LINK_LIBRARIES})
 target_include_directories(KaGen PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)

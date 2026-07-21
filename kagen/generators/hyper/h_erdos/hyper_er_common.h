@@ -9,17 +9,20 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <fstream>
 #include <limits>
-#include <unordered_set>
 #include <vector>
 
 namespace kagen {
 
-using CountInt = boost::multiprecision::cpp_int;
+using CountInt         = boost::multiprecision::cpp_int;
+using FloydScratchSet  = boost::unordered_flat_set<SInt>;
+using HyperedgeSeenSet = boost::unordered_flat_set<std::uint64_t>;
 
 constexpr unsigned long long kCountSeedMultiplier    = 999999ULL;
 constexpr unsigned long long kRankSeedMultiplier     = 104729ULL;
@@ -70,18 +73,32 @@ inline std::uint64_t FingerprintPins(const std::vector<SInt>& pins) {
 long double LogBinomialApprox(SInt n, SInt k);
 
 struct LogBinomCacheStats {
-    std::uint64_t calls    = 0;
-    std::uint64_t hits     = 0;
-    std::uint64_t misses   = 0;
-    std::uint64_t inserts  = 0;
-    std::uint64_t max_size = 0;
+    // Map-backed Get().
+    std::uint64_t map_calls   = 0;
+    std::uint64_t map_hits    = 0;
+    std::uint64_t map_misses  = 0;
+    std::uint64_t map_inserts = 0;
 
-    SInt min_key = std::numeric_limits<SInt>::max();
-    SInt max_key = 0;
+    // Cursor-backed GetCandidate().
+    std::uint64_t candidate_calls           = 0;
+    std::uint64_t candidate_exact_hits      = 0;
+    std::uint64_t candidate_recurrence_hits = 0;
+    std::uint64_t candidate_direct_evals    = 0;
+    std::uint64_t candidate_below_range     = 0;
+
+    std::uint64_t candidate_distance_sum          = 0;
+    std::uint64_t candidate_distance_observations = 0;
+    std::uint64_t candidate_max_distance          = 0;
 
     std::uint64_t backward_steps = 0;
     std::uint64_t forward_steps  = 0;
-    std::uint64_t same_as_last   = 0;
+
+    // Across both access methods.
+    SInt min_key = std::numeric_limits<SInt>::max();
+
+    SInt max_key = 0;
+
+    std::uint64_t max_size = 0;
 };
 
 struct LogBinomCache {
@@ -90,6 +107,7 @@ struct LogBinomCache {
     boost::unordered_flat_map<SInt, long double> values;
 
     long double log_k_factorial = 0.0L;
+    long double inv_k;
 
     // Fixed rank-local interval tails.
     bool        range_initialized = false;
@@ -107,12 +125,23 @@ struct LogBinomCache {
     LogBinomCacheStats stats;
 
     explicit LogBinomCache(const SInt k = -1, const std::size_t expected_size = 4096) : fixed_k(k) {
+#ifndef KAGEN_HGNP_DISABLE_LOG_BINOM_MAP
         values.max_load_factor(0.7);
         values.reserve(expected_size);
+#endif
 
         if (fixed_k >= 0) {
             log_k_factorial = std::lgammal(static_cast<long double>(fixed_k) + 1.0L);
         }
+        inv_k = 1.0L / static_cast<long double>(k);
+    }
+
+    std::size_t Size() const {
+#ifndef KAGEN_HGNP_DISABLE_LOG_BINOM_MAP
+        return values.size();
+#else
+        return 0;
+#endif
     }
 
     long double EvaluateDirect(const SInt x) const {
@@ -121,28 +150,18 @@ struct LogBinomCache {
         }
 
         if (fixed_k <= 32) {
-            return LogBinomialSmallKFast(x, fixed_k);
+            return static_cast<long double>(LogBinomialSmallKFast(x));
         }
 
         return LogBinomialApprox(x, fixed_k);
     }
 
-    long double LogBinomialSmallKFast(const SInt n, const SInt k) const {
-        if (k > n) {
-            return -std::numeric_limits<long double>::infinity();
+    double LogBinomialSmallKFast(const SInt n) const {
+        double result = -static_cast<double>(log_k_factorial);
+
+        for (SInt i = 0; i < fixed_k; ++i) {
+            result += std::log(static_cast<double>(n - i));
         }
-
-        /*
-         * This implementation deliberately uses the original k because
-         * log_k_factorial stores log(fixed_k!).
-         */
-        long double result = 0.0L;
-
-        for (SInt i = 0; i < k; ++i) {
-            result += std::log(static_cast<long double>(n - i));
-        }
-
-        result -= log_k_factorial;
 
         return result;
     }
@@ -172,11 +191,13 @@ struct LogBinomCache {
     long double GetCandidate(const SInt target_x) {
         constexpr SInt kMaxRecurrenceDistance = 16;
 
-        ++stats.calls;
+        ++stats.candidate_calls;
+
         stats.min_key = std::min(stats.min_key, target_x);
         stats.max_key = std::max(stats.max_key, target_x);
 
         if (target_x < fixed_k) {
+            ++stats.candidate_below_range;
             return -std::numeric_limits<long double>::infinity();
         }
 
@@ -185,43 +206,48 @@ struct LogBinomCache {
             cursor_x           = target_x;
             cursor_initialized = true;
 
-            ++stats.misses;
+            ++stats.candidate_direct_evals;
             return cursor_value;
         }
 
         if (target_x == cursor_x) {
-            ++stats.same_as_last;
-            ++stats.hits;
+            ++stats.candidate_exact_hits;
             return cursor_value;
         }
 
         const SInt distance = target_x > cursor_x ? target_x - cursor_x : cursor_x - target_x;
 
-        /*
-         * Do not recurrence-walk over a large distance. Besides being slow,
-         * repeated floating-point updates accumulate error.
-         */
+        ++stats.candidate_distance_observations;
+
+        stats.candidate_distance_sum += static_cast<std::uint64_t>(distance);
+
+        stats.candidate_max_distance =
+            std::max<std::uint64_t>(stats.candidate_max_distance, static_cast<std::uint64_t>(distance));
+
         if (distance > kMaxRecurrenceDistance) {
             cursor_value = EvaluateDirect(target_x);
             cursor_x     = target_x;
 
-            ++stats.misses;
+            ++stats.candidate_direct_evals;
             return cursor_value;
         }
 
+        ++stats.candidate_recurrence_hits;
+
         while (cursor_x < target_x) {
             cursor_value = StepForward(cursor_x, cursor_value);
+
             ++cursor_x;
             ++stats.forward_steps;
         }
 
         while (cursor_x > target_x) {
             cursor_value = StepBackward(cursor_x, cursor_value);
+
             --cursor_x;
             ++stats.backward_steps;
         }
 
-        ++stats.hits;
         return cursor_value;
     }
 
@@ -234,29 +260,15 @@ struct LogBinomCache {
     long double Get(const SInt x, const SInt k) {
         assert(k == fixed_k);
 
-        ++stats.calls;
+        ++stats.map_calls;
+
         stats.min_key = std::min(stats.min_key, x);
         stats.max_key = std::max(stats.max_key, x);
 
-        const auto it = values.find(x);
+        ++stats.map_misses;
 
-        if (it != values.end()) {
-            ++stats.hits;
-            return it->second;
-        }
-
-        ++stats.misses;
-
-        const long double value = EvaluateDirect(x);
-
-        values.emplace(x, value);
-
-        ++stats.inserts;
-        stats.max_size = std::max<std::uint64_t>(stats.max_size, values.size());
-
-        return value;
+        return EvaluateDirect(x);
     }
-
     void InitializeRange(const SInt n, const SInt local_begin, const SInt local_end) {
         if (local_begin >= local_end) {
             throw ConfigurationError("LogBinomCache requires a nonempty local minimum range");
@@ -274,6 +286,17 @@ struct LogBinomCache {
         range_initialized = true;
     }
 };
+inline std::size_t ComputeLogBinomCacheSize(const SInt local_m, const SInt local_min_begin, const SInt local_min_end) {
+    constexpr std::size_t kMaximumInitialSize = 1U << 16;
+
+    if (local_m <= 0 || local_min_begin >= local_min_end) {
+        return 0;
+    }
+
+    const auto search_width = static_cast<std::uint64_t>(local_min_end - local_min_begin);
+
+    return static_cast<std::size_t>(std::min<std::uint64_t>(search_width, kMaximumInitialSize));
+}
 
 bool ExpectedCountIsNegligible(double expected_m_k);
 
@@ -306,7 +329,7 @@ std::optional<SInt> TryBinomialSInt(SInt n, SInt k);
 std::vector<SInt> FloydSample(SInt universe_offset, SInt universe_size, SInt sample_size, Mersenne& mersenne);
 void              FloydSampleInto(
     SInt universe_offset, SInt universe_size, SInt sample_size, Mersenne& mersenne, std::vector<SInt>& out,
-    std::unordered_set<SInt>& scratch, size_t offset);
+    FloydScratchSet& scratch, std::size_t offset);
 
 template <typename RNG>
 std::vector<SInt> MultinomialRankCounts(
@@ -390,6 +413,15 @@ public:
         return log_candidate_tail_;
     }
 
+    bool HasPredecessor() const {
+        return candidate_ > local_begin_;
+    }
+
+    long double LogCurrentPredecessorTail() const {
+        assert(HasPredecessor());
+        return LogPredecessorTail();
+    }
+
     SInt Candidate() const {
         return candidate_;
     }
@@ -446,13 +478,15 @@ private:
             return 0.0L;
         }
 
-        const SInt predecessor_x = candidate_x_ + 1;
-
         /*
-         * C(x + 1, k) = C(x, k) * (x + 1) / (x + 1 - k).
+         * The predecessor minimum corresponds to x + 1:
+         *
+         * C(x + 1, k)
+         *   = C(x, k) * (x + 1) / (x + 1 - k)
+         *   = C(x, k) * (1 + k / (x + 1 - k)).
          */
-        return log_candidate_tail_ + std::log(static_cast<long double>(predecessor_x))
-               - std::log(static_cast<long double>(predecessor_x - k_));
+        return log_candidate_tail_
+               + std::log1pl(static_cast<long double>(k_) / static_cast<long double>(candidate_x_ + 1 - k_));
     }
 
     long double LogSuccessorTail() const {
@@ -466,8 +500,8 @@ private:
         /*
          * C(x - 1, k) = C(x, k) * (x - k) / x.
          */
-        return log_candidate_tail_ + std::log(static_cast<long double>(candidate_x_ - k_))
-               - std::log(static_cast<long double>(candidate_x_));
+        return log_candidate_tail_
+               + std::log1pl(-static_cast<long double>(k_) / static_cast<long double>(candidate_x_));
     }
 
     SInt        candidate_;
@@ -482,6 +516,9 @@ private:
 struct CorrectedMinimumCandidate {
     SInt        candidate;
     long double log_tail;
+
+    bool        has_predecessor;
+    long double log_predecessor_tail;
 };
 
 inline CorrectedMinimumCandidate CorrectMinimumCandidateByRecurrence(
@@ -516,9 +553,14 @@ inline CorrectedMinimumCandidate CorrectMinimumCandidateByRecurrence(
         }
     }
 
+    const bool has_predecessor = state.HasPredecessor();
+
     return {
-        .candidate = state.Candidate(),
-        .log_tail  = state.LogCandidateTail(),
+        .candidate       = state.Candidate(),
+        .log_tail        = state.LogCandidateTail(),
+        .has_predecessor = has_predecessor,
+        .log_predecessor_tail =
+            has_predecessor ? state.LogCurrentPredecessorTail() : -std::numeric_limits<long double>::infinity(),
     };
 }
 
@@ -611,7 +653,7 @@ inline SInt ResolveMinimumCandidate(
 
 inline SInt EstimateMinimumCandidate(
     const SInt local_begin, const SInt local_end, const SInt n, const SInt k, const long double log_target_tail,
-    const long double log_k_factorial) {
+    const long double log_k_factorial, const long double inv_k) {
     SInt candidate = local_begin;
 
     const bool estimate_is_usable = std::isfinite(log_target_tail) && std::isfinite(log_k_factorial);
@@ -620,7 +662,7 @@ inline SInt EstimateMinimumCandidate(
         return candidate;
     }
 
-    const long double inverse_exponent = (log_target_tail + log_k_factorial) / static_cast<long double>(k);
+    const long double inverse_exponent = (log_target_tail + log_k_factorial) * inv_k;
 
     const long double base_estimate = std::exp(inverse_exponent);
 
@@ -777,11 +819,13 @@ SInt SampleMinimumImplicit(
      *
      *     s ~= n - 1 - x.
      */
-    SInt candidate = EstimateMinimumCandidate(local_begin, local_end, n, k, log_target_tail, cache.log_k_factorial);
+    SInt candidate =
+        EstimateMinimumCandidate(local_begin, local_end, n, k, log_target_tail, cache.log_k_factorial, cache.inv_k);
+
     const SInt candidate_x = n - (candidate + 1);
 
     const long double log_candidate_tail =
-        candidate_x >= k ? cache.GetCandidate(candidate_x) : -std::numeric_limits<long double>::infinity();
+        candidate_x >= k ? cache.Get(candidate_x, k) : -std::numeric_limits<long double>::infinity();
 
     const CorrectedMinimumCandidate corrected = CorrectMinimumCandidateByRecurrence(
         candidate, local_begin, local_end, n, k, log_candidate_tail, log_target_tail, steps);
@@ -790,25 +834,13 @@ SInt SampleMinimumImplicit(
 
     const bool candidate_valid = corrected.log_tail <= log_target_tail;
 
-    const bool predecessor_invalid = candidate == local_begin || !at_or_right_of_answer(candidate - 1);
+    const bool predecessor_invalid = !corrected.has_predecessor || corrected.log_predecessor_tail > log_target_tail;
 
     if (candidate_valid && predecessor_invalid) {
-        const SInt corrected_x = n - (candidate + 1);
-
-        if (corrected_x >= k) {
-            cache.SetCandidateCursor(corrected_x, corrected.log_tail);
-        }
-
         return candidate;
     }
 
     const SInt resolved = ResolveMinimumCandidate(candidate, local_begin, local_end, at_or_right_of_answer, steps);
-
-    const SInt resolved_x = n - (resolved + 1);
-
-    if (resolved_x >= k) {
-        cache.SetCandidateCursor(resolved_x, cache.Get(resolved_x, k));
-    }
 
     return resolved;
 }
@@ -2002,6 +2034,87 @@ private:
 struct HypergraphMemoryStats {
     SInt max_pins_per_hyperedge = 0;
 };
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+struct HGNPInstrumentation {
+    // Whole-generator phases.
+    double input_seconds      = 0.0;
+    double budget_seconds     = 0.0;
+    double planning_seconds   = 0.0;
+    double reserve_seconds    = 0.0;
+    double generation_seconds = 0.0;
+
+    // Planning subphases.
+    double boundary_seconds       = 0.0;
+    double population_seconds     = 0.0;
+    double count_sampling_seconds = 0.0;
+
+    // Generation subphases.
+    double cache_init_seconds      = 0.0;
+    double minimum_sample_seconds  = 0.0;
+    double pin_sample_seconds      = 0.0;
+    double duplicate_check_seconds = 0.0;
+    double csr_write_seconds       = 0.0;
+
+    // Work counters.
+    std::uint64_t active_sizes     = 0;
+    std::uint64_t zero_count_sizes = 0;
+    std::uint64_t planned_edges    = 0;
+    std::uint64_t planned_pins     = 0;
+
+    std::uint64_t generated_edges   = 0;
+    std::uint64_t generated_pins    = 0;
+    std::uint64_t attempts          = 0;
+    std::uint64_t duplicate_rejects = 0;
+
+    // Minimum sampler and cache behavior.
+    std::uint64_t minimum_samples      = 0;
+    std::uint64_t minimum_search_steps = 0;
+    std::uint64_t minimum_cache_gets   = 0;
+
+    // Map-backed LogBinomCache::Get().
+    std::uint64_t cache_map_calls   = 0;
+    std::uint64_t cache_map_hits    = 0;
+    std::uint64_t cache_map_misses  = 0;
+    std::uint64_t cache_map_inserts = 0;
+
+    // Cursor-backed LogBinomCache::GetCandidate().
+    std::uint64_t cache_candidate_calls                 = 0;
+    std::uint64_t cache_candidate_exact_hits            = 0;
+    std::uint64_t cache_candidate_recurrence_hits       = 0;
+    std::uint64_t cache_candidate_direct_evals          = 0;
+    std::uint64_t cache_candidate_below_range           = 0;
+    std::uint64_t cache_candidate_distance_sum          = 0;
+    std::uint64_t cache_candidate_max_distance          = 0;
+    std::uint64_t cache_candidate_distance_observations = 0;
+
+    std::uint64_t cache_backward_steps = 0;
+    std::uint64_t cache_forward_steps  = 0;
+
+    std::uint64_t cache_max_size = 0;
+
+    SInt cache_min_key = std::numeric_limits<SInt>::max();
+    SInt cache_max_key = 0;
+
+    // Important rank-local maxima.
+    std::uint64_t max_local_edges_for_size  = 0;
+    std::uint64_t max_cache_initial_reserve = 0;
+};
+class ScopedMPITimer {
+public:
+    explicit ScopedMPITimer(double& accumulator) : accumulator_(accumulator), start_(MPI_Wtime()) {}
+
+    ScopedMPITimer(const ScopedMPITimer&)            = delete;
+    ScopedMPITimer& operator=(const ScopedMPITimer&) = delete;
+
+    ~ScopedMPITimer() {
+        accumulator_ += MPI_Wtime() - start_;
+    }
+
+private:
+    double& accumulator_;
+    double  start_;
+};
+#endif
 
 struct FixedCountLocalRange {
     SInt min_begin = 0;
@@ -2022,7 +2135,12 @@ class ExactFixedCountHyperedgeGenerator {
 public:
     ExactFixedCountHyperedgeGenerator(
         const PGeneratorConfig& config, PEID rank, PEID size, RNGWrapper<>& rng, Mersenne& mersenne, Graph& graph,
-        HypergraphMemoryStats& memory_stats, std::unordered_set<SInt>& floyd_scratch);
+        HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ,
+        HGNPInstrumentation* instrumentation
+#endif
+    );
 
     FixedCountLocalRange PrepareLocalRange(SInt hyperedge_size, SInt global_m);
 
@@ -2041,8 +2159,6 @@ private:
 
     void ValidateExactSparseDensity(SInt local_m, const CountInt& local_population) const;
 
-    std::size_t ComputeCacheSize(SInt local_m, SInt local_min_begin, SInt local_min_end) const;
-
     SInt EdgeSeed(SInt hyperedge_size) const;
 
     SInt RankSplitSeed(SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt level) const;
@@ -2053,17 +2169,21 @@ private:
 
     void SampleHyperedgeInto(SInt minimum_vertex, SInt hyperedge_size, std::vector<SInt>& pins);
 
-    bool TryPushHyperedge(const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen);
+    bool TryPushHyperedge(const std::vector<SInt>& pins, HyperedgeSeenSet& local_seen);
 
     const PGeneratorConfig& config_;
     PEID                    rank_;
     PEID                    size_;
 
-    RNGWrapper<>&             rng_;
-    Mersenne&                 mersenne_;
-    Graph&                    graph_;
-    HypergraphMemoryStats&    memory_stats_;
-    std::unordered_set<SInt>& floyd_scratch_;
+    RNGWrapper<>&          rng_;
+    Mersenne&              mersenne_;
+    Graph&                 graph_;
+    HypergraphMemoryStats& memory_stats_;
+    FloydScratchSet&       floyd_scratch_;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    HGNPInstrumentation* instrumentation_;
+#endif
+    std::size_t log_binom_cache_reserve_hint_ = 4096;
 };
 
 inline void ObservePinsAndMaybeReserve(Graph& graph, HypergraphMemoryStats& stats, const std::size_t pins) {
@@ -2097,11 +2217,11 @@ inline std::pair<SInt, SInt> BalancedVertexRange(const SInt n, const PEID rank, 
     return {start, end};
 }
 
-inline std::unordered_set<std::uint64_t> MakeLocalSeenSet(const bool allow_duplicates, const SInt local_edge_count) {
-    std::unordered_set<std::uint64_t> local_seen;
+inline HyperedgeSeenSet MakeLocalSeenSet(const bool allow_duplicates, const SInt local_edge_count) {
+    HyperedgeSeenSet local_seen;
 
     if (!allow_duplicates) {
-        local_seen.max_load_factor(0.5);
+        local_seen.max_load_factor(0.5f);
         local_seen.reserve(static_cast<std::size_t>(local_edge_count));
     }
 

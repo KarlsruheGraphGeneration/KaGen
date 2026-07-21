@@ -4,6 +4,9 @@
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 
+#include <sched.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -54,21 +57,46 @@ void HyperGNP<BigInt>::GenerateCSR() {
         throw ConfigurationError("Invalid HGNP hyperedge size range");
     }
 
-    LoadSizeDistributionInputs();
-    SelectProbabilityMode();
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.input_seconds);
+#endif
+        LoadSizeDistributionInputs();
+        SelectProbabilityMode();
+    }
 
     const SInt upper_bound = EffectiveUpperBound(hard_upper_bound, lower_bound);
 
     if (probs_type_ == ProbabilityMode::EdgeAndPinBudget) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.budget_seconds);
+#endif
         GenerateBudgetSizeCounts(lower_bound, hard_upper_bound);
     }
 
-    const std::vector<HGNPSizePlan> plan = BuildGenerationPlan(lower_bound, upper_bound);
+    std::vector<HGNPSizePlan> plan;
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.planning_seconds);
+#endif
+        plan = BuildGenerationPlan(lower_bound, upper_bound);
+    }
 
-    ReserveCSRForPlan(plan);
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.reserve_seconds);
+#endif
+        ReserveCSRForPlan(plan);
+    }
 
     graph_.hyperedge_offsets.push_back(0);
-    GenerateHyperedgesFromPlan(plan);
+
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.generation_seconds);
+#endif
+        GenerateHyperedgesFromPlan(plan);
+    }
 
     SetLocalVertexRange();
 }
@@ -120,7 +148,12 @@ void HyperGNP<BigInt>::GenerateHyperedgesFromSizePlan(const HGNPSizePlan& entry)
     }
 
     ExactFixedCountHyperedgeGenerator<BigInt> fixed_count_generator(
-        config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_);
+        config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ,
+        &instrumentation_
+#endif
+    );
 
     fixed_count_generator.Generate(
         entry.hyperedge_size, FixedCountLocalRange{
@@ -132,12 +165,19 @@ void HyperGNP<BigInt>::GenerateHyperedgesFromSizePlan(const HGNPSizePlan& entry)
 
 template <typename BigInt>
 void HyperGNP<BigInt>::GenerateApproxHyperedgesFromPlan(const HGNPSizePlan& entry) {
-    const std::size_t cache_size = ComputeCacheSize(entry.range.local_m, entry.range.begin, entry.range.end);
+    const std::size_t cache_size = ComputeLogBinomCacheSize(entry.range.local_m, entry.range.begin, entry.range.end);
+
+    const double cache_start = MPI_Wtime();
 
     LogBinomCache cache(entry.hyperedge_size, cache_size);
 
     cache.InitializeRange(config_.n, entry.range.begin, entry.range.end);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.cache_init_seconds += MPI_Wtime() - cache_start;
 
+    instrumentation_.max_cache_initial_reserve =
+        std::max<std::uint64_t>(instrumentation_.max_cache_initial_reserve, cache_size);
+#endif
     std::vector<SInt> pins;
     pins.reserve(static_cast<std::size_t>(entry.hyperedge_size));
 
@@ -148,10 +188,324 @@ void HyperGNP<BigInt>::GenerateApproxHyperedgesFromPlan(const HGNPSizePlan& entr
     mersenne_.RandomInit(edge_seed);
 
     GenerateLocalHyperedges(entry, edge_seed, cache, pins, seen);
+
+    const LogBinomCacheStats& stats = cache.stats;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.cache_map_calls += stats.map_calls;
+
+    instrumentation_.cache_map_hits += stats.map_hits;
+
+    instrumentation_.cache_map_misses += stats.map_misses;
+
+    instrumentation_.cache_map_inserts += stats.map_inserts;
+
+    instrumentation_.cache_candidate_calls += stats.candidate_calls;
+
+    instrumentation_.cache_candidate_exact_hits += stats.candidate_exact_hits;
+
+    instrumentation_.cache_candidate_recurrence_hits += stats.candidate_recurrence_hits;
+
+    instrumentation_.cache_candidate_direct_evals += stats.candidate_direct_evals;
+
+    instrumentation_.cache_candidate_below_range += stats.candidate_below_range;
+
+    instrumentation_.cache_candidate_distance_sum += stats.candidate_distance_sum;
+
+    instrumentation_.cache_candidate_max_distance =
+        std::max(instrumentation_.cache_candidate_max_distance, stats.candidate_max_distance);
+
+    instrumentation_.cache_candidate_distance_observations += stats.candidate_distance_observations;
+
+    instrumentation_.cache_backward_steps += stats.backward_steps;
+
+    instrumentation_.cache_forward_steps += stats.forward_steps;
+
+    instrumentation_.cache_max_size = std::max(instrumentation_.cache_max_size, stats.max_size);
+
+    const std::uint64_t total_calls = stats.map_calls + stats.candidate_calls;
+
+    if (total_calls > 0) {
+        instrumentation_.cache_min_key = std::min(instrumentation_.cache_min_key, stats.min_key);
+
+        instrumentation_.cache_max_key = std::max(instrumentation_.cache_max_key, stats.max_key);
+    }
+#endif
 }
 
 template <typename BigInt>
-void HyperGNP<BigInt>::FinalizeCSR(MPI_Comm /*comm*/) {}
+void HyperGNP<BigInt>::FinalizeCSR(MPI_Comm comm) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    std::cerr << "rank=" << rank_ << " pid=" << getpid() << " cpu=" << sched_getcpu() << '\n';
+    struct TimingRow {
+        const char* name;
+        double HGNPInstrumentation::* member;
+    };
+
+    constexpr std::array timing_rows{
+        TimingRow{"Input", &HGNPInstrumentation::input_seconds},
+        TimingRow{"Budget", &HGNPInstrumentation::budget_seconds},
+        TimingRow{"Planning", &HGNPInstrumentation::planning_seconds},
+        TimingRow{"  Boundaries", &HGNPInstrumentation::boundary_seconds},
+        TimingRow{"  Exact population", &HGNPInstrumentation::population_seconds},
+        TimingRow{"  Count sampling", &HGNPInstrumentation::count_sampling_seconds},
+        TimingRow{"Reserve", &HGNPInstrumentation::reserve_seconds},
+        TimingRow{"Generation", &HGNPInstrumentation::generation_seconds},
+        TimingRow{"  Cache init", &HGNPInstrumentation::cache_init_seconds},
+        TimingRow{"  Minimum sampling", &HGNPInstrumentation::minimum_sample_seconds},
+        TimingRow{"  Pin sampling", &HGNPInstrumentation::pin_sample_seconds},
+        TimingRow{"  Duplicate checking", &HGNPInstrumentation::duplicate_check_seconds},
+        TimingRow{"  CSR writes", &HGNPInstrumentation::csr_write_seconds},
+    };
+
+    if (rank_ == 0) {
+        std::cout << "\nHGNP instrumentation:\n"
+                  << std::left << std::setw(24) << "Phase" << std::right << std::setw(12) << "Min" << std::setw(12)
+                  << "Mean" << std::setw(12) << "Max" << std::setw(12) << "Max/Mean" << '\n';
+    }
+
+    for (const auto& row: timing_rows) {
+        const double local = instrumentation_.*(row.member);
+
+        double minimum = 0.0;
+        double maximum = 0.0;
+        double sum     = 0.0;
+
+        MPI_Reduce(&local, &minimum, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&local, &sum, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+        MPI_Reduce(&local, &maximum, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+
+        if (rank_ == 0) {
+            const double mean = sum / static_cast<double>(size_);
+
+            const double imbalance = mean > 0.0 ? maximum / mean : 0.0;
+
+            std::cout << std::left << std::setw(24) << row.name << std::right << std::fixed << std::setprecision(6)
+                      << std::setw(12) << minimum << std::setw(12) << mean << std::setw(12) << maximum << std::setw(12)
+                      << imbalance << '\n';
+        }
+    }
+
+    auto reduce_sum_u64 = [&](const std::uint64_t local) {
+        std::uint64_t global = 0;
+
+        MPI_Reduce(&local, &global, 1, MPI_UINT64_T, MPI_SUM, 0, comm);
+
+        return global;
+    };
+
+    auto reduce_max_u64 = [&](const std::uint64_t local) {
+        std::uint64_t global = 0;
+
+        MPI_Reduce(&local, &global, 1, MPI_UINT64_T, MPI_MAX, 0, comm);
+
+        return global;
+    };
+
+    auto reduce_min_sint = [&](const SInt local) {
+        SInt global = 0;
+
+        MPI_Reduce(&local, &global, 1, MPI_UINT64_T, MPI_MIN, 0, comm);
+
+        return global;
+    };
+
+    auto reduce_max_sint = [&](const SInt local) {
+        SInt global = 0;
+
+        MPI_Reduce(&local, &global, 1, MPI_UINT64_T, MPI_MAX, 0, comm);
+
+        return global;
+    };
+
+    const std::uint64_t active_sizes = reduce_sum_u64(instrumentation_.active_sizes);
+
+    const std::uint64_t zero_count_sizes = reduce_sum_u64(instrumentation_.zero_count_sizes);
+
+    const std::uint64_t planned_edges = reduce_sum_u64(instrumentation_.planned_edges);
+
+    const std::uint64_t planned_pins = reduce_sum_u64(instrumentation_.planned_pins);
+
+    const std::uint64_t generated_edges = reduce_sum_u64(instrumentation_.generated_edges);
+
+    const std::uint64_t generated_pins = reduce_sum_u64(instrumentation_.generated_pins);
+
+    const std::uint64_t attempts = reduce_sum_u64(instrumentation_.attempts);
+
+    const std::uint64_t duplicate_rejects = reduce_sum_u64(instrumentation_.duplicate_rejects);
+
+    const std::uint64_t minimum_samples = reduce_sum_u64(instrumentation_.minimum_samples);
+
+    const std::uint64_t minimum_search_steps = reduce_sum_u64(instrumentation_.minimum_search_steps);
+
+    const std::uint64_t minimum_cache_gets = reduce_sum_u64(instrumentation_.minimum_cache_gets);
+
+    const std::uint64_t cache_map_calls = reduce_sum_u64(instrumentation_.cache_map_calls);
+
+    const std::uint64_t cache_map_hits = reduce_sum_u64(instrumentation_.cache_map_hits);
+
+    const std::uint64_t cache_map_misses = reduce_sum_u64(instrumentation_.cache_map_misses);
+
+    const std::uint64_t cache_map_inserts = reduce_sum_u64(instrumentation_.cache_map_inserts);
+
+    const std::uint64_t cache_candidate_calls = reduce_sum_u64(instrumentation_.cache_candidate_calls);
+
+    const std::uint64_t cache_candidate_exact_hits = reduce_sum_u64(instrumentation_.cache_candidate_exact_hits);
+
+    const std::uint64_t cache_candidate_recurrence_hits =
+        reduce_sum_u64(instrumentation_.cache_candidate_recurrence_hits);
+
+    const std::uint64_t cache_candidate_direct_evals = reduce_sum_u64(instrumentation_.cache_candidate_direct_evals);
+
+    const std::uint64_t cache_candidate_below_range = reduce_sum_u64(instrumentation_.cache_candidate_below_range);
+
+    const std::uint64_t cache_candidate_distance_sum = reduce_sum_u64(instrumentation_.cache_candidate_distance_sum);
+
+    const std::uint64_t cache_candidate_max_distance = reduce_max_u64(instrumentation_.cache_candidate_max_distance);
+
+    const std::uint64_t cache_candidate_distance_observations =
+        reduce_sum_u64(instrumentation_.cache_candidate_distance_observations);
+
+    const std::uint64_t cache_backward_steps = reduce_sum_u64(instrumentation_.cache_backward_steps);
+
+    const std::uint64_t cache_forward_steps = reduce_sum_u64(instrumentation_.cache_forward_steps);
+    const std::uint64_t cache_max_size      = reduce_max_u64(instrumentation_.cache_max_size);
+
+    const std::uint64_t max_cache_initial_reserve = reduce_max_u64(instrumentation_.max_cache_initial_reserve);
+
+    const std::uint64_t max_local_edges_for_size = reduce_max_u64(instrumentation_.max_local_edges_for_size);
+
+    const SInt cache_min_key = reduce_min_sint(instrumentation_.cache_min_key);
+
+    const SInt cache_max_key = reduce_max_sint(instrumentation_.cache_max_key);
+
+    if (rank_ != 0) {
+        return;
+    }
+
+    const auto safe_ratio = [](const std::uint64_t numerator, const std::uint64_t denominator) -> double {
+        return denominator > 0 ? static_cast<double>(numerator) / static_cast<double>(denominator) : 0.0;
+    };
+
+    const std::uint64_t cache_total_calls = cache_map_calls + cache_candidate_calls;
+
+    const std::uint64_t cache_total_direct_evals = cache_map_misses + cache_candidate_direct_evals;
+
+    const std::uint64_t cache_candidate_hits = cache_candidate_exact_hits + cache_candidate_recurrence_hits;
+
+    const std::uint64_t recurrence_steps = cache_backward_steps + cache_forward_steps;
+
+    const bool has_cache_keys = cache_total_calls > 0 && cache_min_key != std::numeric_limits<SInt>::max();
+
+    const std::uint64_t candidate_distance_observations =
+        cache_candidate_calls >= cache_candidate_direct_evals
+            ? cache_candidate_calls - cache_candidate_direct_evals
+                  + (cache_candidate_direct_evals > 0 ? cache_candidate_direct_evals - 1 : 0)
+            : 0;
+
+    std::cout << "\nHGNP work statistics:\n";
+
+    std::cout << "  Active size/rank entries:       " << active_sizes << '\n';
+    std::cout << "  Zero-count size/rank entries:   " << zero_count_sizes << '\n';
+    std::cout << "  Planned edges:                  " << planned_edges << '\n';
+    std::cout << "  Generated edges:                " << generated_edges << '\n';
+    std::cout << "  Planned pins:                   " << planned_pins << '\n';
+    std::cout << "  Generated pins:                 " << generated_pins << '\n';
+    std::cout << "  Maximum local edges for size:   " << max_local_edges_for_size << '\n';
+    std::cout << "  Attempts:                       " << attempts << '\n';
+    std::cout << "  Attempts per generated edge:    " << std::fixed << std::setprecision(6)
+              << safe_ratio(attempts, generated_edges) << '\n';
+    std::cout << "  Duplicate rejects:              " << duplicate_rejects << '\n';
+    std::cout << "  Duplicate rejection rate:       " << safe_ratio(duplicate_rejects, attempts) << '\n';
+
+    std::cout << "\nMinimum sampler:\n";
+    std::cout << "  Samples:                        " << minimum_samples << '\n';
+    std::cout << "  Search steps:                   " << minimum_search_steps << '\n';
+    std::cout << "  Search steps per sample:        " << safe_ratio(minimum_search_steps, minimum_samples) << '\n';
+    std::cout << "  Predicate cache gets:           " << minimum_cache_gets << '\n';
+    std::cout << "  Predicate cache gets/sample:    " << safe_ratio(minimum_cache_gets, minimum_samples) << '\n';
+
+    std::cout << "\nLogBinomCache map:\n";
+
+    std::cout << "  Calls:                          " << cache_map_calls << '\n';
+
+    std::cout << "  Hits:                           " << cache_map_hits << '\n';
+
+    std::cout << "  Misses:                         " << cache_map_misses << '\n';
+
+    std::cout << "  Hit rate:                       " << safe_ratio(cache_map_hits, cache_map_calls) << '\n';
+
+    std::cout << "  Miss rate:                      " << safe_ratio(cache_map_misses, cache_map_calls) << '\n';
+
+    std::cout << "  Inserts:                        " << cache_map_inserts << '\n';
+
+    std::cout << "  Calls per generated edge:       " << safe_ratio(cache_map_calls, generated_edges) << '\n';
+
+    std::cout << "  Misses per generated edge:      " << safe_ratio(cache_map_misses, generated_edges) << '\n';
+
+    std::cout << "  Inserts per generated edge:     " << safe_ratio(cache_map_inserts, generated_edges) << '\n';
+
+    std::cout << "\nLogBinomCache candidate cursor:\n";
+
+    std::cout << "  Calls:                          " << cache_candidate_calls << '\n';
+
+    std::cout << "  Exact cursor hits:              " << cache_candidate_exact_hits << '\n';
+
+    std::cout << "  Recurrence hits:                " << cache_candidate_recurrence_hits << '\n';
+
+    std::cout << "  Total cursor hit rate:          " << safe_ratio(cache_candidate_hits, cache_candidate_calls)
+              << '\n';
+
+    std::cout << "  Direct evaluations:             " << cache_candidate_direct_evals << '\n';
+
+    std::cout << "  Direct evaluation rate:         " << safe_ratio(cache_candidate_direct_evals, cache_candidate_calls)
+              << '\n';
+
+    std::cout << "  Below-range requests:           " << cache_candidate_below_range << '\n';
+
+    std::cout << "  Average cursor distance:        "
+              << safe_ratio(cache_candidate_distance_sum, cache_candidate_distance_observations) << '\n';
+
+    std::cout << "  Maximum cursor distance:        " << cache_candidate_max_distance << '\n';
+
+    std::cout << "  Forward recurrence steps:       " << cache_forward_steps << '\n';
+
+    std::cout << "  Backward recurrence steps:      " << cache_backward_steps << '\n';
+
+    std::cout << "  Recurrence steps per hit:       " << safe_ratio(recurrence_steps, cache_candidate_recurrence_hits)
+              << '\n';
+
+    std::cout << "\nLogBinomCache storage:\n";
+
+    std::cout << "  Total calls:                    " << cache_total_calls << '\n';
+
+    std::cout << "  Total direct evaluations:       " << cache_total_direct_evals << '\n';
+
+    std::cout << "  Maximum live entries:           " << cache_max_size << '\n';
+
+    std::cout << "  Maximum reserved capacity:      " << max_cache_initial_reserve << '\n';
+
+    std::cout << "  Maximum size/capacity ratio:    " << safe_ratio(cache_max_size, max_cache_initial_reserve) << '\n';
+
+    if (has_cache_keys) {
+        std::cout << "  Minimum accessed key:           " << cache_min_key << '\n';
+
+        std::cout << "  Maximum accessed key:           " << cache_max_key << '\n';
+
+        std::cout << "  Accessed key span:              " << cache_max_key - cache_min_key + 1 << '\n';
+    } else {
+        std::cout << "  Accessed key range:             n/a\n";
+    }
+
+    if (planned_edges != generated_edges) {
+        std::cout << "  WARNING: planned/generated edge mismatch\n";
+    }
+
+    if (planned_pins != generated_pins) {
+        std::cout << "  WARNING: planned/generated pin mismatch\n";
+    }
+
+#endif
+}
 
 // #### Size /Probability Setup ####
 template <typename BigInt>
@@ -289,19 +643,33 @@ void HyperGNP<BigInt>::PrepareSampledExactPlan(HGNPSizePlan& entry, const double
         return;
     }
 
-    const CountInt local_population = MinRangeMassExact(min_begin, min_end, config_.n, k);
+    CountInt local_population;
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.population_seconds);
+#endif
+
+        local_population = MinRangeMassExact(min_begin, min_end, config_.n, k);
+    }
 
     if (local_population == 0) {
         return;
     }
 
-    const SInt local_m = SampleExactEdgeCount(local_population, probability, LocalCountSeed(k));
+    SInt local_m;
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.count_sampling_seconds);
+#endif
 
-    if (CountInt(local_m) > local_population) {
-        throw ConfigurationError("HGNP local binomial count exceeds local population");
+        local_m = SampleExactEdgeCount(local_population, probability, LocalCountSeed(k));
     }
 
     entry.range.local_m = local_m;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.max_local_edges_for_size =
+        std::max<std::uint64_t>(instrumentation_.max_local_edges_for_size, static_cast<std::uint64_t>(local_m));
+#endif
 }
 
 template <typename BigInt>
@@ -355,11 +723,58 @@ template <typename BigInt>
 std::vector<HGNPSizePlan> HyperGNP<BigInt>::BuildGenerationPlan(const SInt lower_bound, const SInt upper_bound) {
     std::vector<HGNPSizePlan> plan;
 
-    if (upper_bound >= lower_bound) {
-        plan.reserve(static_cast<std::size_t>(upper_bound - lower_bound + 1));
+    /*
+     * EdgeAndPinBudget produces a sparse set of nonzero size counts.
+     * Iterating through every k in [lower_bound, upper_bound] would
+     * take Theta(n) time and reserve Theta(n) plan entries.
+     */
+    if (probs_type_ == ProbabilityMode::EdgeAndPinBudget) {
+        std::vector<SInt> active_sizes;
+        active_sizes.reserve(budget_size_counts_.size());
+
+        for (const auto& [k, count]: budget_size_counts_) {
+            if (count > 0 && k >= lower_bound && k <= upper_bound) {
+                active_sizes.push_back(k);
+            }
+        }
+
+        /*
+         * budget_size_counts_ is apparently unordered. Sorting preserves
+         * the previous increasing-k generation and CSR order.
+         */
+        std::sort(active_sizes.begin(), active_sizes.end());
+
+        plan.reserve(active_sizes.size());
+
+        for (const SInt k: active_sizes) {
+            /*
+             * This reuses the existing probability resolution, exact-count
+             * sampling, instrumentation and plan insertion logic.
+             */
+            const bool continue_planning = AppendSizePlanIfNeeded(k, lower_bound, plan);
+
+            if (!continue_planning) {
+                /*
+                 * This should not currently happen for EdgeAndPinBudget,
+                 * but retaining the check makes the contract explicit.
+                 */
+                break;
+            }
+        }
+
+        return plan;
     }
 
-    // To avoid overflow of k for upper_bound = SInt.max()
+    /*
+     * Existing dense/terminating behavior for all other probability modes.
+     */
+    if (upper_bound >= lower_bound) {
+        const SInt number_of_sizes = upper_bound - lower_bound + 1;
+
+        plan.reserve(static_cast<std::size_t>(number_of_sizes));
+    }
+
+    // Avoid overflowing k when upper_bound == SInt::max().
     for (SInt k = lower_bound;; ++k) {
         if (!AppendSizePlanIfNeeded(k, lower_bound, plan)) {
             break;
@@ -407,9 +822,23 @@ bool HyperGNP<BigInt>::AppendSizePlanIfNeeded(
 
     HGNPSizePlan entry = PrepareSizePlan(hyperedge_size, probability);
 
-    // Zero-count entries need not be retained.
     if (entry.range.local_m > 0) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ++instrumentation_.active_sizes;
+
+        instrumentation_.planned_edges += static_cast<std::uint64_t>(entry.range.local_m);
+
+        instrumentation_.planned_pins +=
+            static_cast<std::uint64_t>(entry.range.local_m) * static_cast<std::uint64_t>(hyperedge_size);
+
+#endif
+
         plan.push_back(std::move(entry));
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    } else {
+        ++instrumentation_.zero_count_sizes;
+#endif
     }
 
     return true;
@@ -622,17 +1051,6 @@ SInt HyperGNP<BigInt>::EffectiveUpperBound(SInt hard_upper_bound, SInt lower_bou
 }
 
 template <typename BigInt>
-std::size_t HyperGNP<BigInt>::ComputeCacheSize(const SInt local_m, const SInt begin, const SInt end) const {
-    const SInt search_width = end - begin;
-
-    const SInt scaled_m =
-        local_m > std::numeric_limits<SInt>::max() / 8 ? std::numeric_limits<SInt>::max() : local_m * 8;
-
-    return static_cast<std::size_t>(
-        std::min<SInt>(config_.n, std::max<SInt>(4096, std::min<SInt>(search_width, scaled_m))));
-}
-
-template <typename BigInt>
 bool HyperGNP<BigInt>::UsesExpectedCount() const {
     return probs_type_ == ProbabilityMode::ExplicitExpectedCounts || probs_type_ == ProbabilityMode::EdgeBudget
            || probs_type_ == ProbabilityMode::EdgeAndPinBudget;
@@ -682,37 +1100,74 @@ void HyperGNP<BigInt>::SetLocalVertexRange() {
 
 template <typename BigInt>
 std::pair<SInt, SInt> HyperGNP<BigInt>::LocalMinOwnerRange(const SInt hyperedge_size) const {
-    return {
-        FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_),
-        FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_)};
+    const double start = MPI_Wtime();
+
+    const SInt begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
+
+    const SInt end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.boundary_seconds += MPI_Wtime() - start;
+#endif
+    return {begin, end};
 }
 
 // #### Approx generation ####
 
 template <typename BigInt>
 void HyperGNP<BigInt>::GenerateLocalHyperedges(
-    const HGNPSizePlan& entry, SInt& edge_seed, LogBinomCache& cache, std::vector<SInt>& pins,
-    std::unordered_set<std::uint64_t>& seen) {
+    const HGNPSizePlan& entry, SInt& edge_seed, LogBinomCache& cache, std::vector<SInt>& pins, HyperedgeSeenSet& seen) {
     const SInt local_m = entry.range.local_m;
 
-    const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
+    const std::uint64_t local_m_u64 = static_cast<std::uint64_t>(local_m);
 
-    CountInt attempts  = 0;
-    SInt     generated = 0;
+    const std::uint64_t max_attempts = local_m_u64 > std::numeric_limits<std::uint64_t>::max() / 10
+                                           ? std::numeric_limits<std::uint64_t>::max()
+                                           : std::max<std::uint64_t>(local_m_u64 * 10, 1000);
+
+    std::uint64_t attempts  = 0;
+    SInt          generated = 0;
 
     while (generated < local_m) {
         SampleLocalHyperedgeInto(entry.hyperedge_size, entry.range.begin, entry.range.end, edge_seed, cache, pins);
 
-        if (config_.allow_duplicates || seen.insert(FingerprintPins(pins)).second) {
-            PushUncompressedHyperedge(graph_, memory_stats_, pins);
+        ++attempts;
 
-            ++generated;
+        bool accepted = true;
+
+        if (!config_.allow_duplicates) {
+            const double duplicate_start = MPI_Wtime();
+
+            accepted = seen.insert(FingerprintPins(pins)).second;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            instrumentation_.duplicate_check_seconds += MPI_Wtime() - duplicate_start;
+#endif
         }
 
-        if (++attempts > max_attempts) {
+        if (accepted) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            const double write_start = MPI_Wtime();
+#endif
+
+            PushUncompressedHyperedge(graph_, memory_stats_, pins);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            instrumentation_.csr_write_seconds += MPI_Wtime() - write_start;
+
+            ++generated;
+            ++instrumentation_.generated_edges;
+
+            instrumentation_.generated_pins += static_cast<std::uint64_t>(pins.size());
+        } else {
+            ++instrumentation_.duplicate_rejects;
+#endif
+        }
+
+        if (attempts > max_attempts) {
             throw ConfigurationError("HGNP sampling exceeded attempt limit");
         }
     }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.attempts += attempts;
+#endif
 }
 
 template <typename BigInt>
@@ -721,12 +1176,33 @@ void HyperGNP<BigInt>::SampleLocalHyperedgeInto(
     LogBinomCache& log_binom_cache, std::vector<SInt>& pins) {
     pins.clear();
 
-    const SInt minimum_vertex = SampleMinimumImplicit(
-        local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
+    std::uint64_t minimum_steps = 0;
+    std::uint64_t cache_gets    = 0;
+
+    SInt minimum_vertex;
+
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.minimum_sample_seconds);
+#endif
+        minimum_vertex = SampleMinimumImplicit(
+            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache, &minimum_steps,
+            &cache_gets);
+    }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++instrumentation_.minimum_samples;
+    instrumentation_.minimum_search_steps += minimum_steps;
+    instrumentation_.minimum_cache_gets += cache_gets;
+#endif
     pins.push_back(minimum_vertex);
 
-    FloydSampleInto(
-        minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_, pins, floyd_scratch_, 1);
+    {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ScopedMPITimer timer(instrumentation_.pin_sample_seconds);
+#endif
+        FloydSampleInto(
+            minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_, pins, floyd_scratch_, 1);
+    }
 }
 
 template <typename BigInt>

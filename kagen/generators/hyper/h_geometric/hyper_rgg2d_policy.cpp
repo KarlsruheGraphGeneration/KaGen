@@ -13,7 +13,9 @@
 
 namespace kagen {
 
-HyperRGG2DPolicy::HyperRGG2DPolicy(HyperRGG2D& generator) : gen_(&generator), rng_(RNGWrapper(generator.config_)) {}
+HyperRGG2DPolicy::HyperRGG2DPolicy(HyperRGG2D& generator) : gen_(&generator), rng_(RNGWrapper(generator.config_)) {
+    local_exact_last_access_.set_empty_key(std::numeric_limits<SInt>::max());
+}
 
 void HyperRGG2DPolicy::AddCenter(const Center&, std::vector<SInt>&) const {}
 
@@ -69,29 +71,24 @@ HyperRGG2DPolicy::TryMakeCell(const SSInt global_cell_x, const SSInt global_cell
 }
 
 void HyperRGG2DPolicy::CandidateCells(const Center& center, const LPFloat radius, std::vector<Cell>& cells) const {
-    SInt center_cell_x;
-    SInt center_cell_y;
-    gen_->DecodeCell(center.cell_id, center_cell_x, center_cell_y);
-
-    SInt center_chunk_x;
-    SInt center_chunk_y;
-    gen_->Decode(center.chunk_id, center_chunk_x, center_chunk_y);
-
     const SInt total_cells_per_dim = gen_->SafeTotalCellsPerDim();
 
-    const auto global_center_cell_x = static_cast<SSInt>((center_chunk_x * gen_->cells_per_dim_) + center_cell_x);
-    const auto global_center_cell_y = static_cast<SSInt>((center_chunk_y * gen_->cells_per_dim_) + center_cell_y);
+    const LPFloat cell_size = 1.0 / static_cast<LPFloat>(total_cells_per_dim);
 
-    const auto cell_radius = static_cast<SSInt>(std::ceil(radius * static_cast<LPFloat>(total_cells_per_dim)));
+    // Replace these with the actual Center coordinate accessors.
+    const LPFloat center_x = center.x;
+    const LPFloat center_y = center.y;
 
-    for (SSInt dx = -cell_radius; dx <= cell_radius; ++dx) {
-        const auto max_dy =
-            static_cast<SSInt>(std::floor(std::sqrt(static_cast<LPFloat>((cell_radius * cell_radius) - dx * dx))));
+    const auto min_cell_x = static_cast<SSInt>(std::floor((center_x - radius) / cell_size));
 
-        for (SSInt dy = -max_dy; dy <= max_dy; ++dy) {
-            const SSInt global_cell_x = global_center_cell_x + dx;
-            const SSInt global_cell_y = global_center_cell_y + dy;
+    const auto max_cell_x = static_cast<SSInt>(std::floor((center_x + radius) / cell_size));
 
+    const auto min_cell_y = static_cast<SSInt>(std::floor((center_y - radius) / cell_size));
+
+    const auto max_cell_y = static_cast<SSInt>(std::floor((center_y + radius) / cell_size));
+
+    for (SSInt global_cell_x = min_cell_x; global_cell_x <= max_cell_x; ++global_cell_x) {
+        for (SSInt global_cell_y = min_cell_y; global_cell_y <= max_cell_y; ++global_cell_y) {
             if (auto cell = TryMakeCell(global_cell_x, global_cell_y)) {
                 cells.push_back(*cell);
             }
@@ -288,23 +285,26 @@ void HyperRGG2DPolicy::EmitHyperedge(const std::vector<SInt>& pins, const std::v
 const std::vector<Vertex>& HyperRGG2DPolicy::ExactVerticesByX(const Cell& cell) const {
     if (IsLocalCell(cell) && !gen_->config_.coordinates) {
         auto it = gen_->vertices_.find(cell.global_cell_id);
-        if (it == gen_->vertices_.end()) {
-            static const std::vector<Vertex> empty;
-            return empty; // or assert/throw, because this should not happen
-        }
 
-        auto [_, inserted] = local_vertices_sorted_by_x_.insert(cell.global_cell_id);
-        if (inserted) {
-            std::sort(it->second.begin(), it->second.end(), [](const Vertex& a, const Vertex& b) {
-                return std::get<0>(a) < std::get<0>(b);
-            });
-        }
+        if (it != gen_->vertices_.end()) {
+            RecordLocalExactAccess(cell.global_cell_id);
 
-        return it->second;
+            auto [_, inserted] = local_vertices_sorted_by_x_.insert(cell.global_cell_id);
+
+            if (inserted) {
+                std::sort(it->second.begin(), it->second.end(), [](const Vertex& a, const Vertex& b) {
+                    return std::get<0>(a) < std::get<0>(b);
+                });
+            }
+
+            return it->second;
+        }
     }
 
+    // Remote cell, or local cell whose vertices have not been generated yet.
     return ExactRemoteCell(cell).vertices_by_x;
 }
+
 void HyperRGG2DPolicy::RecordRemoteAccess(SInt global_cell_id) const {
     const SInt t = ++exact_remote_access_counter_;
 
@@ -332,41 +332,59 @@ void HyperRGG2DPolicy::RecordRemoteAccess(SInt global_cell_id) const {
     }
 }
 
-const HyperRGG2DPolicy::CachedExactCell&
-HyperRGG2DPolicy::ExactRemoteCell(const Cell& cell) const {
+const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const Cell& cell) const {
     RecordRemoteAccess(cell.global_cell_id);
 
+    // Cache hit.
     auto it = exact_vertices_.find(cell.global_cell_id);
-
     if (it != exact_vertices_.end()) {
         ++exact_remote_cache_hits_;
 
         const auto lru_it = exact_lru_pos_.find(cell.global_cell_id);
-        if (lru_it != exact_lru_pos_.end()) {
-            exact_lru_.splice(
-                exact_lru_.begin(),
-                exact_lru_,
-                lru_it->second
-            );
-
-            lru_it->second = exact_lru_.begin();
+        if (lru_it == exact_lru_pos_.end()) {
+            throw std::logic_error("LRU cache metadata is inconsistent");
         }
+
+        exact_lru_.splice(exact_lru_.begin(), exact_lru_, lru_it->second);
+
+        lru_it->second = exact_lru_.begin();
 
         return it->second;
     }
 
+    // Cache miss.
     ++exact_remote_cache_misses_;
 
-    auto [inserted_it, inserted] =
-        exact_vertices_.emplace(
-            cell.global_cell_id,
-            CachedExactCell{}
-        );
+    if (exact_remote_cache_limit_ == 0) {
+        throw std::logic_error("exact remote cache limit must be positive");
+    }
+
+    // Evict before inserting, so the cache never temporarily contains
+    // exact_remote_cache_limit_ + 1 cells.
+    if (exact_vertices_.size() >= exact_remote_cache_limit_) {
+        if (exact_lru_.empty()) {
+            throw std::logic_error("LRU cache metadata is inconsistent");
+        }
+
+        const SInt victim = exact_lru_.back();
+
+        auto victim_it = exact_vertices_.find(victim);
+        if (victim_it == exact_vertices_.end()) {
+            throw std::logic_error("LRU cache metadata is inconsistent");
+        }
+
+        exact_remote_live_vertices_ -= static_cast<SInt>(victim_it->second.vertices_by_x.capacity());
+
+        exact_lru_.pop_back();
+        exact_lru_pos_.erase(victim);
+        exact_vertices_.erase(victim_it);
+    }
+
+    // Insert the requested cell.
+    auto [inserted_it, inserted] = exact_vertices_.emplace(cell.global_cell_id, CachedExactCell{});
 
     if (!inserted) {
-        throw std::logic_error(
-            "failed to insert exact remote cell into cache"
-        );
+        throw std::logic_error("failed to insert exact remote cell into cache");
     }
 
     exact_lru_.push_front(cell.global_cell_id);
@@ -374,59 +392,87 @@ HyperRGG2DPolicy::ExactRemoteCell(const Cell& cell) const {
 
     auto& cached = inserted_it->second;
 
-    gen_->GenerateVertices(
-        cell.chunk_id,
-        cell.cell_id,
-        cached.vertices_by_x
-    );
+    gen_->GenerateVertices(cell.chunk_id, cell.cell_id, cached.vertices_by_x);
 
-    std::sort(
-        cached.vertices_by_x.begin(),
-        cached.vertices_by_x.end(),
-        [](const Vertex& a, const Vertex& b) {
-            return std::get<0>(a) < std::get<0>(b);
-        }
-    );
+    std::sort(cached.vertices_by_x.begin(), cached.vertices_by_x.end(), [](const Vertex& a, const Vertex& b) {
+        return std::get<0>(a) < std::get<0>(b);
+    });
 
-    exact_remote_cached_vertices_ +=
-        static_cast<SInt>(cached.vertices_by_x.size());
+    const auto capacity = static_cast<SInt>(cached.vertices_by_x.capacity());
 
-    while (exact_vertices_.size() > exact_remote_cache_limit_) {
-        const SInt victim = exact_lru_.back();
+    exact_remote_live_vertices_ += capacity;
+    exact_remote_peak_vertices_ = std::max(exact_remote_peak_vertices_, exact_remote_live_vertices_);
 
-        exact_lru_.pop_back();
-        exact_lru_pos_.erase(victim);
-
-        // Do not evict the newly inserted cell before returning it.
-        if (victim == cell.global_cell_id) {
-            throw std::logic_error(
-                "exact remote cache limit is too small"
-            );
-        }
-
-        exact_vertices_.erase(victim);
-    }
+    exact_remote_cached_vertices_ += static_cast<SInt>(cached.vertices_by_x.size());
 
     return cached;
 }
 
 void HyperRGG2DPolicy::PrintExactCacheStats() const {
+    const std::size_t current_bytes = static_cast<std::size_t>(exact_remote_live_vertices_) * sizeof(Vertex);
+
+    const std::size_t peak_bytes = static_cast<std::size_t>(exact_remote_peak_vertices_) * sizeof(Vertex);
+
     std::cerr << " exact_remote_hits=" << exact_remote_cache_hits_
               << " exact_remote_misses=" << exact_remote_cache_misses_
-              << " exact_remote_cached_vertices=" << exact_remote_cached_vertices_ << '\n';
-    const double avg_reuse = exact_remote_reuse_count_ ? static_cast<double>(exact_remote_reuse_distance_sum_)
-                                                             / static_cast<double>(exact_remote_reuse_count_)
-                                                       : 0.0;
+              << " exact_remote_generated_vertices=" << exact_remote_cached_vertices_
+              << " exact_remote_live_capacity=" << exact_remote_live_vertices_
+              << " exact_remote_peak_capacity=" << exact_remote_peak_vertices_
+              << " exact_remote_live_bytes=" << current_bytes << " exact_remote_peak_bytes=" << peak_bytes << '\n';
+
+    const double avg_reuse = exact_remote_reuse_count_ != 0 ? static_cast<double>(exact_remote_reuse_distance_sum_)
+                                                                  / static_cast<double>(exact_remote_reuse_count_)
+                                                            : 0.0;
 
     std::cerr << " remote_reuse_count=" << exact_remote_reuse_count_ << " remote_reuse_avg=" << avg_reuse
               << " remote_reuse_max=" << exact_remote_reuse_distance_max_
               << " reuse<=1=" << exact_remote_reuse_distance_le_1_ << " reuse<=4=" << exact_remote_reuse_distance_le_4_
               << " reuse<=16=" << exact_remote_reuse_distance_le_16_
               << " reuse>16=" << exact_remote_reuse_distance_gt_16_ << '\n';
+
+    const double local_avg_reuse = local_exact_reuse_count_ != 0 ? static_cast<double>(local_exact_reuse_distance_sum_)
+                                                                       / static_cast<double>(local_exact_reuse_count_)
+                                                                 : 0.0;
+
+    std::cerr << " local_exact_accesses=" << local_exact_access_counter_
+              << " local_exact_reuse_count=" << local_exact_reuse_count_ << " local_exact_reuse_avg=" << local_avg_reuse
+              << " local_exact_reuse_max=" << local_exact_reuse_distance_max_
+              << " local_reuse<=1=" << local_exact_reuse_distance_le_1_
+              << " local_reuse<=4=" << local_exact_reuse_distance_le_4_
+              << " local_reuse<=16=" << local_exact_reuse_distance_le_16_
+              << " local_reuse>16=" << local_exact_reuse_distance_gt_16_ << '\n';
 }
 
 bool HyperRGG2DPolicy::IsLocalCell(const Cell& cell) const {
     return gen_->IsLocalChunk(cell.chunk_id);
+}
+
+void HyperRGG2DPolicy::RecordLocalExactAccess(const SInt global_cell_id) const {
+    const SInt t = ++local_exact_access_counter_;
+
+    auto it = local_exact_last_access_.find(global_cell_id);
+
+    if (it == local_exact_last_access_.end()) {
+        local_exact_last_access_[global_cell_id] = t;
+        return;
+    }
+
+    const SInt distance = t - it->second;
+    it->second          = t;
+
+    ++local_exact_reuse_count_;
+    local_exact_reuse_distance_sum_ += distance;
+    local_exact_reuse_distance_max_ = std::max(local_exact_reuse_distance_max_, distance);
+
+    if (distance <= 1) {
+        ++local_exact_reuse_distance_le_1_;
+    } else if (distance <= 4) {
+        ++local_exact_reuse_distance_le_4_;
+    } else if (distance <= 16) {
+        ++local_exact_reuse_distance_le_16_;
+    } else {
+        ++local_exact_reuse_distance_gt_16_;
+    }
 }
 
 } // namespace kagen

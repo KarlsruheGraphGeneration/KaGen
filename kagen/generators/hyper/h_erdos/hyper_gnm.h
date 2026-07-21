@@ -45,8 +45,6 @@ private:
 
     void ValidateDuplicateCheckingIsFeasible(SInt local_m) const;
     void ValidateExactSparseDensity(SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m) const;
-    std::size_t ComputeCacheSize(SInt local_m, SInt local_min_begin, SInt local_min_end) const;
-
     HGNMLocalGenerationRange PrepareLocalGenerationRange(SInt hyperedge_size, SInt m_k);
 
     std::pair<SInt, SInt> ResolveSizeRange() const;
@@ -63,7 +61,7 @@ private:
 
     void GenerateHyperedgesOfSize(SInt hyperedge_size, SInt m_k, const HGNMLocalGenerationRange& data);
 
-    bool TryPushHyperedge(const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen);
+    bool TryPushHyperedge(const std::vector<SInt>& pins, HyperedgeSeenSet& local_seen);
 
     void SampleHyperedgeInto(SInt minimum_vertex, SInt hyperedge_size, std::vector<SInt>& pins);
 
@@ -84,11 +82,16 @@ private:
     void GenerateBoltzmannPinBudgetSizeCounts(
         SInt lower_bound, SInt upper_bound, SInt pin_budget, std::unordered_map<SInt, SInt>& size_counts);
 
-    const PGeneratorConfig&  config_;
-    PEID                     rank_;
-    PEID                     size_;
-    HypergraphMemoryStats    memory_stats_;
-    std::unordered_set<SInt> floyd_scratch_;
+    void AccumulateCacheStats(const LogBinomCache& cache, std::size_t requested_capacity);
+
+    const PGeneratorConfig& config_;
+    PEID                    rank_;
+    PEID                    size_;
+    HypergraphMemoryStats   memory_stats_;
+    FloydScratchSet         floyd_scratch_;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    mutable HGNPInstrumentation instrumentation_;
+#endif
 
     RNGWrapper<>                              rng_;
     Mersenne                                  mersenne_;

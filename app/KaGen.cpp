@@ -139,7 +139,9 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
 
     auto add_hyperedge_radius_options = [&](CLI::App* cmd) {
         auto* radius_mode = cmd->add_option_group("Hyperedge radius mode");
-        radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
+
+        auto* fixed_radius =
+            radius_mode->add_option("--fixed-radius,-r,--radius", config.r, "Use a constant hyperedge radius");
 
         auto* radius_exponent = radius_mode->add_option(
             "--radius-exponent", config.hyperedge_radius_exponent,
@@ -147,23 +149,31 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         radius_exponent->each(set_random_radius);
 
         auto* pin_budget = add_option_pin_budget(radius_mode);
-        pin_budget->excludes(radius_exponent);
-        radius_exponent->excludes(pin_budget);
 
+        // Exactly one of fixed radius, exponent, or pin budget.
         radius_mode->require_option(1);
         radius_mode->silent();
 
         auto* variable_radius_params = cmd->add_option_group("Variable hyperedge radius parameters");
-        variable_radius_params->add_option(
+
+        auto* min_radius = variable_radius_params->add_option(
             "--minr,--radius-lower-bound", config.min_hyperedge_radius,
             "Optional lower bound for variable hyperedge radius");
-        variable_radius_params->add_option(
+
+        auto* max_radius = variable_radius_params->add_option(
             "--maxr,--radius-upper-bound", config.max_hyperedge_radius,
             "Optional upper bound for variable hyperedge radius");
-        variable_radius_params
-            ->add_option("--rq,--radius-quantile", config.quantile, "Optional quantile for variable hyperedge radius")
-            ->check(CLI::Range(0.0, 1.0))
-            ->needs(radius_exponent);
+
+        auto* radius_quantile = variable_radius_params->add_option(
+            "--rq,--radius-quantile", config.quantile,
+            "Quantile used to tune the spatial grid for variable hyperedge radii");
+
+        radius_quantile->check(CLI::Range(0.0, 1.0));
+
+        // Variable-radius parameters must not be combined with fixed-radius mode.
+        min_radius->excludes(fixed_radius);
+        max_radius->excludes(fixed_radius);
+        radius_quantile->excludes(fixed_radius);
 
         return radius_mode;
     };
@@ -512,8 +522,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");
 
         add_hyperedge_radius_options(hyperedge_dist_options);
-
-        hyperedge_dist_options->require_option(1);
 
         add_partial_cell_mode(cmd);
     }

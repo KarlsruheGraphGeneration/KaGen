@@ -48,6 +48,7 @@ public:
     }
 
     void AddCenter(const Center& /*unused*/, std::vector<SInt>& /*unused*/) const {}
+
     void CandidateCells(const Center& center, const Double radius, std::vector<Cell>& cells) {
         CacheQueryState(center, radius);
 
@@ -58,7 +59,7 @@ public:
         return gen_.current_hyperedge_radius_;
     }
 
-    CellBallRelation ClassifyCell(const Center& /*center*/, const Double /*radius*/, const Cell& cell) const {
+    CellBallRelation ClassifyCell(const Center& center, const Double radius, const Cell& cell) const {
         if (CellAABBOutsideBall(cell)) {
             return CellBallRelation::OUTSIDE;
         }
@@ -73,6 +74,7 @@ public:
 
         return CellBallRelation::PARTIAL;
     }
+
     Double CellCoverage(const Center& center, const Double hyperball_radius, const Cell& cell) const {
         const CellBallRelation relation = ClassifyCell(center, hyperball_radius, cell);
 
@@ -232,57 +234,76 @@ private:
 
         void AddCellsInAngularInterval(
             const SInt annulus_id, const Double min_phi, const Double max_phi, std::vector<Cell>& cells) {
-            const SInt grid_size   = gen().GridSizeForAnnulus(annulus_id);
+            const SInt grid_size  = gen().GridSizeForAnnulus(annulus_id);
+            const SInt num_chunks = gen().config_.k;
+
+            if (num_chunks <= 0 || grid_size <= 0) {
+                return;
+            }
+
+            const Double two_pi = Double{2.0 * M_PI};
+
+            const Double chunk_width = two_pi / static_cast<Double>(num_chunks);
+
             const auto query_parts = circular_interval::Split(min_phi, max_phi, gen().cell_eps_);
 
-            for (SInt chunk_id = 0; chunk_id < gen().config_.k; ++chunk_id) {
-                if (gen().chunks_.find(chunk_id) == std::end(gen().chunks_)) {
-                    gen().ComputeChunk(chunk_id);
-                    gen().ComputeAnnuli(chunk_id);
-                }
+            for (int part = 0; part < query_parts.count; ++part) {
+                const Double q_begin = query_parts.parts[part].first;
 
-                const auto& chunk = gen().chunks_[chunk_id];
+                const Double q_end = query_parts.parts[part].second;
 
-                const Double chunk_min_phi = std::get<1>(chunk);
-                const Double chunk_max_phi = std::get<2>(chunk);
-
-                bool chunk_overlaps = false;
-
-                for (int p = 0; p < query_parts.count; ++p) {
-                    const Double q_begin = query_parts.parts[p].first;
-                    const Double q_end   = query_parts.parts[p].second;
-
-                    if (std::max(q_begin, chunk_min_phi) < std::min(q_end, chunk_max_phi)) {
-                        chunk_overlaps = true;
-                        break;
-                    }
-                }
-
-                if (!chunk_overlaps) {
+                if (!(q_begin < q_end)) {
                     continue;
                 }
 
-                gen().GenerateCells(annulus_id, chunk_id);
+                // q_end is treated as exclusive.
+                const Double q_end_inside = std::nextafter(q_end, q_begin);
 
-                const Double cell_width = (chunk_max_phi - chunk_min_phi) / grid_size;
+                SInt first_chunk = static_cast<SInt>(std::floor(q_begin / chunk_width));
 
-                for (int p = 0; p < query_parts.count; ++p) {
-                    const Double q_begin = query_parts.parts[p].first;
-                    const Double q_end   = query_parts.parts[p].second;
+                SInt last_chunk = static_cast<SInt>(std::floor(q_end_inside / chunk_width));
+
+                first_chunk = std::clamp<SInt>(first_chunk, 0, num_chunks - 1);
+
+                last_chunk = std::clamp<SInt>(last_chunk, 0, num_chunks - 1);
+
+                for (SInt chunk_id = first_chunk; chunk_id <= last_chunk; ++chunk_id) {
+                    if (gen().chunks_.find(chunk_id) == std::end(gen().chunks_)) {
+                        gen().ComputeChunk(chunk_id);
+                        gen().ComputeAnnuli(chunk_id);
+                    }
+
+                    const auto& chunk = gen().chunks_[chunk_id];
+
+                    const Double chunk_min_phi = std::get<1>(chunk);
+
+                    const Double chunk_max_phi = std::get<2>(chunk);
 
                     const Double overlap_begin = std::max(q_begin, chunk_min_phi);
-                    const Double overlap_end   = std::min(q_end, chunk_max_phi);
 
-                    if (overlap_begin >= overlap_end) {
+                    const Double overlap_end = std::min(q_end, chunk_max_phi);
+
+                    if (!(overlap_begin < overlap_end)) {
+                        continue;
+                    }
+
+                    gen().GenerateCells(annulus_id, chunk_id);
+
+                    const Double cell_width = (chunk_max_phi - chunk_min_phi) / static_cast<Double>(grid_size);
+
+                    if (!(cell_width > Double{0.0})) {
                         continue;
                     }
 
                     SInt first_cell = static_cast<SInt>(std::floor((overlap_begin - chunk_min_phi) / cell_width));
 
-                    SInt last_cell = static_cast<SInt>(std::ceil((overlap_end - chunk_min_phi) / cell_width)) - 1;
+                    const Double overlap_end_inside = std::nextafter(overlap_end, overlap_begin);
+
+                    SInt last_cell = static_cast<SInt>(std::floor((overlap_end_inside - chunk_min_phi) / cell_width));
 
                     first_cell = std::clamp<SInt>(first_cell, 0, grid_size - 1);
-                    last_cell  = std::clamp<SInt>(last_cell, 0, grid_size - 1);
+
+                    last_cell = std::clamp<SInt>(last_cell, 0, grid_size - 1);
 
                     for (SInt cell_id = first_cell; cell_id <= last_cell; ++cell_id) {
                         PushCandidateCell(annulus_id, chunk_id, cell_id, cells);
@@ -599,21 +620,42 @@ public:
 
 private:
     bool IsInsideHyperbolicBallFast(
-        const Double v_cosh_r, const Double v_sinh_r, const Double v_cos_phi, const Double v_sin_phi) const {
-        const Double term_a       = center_cosh_r_ * v_cosh_r;
-        const Double term_b_scale = center_sinh_r_ * v_sinh_r;
-        const Double cos_delta    = (center_cos_phi_ * v_cos_phi) + (center_sin_phi_ * v_sin_phi);
+        const Double v_r, const Double v_sinh_r, const Double v_cos_phi, const Double v_sin_phi) const {
+        // Radial contribution:
+        //
+        // (cosh(center_r - v_r) - 1) / 2
+        //     = sinh^2((center_r - v_r) / 2)
+        const Double half_radial_difference = (center_r_ - v_r) / Double{2.0};
 
-        const Double pdm_fast = (term_a - (term_b_scale * cos_delta) - Double{1.0}) / Double{2.0};
+        const Double sinh_half_radial_difference = std::sinh(half_radial_difference);
 
-        return pdm_fast <= gen_.current_hyperedge_pdm_radius_;
+        const Double radial_term = sinh_half_radial_difference * sinh_half_radial_difference;
+
+        // Angular contribution:
+        //
+        // sin^2(delta_phi / 2)
+        //     = ((cos(center_phi) - cos(vertex_phi))^2
+        //        + (sin(center_phi) - sin(vertex_phi))^2) / 4
+        //
+        // This is more accurate than computing 1 - cos(delta_phi) when
+        // delta_phi is very small.
+        const Double delta_cos = center_cos_phi_ - v_cos_phi;
+        const Double delta_sin = center_sin_phi_ - v_sin_phi;
+
+        const Double sin_half_delta_sq = ((delta_cos * delta_cos) + (delta_sin * delta_sin)) / Double{4.0};
+
+        const Double angular_term = center_sinh_r_ * v_sinh_r * sin_half_delta_sq;
+
+        const Double pdm_distance = radial_term + angular_term;
+
+        return pdm_distance <= gen_.current_hyperedge_pdm_radius_;
     }
     SInt AddExactVerticesFast(const typename GeneratorT::VertexBlock& vertices, std::vector<SInt>& pins) const {
         SInt accepted = 0;
 
         for (std::size_t i = 0; i < vertices.id.size(); ++i) {
             if (IsInsideHyperbolicBallFast(
-                    vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i], vertices.sin_phi[i])) {
+                    vertices.r[i], vertices.sinh_r[i], vertices.cos_phi[i], vertices.sin_phi[i])) {
                 pins.push_back(vertices.id[i]);
                 ++accepted;
             }
@@ -622,36 +664,60 @@ private:
         return accepted;
     }
     bool IsInsideHyperbolicBallChecked(
-        const Double phi, const Double v_cosh_r, const Double v_sinh_r, const Double v_cos_phi,
+        const Double phi, const Double v_r, const Double v_cosh_r, const Double v_sinh_r, const Double v_cos_phi,
         const Double v_sin_phi) const {
-        const Double term_a       = center_cosh_r_ * v_cosh_r;
-        const Double term_b_scale = center_sinh_r_ * v_sinh_r;
-        const Double cos_delta    = (center_cos_phi_ * v_cos_phi) + (center_sin_phi_ * v_sin_phi);
+        const bool stable_inside = IsInsideHyperbolicBallFast(v_r, v_sinh_r, v_cos_phi, v_sin_phi);
 
-        const Double pdm_fast = (term_a - (term_b_scale * cos_delta) - Double{1.0}) / Double{2.0};
+#ifndef NDEBUG
+        const bool reference_inside =
+            HyperbolicDistanceReference(phi, v_cosh_r, v_sinh_r) <= gen_.current_hyperedge_pdm_radius_;
 
-        constexpr Double rel_eps = Double{4096.0} * std::numeric_limits<Double>::epsilon();
-
-        const Double expr_scale = std::max<Double>(
-            Double{1.0}, std::abs(term_a) + std::abs(term_b_scale) + std::abs(gen_.current_hyperedge_pdm_radius_));
-
-        const Double tol = rel_eps * expr_scale;
-
-        if (std::abs(pdm_fast - gen_.current_hyperedge_pdm_radius_) <= tol) {
-            return HyperbolicDistanceReference(phi, v_cosh_r, v_sinh_r) <= gen_.current_hyperedge_pdm_radius_;
+        if (stable_inside != reference_inside) {
+            std::cerr << std::setprecision(std::numeric_limits<Double>::max_digits10)
+                      << "STABLE/REFERENCE DISAGREEMENT\n"
+                      << "  center_r=" << center_r_ << '\n'
+                      << "  center_phi=" << center_phi_ << '\n'
+                      << "  vertex_r=" << v_r << '\n'
+                      << "  vertex_phi=" << phi << '\n'
+                      << "  radius=" << gen_.current_hyperedge_radius_ << '\n'
+                      << "  stable_inside=" << stable_inside << '\n'
+                      << "  reference_inside=" << reference_inside << '\n';
         }
+#endif
 
-        return pdm_fast <= gen_.current_hyperedge_pdm_radius_;
+        return stable_inside;
     }
     SInt AddExactVerticesChecked(const typename GeneratorT::VertexBlock& vertices, std::vector<SInt>& pins) const {
         SInt accepted = 0;
 
         for (std::size_t i = 0; i < vertices.id.size(); ++i) {
             if (IsInsideHyperbolicBallChecked(
-                    vertices.phi[i], vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i],
+                    vertices.phi[i], vertices.r[i], vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i],
                     vertices.sin_phi[i])) {
                 pins.push_back(vertices.id[i]);
                 ++accepted;
+            }
+
+            if (gen_.config_.debug) {
+                const bool fast_inside = IsInsideHyperbolicBallFast(
+                    vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i], vertices.sin_phi[i]);
+
+                const bool checked_inside = IsInsideHyperbolicBallChecked(
+                    vertices.phi[i], vertices.r[i], vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i],
+                    vertices.sin_phi[i]);
+
+                if (fast_inside != checked_inside) {
+                    std::cerr << std::setprecision(std::numeric_limits<Double>::max_digits10)
+                              << "FAST/CHECKED DISAGREEMENT\n"
+                              << "  vertex_id=" << vertices.id[i] << '\n'
+                              << "  vertex_r=" << vertices.r[i] << '\n'
+                              << "  vertex_phi=" << vertices.phi[i] << '\n'
+                              << "  center_r=" << center_r_ << '\n'
+                              << "  center_phi=" << center_phi_ << '\n'
+                              << "  hyperball_radius=" << gen_.current_hyperedge_radius_ << '\n'
+                              << "  fast_inside=" << fast_inside << '\n'
+                              << "  checked_inside=" << checked_inside << '\n';
+                }
             }
         }
 

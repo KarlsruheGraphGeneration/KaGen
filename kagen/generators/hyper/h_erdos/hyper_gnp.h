@@ -85,22 +85,23 @@ private:
     std::pair<SInt, SInt> LocalMinOwnerRange(SInt hyperedge_size) const;
     void                  GenerateLocalHyperedges(
         const HGNPSizePlan& entry, SInt& edge_seed, LogBinomCache& cache, std::vector<SInt>& pins,
-        std::unordered_set<std::uint64_t>& seen);
+        HyperedgeSeenSet& seen);
     void SampleLocalHyperedgeInto(
         SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt& edge_seed, LogBinomCache& log_binom_cache,
         std::vector<SInt>& pins);
-    SInt        LocalEdgeSeed(SInt hyperedge_size) const;
-    std::size_t ComputeCacheSize(SInt local_m, SInt begin, SInt end) const;
+    SInt LocalEdgeSeed(SInt hyperedge_size) const;
 
     void             LogSizeProbability(SInt hyperedge_size, double probability);
     void             GenerateApproxHyperedgesFromPlan(const HGNPSizePlan& entry);
     PGeneratorConfig config_;
 
-    PEID                     rank_;
-    PEID                     size_;
-    HypergraphMemoryStats    memory_stats_;
-    std::unordered_set<SInt> floyd_scratch_;
-
+    PEID                  rank_;
+    PEID                  size_;
+    HypergraphMemoryStats memory_stats_;
+    FloydScratchSet       floyd_scratch_;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    mutable HGNPInstrumentation instrumentation_;
+#endif
     RNGWrapper<>                   rng_;
     Mersenne                       mersenne_;
     ProbabilityMode                probs_type_ = ProbabilityMode::GlobalProbability;

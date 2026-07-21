@@ -94,12 +94,9 @@ private:
             Normalize(pins_, ranges_);
         }
     }
-    std::vector<SInt>
-    RemovePinsCoveredByRanges(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) const {
-        std::vector<SInt> filtered_pins;
-        filtered_pins.reserve(pins.size());
-
+    void RemovePinsCoveredByRanges(std::vector<SInt>& pins, const std::vector<PinRange>& ranges) const {
         std::size_t range_index = 0;
+        std::size_t write       = 0;
 
         for (const SInt pin: pins) {
             while (range_index < ranges.size() && ranges[range_index].end <= pin) {
@@ -110,41 +107,43 @@ private:
                 range_index < ranges.size() && ranges[range_index].begin <= pin && pin < ranges[range_index].end;
 
             if (!covered) {
-                filtered_pins.push_back(pin);
+                pins[write++] = pin;
             }
         }
 
-        return filtered_pins;
+        pins.resize(write);
     }
 
     void ExtractRunsAsRanges(std::vector<SInt>& pins, std::vector<PinRange>& ranges) const {
-        constexpr SInt min_run_length = 3; // 3 pins: 24 bytes -> 16 byte range
+        constexpr SInt min_run_length = 3;
 
-        std::vector<SInt> remaining;
-        remaining.reserve(pins.size());
+        std::size_t read  = 0;
+        std::size_t write = 0;
 
-        std::size_t i = 0;
-        while (i < pins.size()) {
-            std::size_t j = i + 1;
+        while (read < pins.size()) {
+            std::size_t end = read + 1;
 
-            while (j < pins.size() && pins[j] == pins[j - 1] + 1) {
-                ++j;
+            while (end < pins.size() && pins[end] == pins[end - 1] + 1) {
+                ++end;
             }
 
-            const SInt run_length = static_cast<SInt>(j - i);
+            const std::size_t run_length = end - read;
 
-            if (run_length >= min_run_length) {
-                ranges.push_back({.begin = pins[i], .end = pins[j - 1] + 1});
+            if (run_length >= static_cast<std::size_t>(min_run_length)) {
+                ranges.push_back({
+                    .begin = pins[read],
+                    .end   = pins[end - 1] + 1,
+                });
             } else {
-                for (std::size_t k = i; k < j; ++k) {
-                    remaining.push_back(pins[k]);
+                for (std::size_t i = read; i < end; ++i) {
+                    pins[write++] = pins[i];
                 }
             }
 
-            i = j;
+            read = end;
         }
 
-        pins = std::move(remaining);
+        pins.resize(write);
     }
 
     void Normalize(std::vector<SInt>& pins, std::vector<PinRange>& ranges) const {
@@ -155,7 +154,7 @@ private:
 
         NormalizeRangesOnly(ranges);
 
-        pins = RemovePinsCoveredByRanges(pins, ranges);
+        RemovePinsCoveredByRanges(pins, ranges);
     }
 
     void NormalizeRangesOnly(std::vector<PinRange>& ranges) const {

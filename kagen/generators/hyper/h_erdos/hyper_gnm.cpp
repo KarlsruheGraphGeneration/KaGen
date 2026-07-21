@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -249,7 +250,92 @@ void HyperGNM<BigInt>::GenerateDeterministicGeometricSizeCounts(
 }
 
 template <typename BigInt>
-void HyperGNM<BigInt>::FinalizeCSR(MPI_Comm /*comm*/) {}
+void HyperGNM<BigInt>::FinalizeCSR(MPI_Comm comm) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    auto reduce_sum_u64 = [&](const std::uint64_t local) {
+        std::uint64_t global = 0;
+
+        MPI_Reduce(&local, &global, 1, MPI_UINT64_T, MPI_SUM, 0, comm);
+
+        return global;
+    };
+
+    auto reduce_max_u64 = [&](const std::uint64_t local) {
+        std::uint64_t global = 0;
+
+        MPI_Reduce(&local, &global, 1, MPI_UINT64_T, MPI_MAX, 0, comm);
+
+        return global;
+    };
+
+    const std::uint64_t map_calls = reduce_sum_u64(instrumentation_.cache_map_calls);
+
+    const std::uint64_t map_hits = reduce_sum_u64(instrumentation_.cache_map_hits);
+
+    const std::uint64_t map_misses = reduce_sum_u64(instrumentation_.cache_map_misses);
+
+    const std::uint64_t map_inserts = reduce_sum_u64(instrumentation_.cache_map_inserts);
+
+    const std::uint64_t candidate_calls = reduce_sum_u64(instrumentation_.cache_candidate_calls);
+
+    const std::uint64_t candidate_exact_hits = reduce_sum_u64(instrumentation_.cache_candidate_exact_hits);
+
+    const std::uint64_t candidate_recurrence_hits = reduce_sum_u64(instrumentation_.cache_candidate_recurrence_hits);
+
+    const std::uint64_t candidate_direct_evals = reduce_sum_u64(instrumentation_.cache_candidate_direct_evals);
+
+    const std::uint64_t candidate_distance_sum = reduce_sum_u64(instrumentation_.cache_candidate_distance_sum);
+
+    const std::uint64_t candidate_distance_observations =
+        reduce_sum_u64(instrumentation_.cache_candidate_distance_observations);
+
+    const std::uint64_t candidate_max_distance = reduce_max_u64(instrumentation_.cache_candidate_max_distance);
+
+    const std::uint64_t max_size = reduce_max_u64(instrumentation_.cache_max_size);
+
+    const std::uint64_t max_capacity = reduce_max_u64(instrumentation_.max_cache_initial_reserve);
+
+    const std::uint64_t candidate_below_range = reduce_sum_u64(instrumentation_.cache_candidate_below_range);
+
+    const std::uint64_t backward_steps = reduce_sum_u64(instrumentation_.cache_backward_steps);
+
+    const std::uint64_t forward_steps = reduce_sum_u64(instrumentation_.cache_forward_steps);
+
+    const std::uint64_t recurrence_steps = forward_steps + backward_steps;
+
+    if (rank_ != 0) {
+        return;
+    }
+
+    const auto ratio = [](const std::uint64_t numerator, const std::uint64_t denominator) {
+        return denominator > 0 ? static_cast<double>(numerator) / static_cast<double>(denominator) : 0.0;
+    };
+
+    std::cout << "\nHGNM LogBinomCache statistics:\n"
+              << "  Map calls:                 " << map_calls << '\n'
+              << "  Map hits:                  " << map_hits << '\n'
+              << "  Map misses:                " << map_misses << '\n'
+              << "  Map hit rate:              " << ratio(map_hits, map_calls) << '\n'
+              << "  Map inserts:               " << map_inserts << '\n'
+              << "  Candidate calls:           " << candidate_calls << '\n'
+              << "  Candidate exact hits:      " << candidate_exact_hits << '\n'
+              << "  Candidate recurrence hits: " << candidate_recurrence_hits << '\n'
+              << "  Candidate direct evals:    " << candidate_direct_evals << '\n'
+              << "  Candidate direct rate:     " << ratio(candidate_direct_evals, candidate_calls) << '\n'
+              << "  Average candidate distance:" << ratio(candidate_distance_sum, candidate_distance_observations)
+              << '\n'
+              << "  Maximum candidate distance:" << candidate_max_distance << '\n'
+              << "  Maximum live entries:      " << max_size << '\n'
+              << "  Maximum requested capacity:" << max_capacity << '\n'
+              << "  Candidate below range:     " << candidate_below_range << '\n'
+
+              << "  Forward recurrence steps:  " << forward_steps << '\n'
+
+              << "  Backward recurrence steps: " << backward_steps << '\n'
+              << "  Steps per recurrence hit:  " << ratio(recurrence_steps, candidate_recurrence_hits) << '\n';
+
+#endif
+}
 
 template <typename BigInt>
 void HyperGNM<BigInt>::ValidateExactSparseDensity(
@@ -268,13 +354,6 @@ void HyperGNM<BigInt>::ValidateExactSparseDensity(
 }
 
 template <typename BigInt>
-std::size_t HyperGNM<BigInt>::ComputeCacheSize(SInt local_m, SInt local_min_begin, SInt local_min_end) const {
-    const SInt search_width = local_min_end - local_min_begin;
-
-    return static_cast<std::size_t>(
-        std::min<SInt>(config_.n, std::max<SInt>(4096, std::min<SInt>(search_width, local_m * 8))));
-}
-template <typename BigInt>
 SInt HyperGNM<BigInt>::EdgeSeed(SInt hyperedge_size) const {
     return sampling::Spooky::hash(
         static_cast<unsigned long long>(config_.seed)
@@ -285,15 +364,14 @@ template <typename BigInt>
 void HyperGNM<BigInt>::SampleHyperedgeInto(
     const SInt minimum_vertex, const SInt hyperedge_size, std::vector<SInt>& pins) {
     pins.clear();
-    pins.resize(hyperedge_size);
-    pins[0] = minimum_vertex;
+    pins.push_back(minimum_vertex);
 
     FloydSampleInto(
         minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_, pins, floyd_scratch_, 1);
 }
 
 template <typename BigInt>
-bool HyperGNM<BigInt>::TryPushHyperedge(const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen) {
+bool HyperGNM<BigInt>::TryPushHyperedge(const std::vector<SInt>& pins, HyperedgeSeenSet& local_seen) {
     if (config_.allow_duplicates || local_seen.insert(FingerprintPins(pins)).second) {
         PushUncompressedHyperedge(graph_, memory_stats_, pins);
         return true;
@@ -310,10 +388,10 @@ void HyperGNM<BigInt>::GenerateSampledHyperedges(
     std::vector<SInt> pins;
     pins.reserve(hyperedge_size);
 
-    const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
+    const std::uint64_t max_attempts = std::max(std::uint64_t(local_m) * 10, std::uint64_t(1000));
 
-    CountInt attempts  = 0;
-    SInt     generated = 0;
+    std::uint64_t attempts  = 0;
+    SInt          generated = 0;
 
     while (generated < local_m) {
         const SInt minimum_vertex = SampleMinimumImplicit(
@@ -321,11 +399,13 @@ void HyperGNM<BigInt>::GenerateSampledHyperedges(
 
         SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
 
+        ++attempts;
+
         if (TryPushHyperedge(pins, local_seen)) {
             ++generated;
         }
 
-        if (++attempts > max_attempts) {
+        if (attempts > max_attempts) {
             throw ConfigurationError("HGNM rejection sampling exceeded attempt limit");
         }
     }
@@ -335,7 +415,12 @@ template <typename BigInt>
 HGNMLocalGenerationRange HyperGNM<BigInt>::PrepareLocalGenerationRange(const SInt hyperedge_size, const SInt m_k) {
     if (!config_.approx) {
         ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
-            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_);
+            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            ,
+            NULL
+#endif
+        );
 
         const FixedCountLocalRange exact_range = exact_generator.PrepareLocalRange(hyperedge_size, m_k);
 
@@ -370,7 +455,12 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
 
     if (!data.use_approx) {
         ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
-            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_);
+            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            ,
+            &instrumentation_
+#endif
+        );
 
         exact_generator.Generate(
             hyperedge_size, FixedCountLocalRange{
@@ -382,8 +472,13 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
         return;
     }
 
-    LogBinomCache log_binom_cache(hyperedge_size, ComputeCacheSize(data.local_m, data.min_begin, data.min_end));
+    const std::size_t cache_size = ComputeLogBinomCacheSize(data.local_m, data.min_begin, data.min_end);
 
+    LogBinomCache log_binom_cache(hyperedge_size, cache_size);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.max_cache_initial_reserve =
+        std::max<std::uint64_t>(instrumentation_.max_cache_initial_reserve, cache_size);
+#endif
     log_binom_cache.InitializeRange(config_.n, data.min_begin, data.min_end);
 
     SInt edge_seed = EdgeSeed(hyperedge_size);
@@ -391,6 +486,8 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
     mersenne_.RandomInit(edge_seed);
 
     GenerateSampledHyperedges(hyperedge_size, data.min_begin, data.min_end, data.local_m, edge_seed, log_binom_cache);
+
+    AccumulateCacheStats(log_binom_cache, cache_size);
 }
 
 template <typename BigInt>
@@ -399,9 +496,17 @@ SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCount(const SInt hyperedge_size,
         return m_k;
     }
 
-    LogBinomCache log_binom_cache(hyperedge_size);
+    constexpr std::size_t cache_size = 4096;
 
-    return ApproximateLocalHyperedgeCountRecursive(hyperedge_size, 0, size_, rank_, 1.0L, m_k, 0, log_binom_cache);
+    LogBinomCache log_binom_cache(hyperedge_size, cache_size);
+
+    const SInt result =
+        ApproximateLocalHyperedgeCountRecursive(hyperedge_size, 0, size_, rank_, 1.0L, m_k, 0, log_binom_cache);
+
+    AccumulateCacheStats(log_binom_cache, cache_size);
+
+    return result;
+    return result;
 }
 
 template <typename BigInt>
@@ -412,6 +517,50 @@ SInt HyperGNM<BigInt>::RankSplitSeed(SInt hyperedge_size, SInt rank_begin, SInt 
         + (static_cast<unsigned long long>(rank_begin) * kRankSeedMultiplier)
         + (static_cast<unsigned long long>(rank_end) * kEdgeRankSeedMultiplier)
         + static_cast<unsigned long long>(level));
+}
+
+template <typename BigInt>
+void HyperGNM<BigInt>::AccumulateCacheStats(const LogBinomCache& cache, const std::size_t requested_capacity) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const LogBinomCacheStats& stats = cache.stats;
+
+    instrumentation_.cache_map_calls += stats.map_calls;
+    instrumentation_.cache_map_hits += stats.map_hits;
+    instrumentation_.cache_map_misses += stats.map_misses;
+    instrumentation_.cache_map_inserts += stats.map_inserts;
+
+    instrumentation_.cache_candidate_calls += stats.candidate_calls;
+
+    instrumentation_.cache_candidate_exact_hits += stats.candidate_exact_hits;
+
+    instrumentation_.cache_candidate_recurrence_hits += stats.candidate_recurrence_hits;
+
+    instrumentation_.cache_candidate_direct_evals += stats.candidate_direct_evals;
+
+    instrumentation_.cache_candidate_below_range += stats.candidate_below_range;
+
+    instrumentation_.cache_candidate_distance_sum += stats.candidate_distance_sum;
+
+    instrumentation_.cache_candidate_distance_observations += stats.candidate_distance_observations;
+
+    instrumentation_.cache_candidate_max_distance =
+        std::max(instrumentation_.cache_candidate_max_distance, stats.candidate_max_distance);
+
+    instrumentation_.cache_backward_steps += stats.backward_steps;
+
+    instrumentation_.cache_forward_steps += stats.forward_steps;
+
+    instrumentation_.cache_max_size = std::max(instrumentation_.cache_max_size, stats.max_size);
+
+    instrumentation_.max_cache_initial_reserve =
+        std::max<std::uint64_t>(instrumentation_.max_cache_initial_reserve, requested_capacity);
+
+    if (stats.map_calls + stats.candidate_calls > 0) {
+        instrumentation_.cache_min_key = std::min(instrumentation_.cache_min_key, stats.min_key);
+
+        instrumentation_.cache_max_key = std::max(instrumentation_.cache_max_key, stats.max_key);
+    }
+#endif
 }
 
 template <typename BigInt>

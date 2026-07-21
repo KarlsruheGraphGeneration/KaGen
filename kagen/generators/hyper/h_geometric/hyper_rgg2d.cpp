@@ -132,9 +132,21 @@ void HyperRGG2D::PushHyperedgeCompressed(const std::vector<SInt>& pins, const st
 }
 
 void HyperRGG2D::GenerateCSR() {
-    graph_.hyperedge_offsets.reserve(config_.m + 1);
-    graph_.hyperedge_range_offsets.reserve(config_.m + 1);
+    const std::size_t expected_local_hyperedges = (static_cast<std::size_t>(config_.m) + size_ - 1) / size_;
+
+    graph_.hyperedge_offsets.reserve(expected_local_hyperedges + 1);
+    graph_.hyperedge_range_offsets.reserve(expected_local_hyperedges + 1);
+
+    if (config_.size_dist_pin_budget > 0) {
+        const std::size_t expected_local_pins =
+            (static_cast<std::size_t>(config_.size_dist_pin_budget) + size_ - 1) / size_;
+
+        graph_.hyperedge_pins.reserve(expected_local_pins);
+    }
     GenerateGeometry();
+    if (config_.debug) {
+        std::cerr << "Cells per dimension: " << cells_per_dim_ << '\n';
+    }
 }
 
 void HyperRGG2D::FinalizeCSR(MPI_Comm comm) {
@@ -166,7 +178,6 @@ void HyperRGG2D::FinalizeCSR(MPI_Comm comm) {
                   << " max_hyperedge_ranges=" << global_max_hyperedge_ranges << '\n';
     }
 }
-
 HyperRGG2D::CenterSampler::CenterSampler(HyperRGG2D& gen, LPFloat cell_width, LPFloat lower_bound, LPFloat upper_bound)
     : gen_(gen),
       cell_width_(cell_width),

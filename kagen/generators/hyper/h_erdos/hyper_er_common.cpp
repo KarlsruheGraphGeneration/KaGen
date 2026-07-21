@@ -205,7 +205,7 @@ long double MersenneUniform01(Mersenne& mersenne) {
 
 void FloydSampleInto(
     const SInt universe_offset, const SInt universe_size, const SInt sample_size, Mersenne& mersenne,
-    std::vector<SInt>& out, std::unordered_set<SInt>& scratch, const std::size_t offset) {
+    std::vector<SInt>& out, FloydScratchSet& scratch, const std::size_t offset) {
     if (sample_size > universe_size) {
         throw ConfigurationError("Cannot sample more pins than available vertices");
     }
@@ -216,10 +216,12 @@ void FloydSampleInto(
         out.reserve(offset + static_cast<std::size_t>(sample_size));
 
         while (static_cast<SInt>(out.size() - offset) < sample_size) {
-            const long double x  = MersenneUniform01(mersenne);
+            const long double x = MersenneUniform01(mersenne);
+
             const SInt candidate = universe_offset + static_cast<SInt>(x * static_cast<long double>(universe_size));
 
             bool duplicate = false;
+
             for (std::size_t i = offset; i < out.size(); ++i) {
                 if (out[i] == candidate) {
                     duplicate = true;
@@ -233,33 +235,39 @@ void FloydSampleInto(
         }
 
         std::sort(out.begin() + offset, out.end());
+
         return;
     }
 
     scratch.clear();
+
     scratch.reserve(static_cast<std::size_t>(sample_size));
 
     const SInt start = universe_size - sample_size;
 
     for (SInt j = start; j < universe_size; ++j) {
         const long double x = MersenneUniform01(mersenne);
-        const SInt        t = static_cast<SInt>(x * static_cast<long double>(j + 1));
+
+        const SInt t = static_cast<SInt>(x * static_cast<long double>(j + 1));
 
         const SInt candidate = universe_offset + t;
-        const SInt fallback  = universe_offset + j;
+
+        const SInt fallback = universe_offset + j;
 
         scratch.insert(scratch.contains(candidate) ? fallback : candidate);
     }
 
     out.reserve(offset + scratch.size());
+
     out.insert(out.end(), scratch.begin(), scratch.end());
+
     std::sort(out.begin() + offset, out.end());
 }
 
 std::vector<SInt>
 FloydSample(const SInt universe_offset, const SInt universe_size, const SInt sample_size, Mersenne& mersenne) {
-    std::vector<SInt>        result;
-    std::unordered_set<SInt> scratch;
+    std::vector<SInt> result;
+    FloydScratchSet   scratch;
     FloydSampleInto(universe_offset, universe_size, sample_size, mersenne, result, scratch, 0);
     return result;
 }
@@ -348,8 +356,13 @@ std::optional<SInt> TryBinomialSInt(SInt n, SInt k) {
 
 template <typename BigInt>
 ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
-    const PGeneratorConfig& config, const PEID rank, const PEID size, RNGWrapper<>& rng, Mersenne& mersenne,
-    Graph& graph, HypergraphMemoryStats& memory_stats, std::unordered_set<SInt>& floyd_scratch)
+    const PGeneratorConfig& config, PEID rank, PEID size, RNGWrapper<>& rng, Mersenne& mersenne, Graph& graph,
+    HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ,
+    HGNPInstrumentation* instrumentation
+#endif
+    )
     : config_(config),
       rank_(rank),
       size_(size),
@@ -357,7 +370,13 @@ ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
       mersenne_(mersenne),
       graph_(graph),
       memory_stats_(memory_stats),
-      floyd_scratch_(floyd_scratch) {}
+      floyd_scratch_(floyd_scratch)
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+      ,
+      instrumentation_(instrumentation)
+#endif
+{
+}
 
 template <typename BigInt>
 void ExactFixedCountHyperedgeGenerator<BigInt>::ValidateDuplicateCheckingIsFeasible(const SInt local_m) const {
@@ -366,18 +385,6 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::ValidateDuplicateCheckingIsFeasi
             "Duplicate checking for huge hypergraph generation "
             "is infeasible; use --fast");
     }
-}
-
-template <typename BigInt>
-std::size_t ExactFixedCountHyperedgeGenerator<BigInt>::ComputeCacheSize(
-    const SInt local_m, const SInt local_min_begin, const SInt local_min_end) const {
-    const SInt search_width = local_min_end - local_min_begin;
-
-    const SInt scaled_m =
-        local_m > std::numeric_limits<SInt>::max() / 8 ? std::numeric_limits<SInt>::max() : local_m * 8;
-
-    return static_cast<std::size_t>(
-        std::min<SInt>(config_.n, std::max<SInt>(4096, std::min<SInt>(search_width, scaled_m))));
 }
 
 template <typename BigInt>
@@ -519,9 +526,7 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::ValidateExactSparseDensity(
         return;
     }
 
-    const long double density = static_cast<long double>(local_m) / local_population.convert_to<long double>();
-
-    if (density > 0.25L) {
+    if (CountInt(local_m) * 4 > local_population) {
         throw ConfigurationError(
             "Dense exact fixed-count hypergraph generation "
             "is not implemented");
@@ -564,50 +569,112 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::SampleHyperedgeInto(
 
 template <typename BigInt>
 bool ExactFixedCountHyperedgeGenerator<BigInt>::TryPushHyperedge(
-    const std::vector<SInt>& pins, std::unordered_set<std::uint64_t>& local_seen) {
-    if (config_.allow_duplicates || local_seen.insert(FingerprintPins(pins)).second) {
-        PushUncompressedHyperedge(graph_, memory_stats_, pins);
+    const std::vector<SInt>& pins, HyperedgeSeenSet& local_seen) {
+    bool accepted = true;
 
-        return true;
+    if (!config_.allow_duplicates) {
+        const double duplicate_start = MPI_Wtime();
+
+        accepted = local_seen.insert(FingerprintPins(pins)).second;
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+
+        if (instrumentation_ != nullptr) {
+            instrumentation_->duplicate_check_seconds += MPI_Wtime() - duplicate_start;
+        }
     }
 
-    return false;
+    if (!accepted) {
+        if (instrumentation_ != nullptr) {
+            ++instrumentation_->duplicate_rejects;
+        }
+
+        return false;
+#endif
+    }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const double write_start = MPI_Wtime();
+#endif
+    PushUncompressedHyperedge(graph_, memory_stats_, pins);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    if (instrumentation_ != nullptr) {
+        instrumentation_->csr_write_seconds += MPI_Wtime() - write_start;
+
+        ++instrumentation_->generated_edges;
+
+        instrumentation_->generated_pins += static_cast<std::uint64_t>(pins.size());
+    }
+#endif
+    return true;
 }
 
 template <typename BigInt>
 void ExactFixedCountHyperedgeGenerator<BigInt>::GenerateSampledHyperedges(
     const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, const SInt local_m,
     SInt& edge_seed, LogBinomCache& log_binom_cache) {
-    if (local_m == 0) {
-        return;
-    }
-
-    auto local_seen = MakeLocalSeenSet(config_.allow_duplicates, local_m);
+    ValidateDuplicateCheckingIsFeasible(local_m);
 
     std::vector<SInt> pins;
     pins.reserve(static_cast<std::size_t>(hyperedge_size));
 
-    const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
+    auto local_seen = MakeLocalSeenSet(config_.allow_duplicates, local_m);
 
-    CountInt attempts  = 0;
-    SInt     generated = 0;
+    const std::uint64_t local_m_u64 = static_cast<std::uint64_t>(local_m);
+
+    const std::uint64_t max_attempts = local_m_u64 > std::numeric_limits<std::uint64_t>::max() / 10
+                                           ? std::numeric_limits<std::uint64_t>::max()
+                                           : std::max<std::uint64_t>(local_m_u64 * 10, 1000);
+
+    std::uint64_t attempts  = 0;
+    SInt          generated = 0;
 
     while (generated < local_m) {
-        const SInt minimum_vertex = SampleMinimumImplicit(
-            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
+        std::uint64_t minimum_steps = 0;
+        std::uint64_t cache_gets    = 0;
 
-        SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
+        SInt minimum_vertex;
+
+        {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            ScopedMPITimer timer(instrumentation_->minimum_sample_seconds);
+#endif
+            minimum_vertex = SampleMinimumImplicit(
+                local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache,
+                &minimum_steps, &cache_gets);
+        }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        if (instrumentation_ != nullptr) {
+            ++instrumentation_->minimum_samples;
+
+            instrumentation_->minimum_search_steps += minimum_steps;
+
+            instrumentation_->minimum_cache_gets += cache_gets;
+        }
+#endif
+        {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+            ScopedMPITimer timer(instrumentation_->pin_sample_seconds);
+#endif
+            SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
+        }
 
         if (TryPushHyperedge(pins, local_seen)) {
             ++generated;
         }
 
-        if (++attempts > max_attempts) {
+        ++attempts;
+
+        if (attempts > max_attempts) {
             throw ConfigurationError(
                 "Exact fixed-count rejection sampling "
                 "exceeded the attempt limit");
         }
     }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    if (instrumentation_ != nullptr) {
+        instrumentation_->attempts += attempts;
+    }
+#endif
 }
 
 template <typename BigInt>
@@ -622,9 +689,23 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::Generate(const SInt hyperedge_si
             "empty minimum range");
     }
 
-    LogBinomCache log_binom_cache(hyperedge_size, ComputeCacheSize(range.local_m, range.min_begin, range.min_end));
+    const double cache_start = MPI_Wtime();
+
+    const std::size_t static_hint = ComputeLogBinomCacheSize(range.local_m, range.min_begin, range.min_end);
+
+    const std::size_t cache_size = std::min(static_hint, log_binom_cache_reserve_hint_);
+
+    LogBinomCache log_binom_cache(hyperedge_size, cache_size);
 
     log_binom_cache.InitializeRange(config_.n, range.min_begin, range.min_end);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    if (instrumentation_ != nullptr) {
+        instrumentation_->cache_init_seconds += MPI_Wtime() - cache_start;
+
+        instrumentation_->max_cache_initial_reserve = std::max<std::uint64_t>(
+            instrumentation_->max_cache_initial_reserve, static_cast<std::uint64_t>(cache_size));
+    }
+#endif
 
     SInt edge_seed = EdgeSeed(hyperedge_size);
 
@@ -632,6 +713,59 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::Generate(const SInt hyperedge_si
 
     GenerateSampledHyperedges(
         hyperedge_size, range.min_begin, range.min_end, range.local_m, edge_seed, log_binom_cache);
+
+    const std::size_t observed_size = log_binom_cache.Size();
+
+    constexpr std::size_t kMinimumHint = 4096;
+    constexpr std::size_t kMaximumHint = 1U << 17;
+
+    const std::size_t observed_with_headroom =
+        observed_size > std::numeric_limits<std::size_t>::max() / 3 ? kMaximumHint : ((observed_size * 3) + 1) / 2;
+
+    log_binom_cache_reserve_hint_ = std::clamp(observed_with_headroom, kMinimumHint, kMaximumHint);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    // Put the instrumentation block here.
+    if (instrumentation_ != nullptr) {
+        const LogBinomCacheStats& stats = log_binom_cache.stats;
+
+        instrumentation_->cache_map_calls += stats.map_calls;
+
+        instrumentation_->cache_map_hits += stats.map_hits;
+
+        instrumentation_->cache_map_misses += stats.map_misses;
+
+        instrumentation_->cache_map_inserts += stats.map_inserts;
+
+        instrumentation_->cache_candidate_calls += stats.candidate_calls;
+
+        instrumentation_->cache_candidate_exact_hits += stats.candidate_exact_hits;
+
+        instrumentation_->cache_candidate_recurrence_hits += stats.candidate_recurrence_hits;
+
+        instrumentation_->cache_candidate_direct_evals += stats.candidate_direct_evals;
+
+        instrumentation_->cache_candidate_below_range += stats.candidate_below_range;
+
+        instrumentation_->cache_candidate_distance_sum += stats.candidate_distance_sum;
+
+        instrumentation_->cache_candidate_max_distance =
+            std::max(instrumentation_->cache_candidate_max_distance, stats.candidate_max_distance);
+
+        instrumentation_->cache_backward_steps += stats.backward_steps;
+
+        instrumentation_->cache_forward_steps += stats.forward_steps;
+
+        instrumentation_->cache_max_size = std::max(instrumentation_->cache_max_size, stats.max_size);
+
+        const std::uint64_t total_calls = stats.map_calls + stats.candidate_calls;
+
+        if (total_calls > 0) {
+            instrumentation_->cache_min_key = std::min(instrumentation_->cache_min_key, stats.min_key);
+
+            instrumentation_->cache_max_key = std::max(instrumentation_->cache_max_key, stats.max_key);
+        }
+    }
+#endif
 }
 
 #pragma GCC diagnostic push
