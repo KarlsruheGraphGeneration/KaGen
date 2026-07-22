@@ -425,6 +425,22 @@ Graph FinalizeGraphFragment(GraphFragment fragment, const InputGraphConfig& conf
                         const SInt offset          = graph.xadj[num_rows - 1];
                         graph.right_partial_vertex = SplitVertexInfo{last_tail, offset, graph.xadj[num_rows] - offset};
                     }
+
+                    // A run of purely isolated (degree-0) vertices sitting exactly at this PE's edge-range
+                    // boundary owns no edges, so ReadStrictEdgeRange's FindNodeByEdge-based lookup (which locates
+                    // vertices by their edges) can't see it and excludes it from the physically read row window --
+                    // even though the gap-free ownership range below still credits those vertices to whichever PE
+                    // precedes them. Backfill degenerate (zero-length) rows so xadj stays aligned with
+                    // PhysicalVertexRange(); a real split boundary (is_left_partial/is_right_partial) already has
+                    // its row physically present, so this never fires for those.
+                    if (!bo.is_left_partial && bo.vertex_range.first < first_tail) {
+                        const auto pad = static_cast<std::size_t>(first_tail - bo.vertex_range.first);
+                        graph.xadj.insert(graph.xadj.begin(), pad, 0);
+                    }
+                    if (!bo.is_right_partial && bo.vertex_range.second > last_tail + 1) {
+                        const auto pad = static_cast<std::size_t>(bo.vertex_range.second - (last_tail + 1));
+                        graph.xadj.insert(graph.xadj.end(), pad, graph.xadj.back());
+                    }
                 }
                 graph.has_split_vertices = bo.has_split_vertices;
                 graph.vertex_range       = bo.vertex_range;
