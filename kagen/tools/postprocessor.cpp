@@ -6,43 +6,12 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstdio>
-#include <cstdlib>
 #include <limits>
 #include <numeric>
 #include <unordered_map>
 #include <vector>
 
 namespace kagen {
-
-namespace {
-// Root-only (by default) progress breadcrumbs for RedistributeEdgesTrueBalance(). This function is a long chain
-// of collectives (MPI_Alltoall(v), MPI_Exscan, MPI_Allreduce, ...); if the run hangs, the last breadcrumb printed
-// without a matching "after ..." pinpoints which collective never returned on rank 0 -- but since a collective
-// only hangs because some *other* rank never reached the matching call (an exception, a crash, mismatched buffer
-// sizes, or just a straggler doing a lot more local work than everyone else, e.g. resolving a very high-degree
-// split vertex), rank 0 finishing everything up to some point does not mean every rank did. Set
-// KAGEN_TRUE_BALANCE_DEBUG_ALL_RANKS=1 to print from every rank (each line tagged with its own rank) to find
-// which rank(s) are actually stuck; combine with `mpiexec -l` (or per-rank output files) to keep the ranks
-// separable in the log.
-bool TrueBalanceBreadcrumbAllRanks() {
-    static const bool all_ranks = [] {
-        const char* env = std::getenv("KAGEN_TRUE_BALANCE_DEBUG_ALL_RANKS");
-        return env != nullptr && env[0] != '\0' && env[0] != '0';
-    }();
-    return all_ranks;
-}
-
-void TrueBalanceBreadcrumb(const PEID rank, const char* stage, const std::string& detail = {}) {
-    if (rank != 0 && !TrueBalanceBreadcrumbAllRanks()) {
-        return;
-    }
-    std::fprintf(
-        stderr, "[KaGen][TrueBalance] t=%.3fs rank=%d %s%s%s\n", MPI_Wtime(), rank, stage,
-        detail.empty() ? "" : " ", detail.c_str());
-    std::fflush(stderr);
-}
-} // namespace
 
 void AddNonlocalReverseEdges(
     Edgelist& edge_list, EdgeWeights& edge_weights, const VertexRange vertex_range, MPI_Comm comm) {
@@ -517,13 +486,7 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    TrueBalanceBreadcrumb(
-        rank, "enter",
-        "n=" + std::to_string(n) + " size=" + std::to_string(size)
-            + " local_edges=" + std::to_string(source.size()));
-
     SortAndRemoveDuplicates(source);
-    TrueBalanceBreadcrumb(rank, "sorted+deduped source", "local_edges=" + std::to_string(source.size()));
 
     // A rough vertex distribution used only to route lightweight per-vertex metadata (never edge payloads) to a
     // deterministic "owner" PE for each vertex; this does not influence the final edge-balanced assignment.
@@ -532,10 +495,8 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         vertex_distribution = RoundRobinRemapping(source, n, comm);
         // Remapping changes vertex IDs, so the (tail, head) sort order computed above no longer holds.
         SortAndRemoveDuplicates(source);
-        TrueBalanceBreadcrumb(rank, "round-robin remap + re-sort done", "local_edges=" + std::to_string(source.size()));
     } else {
         vertex_distribution = ComputeBalancedVertexDistribution(n, comm);
-        TrueBalanceBreadcrumb(rank, "balanced vertex distribution computed");
     }
     Distribution vertex_owner_dist(vertex_distribution);
 
@@ -580,20 +541,14 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         }
     }
 
-    TrueBalanceBreadcrumb(rank, "before metadata MPI_Alltoall (degree counts)", "num_runs=" + std::to_string(runs.size()));
     std::vector<int> recv_counts(size);
     MPI_Alltoall(send_counts.data(), 1, MPI_INT, recv_counts.data(), 1, MPI_INT, comm);
-    TrueBalanceBreadcrumb(rank, "after metadata MPI_Alltoall");
     std::vector<int> recv_displs(size);
     std::exclusive_scan(recv_counts.begin(), recv_counts.end(), recv_displs.begin(), 0);
     std::vector<SInt> recv_buf(recv_displs.back() + recv_counts.back());
-    TrueBalanceBreadcrumb(
-        rank, "before metadata MPI_Alltoallv",
-        "send_total=" + std::to_string(send_buf.size()) + " recv_total=" + std::to_string(recv_buf.size()));
     MPI_Alltoallv(
         send_buf.data(), send_counts.data(), send_displs.data(), KAGEN_MPI_SINT, recv_buf.data(), recv_counts.data(),
         recv_displs.data(), KAGEN_MPI_SINT, comm);
-    TrueBalanceBreadcrumb(rank, "after metadata MPI_Alltoallv (degree contributions received)");
 
     // Group received (vertex, count) contributions by local vertex index. Processing recv_buf in ascending
     // sender-PE block order means each vertex's contributions end up ordered by ascending sender PE (each sender
@@ -613,7 +568,6 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         }
     }
 
-    TrueBalanceBreadcrumb(rank, "before degree MPI_Exscan/MPI_Allreduce");
     SInt total_degree = std::accumulate(local_degree.begin(), local_degree.end(), SInt{0});
     SInt prefix_sum   = 0;
     MPI_Exscan(&total_degree, &prefix_sum, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
@@ -622,10 +576,8 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     }
     SInt m = total_degree;
     MPI_Allreduce(MPI_IN_PLACE, &m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-    TrueBalanceBreadcrumb(rank, "after degree MPI_Exscan/MPI_Allreduce", "m=" + std::to_string(m));
 
     if (m == 0) {
-        TrueBalanceBreadcrumb(rank, "m==0, early exit");
         destination.clear();
         EdgeBalancedDistribution result;
         result.vertex_range             = rank == 0 ? VertexRange{0, n} : VertexRange{n, n};
@@ -638,7 +590,6 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     // [edge_distribution[p], edge_distribution[p + 1]).
     const std::vector<SInt> edge_distribution = ComputeBalancedVertexDistribution(m, comm);
     Distribution            edge_owner_dist(edge_distribution);
-    TrueBalanceBreadcrumb(rank, "balanced edge distribution computed");
 
     // For each local vertex (in ascending order), determine whether its degree crosses more than one PE's fair
     // edge share ("split") and, if not, each contributing sender's base global edge rank -- the global rank of
@@ -703,11 +654,9 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         reply_recv_displs[pe] = send_displs[pe] / 2;
     }
     std::vector<SInt> reply_recv_buf(reply_recv_displs.back() + reply_recv_counts.back());
-    TrueBalanceBreadcrumb(rank, "before reply MPI_Alltoallv (split/base-rank replies)");
     MPI_Alltoallv(
         reply_send_buf.data(), reply_send_counts.data(), reply_send_displs.data(), KAGEN_MPI_SINT,
         reply_recv_buf.data(), reply_recv_counts.data(), reply_recv_displs.data(), KAGEN_MPI_SINT, comm);
-    TrueBalanceBreadcrumb(rank, "after reply MPI_Alltoallv");
 
     // Route every local edge of a non-split run directly to its final target PE using the base global rank of
     // its run plus its offset within the run. A split run's actual (vertex, head) values are instead escalated
@@ -737,19 +686,13 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
             }
         }
     }
-    TrueBalanceBreadcrumb(
-        rank, "routed non-split runs, escalated split runs",
-        "send_targets=" + std::to_string(send_buffers.size())
-            + " escalate_targets=" + std::to_string(escalate_buffers.size()));
 
     // Resolve escalated split vertices: gather every contributing sender's actual edges of that vertex (bounded
     // by the split vertices' own total degree, not the whole graph), deduplicate by head value, and forward each
     // remaining edge directly to its true target PE. Because equal head values are adjacent once sorted, this
     // also means any surviving cross-PE duplicate of a split vertex's edge can only ever straddle one boundary
     // between two adjacent PEs -- the same invariant the vertex-atomic modes get for free from single ownership.
-    TrueBalanceBreadcrumb(rank, "before ExchangeMessageBuffers (escalated split-vertex edges)");
     auto escalated = ExchangeMessageBuffers(std::move(escalate_buffers), KAGEN_MPI_SINT, comm);
-    TrueBalanceBreadcrumb(rank, "after ExchangeMessageBuffers (escalated split-vertex edges)", "recv=" + std::to_string(escalated.size()));
     {
         std::vector<std::vector<SInt>> split_heads(local_n);
         for (std::size_t i = 0; i < escalated.size(); i += 2) {
@@ -776,20 +719,14 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
             }
         }
     }
-    TrueBalanceBreadcrumb(rank, "resolved escalated split vertices");
 
-    TrueBalanceBreadcrumb(
-        rank, "before ExchangeMessageBuffers (final edge payload)",
-        "send_targets=" + std::to_string(send_buffers.size()));
     auto recv_edges = ExchangeMessageBuffers(std::move(send_buffers), KAGEN_MPI_SINT, comm);
-    TrueBalanceBreadcrumb(rank, "after ExchangeMessageBuffers (final edge payload)", "recv=" + std::to_string(recv_edges.size()));
     destination.clear();
     destination.reserve(recv_edges.size() / 2);
     for (std::size_t i = 0; i < recv_edges.size(); i += 2) {
         destination.emplace_back(recv_edges[i], recv_edges[i + 1]);
     }
     SortAndRemoveDuplicates(destination);
-    TrueBalanceBreadcrumb(rank, "sorted+deduped destination", "local_edges=" + std::to_string(destination.size()));
 
     // Stage 2: fix residual drift from pre-dedup bucket boundaries. Everything above placed bucket boundaries
     // using *pre-deduplication* degree estimates (m, prefix_sum, edge_owner_dist), so each PE's now-exact local
@@ -800,7 +737,6 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     // rank-based rebalance: no vertex grouping, no escalation, no reply protocol needed -- just move each edge
     // to the target PE implied by its exact global rank among the now-deduplicated total.
     {
-        TrueBalanceBreadcrumb(rank, "before exact-count MPI_Exscan/MPI_Allreduce (stage 2)");
         SInt exact_local_count = static_cast<SInt>(destination.size());
         SInt exact_prefix      = 0;
         MPI_Exscan(&exact_local_count, &exact_prefix, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
@@ -809,7 +745,6 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
         }
         SInt exact_m = exact_local_count;
         MPI_Allreduce(MPI_IN_PLACE, &exact_m, 1, KAGEN_MPI_SINT, MPI_SUM, comm);
-        TrueBalanceBreadcrumb(rank, "after exact-count MPI_Exscan/MPI_Allreduce", "exact_m=" + std::to_string(exact_m));
 
         if (exact_m > 0) {
             Distribution exact_edge_owner_dist(ComputeBalancedVertexDistribution(exact_m, comm));
@@ -823,9 +758,7 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
                 buf.push_back(destination[i].second);
             }
 
-            TrueBalanceBreadcrumb(rank, "before ExchangeMessageBuffers (stage 2 residual rebalance)");
             auto rebalanced = ExchangeMessageBuffers(std::move(rebalance_buffers), KAGEN_MPI_SINT, comm);
-            TrueBalanceBreadcrumb(rank, "after ExchangeMessageBuffers (stage 2 residual rebalance)");
             destination.clear();
             destination.reserve(rebalanced.size() / 2);
             for (std::size_t i = 0; i < rebalanced.size(); i += 2) {
@@ -838,9 +771,6 @@ EdgeBalancedDistribution RedistributeEdgesTrueBalance(
     // Derive the gap-free vertex_range, fully_owned_vertex_range, left_partial_vertex/right_partial_vertex, and
     // has_split_vertices from this PE's now-final sorted local edges. This is the same boundary computation the
     // direct edge-range read path uses, so it lives in a shared helper.
-    TrueBalanceBreadcrumb(rank, "before ComputeEdgeBalancedBoundaries (allgather + allreduce)");
-    auto result = ComputeEdgeBalancedBoundaries(destination, n, comm);
-    TrueBalanceBreadcrumb(rank, "exit (ComputeEdgeBalancedBoundaries done)");
-    return result;
+    return ComputeEdgeBalancedBoundaries(destination, n, comm);
 }
 } // namespace kagen
