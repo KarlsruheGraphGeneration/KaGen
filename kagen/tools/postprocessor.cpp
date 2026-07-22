@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <limits>
 #include <numeric>
 #include <unordered_map>
@@ -15,18 +16,30 @@
 namespace kagen {
 
 namespace {
-// Root-only progress breadcrumbs for RedistributeEdgesTrueBalance(). This function is a long chain of collectives
-// (MPI_Alltoall(v), MPI_Exscan, MPI_Allreduce, ...); if the run hangs, the last breadcrumb printed without a
-// matching "done" pinpoints which collective never returned (either because rank 0 is stuck there, or -- more
-// likely at scale -- because some other rank never reached the matching call, e.g. due to an exception, a crash,
-// or mismatched buffer sizes).
+// Root-only (by default) progress breadcrumbs for RedistributeEdgesTrueBalance(). This function is a long chain
+// of collectives (MPI_Alltoall(v), MPI_Exscan, MPI_Allreduce, ...); if the run hangs, the last breadcrumb printed
+// without a matching "after ..." pinpoints which collective never returned on rank 0 -- but since a collective
+// only hangs because some *other* rank never reached the matching call (an exception, a crash, mismatched buffer
+// sizes, or just a straggler doing a lot more local work than everyone else, e.g. resolving a very high-degree
+// split vertex), rank 0 finishing everything up to some point does not mean every rank did. Set
+// KAGEN_TRUE_BALANCE_DEBUG_ALL_RANKS=1 to print from every rank (each line tagged with its own rank) to find
+// which rank(s) are actually stuck; combine with `mpiexec -l` (or per-rank output files) to keep the ranks
+// separable in the log.
+bool TrueBalanceBreadcrumbAllRanks() {
+    static const bool all_ranks = [] {
+        const char* env = std::getenv("KAGEN_TRUE_BALANCE_DEBUG_ALL_RANKS");
+        return env != nullptr && env[0] != '\0' && env[0] != '0';
+    }();
+    return all_ranks;
+}
+
 void TrueBalanceBreadcrumb(const PEID rank, const char* stage, const std::string& detail = {}) {
-    if (rank != 0) {
+    if (rank != 0 && !TrueBalanceBreadcrumbAllRanks()) {
         return;
     }
     std::fprintf(
-        stderr, "[KaGen][TrueBalance] t=%.3fs rank=0 %s%s%s\n", MPI_Wtime(), stage, detail.empty() ? "" : " ",
-        detail.c_str());
+        stderr, "[KaGen][TrueBalance] t=%.3fs rank=%d %s%s%s\n", MPI_Wtime(), rank, stage,
+        detail.empty() ? "" : " ", detail.c_str());
     std::fflush(stderr);
 }
 } // namespace
