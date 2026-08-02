@@ -6,6 +6,7 @@
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/rng_wrapper.h"
 
+#include <map>
 #include <set>
 
 namespace kagen {
