@@ -211,6 +211,19 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
         annulus_max_cosh_[a] = std::cosh(max_r);
         annulus_max_sinh_[a] = std::sinh(max_r);
     }
+
+    if (config_.debug) {
+        debug_logger_.emplace(MakeDebugFilename(), true);
+    }
+}
+template <typename Double>
+std::string Hyper_Hyperbolic<Double>::MakeDebugFilename() const {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    std::string output = config_.output_graph.filename + "_" + std::to_string(config_.n) + "_"
+                         + std::to_string(config_.m) + "_" + std::to_string(config_.hyperedge_radius_exponent)
+                         + "_debug_rank_" + std::to_string(rank) + ".csv";
+    return output;
 }
 
 template <typename Double>
@@ -324,7 +337,10 @@ Hyper_Hyperbolic<Double>::SampleVertex(Double min_phi, Double max_phi, Double mi
     const Double phi = (sorted_mersenne.Random() * (max_phi - min_phi)) + min_phi;
     const Double r   = std::acosh((mersenne.Random() * (max_cdf - min_cdf)) + min_cdf) / alpha_;
 
-    const Double inv_len    = (std::cosh(r) + Double{1.0}) / Double{2.0};
+    const Double cosh_r = std::cosh(r);
+    const Double sinh_r = std::sinh(r);
+
+    const Double inv_len    = (cosh_r + Double{1.0}) / Double{2.0};
     const Double pdm_radius = std::sqrt(Double{1.0} - (Double{1.0} / inv_len));
     const Double sin_phi    = std::sin(phi);
     const Double cos_phi    = std::cos(phi);
@@ -332,19 +348,25 @@ Hyper_Hyperbolic<Double>::SampleVertex(Double min_phi, Double max_phi, Double mi
     return {
         .r       = r,
         .phi     = phi,
-        .cosh_r  = std::cosh(r),
-        .sinh_r  = std::sinh(r),
+        .cosh_r  = cosh_r,
+        .sinh_r  = sinh_r,
         .cos_phi = cos_phi,
         .sin_phi = sin_phi,
         .x       = pdm_radius * sin_phi,
         .y       = pdm_radius * cos_phi,
+        .gamma   = cosh_r,
     };
 }
 template <typename Double>
 void Hyper_Hyperbolic<Double>::AppendVertex(
-    VertexBlock& block, SInt id, const Hyper_Hyperbolic<Double>::SampledVertex& vertex) {
+    VertexBlock& block, const SInt id, const Hyper_Hyperbolic<Double>::SampledVertex& vertex) {
     block.r.push_back(vertex.r);
     block.id.push_back(id);
+
+    block.x.push_back(vertex.x);
+    block.y.push_back(vertex.y);
+    block.gamma.push_back(vertex.gamma);
+
     block.cosh_r.push_back(vertex.cosh_r);
     block.sinh_r.push_back(vertex.sinh_r);
     block.cos_phi.push_back(vertex.cos_phi);
@@ -451,7 +473,8 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
         }
     }
     HyperbolicGeometryPolicy<Double>                   geometry(*this, 0, 0);
-    HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(geometry, config_);
+    HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(
+        geometry, config_, debug_logger_ ? &*debug_logger_ : nullptr);
 
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {

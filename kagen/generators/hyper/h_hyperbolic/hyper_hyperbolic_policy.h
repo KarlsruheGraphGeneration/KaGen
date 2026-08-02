@@ -6,6 +6,7 @@
 #include "kagen/hypergraph/hypergraph_utils.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
+#include "kagen/tools/geometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -47,7 +48,24 @@ public:
         EnsureAnnulusMidpoints();
     }
 
-    void AddCenter(const Center& /*unused*/, std::vector<SInt>& /*unused*/) const {}
+    void AddCenter(
+        const Center& center, std::vector<SInt>& /*pins*/
+    ) const {
+        const SInt sampling_seed = sampling::Spooky::hash(gen_.config_.seed + (131 * center.sampled_id));
+
+        switch (gen_.config_.partial_cell_mode) {
+            case PartialCellMode::EstimateByCoverageRange:
+                gen_.mersenne.RandomInit(sampling_seed);
+                break;
+
+            case PartialCellMode::GenerateAndCheck:
+                break;
+
+            case PartialCellMode::EstimateByCoverageFloyd:
+                rng_.SeedUniformStream(sampling_seed);
+                break;
+        }
+    }
 
     void CandidateCells(const Center& center, const Double radius, std::vector<Cell>& cells) {
         CacheQueryState(center, radius);
@@ -76,16 +94,6 @@ public:
     }
 
     Double CellCoverage(const Center& center, const Double hyperball_radius, const Cell& cell) const {
-        const CellBallRelation relation = ClassifyCell(center, hyperball_radius, cell);
-
-        if (relation == CellBallRelation::OUTSIDE) {
-            return Double{0.0};
-        }
-
-        if (relation == CellBallRelation::INSIDE) {
-            return Double{1.0};
-        }
-
         const Double min_phi = cell.min_phi;
         const Double max_phi = cell.max_phi;
 
@@ -131,29 +139,27 @@ public:
         return size;
     }
     SInt AddPartialCellRange(
-        const Center& center, const Cell& cell, const Double coverage, std::vector<SInt>& pins,
+        const Center& /*center*/, const Cell& cell, const Double coverage, std::vector<SInt>& /*pins*/,
         std::vector<PinRange>& ranges) const {
-        const auto info = GetPartialCellSampleInfo(center, cell, coverage);
+        const auto info = GetPartialCellSampleInfo(cell, coverage);
         if (!info) {
             return 0;
         }
 
-        auto sampled = getRandomPinRange(info->size, info->k, info->offset, info->seed, gen_.mersenne);
-        ranges.insert(ranges.end(), sampled);
+        auto sampled = getRandomPinRange(info->size, info->k, info->offset, gen_.mersenne);
+        ranges.push_back(sampled);
 
         return info->k;
     }
     SInt AddPartialCellFloyd(
-        const Center& center, const Cell& cell, const Double coverage, std::vector<SInt>& pins,
-        std::vector<PinRange>& ranges) const {
-        const auto info = GetPartialCellSampleInfo(center, cell, coverage);
+        const Center& /*center*/, const Cell& cell, const Double coverage, std::vector<SInt>& pins,
+        std::vector<PinRange>& /*ranges*/) const {
+        const auto info = GetPartialCellSampleInfo(cell, coverage);
         if (!info) {
             return 0;
         }
 
-        SInt seed = info->seed;
-
-        FloydSampleGeometricAppend(info->offset, info->size, info->k, rng_, seed, pins, floyd_scratch_);
+        FloydSampleGeometricAppend(info->offset, info->size, info->k, rng_, pins, floyd_scratch_);
         return info->k;
     }
     SInt AddPartialCellExact(
@@ -178,14 +184,38 @@ public:
 private:
     // ===== Query state =====
     void CacheQueryState(const Center& center, const Double radius) {
-        center_cosh_r_  = std::cosh(center.r);
-        center_sinh_r_  = std::sinh(center.r);
-        radius_cosh_    = std::cosh(radius);
-        ball_           = poincare_geometry::MakeBall(center.r, center.phi, radius);
+        center_cosh_r_ = std::cosh(center.r);
+        center_sinh_r_ = std::sinh(center.r);
+        radius_cosh_   = std::cosh(radius);
+
         center_cos_phi_ = std::cos(center.phi);
         center_sin_phi_ = std::sin(center.phi);
-        center_phi_     = center.phi;
-        center_r_       = center.r;
+
+        center_phi_ = center.phi;
+        center_r_   = center.r;
+
+        const Double center_inv_len = (center_cosh_r_ + Double{1.0}) / Double{2.0};
+
+        const Double center_pdm_radius = std::sqrt(Double{1.0} - (Double{1.0} / center_inv_len));
+
+        center_x_ = center_pdm_radius * center_sin_phi_;
+        center_y_ = center_pdm_radius * center_cos_phi_;
+
+        center_vertex_ = Vertex{
+            center.phi,
+            center.r,
+            center_pdm_radius * center_sin_phi_,
+            center_pdm_radius * center_cos_phi_,
+            center_inv_len,
+            SInt{0},
+            center_cosh_r_,
+            center_sinh_r_,
+            center_cos_phi_,
+            center_sin_phi_};
+
+        center_gamma_ = center_inv_len;
+
+        ball_ = poincare_geometry::MakeBall(center.r, center.phi, radius);
     }
 
     // ===== Candidate search =====
@@ -342,16 +372,22 @@ private:
                 });
         }
     };
-    Double AllowedHalfAngleForAnnulus(const Double center_r, const SInt annulus_id) const {
+    Double AllowedHalfAngleForAnnulus(const Double /*center_r*/, const SInt annulus_id) const {
+        const Double min_r = gen_.annulus_min_r_[annulus_id];
+        const Double max_r = gen_.annulus_max_r_[annulus_id];
+
         Double reach = std::max(
             AllowedHalfAngleForCachedRadius(gen_.annulus_min_cosh_[annulus_id], gen_.annulus_min_sinh_[annulus_id]),
             AllowedHalfAngleForCachedRadius(gen_.annulus_max_cosh_[annulus_id], gen_.annulus_max_sinh_[annulus_id]));
 
-        const Double min_r = gen_.annulus_min_r_[annulus_id];
-        const Double max_r = gen_.annulus_max_r_[annulus_id];
-
-        if (center_r >= min_r && center_r <= max_r) {
-            reach = std::max(reach, AllowedHalfAngleForCachedRadius(center_cosh_r_, center_sinh_r_));
+        // The angular reach is not generally maximized at center_r.  Its only
+        // interior stationary point satisfies cosh(query_r) = cosh(center_r) / cosh(radius).
+        const Double critical_cosh = center_cosh_r_ / radius_cosh_;
+        if (critical_cosh >= Double{1.0}) {
+            const Double critical_r = std::acosh(critical_cosh);
+            if (critical_r >= min_r && critical_r <= max_r) {
+                reach = std::max(reach, AllowedHalfAngleForCachedRadius(critical_cosh, std::sinh(critical_r)));
+            }
         }
 
         return reach;
@@ -389,39 +425,24 @@ private:
     }
     bool HyperbolicCellInside(const Cell& cell) const {
         const Double max_delta = MaxAngularDistanceToInterval(center_phi_, cell.min_phi, cell.max_phi);
-
         const Double cos_delta = std::cos(max_delta);
 
+        const SInt a = cell.annulus_id;
+
         const Double cosh_d_min_r =
-            (center_cosh_r_ * std::cosh(cell.min_r)) - (center_sinh_r_ * std::sinh(cell.min_r) * cos_delta);
+            (center_cosh_r_ * gen_.annulus_min_cosh_[a]) - (center_sinh_r_ * gen_.annulus_min_sinh_[a] * cos_delta);
 
         if (cosh_d_min_r > radius_cosh_) {
             return false;
         }
 
         const Double cosh_d_max_r =
-            (center_cosh_r_ * std::cosh(cell.max_r)) - (center_sinh_r_ * std::sinh(cell.max_r) * cos_delta);
+            (center_cosh_r_ * gen_.annulus_max_cosh_[a]) - (center_sinh_r_ * gen_.annulus_max_sinh_[a] * cos_delta);
 
         return cosh_d_max_r <= radius_cosh_;
     }
     bool ShouldTryInside(const Cell& cell) const {
-        const auto it = gen_.cells_.find(cell.global_cell_id);
-        if (it == gen_.cells_.end()) {
-            return false;
-        }
-
-        const SInt n = std::get<0>(it->second);
-
-        if (n < 256) {
-            return false;
-        }
-
-        // Optional: only if the ball is large enough to plausibly cover whole cells.
-        if (gen_.current_hyperedge_radius_ < (cell.max_r - cell.min_r)) {
-            return false;
-        }
-
-        return true;
+        return gen_.current_hyperedge_radius_ >= (cell.max_r - cell.min_r);
     }
     Double MaxAngularDistanceToInterval(const Double phi, const Double min_phi, const Double max_phi) const {
         const Double antipode = circular_interval::NormalizePhi(phi + Double{M_PI});
@@ -474,10 +495,8 @@ private:
         SInt size;
         SInt offset;
         SInt k;
-        SInt seed;
     };
-    std::optional<PartialCellSampleInfo>
-    GetPartialCellSampleInfo(const Center& center, const Cell& cell, const Double coverage) const {
+    std::optional<PartialCellSampleInfo> GetPartialCellSampleInfo(const Cell& cell, const Double coverage) const {
         const SInt global_cell_id = cell.global_cell_id;
 
         const auto it = gen_.cells_.find(global_cell_id);
@@ -495,15 +514,11 @@ private:
             return std::nullopt;
         }
 
-        const SInt seed =
-            sampling::Spooky::hash(gen_.config_.seed + (131 * center.sampled_id) + (9973 * global_cell_id));
-
         return PartialCellSampleInfo{
             .global_cell_id = global_cell_id,
             .size           = size,
             .offset         = offset,
             .k              = k,
-            .seed           = seed,
         };
     }
 
@@ -619,43 +634,19 @@ public:
     }
 
 private:
-    bool IsInsideHyperbolicBallFast(
-        const Double v_r, const Double v_sinh_r, const Double v_cos_phi, const Double v_sin_phi) const {
-        // Radial contribution:
-        //
-        // (cosh(center_r - v_r) - 1) / 2
-        //     = sinh^2((center_r - v_r) / 2)
-        const Double half_radial_difference = (center_r_ - v_r) / Double{2.0};
-
-        const Double sinh_half_radial_difference = std::sinh(half_radial_difference);
-
-        const Double radial_term = sinh_half_radial_difference * sinh_half_radial_difference;
-
-        // Angular contribution:
-        //
-        // sin^2(delta_phi / 2)
-        //     = ((cos(center_phi) - cos(vertex_phi))^2
-        //        + (sin(center_phi) - sin(vertex_phi))^2) / 4
-        //
-        // This is more accurate than computing 1 - cos(delta_phi) when
-        // delta_phi is very small.
-        const Double delta_cos = center_cos_phi_ - v_cos_phi;
-        const Double delta_sin = center_sin_phi_ - v_sin_phi;
-
-        const Double sin_half_delta_sq = ((delta_cos * delta_cos) + (delta_sin * delta_sin)) / Double{4.0};
-
-        const Double angular_term = center_sinh_r_ * v_sinh_r * sin_half_delta_sq;
-
-        const Double pdm_distance = radial_term + angular_term;
-
-        return pdm_distance <= gen_.current_hyperedge_pdm_radius_;
+    bool IsInsideHyperbolicBallFast(const Vertex& vertex) const {
+        return PGGeometry<Double>::HyperbolicDistance(center_vertex_, vertex) <= gen_.current_hyperedge_pdm_radius_;
     }
+
     SInt AddExactVerticesFast(const typename GeneratorT::VertexBlock& vertices, std::vector<SInt>& pins) const {
         SInt accepted = 0;
 
         for (std::size_t i = 0; i < vertices.id.size(); ++i) {
-            if (IsInsideHyperbolicBallFast(
-                    vertices.r[i], vertices.sinh_r[i], vertices.cos_phi[i], vertices.sin_phi[i])) {
+            const Vertex vertex{vertices.phi[i],     vertices.r[i],      vertices.x[i],      vertices.y[i],
+                                vertices.gamma[i],   vertices.id[i],     vertices.cosh_r[i], vertices.sinh_r[i],
+                                vertices.cos_phi[i], vertices.sin_phi[i]};
+
+            if (IsInsideHyperbolicBallFast(vertex)) {
                 pins.push_back(vertices.id[i]);
                 ++accepted;
             }
@@ -663,73 +654,9 @@ private:
 
         return accepted;
     }
-    bool IsInsideHyperbolicBallChecked(
-        const Double phi, const Double v_r, const Double v_cosh_r, const Double v_sinh_r, const Double v_cos_phi,
-        const Double v_sin_phi) const {
-        const bool stable_inside = IsInsideHyperbolicBallFast(v_r, v_sinh_r, v_cos_phi, v_sin_phi);
 
-#ifndef NDEBUG
-        const bool reference_inside =
-            HyperbolicDistanceReference(phi, v_cosh_r, v_sinh_r) <= gen_.current_hyperedge_pdm_radius_;
-
-        if (stable_inside != reference_inside) {
-            std::cerr << std::setprecision(std::numeric_limits<Double>::max_digits10)
-                      << "STABLE/REFERENCE DISAGREEMENT\n"
-                      << "  center_r=" << center_r_ << '\n'
-                      << "  center_phi=" << center_phi_ << '\n'
-                      << "  vertex_r=" << v_r << '\n'
-                      << "  vertex_phi=" << phi << '\n'
-                      << "  radius=" << gen_.current_hyperedge_radius_ << '\n'
-                      << "  stable_inside=" << stable_inside << '\n'
-                      << "  reference_inside=" << reference_inside << '\n';
-        }
-#endif
-
-        return stable_inside;
-    }
     SInt AddExactVerticesChecked(const typename GeneratorT::VertexBlock& vertices, std::vector<SInt>& pins) const {
-        SInt accepted = 0;
-
-        for (std::size_t i = 0; i < vertices.id.size(); ++i) {
-            if (IsInsideHyperbolicBallChecked(
-                    vertices.phi[i], vertices.r[i], vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i],
-                    vertices.sin_phi[i])) {
-                pins.push_back(vertices.id[i]);
-                ++accepted;
-            }
-
-            if (gen_.config_.debug) {
-                const bool fast_inside = IsInsideHyperbolicBallFast(
-                    vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i], vertices.sin_phi[i]);
-
-                const bool checked_inside = IsInsideHyperbolicBallChecked(
-                    vertices.phi[i], vertices.r[i], vertices.cosh_r[i], vertices.sinh_r[i], vertices.cos_phi[i],
-                    vertices.sin_phi[i]);
-
-                if (fast_inside != checked_inside) {
-                    std::cerr << std::setprecision(std::numeric_limits<Double>::max_digits10)
-                              << "FAST/CHECKED DISAGREEMENT\n"
-                              << "  vertex_id=" << vertices.id[i] << '\n'
-                              << "  vertex_r=" << vertices.r[i] << '\n'
-                              << "  vertex_phi=" << vertices.phi[i] << '\n'
-                              << "  center_r=" << center_r_ << '\n'
-                              << "  center_phi=" << center_phi_ << '\n'
-                              << "  hyperball_radius=" << gen_.current_hyperedge_radius_ << '\n'
-                              << "  fast_inside=" << fast_inside << '\n'
-                              << "  checked_inside=" << checked_inside << '\n';
-                }
-            }
-        }
-
-        return accepted;
-    }
-    Double HyperbolicDistanceReference(const Double phi, const Double cosh_r, const Double sinh_r) const {
-        Double delta_phi = std::abs(center_phi_ - phi);
-        delta_phi        = std::min(delta_phi, Double{2.0 * M_PI} - delta_phi);
-
-        const Double cosh_dist = (center_cosh_r_ * cosh_r) - (center_sinh_r_ * sinh_r * std::cos(delta_phi));
-
-        return (cosh_dist - Double{1.0}) / Double{2.0};
+        return AddExactVerticesFast(vertices, pins);
     }
 
     // ===== Initialization =====
@@ -756,14 +683,19 @@ private:
     mutable RNGWrapper<> rng_;
 
     // Caches
-    Double                           center_cosh_r_{};
-    Double                           center_sinh_r_{};
-    Double                           radius_cosh_{};
-    poincare_geometry::Ball<Double>  ball_{};
-    Double                           center_cos_phi_{};
-    Double                           center_sin_phi_{};
-    Double                           center_phi_{};
-    Double                           center_r_{};
+    Double                          center_cosh_r_{};
+    Double                          center_sinh_r_{};
+    Double                          radius_cosh_{};
+    poincare_geometry::Ball<Double> ball_{};
+    Double                          center_cos_phi_{};
+    Double                          center_sin_phi_{};
+    Double                          center_phi_{};
+    Double                          center_r_{};
+    Double                          center_x_{};
+    Double                          center_y_{};
+    Vertex                          center_vertex_{};
+    Double                          center_gamma_{};
+
     mutable std::unordered_set<SInt> floyd_scratch_;
     mutable std::vector<Double>      current_annulus_half_angle_;
 

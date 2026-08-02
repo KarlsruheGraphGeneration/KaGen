@@ -3,6 +3,7 @@
 #include "kagen/context.h"
 #include "kagen/generators/geometric/spatial_grid_2d.h"
 #include "kagen/generators/hyper/h_geometric/h_rgg.h"
+#include "kagen/hypergraph/debug_logger_geometric.h"
 
 #include <vector>
 
@@ -44,12 +45,15 @@ private:
 
     SInt SafeTotalCellsPerDim() const;
 
+    std::string MakeDebugFilename() const;
+
     struct LocalMemoryStats {
         SInt max_pins_per_hyperedge   = 0;
         SInt max_ranges_per_hyperedge = 0;
     };
 
-    LocalMemoryStats local_memory_stats_;
+    LocalMemoryStats                              local_memory_stats_;
+    std::optional<GeometricHypergraphDebugLogger> debug_logger_;
 
     void ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges);
 

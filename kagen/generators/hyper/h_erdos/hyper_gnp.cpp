@@ -43,7 +43,7 @@ HyperGNP<BigInt>::HyperGNP(const PGeneratorConfig& config, const PEID rank, cons
 
     if (config_.debug) {
         debug_logger_.emplace(
-            config_.output_graph.filename + "_hgnp_debug_rank_" + std::to_string(rank_) + ".csv", false);
+            config_.output_graph.filename + "_hgnp_debug_pe_" + std::to_string(rank_) + ".csv", false);
     }
 }
 
@@ -148,7 +148,8 @@ void HyperGNP<BigInt>::GenerateHyperedgesFromSizePlan(const HGNPSizePlan& entry)
     }
 
     ExactFixedCountHyperedgeGenerator<BigInt> fixed_count_generator(
-        config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_
+        config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
+        debug_logger_ ? &*debug_logger_ : nullptr, &next_debug_hyperedge_id_
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         ,
         &instrumentation_
@@ -818,8 +819,6 @@ bool HyperGNP<BigInt>::AppendSizePlanIfNeeded(
         return true;
     }
 
-    LogSizeProbability(hyperedge_size, probability);
-
     HGNPSizePlan entry = PrepareSizePlan(hyperedge_size, probability);
 
     if (entry.range.local_m > 0) {
@@ -1124,60 +1123,102 @@ void HyperGNP<BigInt>::GenerateLocalHyperedges(
                                            ? std::numeric_limits<std::uint64_t>::max()
                                            : std::max<std::uint64_t>(local_m_u64 * 10, 1000);
 
-    std::uint64_t attempts  = 0;
-    SInt          generated = 0;
+    SInt generated = 0;
 
     while (generated < local_m) {
-        SampleLocalHyperedgeInto(entry.hyperedge_size, entry.range.begin, entry.range.end, edge_seed, cache, pins);
+        const auto event_start = std::chrono::steady_clock::now();
 
-        ++attempts;
+        std::uint64_t sampling_attempts    = 0;
+        std::uint64_t duplicate_rejections = 0;
+        std::uint64_t minimum_search_steps = 0;
+        std::uint64_t minimum_cache_gets   = 0;
 
-        bool accepted = true;
+        while (true) {
+            std::uint64_t attempt_search_steps = 0;
+            std::uint64_t attempt_cache_gets   = 0;
 
-        if (!config_.allow_duplicates) {
-            const double duplicate_start = MPI_Wtime();
+            SampleLocalHyperedgeInto(
+                entry.hyperedge_size, entry.range.begin, entry.range.end, edge_seed, cache, pins, attempt_search_steps,
+                attempt_cache_gets);
 
-            accepted = seen.insert(FingerprintPins(pins)).second;
+            ++sampling_attempts;
+            minimum_search_steps += attempt_search_steps;
+            minimum_cache_gets += attempt_cache_gets;
+
+            bool accepted = true;
+
+            if (!config_.allow_duplicates) {
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-            instrumentation_.duplicate_check_seconds += MPI_Wtime() - duplicate_start;
+                const double duplicate_start = MPI_Wtime();
 #endif
-        }
 
-        if (accepted) {
+                accepted = seen.insert(FingerprintPins(pins)).second;
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+                instrumentation_.duplicate_check_seconds += MPI_Wtime() - duplicate_start;
+#endif
+            }
+
+            if (!accepted) {
+                ++duplicate_rejections;
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+                ++instrumentation_.duplicate_rejects;
+#endif
+
+                if (sampling_attempts > max_attempts) {
+                    throw ConfigurationError("HGNP sampling exceeded attempt limit");
+                }
+
+                continue;
+            }
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             const double write_start = MPI_Wtime();
 #endif
 
             PushUncompressedHyperedge(graph_, memory_stats_, pins);
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             instrumentation_.csr_write_seconds += MPI_Wtime() - write_start;
+            ++instrumentation_.generated_edges;
+            instrumentation_.generated_pins += static_cast<std::uint64_t>(pins.size());
+            instrumentation_.attempts += sampling_attempts;
+#endif
 
             ++generated;
-            ++instrumentation_.generated_edges;
 
-            instrumentation_.generated_pins += static_cast<std::uint64_t>(pins.size());
-        } else {
-            ++instrumentation_.duplicate_rejects;
-#endif
-        }
+            if (debug_logger_) {
+                const auto duration_ns =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - event_start)
+                        .count();
 
-        if (attempts > max_attempts) {
-            throw ConfigurationError("HGNP sampling exceeded attempt limit");
+                debug_logger_->LogHyperedge({
+                    .hyperedge_id         = next_debug_hyperedge_id_++,
+                    .hyperedge_size       = entry.hyperedge_size,
+                    .minimum_vertex       = pins.front(),
+                    .sampling_attempts    = static_cast<SInt>(sampling_attempts),
+                    .duplicate_rejections = static_cast<SInt>(duplicate_rejections),
+                    .minimum_search_steps = static_cast<SInt>(minimum_search_steps),
+                    .minimum_cache_gets   = static_cast<SInt>(minimum_cache_gets),
+                    .duration_ns          = duration_ns,
+                });
+            }
+
+            break;
         }
     }
-#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-    instrumentation_.attempts += attempts;
-#endif
 }
 
 template <typename BigInt>
 void HyperGNP<BigInt>::SampleLocalHyperedgeInto(
     const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, SInt& edge_seed,
-    LogBinomCache& log_binom_cache, std::vector<SInt>& pins) {
+    LogBinomCache& log_binom_cache, std::vector<SInt>& pins, std::uint64_t& minimum_search_steps,
+    std::uint64_t& minimum_cache_gets) {
     pins.clear();
 
-    std::uint64_t minimum_steps = 0;
-    std::uint64_t cache_gets    = 0;
+    minimum_search_steps = 0;
+    minimum_cache_gets   = 0;
 
     SInt minimum_vertex;
 
@@ -1186,13 +1227,13 @@ void HyperGNP<BigInt>::SampleLocalHyperedgeInto(
         ScopedMPITimer timer(instrumentation_.minimum_sample_seconds);
 #endif
         minimum_vertex = SampleMinimumImplicit(
-            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache, &minimum_steps,
-            &cache_gets);
+            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache,
+            &minimum_search_steps, &minimum_cache_gets);
     }
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     ++instrumentation_.minimum_samples;
-    instrumentation_.minimum_search_steps += minimum_steps;
-    instrumentation_.minimum_cache_gets += cache_gets;
+    instrumentation_.minimum_search_steps += minimum_search_steps;
+    instrumentation_.minimum_cache_gets += minimum_cache_gets;
 #endif
     pins.push_back(minimum_vertex);
 
@@ -1214,19 +1255,6 @@ SInt HyperGNP<BigInt>::LocalEdgeSeed(const SInt hyperedge_size) const {
 }
 
 // #### Logging/graph mutation ####
-
-template <typename BigInt>
-void HyperGNP<BigInt>::LogSizeProbability(const SInt hyperedge_size, const double probability) {
-    if (!debug_logger_) {
-        return;
-    }
-
-    std::ostringstream p_info;
-    p_info << std::scientific << probability;
-
-    debug_logger_->LogBlock(
-        rank_, hyperedge_size, "size", "min_owner", 0, 0, 0, "unknown", 0, 0, "0", 0, 0, "p=" + p_info.str());
-}
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 template class HyperGNP<__int128>;

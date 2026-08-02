@@ -96,6 +96,7 @@ private:
     RNGWrapper<>                              rng_;
     Mersenne                                  mersenne_;
     std::optional<ErdosHypergraphDebugLogger> debug_logger_;
+    SInt                                      next_debug_hyperedge_id_ = 0;
 };
 
 using HyperGNMSmall = HyperGNM<SInt>;

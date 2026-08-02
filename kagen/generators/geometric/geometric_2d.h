@@ -20,6 +20,7 @@
 #include "libmorton/morton2D.h"
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <tuple>
 #include <vector>
 
@@ -51,6 +52,13 @@ protected:
         SetVertexRange(start_node_, start_node_ + num_nodes_);
         if (config_.coordinates) {
             CollectCoordinates();
+        }
+        if (config_.debug) {
+            std::ofstream out(config_.output_graph.filename + "_vertex_ranges_rank_" + std::to_string(rank_) + ".csv");
+
+            out << "pe,vertex_from,vertex_to,chunk_from,chunk_to\n";
+            out << rank_ << "," << start_node_ << "," << start_node_ + num_nodes_ << "," << local_chunk_start_ << ","
+                << local_chunk_end_ << "\n";
         }
     }
 

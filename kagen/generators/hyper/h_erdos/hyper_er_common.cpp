@@ -356,8 +356,9 @@ std::optional<SInt> TryBinomialSInt(SInt n, SInt k) {
 
 template <typename BigInt>
 ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
-    const PGeneratorConfig& config, PEID rank, PEID size, RNGWrapper<>& rng, Mersenne& mersenne, Graph& graph,
-    HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch
+    const PGeneratorConfig& config, const PEID rank, const PEID size, RNGWrapper<>& rng, Mersenne& mersenne,
+    Graph& graph, HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch,
+    ErdosHypergraphDebugLogger* debug_logger, SInt* next_debug_hyperedge_id
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     ,
     HGNPInstrumentation* instrumentation
@@ -370,7 +371,9 @@ ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
       mersenne_(mersenne),
       graph_(graph),
       memory_stats_(memory_stats),
-      floyd_scratch_(floyd_scratch)
+      floyd_scratch_(floyd_scratch),
+      debug_logger_(debug_logger),
+      next_debug_hyperedge_id_(next_debug_hyperedge_id)
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
       ,
       instrumentation_(instrumentation)
@@ -625,54 +628,89 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::GenerateSampledHyperedges(
                                            ? std::numeric_limits<std::uint64_t>::max()
                                            : std::max<std::uint64_t>(local_m_u64 * 10, 1000);
 
-    std::uint64_t attempts  = 0;
-    SInt          generated = 0;
+    std::uint64_t total_attempts = 0;
+    SInt          generated      = 0;
 
     while (generated < local_m) {
-        std::uint64_t minimum_steps = 0;
-        std::uint64_t cache_gets    = 0;
+        const auto event_start = std::chrono::steady_clock::now();
 
-        SInt minimum_vertex;
+        std::uint64_t sampling_attempts    = 0;
+        std::uint64_t duplicate_rejections = 0;
+        std::uint64_t minimum_search_steps = 0;
+        std::uint64_t minimum_cache_gets   = 0;
 
-        {
+        while (true) {
+            std::uint64_t attempt_minimum_steps = 0;
+            std::uint64_t attempt_cache_gets    = 0;
+
+            SInt minimum_vertex;
+
+            {
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-            ScopedMPITimer timer(instrumentation_->minimum_sample_seconds);
+                ScopedMPITimer timer(instrumentation_->minimum_sample_seconds);
 #endif
-            minimum_vertex = SampleMinimumImplicit(
-                local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache,
-                &minimum_steps, &cache_gets);
-        }
+                minimum_vertex = SampleMinimumImplicit(
+                    local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache,
+                    &attempt_minimum_steps, &attempt_cache_gets);
+            }
+
+            ++sampling_attempts;
+            ++total_attempts;
+
+            minimum_search_steps += attempt_minimum_steps;
+            minimum_cache_gets += attempt_cache_gets;
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-        if (instrumentation_ != nullptr) {
-            ++instrumentation_->minimum_samples;
-
-            instrumentation_->minimum_search_steps += minimum_steps;
-
-            instrumentation_->minimum_cache_gets += cache_gets;
-        }
+            if (instrumentation_ != nullptr) {
+                ++instrumentation_->minimum_samples;
+                instrumentation_->minimum_search_steps += attempt_minimum_steps;
+                instrumentation_->minimum_cache_gets += attempt_cache_gets;
+            }
 #endif
-        {
+
+            {
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-            ScopedMPITimer timer(instrumentation_->pin_sample_seconds);
+                ScopedMPITimer timer(instrumentation_->pin_sample_seconds);
 #endif
-            SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
-        }
+                SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
+            }
 
-        if (TryPushHyperedge(pins, local_seen)) {
+            if (!TryPushHyperedge(pins, local_seen)) {
+                ++duplicate_rejections;
+
+                if (total_attempts > max_attempts) {
+                    throw ConfigurationError("Exact fixed-count rejection sampling exceeded the attempt limit");
+                }
+
+                continue;
+            }
+
             ++generated;
-        }
 
-        ++attempts;
+            if (debug_logger_ != nullptr && next_debug_hyperedge_id_ != nullptr) {
+                const auto duration_ns =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - event_start)
+                        .count();
 
-        if (attempts > max_attempts) {
-            throw ConfigurationError(
-                "Exact fixed-count rejection sampling "
-                "exceeded the attempt limit");
+                debug_logger_->LogHyperedge({
+                    .hyperedge_id         = (*next_debug_hyperedge_id_)++,
+                    .hyperedge_size       = hyperedge_size,
+                    .minimum_vertex       = pins.front(),
+                    .sampling_attempts    = static_cast<SInt>(sampling_attempts),
+                    .duplicate_rejections = static_cast<SInt>(duplicate_rejections),
+                    .minimum_search_steps = static_cast<SInt>(minimum_search_steps),
+                    .minimum_cache_gets   = static_cast<SInt>(minimum_cache_gets),
+                    .duration_ns          = duration_ns,
+                });
+            }
+
+            break;
         }
     }
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     if (instrumentation_ != nullptr) {
-        instrumentation_->attempts += attempts;
+        instrumentation_->attempts += total_attempts;
     }
 #endif
 }
@@ -714,7 +752,7 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::Generate(const SInt hyperedge_si
     GenerateSampledHyperedges(
         hyperedge_size, range.min_begin, range.min_end, range.local_m, edge_seed, log_binom_cache);
 
-    const std::size_t observed_size = log_binom_cache.Size();
+    const std::size_t observed_size = 0;
 
     constexpr std::size_t kMinimumHint = 4096;
     constexpr std::size_t kMaximumHint = 1U << 17;

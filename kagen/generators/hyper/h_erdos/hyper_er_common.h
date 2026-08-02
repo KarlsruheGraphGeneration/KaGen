@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kagen/generators/generator.h"
+#include "kagen/hypergraph/debug_logger_erdos.h"
 #include "kagen/kagen.h"
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/mersenne.h"
@@ -93,6 +94,17 @@ struct LogBinomCacheStats {
     std::uint64_t backward_steps = 0;
     std::uint64_t forward_steps  = 0;
 
+#ifdef KAGEN_USE_LOGBINOM_CURSOR_CACHE
+    std::uint64_t get_exact_hits            = 0;
+    std::uint64_t get_recurrence_hits       = 0;
+    std::uint64_t get_direct_evals          = 0;
+    std::uint64_t get_distance_sum          = 0;
+    std::uint64_t get_distance_observations = 0;
+    std::uint64_t get_max_distance          = 0;
+    std::uint64_t get_forward_steps         = 0;
+    std::uint64_t get_backward_steps        = 0;
+#endif
+
     // Across both access methods.
     SInt min_key = std::numeric_limits<SInt>::max();
 
@@ -103,8 +115,6 @@ struct LogBinomCacheStats {
 
 struct LogBinomCache {
     SInt fixed_k = -1;
-
-    boost::unordered_flat_map<SInt, long double> values;
 
     long double log_k_factorial = 0.0L;
     long double inv_k;
@@ -122,26 +132,20 @@ struct LogBinomCache {
     SInt        cursor_x           = 0;
     long double cursor_value       = -std::numeric_limits<long double>::infinity();
 
+#ifdef KAGEN_USE_LOGBINOM_CURSOR_CACHE
+    bool        get_cursor_initialized = false;
+    SInt        get_cursor_x           = 0;
+    long double get_cursor_value       = -std::numeric_limits<long double>::infinity();
+#endif
+
     LogBinomCacheStats stats;
 
-    explicit LogBinomCache(const SInt k = -1, const std::size_t expected_size = 4096) : fixed_k(k) {
-#ifndef KAGEN_HGNP_DISABLE_LOG_BINOM_MAP
-        values.max_load_factor(0.7);
-        values.reserve(expected_size);
-#endif
-
+    explicit LogBinomCache(const SInt k = -1, [[maybe_unused]] const std::size_t expected_size = 4096) : fixed_k(k) {
         if (fixed_k >= 0) {
             log_k_factorial = std::lgammal(static_cast<long double>(fixed_k) + 1.0L);
-        }
-        inv_k = 1.0L / static_cast<long double>(k);
-    }
 
-    std::size_t Size() const {
-#ifndef KAGEN_HGNP_DISABLE_LOG_BINOM_MAP
-        return values.size();
-#else
-        return 0;
-#endif
+            inv_k = 1.0L / static_cast<long double>(fixed_k);
+        }
     }
 
     long double EvaluateDirect(const SInt x) const {
@@ -150,17 +154,44 @@ struct LogBinomCache {
         }
 
         if (fixed_k <= 32) {
-            return static_cast<long double>(LogBinomialSmallKFast(x));
+            return LogBinomialSmallKFast(x);
         }
 
         return LogBinomialApprox(x, fixed_k);
     }
 
-    double LogBinomialSmallKFast(const SInt n) const {
-        double result = -static_cast<double>(log_k_factorial);
+    long double LogBinomialSmallKFast(const SInt n) const {
+        long double result = -log_k_factorial;
 
         for (SInt i = 0; i < fixed_k; ++i) {
-            result += std::log(static_cast<double>(n - i));
+            result += std::log(static_cast<long double>(n - i));
+        }
+
+        return result;
+    }
+
+    long double LogBinomialRatioSmallK(const SInt x, const SInt anchor_x) const {
+        assert(fixed_k >= 0);
+        assert(x >= fixed_k);
+        assert(anchor_x >= fixed_k);
+
+        /*
+         * log(C(x,k) / C(anchor_x,k))
+         *
+         *   = sum_i log((x-i)/(anchor_x-i))
+         *   = sum_i log(1 + (x-anchor_x)/(anchor_x-i)).
+         *
+         * In the minimum sampler x <= anchor_x, so each term is
+         * nonpositive.
+         */
+        const long double difference = static_cast<long double>(x - anchor_x);
+
+        long double result = 0.0L;
+
+        for (SInt i = 0; i < fixed_k; ++i) {
+            const long double denominator = static_cast<long double>(anchor_x - i);
+
+            result += std::log1pl(difference / denominator);
         }
 
         return result;
@@ -265,10 +296,71 @@ struct LogBinomCache {
         stats.min_key = std::min(stats.min_key, x);
         stats.max_key = std::max(stats.max_key, x);
 
+#ifdef KAGEN_USE_LOGBINOM_CURSOR_CACHE
+        return GetCached(x);
+#else
         ++stats.map_misses;
-
         return EvaluateDirect(x);
+#endif
     }
+#ifdef KAGEN_USE_LOGBINOM_CURSOR_CACHE
+    long double GetCached(const SInt target_x) {
+        constexpr SInt kMaxRecurrenceDistance = 16;
+
+        if (target_x < fixed_k) {
+            ++stats.map_misses;
+            return -std::numeric_limits<long double>::infinity();
+        }
+
+        if (!get_cursor_initialized) {
+            get_cursor_value       = EvaluateDirect(target_x);
+            get_cursor_x           = target_x;
+            get_cursor_initialized = true;
+
+            ++stats.map_misses;
+            ++stats.get_direct_evals;
+            return get_cursor_value;
+        }
+
+        if (target_x == get_cursor_x) {
+            ++stats.map_hits;
+            ++stats.get_exact_hits;
+            return get_cursor_value;
+        }
+
+        const SInt distance = target_x > get_cursor_x ? target_x - get_cursor_x : get_cursor_x - target_x;
+
+        ++stats.get_distance_observations;
+        stats.get_distance_sum += static_cast<std::uint64_t>(distance);
+        stats.get_max_distance = std::max(stats.get_max_distance, static_cast<std::uint64_t>(distance));
+
+        if (distance > kMaxRecurrenceDistance) {
+            get_cursor_value = EvaluateDirect(target_x);
+            get_cursor_x     = target_x;
+
+            ++stats.map_misses;
+            ++stats.get_direct_evals;
+            return get_cursor_value;
+        }
+
+        ++stats.map_hits;
+        ++stats.get_recurrence_hits;
+
+        while (get_cursor_x < target_x) {
+            get_cursor_value = StepForward(get_cursor_x, get_cursor_value);
+            ++get_cursor_x;
+            ++stats.get_forward_steps;
+        }
+
+        while (get_cursor_x > target_x) {
+            get_cursor_value = StepBackward(get_cursor_x, get_cursor_value);
+            --get_cursor_x;
+            ++stats.get_backward_steps;
+        }
+
+        return get_cursor_value;
+    }
+#endif
     void InitializeRange(const SInt n, const SInt local_begin, const SInt local_end) {
         if (local_begin >= local_end) {
             throw ConfigurationError("LogBinomCache requires a nonempty local minimum range");
@@ -396,30 +488,30 @@ SInt PoissonLocalCountFromScaledMass(
 class LogBinomialCorrectionState {
 public:
     LogBinomialCorrectionState(
-        const SInt candidate, const SInt n, const SInt k, const long double log_candidate_tail,
-        const long double log_target_tail, const SInt local_begin, const SInt local_end)
+        const SInt candidate, const SInt n, const SInt k, const long double candidate_residual,
+        const long double k_tail_residual, const SInt local_begin, const SInt local_end)
         : candidate_(candidate),
           candidate_x_(n - (candidate + 1)),
           n_(n),
           k_(k),
-          log_candidate_tail_(log_candidate_tail),
-          log_target_tail_(log_target_tail),
+          candidate_residual_(candidate_residual),
+          k_tail_residual_(k_tail_residual),
           local_begin_(local_begin),
           local_end_(local_end) {
         AssertInvariant();
     }
 
-    long double LogCandidateTail() const {
-        return log_candidate_tail_;
+    long double CandidateResidual() const {
+        return candidate_residual_;
     }
 
     bool HasPredecessor() const {
         return candidate_ > local_begin_;
     }
 
-    long double LogCurrentPredecessorTail() const {
+    long double CurrentPredecessorResidual() const {
         assert(HasPredecessor());
-        return LogPredecessorTail();
+        return PredecessorResidual();
     }
 
     SInt Candidate() const {
@@ -427,7 +519,7 @@ public:
     }
 
     bool CandidateIsAtOrRight() const {
-        return log_candidate_tail_ <= log_target_tail_;
+        return candidate_residual_ <= 0.0L;
     }
 
     bool PredecessorIsAtOrRight() const {
@@ -435,13 +527,13 @@ public:
             return false;
         }
 
-        return LogPredecessorTail() <= log_target_tail_;
+        return PredecessorResidual() <= 0.0L;
     }
 
     void MoveLeft() {
         assert(candidate_ > local_begin_);
 
-        log_candidate_tail_ = LogPredecessorTail();
+        candidate_residual_ = PredecessorResidual();
 
         --candidate_;
         ++candidate_x_;
@@ -452,7 +544,7 @@ public:
     void MoveRight() {
         assert(candidate_ < local_end_ - 1);
 
-        log_candidate_tail_ = LogSuccessorTail();
+        candidate_residual_ = SuccessorResidual();
 
         ++candidate_;
         --candidate_x_;
@@ -468,66 +560,83 @@ private:
         assert(candidate_x_ == n_ - (candidate_ + 1));
     }
 
-    long double LogPredecessorTail() const {
+    long double PredecessorResidual() const {
         if (candidate_x_ < k_) {
             /*
-             * candidate_x_ == k_ - 1, so the predecessor has x == k:
+             * candidate_x_ == k - 1.
+             * The predecessor has x == k and C(k,k) == 1.
              *
-             *     log C(k, k) = 0.
+             * Its normalized target residual was computed directly
+             * by the caller.
              */
-            return 0.0L;
+            return k_tail_residual_;
         }
 
         /*
-         * The predecessor minimum corresponds to x + 1:
+         * Moving to the predecessor changes x to x + 1:
          *
-         * C(x + 1, k)
-         *   = C(x, k) * (x + 1) / (x + 1 - k)
-         *   = C(x, k) * (1 + k / (x + 1 - k)).
+         * log C(x+1,k)
+         *   = log C(x,k)
+         *     + log(1 + k/(x+1-k)).
+         *
+         * The anchor and target terms cancel, so the same recurrence
+         * applies to the residual.
          */
-        return log_candidate_tail_
+        return candidate_residual_
                + std::log1pl(static_cast<long double>(k_) / static_cast<long double>(candidate_x_ + 1 - k_));
     }
 
-    long double LogSuccessorTail() const {
+    long double SuccessorResidual() const {
         if (candidate_x_ <= k_) {
             /*
-             * Moving from x == k to x == k - 1 makes C(x, k) zero.
+             * Moving from x == k to x == k - 1 gives C(x,k) == 0.
              */
             return -std::numeric_limits<long double>::infinity();
         }
 
         /*
-         * C(x - 1, k) = C(x, k) * (x - k) / x.
+         * Moving to the successor changes x to x - 1:
+         *
+         * log C(x-1,k)
+         *   = log C(x,k)
+         *     + log(1 - k/x).
          */
-        return log_candidate_tail_
+        return candidate_residual_
                + std::log1pl(-static_cast<long double>(k_) / static_cast<long double>(candidate_x_));
     }
 
-    SInt        candidate_;
-    SInt        candidate_x_;
-    SInt        n_;
-    SInt        k_;
-    long double log_candidate_tail_;
-    long double log_target_tail_;
-    SInt        local_begin_;
-    SInt        local_end_;
+    SInt candidate_;
+    SInt candidate_x_;
+    SInt n_;
+    SInt k_;
+
+    long double candidate_residual_;
+
+    /*
+     * Residual for x == k:
+     *
+     * log(C(k,k)/begin_tail) - log(target/begin_tail).
+     */
+    long double k_tail_residual_;
+
+    SInt local_begin_;
+    SInt local_end_;
 };
 struct CorrectedMinimumCandidate {
     SInt        candidate;
-    long double log_tail;
+    long double residual;
 
     bool        has_predecessor;
-    long double log_predecessor_tail;
+    long double predecessor_residual;
 };
 
 inline CorrectedMinimumCandidate CorrectMinimumCandidateByRecurrence(
     const SInt initial_candidate, const SInt local_begin, const SInt local_end, const SInt n, const SInt k,
-    const long double log_candidate_tail, const long double log_target_tail, std::uint64_t* steps) {
+    const long double candidate_residual, const long double k_tail_residual, std::uint64_t* steps) {
     constexpr SInt kMaxLinearCorrections = 8;
 
     LogBinomialCorrectionState state(
-        initial_candidate, n, k, log_candidate_tail, log_target_tail, local_begin, local_end);
+        initial_candidate, n, k, candidate_residual, k_tail_residual, local_begin, local_end);
 
     SInt corrections = 0;
 
@@ -556,11 +665,13 @@ inline CorrectedMinimumCandidate CorrectMinimumCandidateByRecurrence(
     const bool has_predecessor = state.HasPredecessor();
 
     return {
-        .candidate       = state.Candidate(),
-        .log_tail        = state.LogCandidateTail(),
+        .candidate = state.Candidate(),
+        .residual  = state.CandidateResidual(),
+
         .has_predecessor = has_predecessor,
-        .log_predecessor_tail =
-            has_predecessor ? state.LogCurrentPredecessorTail() : -std::numeric_limits<long double>::infinity(),
+
+        .predecessor_residual =
+            has_predecessor ? state.CurrentPredecessorResidual() : -std::numeric_limits<long double>::infinity(),
     };
 }
 
@@ -613,6 +724,9 @@ inline SInt ResolveMinimumCandidate(
         return candidate;
     }
 
+    std::cerr << "Expensive minOwner[ candidate:" << candidate << " , local_begin:" << local_begin
+              << " , local_end:" << local_end;
+
     /*
      * Restrict the fallback search to the unresolved side of candidate.
      */
@@ -648,6 +762,8 @@ inline SInt ResolveMinimumCandidate(
         }
     }
 
+    std::cerr << " , resolved:" << left
+              << " , abs(candidate-resolved):" << (candidate > left ? candidate - left : left - candidate) << "]\n";
     return left;
 }
 
@@ -774,20 +890,39 @@ SInt SampleMinimumImplicit(
     const long double log_begin_tail = cache.log_begin_tail;
     const long double log_end_tail   = cache.log_end_tail;
 
-    const long double log_local_mass = LogDifferenceOfExponentials(log_begin_tail, log_end_tail);
+    /*
+     * Normalize all tails by begin_tail.
+     *
+     * end_ratio = end_tail / begin_tail.
+     *
+     * local_mass_fraction
+     *     = (begin_tail - end_tail) / begin_tail
+     *     = 1 - end_ratio.
+     */
+    const long double local_mass_fraction =
+        std::isinf(log_end_tail) && log_end_tail < 0.0L ? 1.0L : -std::expm1l(log_end_tail - log_begin_tail);
 
     /*
-     * uniform01 is in [0, 1), so the selected tail is
+     * target_tail
+     *     = begin_tail
+     *       - uniform01 * (begin_tail - end_tail)
      *
-     *     begin_tail - uniform01 * (begin_tail - end_tail).
+     * Therefore
      *
-     * Compute this in log space to avoid overflow and cancellation.
+     * target_tail / begin_tail
+     *     = 1 - uniform01 * local_mass_fraction.
      */
-    const long double log_target_mass =
-        uniform01 > 0.0L ? log_local_mass + std::log(uniform01) : -std::numeric_limits<long double>::infinity();
+    const long double log_target_ratio = std::log1pl(-uniform01 * local_mass_fraction);
 
-    const long double log_target_tail = LogDifferenceOfExponentials(log_begin_tail, log_target_mass);
+    const SInt begin_x = n - local_begin;
 
+    auto normalized_log_binomial = [&](const SInt x) -> long double {
+        if (cache_gets != nullptr) {
+            ++(*cache_gets);
+        }
+
+        return cache.LogBinomialRatioSmallK(x, begin_x);
+    };
     /*
      * Monotone predicate used by both local correction and binary search.
      *
@@ -801,7 +936,9 @@ SInt SampleMinimumImplicit(
             return true;
         }
 
-        return cached_log_binomial(remaining) <= log_target_tail;
+        const long double log_tail_ratio = normalized_log_binomial(remaining);
+
+        return log_tail_ratio <= log_target_ratio;
     };
 
     /*
@@ -819,30 +956,57 @@ SInt SampleMinimumImplicit(
      *
      *     s ~= n - 1 - x.
      */
-    SInt candidate =
-        EstimateMinimumCandidate(local_begin, local_end, n, k, log_target_tail, cache.log_k_factorial, cache.inv_k);
+    /*
+     * EstimateMinimumCandidate still expects an absolute log-tail value.
+     * Reconstruct it only for the coarse approximation.
+     */
+    const long double log_target_tail_for_estimate = log_begin_tail + log_target_ratio;
+
+    SInt candidate = EstimateMinimumCandidate(
+        local_begin, local_end, n, k, log_target_tail_for_estimate, cache.log_k_factorial, cache.inv_k);
 
     const SInt candidate_x = n - (candidate + 1);
 
-    const long double log_candidate_tail =
-        candidate_x >= k ? cache.Get(candidate_x, k) : -std::numeric_limits<long double>::infinity();
+    /*
+     * Evaluate the candidate in normalized coordinates:
+     *
+     *   log_candidate_ratio
+     *     = log(C(candidate_x, k) / C(begin_x, k)).
+     */
+    const long double log_candidate_ratio =
+        candidate_x >= k ? normalized_log_binomial(candidate_x) : -std::numeric_limits<long double>::infinity();
+
+    /*
+     * residual
+     *   = log(candidate_tail / begin_tail)
+     *     - log(target_tail / begin_tail)
+     *
+     * The candidate satisfies the predicate iff residual <= 0.
+     */
+    const long double candidate_residual = log_candidate_ratio - log_target_ratio;
+
+    /*
+     * Residual for x == k.
+     *
+     * Since C(k,k) == 1:
+     *
+     *   log(C(k,k) / begin_tail)
+     *     = -log_begin_tail.
+     */
+    const long double k_tail_residual = -log_begin_tail - log_target_ratio;
 
     const CorrectedMinimumCandidate corrected = CorrectMinimumCandidateByRecurrence(
-        candidate, local_begin, local_end, n, k, log_candidate_tail, log_target_tail, steps);
+        candidate, local_begin, local_end, n, k, candidate_residual, k_tail_residual, steps);
 
     candidate = corrected.candidate;
 
-    const bool candidate_valid = corrected.log_tail <= log_target_tail;
+    const bool candidate_valid = corrected.residual <= 0.0L;
 
-    const bool predecessor_invalid = !corrected.has_predecessor || corrected.log_predecessor_tail > log_target_tail;
+    const bool predecessor_invalid = !corrected.has_predecessor || corrected.predecessor_residual > 0.0L;
 
     if (candidate_valid && predecessor_invalid) {
         return candidate;
     }
-
-    const SInt resolved = ResolveMinimumCandidate(candidate, local_begin, local_end, at_or_right_of_answer, steps);
-
-    return resolved;
 }
 
 template <typename RNG>
@@ -1481,9 +1645,77 @@ inline FastAcceptanceDecision FilterCorrectedHypergeometricAcceptance(
 }
 
 template <typename RNG>
-SInt GenerateHugeBinomialCorrectedPoisson(
+SInt GenerateBinomialHybrid(
+    const CountInt& population, const long double log_population, const long double log_probability, RNG& rng,
+    const SInt seed, const char* error_context) {
+    if (population < 0) {
+        throw ConfigurationError(std::string(error_context) + " binomial population must be nonnegative");
+    }
+
+    if (population == 0) {
+        return 0;
+    }
+
+    if (log_probability == -std::numeric_limits<long double>::infinity()) {
+        return 0;
+    }
+
+    if (!(log_probability <= 0.0L)) {
+        throw ConfigurationError(std::string(error_context) + " binomial probability exceeds one");
+    }
+
+    const CountInt native_limit = std::numeric_limits<SInt>::max();
+
+    if (population <= native_limit) {
+        const SInt trials = population.convert_to<SInt>();
+
+        const double probability = static_cast<double>(std::exp(log_probability));
+
+        if (probability <= 0.0) {
+            return 0;
+        }
+
+        return rng.GenerateBinomial(seed, trials, probability);
+    }
+
+    return GenerateHugeBinomialCorrectedPoisson(population, log_population, log_probability, rng, seed, error_context);
+}
+
+template <typename RNG>
+SInt GenerateBinomialHybrid(
     const CountInt& population, const long double log_probability, RNG& rng, const SInt seed,
     const char* error_context) {
+    if (population <= CountInt(std::numeric_limits<SInt>::max())) {
+        return GenerateBinomialHybrid(
+            population,
+            0.0L, // unused by the native branch
+            log_probability, rng, seed, error_context);
+    }
+
+    return GenerateBinomialHybrid(
+        population, LogPositiveCountIntApprox(population), log_probability, rng, seed, error_context);
+}
+
+inline long double TransformCountIntToLongDoubleFast(const CountInt& value) {
+    if (value <= 0) {
+        return 0.0L;
+    }
+
+    constexpr unsigned kRetainedBits = std::numeric_limits<long double>::digits;
+
+    const unsigned bit_count = boost::multiprecision::msb(value) + 1;
+
+    const unsigned shift = bit_count > kRetainedBits ? bit_count - kRetainedBits : 0;
+
+    const std::uint64_t top = (value >> shift).convert_to<std::uint64_t>();
+
+    return std::ldexp(static_cast<long double>(top), static_cast<int>(shift));
+}
+
+template <typename RNG>
+SInt GenerateHugeBinomialCorrectedPoisson(
+    const CountInt& population, const long double log_population, const long double log_probability, RNG& rng,
+    const SInt seed, const char* error_context) {
     if (population < 0) {
         throw ConfigurationError(std::string(error_context) + " binomial population must be nonnegative");
     }
@@ -1521,8 +1753,6 @@ SInt GenerateHugeBinomialCorrectedPoisson(
      * without converting the complete population directly to a native
      * integer.
      */
-    const long double log_population = LogPositiveCountIntApprox(population);
-
     const long double log_mean = log_population + log_probability;
 
     const long double log_denorm_min = std::log(static_cast<long double>(std::numeric_limits<double>::denorm_min()));
@@ -1552,7 +1782,7 @@ SInt GenerateHugeBinomialCorrectedPoisson(
      * binomial mean agree despite the proposal_mean being rounded to
      * binary64 for GeneratePoisson().
      */
-    const long double population_ld = population.convert_to<long double>();
+    const long double population_ld = TransformCountIntToLongDoubleFast(population);
 
     if (!std::isfinite(population_ld) || population_ld <= 0.0L) {
         throw ConfigurationError(std::string(error_context) + " population cannot be represented as long double");
@@ -1579,9 +1809,9 @@ SInt GenerateHugeBinomialCorrectedPoisson(
      * A maximizing value is ceil(lambda). If lambda is integral, the two
      * adjacent values are both maxima and either is suitable.
      */
-    const SInt ratio_mode = static_cast<SInt>(std::ceil(static_cast<long double>(proposal_mean)));
-
-    auto log_acceptance_ratio = [&](const SInt value) -> long double {
+    const SInt        ratio_mode                = static_cast<SInt>(std::ceil(static_cast<long double>(proposal_mean)));
+    const long double log_one_minus_probability = std::log1pl(-effective_probability);
+    auto              log_acceptance_ratio      = [&](const SInt value) -> long double {
         long double log_acceptance = 0.0L;
 
         if (value > ratio_mode) {
@@ -1593,7 +1823,7 @@ SInt GenerateHugeBinomialCorrectedPoisson(
                  */
                 const long double j_over_population = static_cast<long double>(j) / population_ld;
 
-                log_acceptance += std::log1pl(-j_over_population) - std::log1pl(-effective_probability);
+                log_acceptance += std::log1pl(-j_over_population) - log_one_minus_probability;
             }
         } else if (value < ratio_mode) {
             for (SInt j = value; j < ratio_mode; ++j) {
@@ -1602,7 +1832,7 @@ SInt GenerateHugeBinomialCorrectedPoisson(
                 /*
                  * Reciprocal of the rightward ratio.
                  */
-                log_acceptance += std::log1pl(-effective_probability) - std::log1pl(-j_over_population);
+                log_acceptance += log_one_minus_probability - std::log1pl(-j_over_population);
             }
         }
 
@@ -1621,10 +1851,6 @@ SInt GenerateHugeBinomialCorrectedPoisson(
 
         const SInt proposal = rng.GeneratePoisson(proposal_seed, proposal_mean);
 
-        if (CountInt(proposal) > population) {
-            continue;
-        }
-
         const long double log_acceptance = log_acceptance_ratio(proposal);
 
         const SInt acceptance_seed = sampling::Spooky::hash(
@@ -1634,49 +1860,14 @@ SInt GenerateHugeBinomialCorrectedPoisson(
         const long double uniform = std::min<long double>(
             static_cast<long double>(rng.GenerateUniform(acceptance_seed, 0.0, 1.0)), std::nextafter(1.0L, 0.0L));
 
-        if (uniform == 0.0L || std::log(uniform) <= log_acceptance) {
+        const long double acceptance_probability = std::exp(log_acceptance);
+
+        if (uniform <= acceptance_probability) {
             return proposal;
         }
     }
 
     throw ConfigurationError(std::string(error_context) + " corrected-Poisson binomial sampler exceeded attempt limit");
-}
-
-template <typename RNG>
-SInt GenerateBinomialHybrid(
-    const CountInt& population, const long double log_probability, RNG& rng, const SInt seed,
-    const char* error_context) {
-    if (population < 0) {
-        throw ConfigurationError(std::string(error_context) + " binomial population must be nonnegative");
-    }
-
-    if (population == 0) {
-        return 0;
-    }
-
-    if (log_probability == -std::numeric_limits<long double>::infinity()) {
-        return 0;
-    }
-
-    if (!(log_probability <= 0.0L)) {
-        throw ConfigurationError(std::string(error_context) + " binomial probability exceeds one");
-    }
-
-    const CountInt native_limit = std::numeric_limits<SInt>::max();
-
-    if (population <= native_limit) {
-        const SInt trials = population.convert_to<SInt>();
-
-        const double probability = static_cast<double>(std::exp(log_probability));
-
-        if (probability <= 0.0) {
-            return 0;
-        }
-
-        return rng.GenerateBinomial(seed, trials, probability);
-    }
-
-    return GenerateHugeBinomialCorrectedPoisson(population, log_probability, rng, seed, error_context);
 }
 
 inline std::pair<CountInt, CountInt> CorrectedHypergeometricAcceptanceRatio(
@@ -2135,7 +2326,8 @@ class ExactFixedCountHyperedgeGenerator {
 public:
     ExactFixedCountHyperedgeGenerator(
         const PGeneratorConfig& config, PEID rank, PEID size, RNGWrapper<>& rng, Mersenne& mersenne, Graph& graph,
-        HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch
+        HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch, ErdosHypergraphDebugLogger* debug_logger,
+        SInt* next_debug_hyperedge_id
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         ,
         HGNPInstrumentation* instrumentation
@@ -2175,11 +2367,13 @@ private:
     PEID                    rank_;
     PEID                    size_;
 
-    RNGWrapper<>&          rng_;
-    Mersenne&              mersenne_;
-    Graph&                 graph_;
-    HypergraphMemoryStats& memory_stats_;
-    FloydScratchSet&       floyd_scratch_;
+    RNGWrapper<>&               rng_;
+    Mersenne&                   mersenne_;
+    Graph&                      graph_;
+    HypergraphMemoryStats&      memory_stats_;
+    FloydScratchSet&            floyd_scratch_;
+    ErdosHypergraphDebugLogger* debug_logger_            = nullptr;
+    SInt*                       next_debug_hyperedge_id_ = nullptr;
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     HGNPInstrumentation* instrumentation_;
 #endif

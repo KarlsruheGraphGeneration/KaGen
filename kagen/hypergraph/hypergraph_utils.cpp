@@ -86,14 +86,28 @@ bool RandomRadiusChecks(PGeneratorConfig& config) {
     return true;
 }
 
-PinRange
-getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offset, SInt seed, Mersenne& mersenne) {
-    const SInt max_start = target_cell_size - range_size;
+PinRange getRandomPinRange(
+    const SInt target_cell_size, const SInt range_size, const SInt target_cell_offset, Mersenne& mersenne) {
+    if (range_size < 0 || range_size > target_cell_size) {
+        throw ConfigurationError("Cannot sample a range larger than the target cell");
+    }
 
-    const LPFloat u              = mersenne.Random();
-    const SInt    interval_start = static_cast<SInt>(std::floor(u * static_cast<LPFloat>(max_start)));
+    if (range_size == target_cell_size) {
+        return {
+            .begin = target_cell_offset,
+            .end   = target_cell_offset + target_cell_size,
+        };
+    }
 
-    return {.begin = target_cell_offset + interval_start, .end = target_cell_offset + interval_start + range_size};
+    const LPFloat u                = mersenne.Random();
+    const SInt    number_of_starts = target_cell_size - range_size + 1;
+
+    const SInt interval_start = static_cast<SInt>(u * static_cast<LPFloat>(number_of_starts));
+
+    return {
+        .begin = target_cell_offset + interval_start,
+        .end   = target_cell_offset + interval_start + range_size,
+    };
 }
 
 double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config) {
@@ -298,10 +312,22 @@ double ExpectedPinsForCenterRadius(
     return static_cast<double>(config.n) * expected;
 }
 
-double SampleRadiusQuantile(double q, double lower, double upper, double exponent) {
-    PGeneratorConfig tmp;
-    tmp.hyperedge_radius_exponent = exponent;
-    return SampleHyperedgeRadiusFromUniform(tmp, q, lower, upper);
+static inline double
+SampleRadiusQuantile(const double q, const double lower, const double upper, const double exponent) {
+    if (lower == upper) {
+        return lower;
+    }
+
+    const double log_lower = -exponent * std::log(lower);
+    const double log_upper = -exponent * std::log(upper);
+    const double max_log   = std::max(log_lower, log_upper);
+
+    const double scaled_lower = std::exp(log_lower - max_log);
+    const double scaled_upper = std::exp(log_upper - max_log);
+
+    const double mixed = std::lerp(scaled_lower, scaled_upper, q);
+
+    return std::clamp(std::exp(-(std::log(mixed) + max_log) / exponent), lower, upper);
 }
 
 double ExpectedPinsForCenterRadiusGeneratorApprox(
@@ -349,6 +375,37 @@ double ExpectedPinsForCenterRadiusGeneratorApprox(
 }
 
 namespace {
+
+struct PreparedRadiusDistribution {
+    double lower;
+    double upper;
+    double exponent;
+    double max_log;
+    double scaled_lower;
+    double scaled_upper;
+
+    PreparedRadiusDistribution(const double lower_, const double upper_, const double exponent_)
+        : lower(lower_),
+          upper(upper_),
+          exponent(exponent_) {
+        const double log_lower = -exponent * std::log(lower);
+        const double log_upper = -exponent * std::log(upper);
+
+        max_log      = std::max(log_lower, log_upper);
+        scaled_lower = std::exp(log_lower - max_log);
+        scaled_upper = std::exp(log_upper - max_log);
+    }
+
+    double Quantile(const double q) const {
+        if (lower == upper) {
+            return lower;
+        }
+
+        const double mixed = std::lerp(scaled_lower, scaled_upper, q);
+
+        return std::clamp(std::exp(-(std::log(mixed) + max_log) / exponent), lower, upper);
+    }
+};
 
 double ClampOpen01(double q) {
     constexpr double eps = 1e-14;
@@ -417,8 +474,8 @@ double IntegrateRadiusQuantileTailAware(const F& f) {
 }
 
 double ExpectedPinsOverRadius(
-    double center_r, double lower, double upper, double exponent, const PGeneratorConfig& config, double alpha,
-    double target_r, std::vector<RadialSample> radial_samples) {
+    double center_r, double lower, double upper, double exponent, const PGeneratorConfig& config, double target_r,
+    const std::vector<RadialSample>& radial_samples) {
     if (lower <= 0.0 || upper <= 0.0 || lower > upper) {
         throw ConfigurationError("invalid hyperedge radius bounds in expected pin solver");
     }
@@ -427,10 +484,11 @@ double ExpectedPinsOverRadius(
         return ExpectedPinsForCenterRadius(center_r, lower, config, target_r, radial_samples);
     }
 
-    auto f = [&](double q) {
+    const PreparedRadiusDistribution distribution{lower, upper, exponent};
+    auto                             f = [&](double q) {
         q = ClampOpen01(q);
 
-        const double radius = SampleRadiusQuantile(q, lower, upper, exponent);
+        const double radius = distribution.Quantile(q);
 
         return ExpectedPinsForCenterRadius(center_r, radius, config, target_r, radial_samples);
     };
@@ -518,7 +576,7 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
                 const double upper = std::max(lower, upper_for_center(center_r));
 
                 const double expected =
-                    ExpectedPinsOverRadius(center_r, lower, upper, exponent, config, alpha, target_r, radial_samples);
+                    ExpectedPinsOverRadius(center_r, lower, upper, exponent, config, target_r, radial_samples);
 
                 const double weight = annulus_weight / CENTER_SAMPLES_PER_ANNULUS;
 
@@ -541,9 +599,20 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
         }
     }
 
-    for (int iter = 0; iter < 60; ++iter) {
-        const double mid = 0.5 * (lo + hi);
-        const double cur = expected_per_edge(mid);
+    for (int iter = 0; iter < 32; ++iter) {
+        const double mid            = 0.5 * (lo + hi);
+        const double cur            = expected_per_edge(mid);
+        const double relative_error = std::abs(cur - target_per_edge) / std::max(1.0, target_per_edge);
+
+        if (relative_error <= 1e-4) {
+            lo = mid;
+            hi = mid;
+            break;
+        }
+
+        if ((hi - lo) <= 1e-8 * std::max(1.0, mid)) {
+            break;
+        }
 
         if (cur > target_per_edge) {
             lo = mid;

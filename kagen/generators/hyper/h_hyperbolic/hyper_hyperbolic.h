@@ -61,6 +61,9 @@ public:
         std::vector<Double> cos_phi;
         std::vector<Double> sin_phi;
         std::vector<Double> phi;
+        std::vector<Double> x;
+        std::vector<Double> y;
+        std::vector<Double> gamma;
 
         void reserve(const SInt n) {
             r.reserve(n);
@@ -70,6 +73,9 @@ public:
             cos_phi.reserve(n);
             sin_phi.reserve(n);
             phi.reserve(n);
+            x.reserve(n);
+            y.reserve(n);
+            gamma.reserve(n);
         }
 
         std::size_t size() const {
@@ -84,6 +90,10 @@ public:
             cos_phi.clear();
             sin_phi.clear();
             phi.clear();
+            x.clear();
+            ;
+            y.clear();
+            gamma.clear();
         }
     };
 
@@ -113,6 +123,8 @@ private:
     RNGWrapper<>   rng_;
     Mersenne       mersenne;
     SortedMersenne sorted_mersenne;
+
+    std::optional<GeometricHypergraphDebugLogger> debug_logger_;
 
     // Constants and variables
     Double alpha_, target_r_, cosh_target_r_, pdm_target_r_;
@@ -180,6 +192,7 @@ private:
         Double sin_phi;
         Double x;
         Double y;
+        Double gamma;
     };
 
     std::vector<DebugCenter> debug_centers_;
@@ -207,7 +220,8 @@ private:
 
     void ComputeCenterChunk(SInt chunk_id);
 
-    void GenerateCenterCells(SInt annulus_id, SInt chunk_id);
+    void        GenerateCenterCells(SInt annulus_id, SInt chunk_id);
+    std::string MakeDebugFilename() const;
 
     void
     GenerateHyperedges(SInt annulus_id, SInt chunk_id, HyperedgeBuilder<HyperbolicGeometryPolicy<Double>>& builder);

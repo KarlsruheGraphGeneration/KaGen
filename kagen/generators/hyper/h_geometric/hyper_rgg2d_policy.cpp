@@ -17,7 +17,25 @@ HyperRGG2DPolicy::HyperRGG2DPolicy(HyperRGG2D& generator) : gen_(&generator), rn
     local_exact_last_access_.set_empty_key(std::numeric_limits<SInt>::max());
 }
 
-void HyperRGG2DPolicy::AddCenter(const Center&, std::vector<SInt>&) const {}
+void HyperRGG2DPolicy::AddCenter(
+    const Center& center, std::vector<SInt>& /*pins*/
+) const {
+    const SInt sampling_seed = sampling::Spooky::hash(gen_->config_.seed + (131 * center.sampled_id));
+
+    switch (gen_->config_.partial_cell_mode) {
+        case PartialCellMode::EstimateByCoverageRange:
+            gen_->mersenne.RandomInit(sampling_seed);
+            break;
+
+        case PartialCellMode::GenerateAndCheck:
+            // Exact mode performs no approximate random sampling.
+            break;
+
+        case PartialCellMode::EstimateByCoverageFloyd:
+            rng_.SeedUniformStream(sampling_seed);
+            break;
+    }
+}
 
 SInt HyperRGG2DPolicy::GetNumVerticeOfCellCoord(const SSInt global_cell_x, const SSInt global_cell_y) {
     const auto cell = TryMakeCell(global_cell_x, global_cell_y);
@@ -139,28 +157,69 @@ CellBallRelation HyperRGG2DPolicy::ClassifyCell(const Center& center, const LPFl
 double HyperRGG2DPolicy::EstimatedCircleRectCoverage(
     const double center_x, const double center_y, const double min_x, const double max_x, const double min_y,
     const double max_y, const double radius) const {
-    const double r2 = radius * radius;
+    const double cell_area = (max_x - min_x) * (max_y - min_y);
 
-    auto inside = [&](const double x, const double y) {
-        const double dx = x - center_x;
-        const double dy = y - center_y;
-        return dx * dx + dy * dy <= r2;
-    };
-
-    const double dx = (max_x - min_x) / 3.0;
-    const double dy = (max_y - min_y) / 3.0;
-
-    int hits = 0;
-
-    for (int ix = 0; ix < 3; ++ix) {
-        for (int iy = 0; iy < 3; ++iy) {
-            const double x = min_x + ((ix + 0.5) * dx);
-            const double y = min_y + ((iy + 0.5) * dy);
-            hits += inside(x, y) ? 1 : 0;
-        }
+    if (cell_area <= 0.0 || radius <= 0.0) {
+        return 0.0;
     }
 
-    return static_cast<double>(hits) / 9.0;
+    const double covered_area =
+        EstimateCoverageRecursive(center_x, center_y, radius * radius, min_x, max_x, min_y, max_y, coverage_max_depth_);
+
+    return std::clamp(covered_area / cell_area, 0.0, 1.0);
+}
+
+double HyperRGG2DPolicy::EstimateCoverageRecursive(
+    const double center_x, const double center_y, const double radius_sq, const double min_x, const double max_x,
+    const double min_y, const double max_y, const int depth) const {
+    const double width  = max_x - min_x;
+    const double height = max_y - min_y;
+    const double area   = width * height;
+
+    // Closest point in the rectangle to the center.
+    const double closest_x = std::clamp(center_x, min_x, max_x);
+    const double closest_y = std::clamp(center_y, min_y, max_y);
+
+    const double closest_dx = center_x - closest_x;
+    const double closest_dy = center_y - closest_y;
+
+    const double min_distance_sq = (closest_dx * closest_dx) + (closest_dy * closest_dy);
+
+    if (min_distance_sq >= radius_sq) {
+        return 0.0;
+    }
+
+    // Farthest rectangle corner from the center.
+    const double dx_min = center_x - min_x;
+    const double dx_max = center_x - max_x;
+    const double dy_min = center_y - min_y;
+    const double dy_max = center_y - max_y;
+
+    const double max_distance_sq =
+        std::max(dx_min * dx_min, dx_max * dx_max) + std::max(dy_min * dy_min, dy_max * dy_max);
+
+    if (max_distance_sq <= radius_sq) {
+        return area;
+    }
+
+    // Boundary rectangle: approximate at the leaf.
+    if (depth == 0) {
+        const double mid_x = 0.5 * (min_x + max_x);
+        const double mid_y = 0.5 * (min_y + max_y);
+
+        const double dx = mid_x - center_x;
+        const double dy = mid_y - center_y;
+
+        return (dx * dx) + (dy * dy) <= radius_sq ? area : 0.0;
+    }
+
+    const double mid_x = 0.5 * (min_x + max_x);
+    const double mid_y = 0.5 * (min_y + max_y);
+
+    return EstimateCoverageRecursive(center_x, center_y, radius_sq, min_x, mid_x, min_y, mid_y, depth - 1)
+           + EstimateCoverageRecursive(center_x, center_y, radius_sq, mid_x, max_x, min_y, mid_y, depth - 1)
+           + EstimateCoverageRecursive(center_x, center_y, radius_sq, min_x, mid_x, mid_y, max_y, depth - 1)
+           + EstimateCoverageRecursive(center_x, center_y, radius_sq, mid_x, max_x, mid_y, max_y, depth - 1);
 }
 
 double HyperRGG2DPolicy::CellCoverage(const Center& center, const LPFloat radius, const Cell& cell) const {
@@ -195,50 +254,49 @@ HyperRGG2DPolicy::CellBounds HyperRGG2DPolicy::GetCellBounds(const Cell& cell) c
 }
 
 std::optional<HyperRGG2DPolicy::PartialCellSample>
-HyperRGG2DPolicy::PreparePartialCellSample(const Center& center, const Cell& cell, double coverage) const {
-    PartialCellSample sample;
-    const auto        stored = TryGetStoredCell(cell);
-    if (!stored) {
+HyperRGG2DPolicy::PreparePartialCellSample(const Cell& cell, const double coverage) const {
+    const auto stored = TryGetStoredCell(cell);
+
+    if (!stored || stored->size <= 0 || coverage <= 0.0) {
         return std::nullopt;
     }
-    sample.stored = *stored;
-    const SInt k  = std::floor(static_cast<double>(stored->size) * coverage);
-    if (k <= 0) {
+
+    const double clamped_coverage = std::clamp(coverage, 0.0, 1.0);
+
+    const SInt count = static_cast<SInt>(std::round(static_cast<double>(stored->size) * clamped_coverage));
+
+    if (count <= 0) {
         return std::nullopt;
     }
-    sample.count = k;
 
-    sample.seed = sampling::Spooky::hash(gen_->config_.seed + (131 * center.sampled_id) + (9973 * cell.global_cell_id));
-
-    return sample;
+    return PartialCellSample{
+        .stored = *stored,
+        .count  = count,
+    };
 }
 
 SInt HyperRGG2DPolicy::AddPartialCellRange(
-    const Center& center, const Cell& cell, const double coverage, std::vector<SInt>& /*pins*/,
+    const Center& /*center*/, const Cell& cell, const double coverage, std::vector<SInt>& /*pins*/,
     std::vector<PinRange>& ranges) const {
-    const auto sample = PreparePartialCellSample(center, cell, coverage);
+    const auto sample = PreparePartialCellSample(cell, coverage);
     if (!sample) {
         return 0;
     }
-    auto sampled =
-        getRandomPinRange(sample->stored.size, sample->count, sample->stored.offset, sample->seed, gen_->mersenne);
-    ranges.insert(ranges.end(), sampled);
+    auto sampled = getRandomPinRange(sample->stored.size, sample->count, sample->stored.offset, gen_->mersenne);
+    ranges.push_back(sampled);
 
     return sample->count;
 }
 
 SInt HyperRGG2DPolicy::AddPartialCellFloyd(
-    const Center& center, const Cell& cell, const double coverage, std::vector<SInt>& pins,
+    const Center& /*center*/, const Cell& cell, const double coverage, std::vector<SInt>& pins,
     std::vector<PinRange>& /*ranges*/) const {
-    const auto sample = PreparePartialCellSample(center, cell, coverage);
+    const auto sample = PreparePartialCellSample(cell, coverage);
     if (!sample) {
         return 0;
     }
 
-    SInt seed = sample->seed;
-
-    FloydSampleGeometricAppend(
-        sample->stored.offset, sample->stored.size, sample->count, rng_, seed, pins, floyd_scratch_);
+    FloydSampleGeometricAppend(sample->stored.offset, sample->stored.size, sample->count, rng_, pins, floyd_scratch_);
 
     return sample->count;
 }

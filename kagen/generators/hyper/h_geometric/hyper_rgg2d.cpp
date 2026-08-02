@@ -14,7 +14,20 @@
 namespace kagen {
 
 HyperRGG2D::HyperRGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
-    : SpatialGrid2D(config, rank, size) {}
+    : SpatialGrid2D(config, rank, size) {
+    if (config_.debug) {
+        debug_logger_.emplace(MakeDebugFilename(), true);
+    }
+}
+
+std::string HyperRGG2D::MakeDebugFilename() const {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    std::string output = config_.output_graph.filename + "_" + std::to_string(config_.n) + "_"
+                         + std::to_string(config_.m) + "_" + std::to_string(config_.hyperedge_radius_exponent)
+                         + "_debug_rank_" + std::to_string(rank) + ".csv";
+    return output;
+}
 
 SInt HyperRGG2D::SafeTotalCellsPerDim() const {
     if (cells_per_dim_ <= 0 || chunks_per_dim_ <= 0) {
@@ -61,7 +74,7 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
     const SInt total_cells = total_cells_per_dim * total_cells_per_dim;
 
     HyperRGG2DPolicy                   policy(*this);
-    HyperedgeBuilder<HyperRGG2DPolicy> builder(policy, config_);
+    HyperedgeBuilder<HyperRGG2DPolicy> builder(policy, config_, debug_logger_ ? &*debug_logger_ : nullptr);
 
     LPFloat lower_bound = static_cast<LPFloat>(policy.MinimumRadius({}));
     LPFloat upper_bound = LPFloat{1.0};

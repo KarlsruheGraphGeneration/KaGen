@@ -262,7 +262,7 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         sizes->excludes(upper);
 
         if (required) {
-            group->require_option(1);
+            group->require_option(1, 2);
         }
         group->silent();
         return group;

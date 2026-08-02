@@ -1,17 +1,12 @@
 
 #include "kagen/generators/generator.h"
 #include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
+#include "kagen/hypergraph/debug_logger_cigam.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/random_permutation.h"
 #include "kagen/tools/rng_wrapper.h"
 
-#include <optional>
-
 namespace kagen {
-struct ApproxRangeStatsCIGAM {
-    long double log_expected;
-    long double expected;
-};
 class HyperCIGAMFactory : public GeneratorFactory {
 public:
     std::unique_ptr<Generator> Create(const PGeneratorConfig& config, PEID rank, PEID size) const override;
@@ -27,6 +22,13 @@ protected:
     void FinalizeCSR(MPI_Comm comm) final;
 
 private:
+    struct BlockInfo {
+        SInt        layer;
+        SInt        j_min;
+        SInt        j_max;
+        long double log_block_size;
+    };
+
     void                  InitQuantileGenerationState();
     std::pair<SInt, SInt> ComputeLocalVertexRange();
     void                  InitEdgeBudgetScaling();
@@ -35,25 +37,15 @@ private:
     SInt BlockCountSeed(SInt k, SInt i, SInt layer);
     SInt EdgeSeed(SInt count_seed);
 
-    void              ValidateExactBlockDensity(SInt local_m, long double log_block_size);
-    std::vector<SInt> SampleBoundedHyperedge(
-        SInt k, SInt i, SInt j_min, SInt j_max, long double log_block_size, LogBinomCache& binom_cache);
-    void GenerateApproxLeafRange(
-        SInt k, SInt i_begin, SInt i_end, SInt layer, SInt level, long double expected, LogBinomCache& cache,
-        const std::vector<double>& prefix);
-
-    SInt ApproxRangeCountSeed(SInt k, SInt i_begin, SInt layer, SInt level) const;
-    bool ShouldSplitApproxRange(SInt width, long double expected) const;
-    SInt ChooseApproxRangeSplit(SInt i_begin, SInt i_end, const std::vector<double>& prefix);
-
-    std::optional<ApproxRangeStatsCIGAM> ComputeApproxRangeStats(
-        SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache, const std::vector<double>& prefix) const;
+    void ValidateExactBlockDensity(SInt local_m, long double log_block_size);
+    void SampleBoundedHyperedge(
+        SInt k, SInt dominant, SInt j_min, SInt j_max, long double log_block_size, LogBinomCache& binom_cache,
+        std::vector<SInt>& pins, FloydScratchSet& scratch);
     void PushCheckedHyperedge(const std::vector<SInt>& pins, SInt layer);
     void GenerateBoundedBlock(SInt k, SInt i, SInt layer, LogBinomCache& binom_cache);
     SInt SampleEndpoint(SInt k, SInt i, SInt j_min, SInt j_max, long double log_block_size, LogBinomCache& binom_cache);
     SInt SampleEndpointBinarySearch(
         SInt k, SInt i, SInt j_min, SInt j_max, long double log_target, LogBinomCache& binom_cache);
-    SInt                  SampleDominantVertexFromPrefix(SInt i_begin, SInt i_end, const std::vector<double>& prefix);
     long double           LogBlockSize(SInt k, SInt i, SInt j_min, SInt j_max, LogBinomCache& binom_cache) const;
     void                  InitProbabilityConstants();
     std::pair<SInt, SInt> LayerEndpointRange(SInt i, SInt layer) const;
@@ -62,9 +54,6 @@ private:
     SInt                  FindDominantBoundaryInPrefix(const std::vector<double>& prefix, PEID rank, PEID size) const;
     void                  GenerateApproxCSR();
     void                  GenerateExactCSR();
-    void                  GenerateApproxRange(
-        SInt k, SInt i_begin, SInt i_end, SInt layer, SInt level, LogBinomCache& cache,
-        const std::vector<double>& prefix);
 
     SInt NumLayers() const {
         return static_cast<SInt>(config_.cigam_c.size());
@@ -73,6 +62,10 @@ private:
     std::size_t PrefixIndex(const std::size_t k_idx, const SInt layer) const {
         return (k_idx * NumLayers()) + layer;
     }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    void AccumulateLogBinomStats(const LogBinomCacheStats& stats);
+#endif
 
     // Position i is zero-based and ordered by decreasing prestige.
     //
@@ -115,6 +108,10 @@ private:
     std::unordered_map<SInt, long double> log_mass_by_size_;
     std::vector<std::vector<double>>      dominant_mass_prefix_;
     std::vector<SInt>                     cigam_sizes_;
+    std::vector<long double>              dominant_exponent_;
+
+    std::optional<CIGAMHypergraphDebugLogger> debug_logger_;
+    SInt                                      next_debug_hyperedge_id_ = 0;
 
     HypergraphMemoryStats memory_stats_;
 
@@ -122,8 +119,11 @@ private:
     void                                  InitSizeWeights();
     long double                           LogSizeWeight(SInt k) const;
     std::unordered_map<SInt, long double> log_edge_scaling_by_size_;
-    SInt FindApproxMassSplit(SInt i_begin, SInt i_end, const std::vector<double>& prefix);
 
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+
+    LogBinomCacheStats log_binom_stats_;
+#endif
     // #### Paper-accurate implementation ####
 
     struct PythonReferenceRanks {
@@ -142,7 +142,7 @@ private:
 
     PythonReferenceRanks GeneratePythonReferenceRanks() const;
 
-    PEID PythonBlockOwner(SInt k, SInt dominant, SInt layer) const;
+    PEID BlockOwner(SInt k, SInt dominant, SInt layer) const;
 
     SInt PythonBlockCountSeed(SInt k, SInt dominant, SInt layer) const;
 
@@ -152,12 +152,16 @@ private:
 
     CountInt PythonBlockPopulation(SInt k, SInt dominant, SInt j_min, SInt j_max) const;
 
-    std::vector<SInt> SamplePythonBlockHyperedge(SInt k, SInt dominant, SInt j_min, SInt j_max);
+    std::vector<SInt> SamplePythonBlockHyperedge(
+        SInt k, SInt dominant, SInt j_min, SInt j_max, SInt& sampling_attempts, SInt& block_rejections);
 
     void
     GeneratePythonBlock(SInt k, SInt dominant, SInt layer, SInt j_min, SInt j_max, const PythonReferenceRanks& ranks);
 
     CountInt ExactBlockPopulation(SInt k, SInt i, SInt j_min, SInt j_max) const;
+
+    void GenerateApproxBlock(
+        SInt k, SInt dominant, SInt layer, SInt j_min, SInt j_max, SInt log_block_size, LogBinomCache& cache);
 
     bool pins_are_final_vertex_ids_ = false;
 

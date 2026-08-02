@@ -63,6 +63,11 @@ public:
 private:
     double EstimatedCircleRectCoverage(
         double center_x, double center_y, double min_x, double max_x, double min_y, double max_y, double radius) const;
+    double EstimateCoverageRecursive(
+        double center_x, double center_y, double radius_sq, double min_x, double max_x, double min_y, double max_y,
+        int depth) const;
+
+    static constexpr int coverage_max_depth_ = 8;
 
     std::optional<Cell> TryMakeCell(SSInt global_cell_x, SSInt global_cell_y) const;
 
@@ -76,11 +81,9 @@ private:
     struct PartialCellSample {
         StoredCell stored;
         SInt       count;
-        SInt       seed;
     };
 
-    std::optional<PartialCellSample>
-    PreparePartialCellSample(const Center& center, const Cell& cell, double coverage) const;
+    std::optional<PartialCellSample> PreparePartialCellSample(const Cell& cell, double coverage) const;
 
     struct CellBounds {
         double min_x;
@@ -136,6 +139,7 @@ private:
     mutable HashMap<SInt, SInt> local_exact_last_access_;
 
     mutable RNGWrapper<> rng_;
+    mutable Mersenne     rounding_rng_;
 
     const std::vector<Vertex>& ExactVerticesByX(const Cell& cell) const;
     const CachedExactCell&     ExactRemoteCell(const Cell& cell) const;

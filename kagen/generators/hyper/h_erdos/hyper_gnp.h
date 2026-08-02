@@ -88,10 +88,8 @@ private:
         HyperedgeSeenSet& seen);
     void SampleLocalHyperedgeInto(
         SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt& edge_seed, LogBinomCache& log_binom_cache,
-        std::vector<SInt>& pins);
-    SInt LocalEdgeSeed(SInt hyperedge_size) const;
-
-    void             LogSizeProbability(SInt hyperedge_size, double probability);
+        std::vector<SInt>& pins, std::uint64_t& minimum_search_steps, std::uint64_t& minimum_cache_gets);
+    SInt             LocalEdgeSeed(SInt hyperedge_size) const;
     void             GenerateApproxHyperedgesFromPlan(const HGNPSizePlan& entry);
     PGeneratorConfig config_;
 
@@ -99,6 +97,7 @@ private:
     PEID                  size_;
     HypergraphMemoryStats memory_stats_;
     FloydScratchSet       floyd_scratch_;
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     mutable HGNPInstrumentation instrumentation_;
 #endif
@@ -108,6 +107,7 @@ private:
     std::unordered_map<SInt, SInt> budget_size_counts_;
 
     std::optional<ErdosHypergraphDebugLogger> debug_logger_;
+    SInt                                      next_debug_hyperedge_id_ = 0;
 };
 using HyperGNPSmall = HyperGNP<SInt>;
 #pragma GCC diagnostic push

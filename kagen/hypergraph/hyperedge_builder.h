@@ -24,23 +24,14 @@ public:
     using Clock  = std::chrono::steady_clock;
     using Double = decltype(std::declval<GeometryPolicy&>().Radius(std::declval<const Center&>()));
 
-    explicit HyperedgeBuilder(GeometryPolicy& geometry, const PGeneratorConfig& config)
+    explicit HyperedgeBuilder(
+        GeometryPolicy& geometry, const PGeneratorConfig& config, GeometricHypergraphDebugLogger* logger)
         : geometry_(geometry),
           partial_cell_mode_(config.partial_cell_mode),
-          config_(config) {
-        if (config_.debug) {
-            logger_.emplace(MakeDebugFilename(), true);
-        }
-    }
+          config_(config),
+          logger_(logger) {}
 
-    std::string MakeDebugFilename() const {
-        int rank = 0;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        std::string output = config_.output_graph.filename + "_" + std::to_string(config_.n) + "_"
-                             + std::to_string(config_.m) + "_" + std::to_string(config_.hyperedge_radius_exponent)
-                             + "_debug_rank_" + std::to_string(rank) + ".csv";
-        return output;
-    }
+
 
     void Build(const Center& center) {
         ResetBuildState();
@@ -50,8 +41,25 @@ public:
 
         BuildStats stats;
 
+        std::vector<CellBallRelation> relations;
+        relations.reserve(cells_.size());
+
+        bool has_inside_cell = false;
+
         for (const Cell& cell: cells_) {
-            ProcessCell(center, radius, cell, stats);
+            const CellBallRelation relation = geometry_.ClassifyCell(center, radius, cell);
+
+            relations.push_back(relation);
+
+            if (relation == CellBallRelation::INSIDE) {
+                has_inside_cell = true;
+            }
+        }
+
+        const bool approximation_allowed = has_inside_cell;
+
+        for (std::size_t i = 0; i < cells_.size(); ++i) {
+            ProcessCell(center, radius, cells_[i], relations[i], approximation_allowed, stats);
         }
 
         FinalizePinsAndRanges();
@@ -65,11 +73,12 @@ public:
 
 private:
     struct BuildStats {
-        SInt outside_cells          = 0;
-        SInt inside_cells           = 0;
-        SInt partial_cells          = 0;
-        SInt partial_estimated_size = 0;
-        SInt inside_estimated_size  = 0;
+        SInt outside_cells            = 0;
+        SInt inside_cells             = 0;
+        SInt partial_cells            = 0;
+        SInt partial_estimated_size   = 0;
+        SInt inside_estimated_size    = 0;
+        SInt num_vertice_remote_chunk = 0;
     };
 
     template <typename T>
@@ -201,47 +210,41 @@ private:
         }
     }
 
-    void ProcessPartialCell(const Center& center, Double radius, const Cell& cell, BuildStats& stats) {
-        if (partial_cell_mode_ == PartialCellMode::GenerateAndCheck) {
+    void ProcessPartialCell(
+        const Center& center, const Double radius, const Cell& cell, const bool approximation_allowed,
+        BuildStats& stats) {
+        const bool use_exact = partial_cell_mode_ == PartialCellMode::GenerateAndCheck || !approximation_allowed;
+
+        if (use_exact) {
             CountPartial(stats, geometry_.AddPartialCellExact(center, radius, cell, pins_));
             return;
         }
-        const Double coverage = geometry_.CellCoverage(center, radius, cell);
 
-        if (coverage <= 0.0) {
-            CountOutside(stats);
-            return;
-        }
+        const Double coverage = std::clamp(geometry_.CellCoverage(center, radius, cell), Double{0.0}, Double{1.0});
 
-        if (coverage >= 1.0) {
-            CountInside(stats, geometry_.AddWholeCell(cell, ranges_));
-            return;
-        }
         if (partial_cell_mode_ == PartialCellMode::EstimateByCoverageRange) {
             CountPartial(stats, geometry_.AddPartialCellRange(center, cell, coverage, pins_, ranges_));
             return;
         }
+
         CountPartial(stats, geometry_.AddPartialCellFloyd(center, cell, coverage, pins_, ranges_));
     }
 
-    void ProcessCell(const Center& center, Double radius, const Cell& cell, BuildStats& stats) {
-        const CellBallRelation relation = geometry_.ClassifyCell(center, radius, cell);
-
+    void ProcessCell(
+        const Center& center, const Double radius, const Cell& cell, const CellBallRelation relation,
+        const bool approximation_allowed, BuildStats& stats) {
         switch (relation) {
-            case CellBallRelation::OUTSIDE: {
+            case CellBallRelation::OUTSIDE:
                 CountOutside(stats);
                 return;
-            }
 
-            case CellBallRelation::INSIDE: {
+            case CellBallRelation::INSIDE:
                 CountInside(stats, geometry_.AddWholeCell(cell, ranges_));
                 return;
-            }
 
-            case CellBallRelation::PARTIAL: {
-                ProcessPartialCell(center, radius, cell, stats);
+            case CellBallRelation::PARTIAL:
+                ProcessPartialCell(center, radius, cell, approximation_allowed, stats);
                 return;
-            }
         }
     }
 
@@ -254,9 +257,8 @@ private:
             hyperedge_size += range.end - range.begin;
         }
 
-        ++counter_;
         logger_->LogHyperedge(
-            counter_, geometry_.CenterToString(center), radius, static_cast<SInt>(cells_.size()), stats.inside_cells,
+            geometry_.CenterToString(center), radius, static_cast<SInt>(cells_.size()), stats.inside_cells,
             stats.partial_cells, stats.outside_cells, static_cast<SInt>(pins_.size()),
             static_cast<SInt>(ranges_.size()), hyperedge_size, duration_ns, stats.inside_estimated_size,
             stats.partial_estimated_size);
@@ -269,14 +271,13 @@ private:
         return radius;
     }
 
-    GeometryPolicy&                               geometry_;
-    PartialCellMode                               partial_cell_mode_;
-    std::vector<Cell>                             cells_;
-    const PGeneratorConfig&                       config_;
-    std::optional<GeometricHypergraphDebugLogger> logger_;
-    std::vector<SInt>                             pins_;
-    std::vector<PinRange>                         ranges_;
-    SInt                                          counter_ = 0;
+    GeometryPolicy&                 geometry_;
+    PartialCellMode                 partial_cell_mode_;
+    std::vector<Cell>               cells_;
+    const PGeneratorConfig&         config_;
+    GeometricHypergraphDebugLogger* logger_ = nullptr;
+    std::vector<SInt>               pins_;
+    std::vector<PinRange>           ranges_;
 };
 
 } // namespace kagen

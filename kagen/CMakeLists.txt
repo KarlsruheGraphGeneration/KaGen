@@ -21,9 +21,23 @@ if (NOT MKL_FOUND)
     list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "mkl.*")
 endif ()
 
+option(
+    KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    "Enable hypergraph generator instrumentation"
+    OFF
+)
+
+option(
+    KAGEN_USE_LOGBINOM_CURSOR_CACHE
+    "Use cursor recurrence for LogBinomCache::Get"
+    OFF
+)
+
 add_library(KaGen ${KAGEN_SOURCE_FILES})
+
 target_compile_definitions(KaGen PRIVATE
-    $<$<CONFIG:Debug>:KAGEN_ENABLE_HYPER_INSTRUMENTATION>
+    $<$<BOOL:${KAGEN_ENABLE_HYPER_INSTRUMENTATION}>:KAGEN_ENABLE_HYPER_INSTRUMENTATION>
+    $<$<BOOL:${KAGEN_USE_LOGBINOM_CURSOR_CACHE}>:KAGEN_USE_LOGBINOM_CURSOR_CACHE>
 )
 target_compile_features(KaGen PRIVATE cxx_std_17)
 target_link_libraries(KaGen PUBLIC ${KAGEN_LINK_LIBRARIES})

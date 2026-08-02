@@ -40,14 +40,13 @@ double SampleHyperedgeRadiusFromUniform(
 
 bool RandomRadiusChecks(PGeneratorConfig& config);
 
-PinRange
-getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offset, SInt seed, Mersenne& mersenne);
+PinRange getRandomPinRange(SInt target_cell_size, SInt range_size, SInt target_cell_offset, Mersenne& mersenne);
 
 double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config);
 
 template <typename RNG>
 void FloydSampleGeometricAppend(
-    const SInt universe_offset, const SInt universe_size, const SInt sample_size, RNG& rng, SInt& seed,
+    const SInt universe_offset, const SInt universe_size, const SInt sample_size, RNG& rng,
     std::vector<SInt>& out, std::unordered_set<SInt>& selected) {
     if (sample_size > universe_size) {
         throw ConfigurationError("Cannot sample more pins than available vertices");
@@ -69,7 +68,6 @@ void FloydSampleGeometricAppend(
         while (count < sample_size) {
             const long double x = std::min<long double>(
                 static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
-            ++seed;
 
             const SInt candidate = universe_offset + static_cast<SInt>(x * static_cast<long double>(universe_size));
 
@@ -95,7 +93,6 @@ void FloydSampleGeometricAppend(
     for (SInt j = start; j < universe_size; ++j) {
         const long double x = std::min<long double>(
             static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
-        ++seed;
 
         const SInt t = static_cast<SInt>(x * static_cast<long double>(j + 1));
 

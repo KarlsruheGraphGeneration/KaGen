@@ -36,7 +36,12 @@ HyperCIGAM<BigInt>::HyperCIGAM(const PGeneratorConfig& config, const PEID rank, 
       vertex_permutation_(
           random_permutation::FeistelPseudoRandomPermutation::buildPermutation(
               static_cast<std::uint64_t>(config.n - 1), CIGAMPermutationSeed(static_cast<std::uint64_t>(config.seed)))),
-      rng_(config) {}
+      rng_(config) {
+    if (config_.debug) {
+        debug_logger_.emplace(
+            config_.output_graph.filename + "_cigam_debug_pe_" + std::to_string(rank_) + ".csv", false);
+    }
+}
 
 void ValidateCIGAMConfig(const PGeneratorConfig& config) {
     const SInt n = config.n;
@@ -101,7 +106,9 @@ void HyperCIGAM<BigInt>::InitQuantileGenerationState() {
     InitLayerBounds();
     InitProbabilityConstants();
     InitSizeWeights();
-    InitMassCache();
+    if (config_.edge_budget > 0.0) {
+        InitMassCache();
+    }
     InitEdgeBudgetScaling();
 }
 
@@ -162,6 +169,26 @@ void HyperCIGAM<BigInt>::FinalizeCSR(MPI_Comm /*comm*/) {
 
         pin = static_cast<SInt>(vertex_permutation_.f(static_cast<std::uint64_t>(pin)));
     }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+
+    if (rank_ == 0) {
+        const auto& s = log_binom_stats_;
+
+        std::cerr << "logbinom.map_calls=" << s.map_calls << '\n'
+                  << "logbinom.map_hits=" << s.map_hits << '\n'
+                  << "logbinom.map_misses=" << s.map_misses << '\n'
+                  << "logbinom.candidate_calls=" << s.candidate_calls << '\n'
+                  << "logbinom.candidate_exact_hits=" << s.candidate_exact_hits << '\n'
+                  << "logbinom.candidate_recurrence_hits=" << s.candidate_recurrence_hits << '\n'
+                  << "logbinom.candidate_direct_evals=" << s.candidate_direct_evals << '\n'
+                  << "logbinom.distance_sum=" << s.candidate_distance_sum << '\n'
+                  << "logbinom.distance_observations=" << s.candidate_distance_observations << '\n'
+                  << "logbinom.max_distance=" << s.candidate_max_distance << '\n'
+                  << "logbinom.forward_steps=" << s.forward_steps << '\n'
+                  << "logbinom.backward_steps=" << s.backward_steps << '\n';
+    }
+#endif
 }
 
 // #### Setup ####
@@ -205,6 +232,16 @@ void HyperCIGAM<BigInt>::InitProbabilityConstants() {
 
         log_c_[static_cast<std::size_t>(layer)] = std::log(c);
     }
+
+    const SInt local_dominant_count = config_.n > rank_ ? 1 + (config_.n - 1 - rank_) / size_ : 0;
+
+    dominant_exponent_.resize(static_cast<std::size_t>(local_dominant_count));
+
+    SInt local_index = 0;
+
+    for (SInt dominant = rank_; dominant < config_.n; dominant += size_, ++local_index) {
+        dominant_exponent_[static_cast<std::size_t>(local_index)] = -2.0L + RankValue(dominant);
+    }
 }
 
 template <typename BigInt>
@@ -212,9 +249,12 @@ void HyperCIGAM<BigInt>::InitSizeWeights() {
     log_size_weight_.clear();
 
     if (config_.size_decay <= 0.0 || config_.size_decay >= 1.0) {
+        const long double log_weight = -std::log(static_cast<long double>(cigam_sizes_.size()));
+
         for (const SInt k: cigam_sizes_) {
-            log_size_weight_[k] = 0.0L;
+            log_size_weight_[k] = log_weight;
         }
+
         return;
     }
 
@@ -237,28 +277,36 @@ void HyperCIGAM<BigInt>::InitSizeWeights() {
 template <typename BigInt>
 void HyperCIGAM<BigInt>::InitMassCache() {
     log_mass_by_size_.clear();
-    dominant_mass_prefix_.clear();
-    dominant_mass_prefix_.resize(cigam_sizes_.size() * NumLayers());
 
-    for (std::size_t k_idx = 0; k_idx < cigam_sizes_.size(); ++k_idx) {
-        const SInt k = cigam_sizes_[k_idx];
+    for (const SInt k: cigam_sizes_) {
+        long double local_mass = 0.0L;
 
-        long double log_sum = -std::numeric_limits<long double>::infinity();
+        LogBinomCache high_cursor(k - 1, 0);
+        LogBinomCache low_cursor(k - 1, 0);
 
-        for (SInt layer = 0; layer < NumLayers(); ++layer) {
-            auto prefix = BuildDominantMassPrefix(k, layer);
+        const SInt dominant_end = config_.n - k + 1;
 
-            const long double total_mass = prefix.back();
+        for (SInt i = rank_; i < dominant_end; i += size_) {
+            for (SInt layer = 0; layer < NumLayers(); ++layer) {
+                const auto [j_min, j_max] = LayerEndpointRange(i, layer);
 
-            const long double log_layer_mass =
-                total_mass > 0.0L ? std::log(total_mass) : -std::numeric_limits<long double>::infinity();
+                if (j_min > j_max || j_max - i < k - 1) {
+                    continue;
+                }
 
-            log_sum = LogAdd(log_sum, log_layer_mass);
+                const long double log_mass =
+                    LogBlockSize(k, i, j_min, j_max, high_cursor) + LogProbabilityForDominant(i, layer);
 
-            dominant_mass_prefix_[PrefixIndex(k_idx, layer)] = std::move(prefix);
+                local_mass += std::exp(log_mass);
+            }
         }
 
-        log_mass_by_size_[k] = log_sum;
+        long double global_mass = 0.0L;
+
+        MPI_Allreduce(&local_mass, &global_mass, 1, MPI_LONG_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        log_mass_by_size_[k] =
+            global_mass > 0.0L ? std::log(global_mass) : -std::numeric_limits<long double>::infinity();
     }
 }
 
@@ -359,26 +407,19 @@ SInt HyperCIGAM<BigInt>::FindDominantBoundaryInPrefix(
 // #### Exact generation ####
 template <typename BigInt>
 void HyperCIGAM<BigInt>::GenerateExactCSR() {
-    for (std::size_t k_idx = 0; k_idx < cigam_sizes_.size(); ++k_idx) {
-        const SInt k = cigam_sizes_[k_idx];
-
+    for (const SInt k: cigam_sizes_) {
         LogBinomCache binom_cache(k - 1);
+        const SInt    dominant_end = config_.n - k + 1;
 
-        for (SInt layer = 0; layer < NumLayers(); ++layer) {
-            const auto& prefix = dominant_mass_prefix_[PrefixIndex(k_idx, layer)];
-
-            const SInt owner_begin = FindDominantBoundaryInPrefix(prefix, rank_, size_);
-
-            const SInt owner_end = FindDominantBoundaryInPrefix(prefix, rank_ + 1, size_);
-
-            for (SInt i = owner_begin; i < owner_end; ++i) {
-                if (config_.n - i - 1 < k - 1) {
-                    continue;
-                }
-
-                GenerateBoundedBlock(k, i, layer, binom_cache);
+        for (SInt dominant = rank_; dominant < dominant_end; dominant += size_) {
+            for (SInt layer = 0; layer < NumLayers(); ++layer) {
+                GenerateBoundedBlock(k, dominant, layer, binom_cache);
             }
         }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        AccumulateLogBinomStats(binom_cache.stats);
+#endif
     }
 }
 template <typename BigInt>
@@ -402,7 +443,7 @@ void HyperCIGAM<BigInt>::GenerateBoundedBlock(
 
     const SInt count_seed = BlockCountSeed(k, i, layer);
 
-    const SInt local_m = GenerateBinomialHybrid(block_population, log_p, rng_, count_seed, "CIGAM");
+    const SInt local_m = GenerateBinomialHybrid(block_population, log_block_size, log_p, rng_, count_seed, "CIGAM");
 
     if (local_m == 0) {
         return;
@@ -419,15 +460,62 @@ void HyperCIGAM<BigInt>::GenerateBoundedBlock(
     CountInt       attempts     = 0;
     const CountInt max_attempts = std::max(CountInt(local_m) * 10, CountInt(1000));
 
+    std::vector<SInt> pins;
+    pins.reserve(k);
+
+    FloydScratchSet scratch;
+    scratch.reserve(k);
+
     while (generated < local_m) {
-        auto pins = SampleBoundedHyperedge(k, i, j_min, j_max, log_block_size, binom_cache);
-        if (config_.allow_duplicates || local_seen.insert(FingerprintPins(pins)).second) {
+        const auto event_start = std::chrono::steady_clock::now();
+
+        SInt sampling_attempts    = 0;
+        SInt duplicate_rejections = 0;
+
+        while (true) {
+            SampleBoundedHyperedge(k, i, j_min, j_max, log_block_size, binom_cache, pins, scratch);
+
+            ++sampling_attempts;
+            ++attempts;
+
+            const bool accepted = config_.allow_duplicates || local_seen.insert(FingerprintPins(pins)).second;
+
+            if (!accepted) {
+                ++duplicate_rejections;
+
+                if (attempts > max_attempts) {
+                    throw ConfigurationError("CIGAM rejection sampling exceeded attempt limit; use --fast");
+                }
+
+                continue;
+            }
+
             PushCheckedHyperedge(pins, layer);
             ++generated;
-        }
 
-        if (++attempts > max_attempts) {
-            throw ConfigurationError("CIGAM rejection sampling exceeded attempt limit; use --fast");
+            if (debug_logger_) {
+                const auto duration_ns =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - event_start)
+                        .count();
+
+                debug_logger_->LogHyperedge({
+                    .hyperedge_id         = next_debug_hyperedge_id_++,
+                    .mode                 = static_cast<SInt>(config_.cigam_mode),
+                    .hyperedge_size       = k,
+                    .dominant_vertex      = i,
+                    .layer                = layer,
+                    .endpoint_vertex      = pins.back(),
+                    .block_j_min          = j_min,
+                    .block_j_max          = j_max,
+                    .block_log_population = log_block_size,
+                    .log_probability      = LogProbabilityForDominant(i, layer) + log_edge_scaling_by_size_.at(k),
+                    .sampling_attempts    = sampling_attempts,
+                    .duplicate_rejections = duplicate_rejections,
+                    .duration_ns          = duration_ns,
+                });
+            }
+
+            break;
         }
     }
 }
@@ -446,18 +534,105 @@ void HyperCIGAM<BigInt>::ValidateExactBlockDensity(const SInt local_m, const lon
 // #### Approx generation ####
 template <typename BigInt>
 void HyperCIGAM<BigInt>::GenerateApproxCSR() {
-    for (std::size_t k_idx = 0; k_idx < cigam_sizes_.size(); ++k_idx) {
-        const SInt k = cigam_sizes_[k_idx];
-
+    for (const SInt k: cigam_sizes_) {
         LogBinomCache cache(k - 1, std::min<SInt>(config_.n, SInt{1} << 20));
 
-        for (SInt layer = 0; layer < NumLayers(); ++layer) {
-            const auto& prefix = dominant_mass_prefix_[PrefixIndex(k_idx, layer)];
+        const SInt dominant_end = config_.n - k + 1;
 
-            const auto owner_begin = FindDominantBoundaryInPrefix(prefix, rank_, size_);
-            const auto owner_end   = FindDominantBoundaryInPrefix(prefix, rank_ + 1, size_);
+        std::vector<BlockInfo> blocks;
+        blocks.reserve(NumLayers());
 
-            GenerateApproxRange(k, owner_begin, owner_end, layer, 0, cache, prefix);
+        for (SInt dominant = rank_; dominant < dominant_end; dominant += size_) {
+            blocks.clear();
+
+            for (SInt layer = 0; layer < NumLayers(); ++layer) {
+                const auto [j_min, j_max] = LayerEndpointRange(dominant, layer);
+
+                if (j_min > j_max || j_max - dominant < k - 1) {
+                    continue;
+                }
+
+                blocks.push_back({layer, j_min, j_max, LogBlockSize(k, dominant, j_min, j_max, cache)});
+            }
+
+            for (const auto& block: blocks) {
+                GenerateApproxBlock(k, dominant, block.layer, block.j_min, block.j_max, block.log_block_size, cache);
+            }
+        }
+    }
+}
+
+template <typename BigInt>
+void HyperCIGAM<BigInt>::GenerateApproxBlock(
+    const SInt k, const SInt dominant, const SInt layer, SInt j_min, SInt j_max, SInt log_block_size,
+    LogBinomCache& cache) {
+    const long double log_expected =
+        log_block_size + LogProbabilityForDominant(dominant, layer) + log_edge_scaling_by_size_.at(k);
+
+    const long double smallest = std::log(static_cast<long double>(std::numeric_limits<double>::denorm_min()));
+
+    if (log_expected <= smallest) {
+        return;
+    }
+
+    if (log_expected > std::log(static_cast<long double>(std::numeric_limits<SInt>::max()))) {
+        throw ConfigurationError("CIGAM approximate block expected count exceeds SInt");
+    }
+
+    const SInt count_seed = BlockCountSeed(k, dominant, layer);
+
+    const SInt local_m = rng_.GeneratePoisson(count_seed, static_cast<double>(std::exp(log_expected)));
+
+    if (local_m == 0) {
+        return;
+    }
+
+    mersenne_.RandomInit(EdgeSeed(count_seed));
+
+    std::vector<SInt> pins;
+    pins.reserve(k);
+
+    FloydScratchSet scratch;
+    scratch.reserve(k);
+
+    const long double log_probability = LogProbabilityForDominant(dominant, layer) + log_edge_scaling_by_size_.at(k);
+
+    for (SInt e = 0; e < local_m; ++e) {
+        const auto event_start = std::chrono::steady_clock::now();
+
+        pins.clear();
+        pins.push_back(dominant);
+
+        const SInt endpoint = SampleEndpoint(k, dominant, j_min, j_max, log_block_size, cache);
+
+        if (k > 2) {
+            FloydSampleInto(dominant + 1, endpoint - dominant - 1, k - 2, mersenne_, pins, scratch, 1);
+        }
+
+        pins.push_back(endpoint);
+
+        PushCheckedHyperedge(pins, layer);
+
+        if (debug_logger_) {
+            const auto duration_ns =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - event_start)
+                    .count();
+
+            debug_logger_->LogHyperedge({
+                .hyperedge_id         = next_debug_hyperedge_id_++,
+                .mode                 = static_cast<SInt>(config_.cigam_mode),
+                .hyperedge_size       = k,
+                .dominant_vertex      = dominant,
+                .layer                = layer,
+                .endpoint_vertex      = endpoint,
+                .block_j_min          = j_min,
+                .block_j_max          = j_max,
+                .block_log_population = static_cast<long double>(log_block_size),
+                .log_probability      = log_probability,
+                .sampling_attempts    = 1,
+                .duplicate_rejections = 0,
+                .duration_ns          = duration_ns,
+            });
         }
     }
 }
@@ -467,175 +642,6 @@ void HyperCIGAM<BigInt>::GenerateApproxCSR() {
 // vertex range. Leaf ranges sample their local Poisson edge count
 // directly and then draw dominant vertices according to their relative
 // contribution within the leaf
-template <typename BigInt>
-void HyperCIGAM<BigInt>::GenerateApproxRange(
-    const SInt k, const SInt i_begin, const SInt i_end, const SInt layer, const SInt level, LogBinomCache& cache,
-    const std::vector<double>& prefix) {
-    if (i_begin >= i_end) {
-        return;
-    }
-
-    const auto stats = ComputeApproxRangeStats(k, i_begin, i_end, layer, cache, prefix);
-    if (!stats) {
-        return;
-    }
-
-    const SInt width = i_end - i_begin;
-
-    if (ShouldSplitApproxRange(width, stats->expected)) {
-        const SInt mid = ChooseApproxRangeSplit(i_begin, i_end, prefix);
-
-        GenerateApproxRange(k, i_begin, mid, layer, level + 1, cache, prefix);
-        GenerateApproxRange(k, mid, i_end, layer, level + 1, cache, prefix);
-
-        return;
-    }
-    GenerateApproxLeafRange(k, i_begin, i_end, layer, level, stats->expected, cache, prefix);
-}
-
-template <typename BigInt>
-std::optional<ApproxRangeStatsCIGAM> HyperCIGAM<BigInt>::ComputeApproxRangeStats(
-    SInt k, SInt i_begin, SInt i_end, SInt layer, LogBinomCache& cache, const std::vector<double>& prefix) const {
-    ApproxRangeStatsCIGAM stats;
-
-    const long double local_mass = prefix[i_end] - prefix[i_begin];
-
-    if (local_mass <= 0.0L) {
-        return std::nullopt;
-    }
-
-    stats.log_expected = std::log(local_mass) + log_edge_scaling_by_size_.at(k);
-
-    if (stats.log_expected == -std::numeric_limits<long double>::infinity()) {
-        return std::nullopt;
-    }
-
-    if (stats.log_expected > std::log(static_cast<long double>(std::numeric_limits<SInt>::max()))) {
-        throw ConfigurationError("CIGAM approximate range expected count exceeds SInt");
-    }
-
-    stats.expected = expl(stats.log_expected);
-
-    if (stats.expected <= 0.0L) {
-        return std::nullopt;
-    }
-
-    return stats;
-}
-
-template <typename BigInt>
-bool HyperCIGAM<BigInt>::ShouldSplitApproxRange(SInt width, long double expected) const {
-    constexpr SInt kTargetEdgesPerBlock = 16384;
-    constexpr SInt kTargetRangeWidth    = SInt{1} << 20;
-    const bool     split_by_edges       = expected > static_cast<long double>(kTargetEdgesPerBlock);
-
-    const bool split_by_width = width > kTargetRangeWidth;
-    return (split_by_edges || split_by_width) && width > 1;
-}
-
-template <typename BigInt>
-SInt HyperCIGAM<BigInt>::ChooseApproxRangeSplit(
-    const SInt i_begin, const SInt i_end, const std::vector<double>& prefix) {
-    constexpr SInt kTargetRangeWidth = SInt{1} << 20;
-
-    const SInt width = i_end - i_begin;
-
-    if (width > kTargetRangeWidth) {
-        return i_begin + (width / 2);
-    }
-
-    return FindApproxMassSplit(i_begin, i_end, prefix);
-}
-
-template <typename BigInt>
-SInt HyperCIGAM<BigInt>::FindApproxMassSplit(const SInt i_begin, const SInt i_end, const std::vector<double>& prefix) {
-    if (i_end - i_begin <= 2) {
-        return i_begin + 1;
-    }
-
-    const long double total_mass = prefix[i_end] - prefix[i_begin];
-    const long double half       = total_mass * 0.5L;
-
-    SInt left  = i_begin + 1;
-    SInt right = i_end - 1;
-    SInt best  = i_begin + ((i_end - i_begin) / 2);
-
-    while (left <= right) {
-        const SInt        mid       = left + ((right - left) / 2);
-        const long double left_mass = prefix[mid] - prefix[i_begin];
-
-        if (left_mass <= half) {
-            best = mid;
-            left = mid + 1;
-        } else {
-            right = mid - 1;
-        }
-    }
-
-    return std::clamp<SInt>(best, i_begin + 1, i_end - 1);
-}
-
-template <typename BigInt>
-void HyperCIGAM<BigInt>::GenerateApproxLeafRange(
-    const SInt k, const SInt i_begin, const SInt i_end, const SInt layer, const SInt level, const long double expected,
-    LogBinomCache& cache, const std::vector<double>& prefix) {
-    const SInt count_seed = ApproxRangeCountSeed(k, i_begin, layer, level);
-    const SInt local_m    = rng_.GeneratePoisson(count_seed, static_cast<double>(expected));
-
-    if (local_m == 0) {
-        return;
-    }
-
-    SInt edge_seed = sampling::Spooky::hash(static_cast<unsigned long long>(count_seed) + kEdgeRankSeedMultiplier);
-
-    mersenne_.RandomInit(edge_seed);
-
-    for (SInt e = 0; e < local_m; ++e) {
-        const SInt i = SampleDominantVertexFromPrefix(i_begin, i_end, prefix);
-
-        const auto [j_min, j_max] = LayerEndpointRange(i, layer);
-
-        const long double log_block_size = LogBlockSize(k, i, j_min, j_max, cache);
-
-        auto pins = SampleBoundedHyperedge(k, i, j_min, j_max, log_block_size, cache);
-
-        PushCheckedHyperedge(pins, layer);
-    }
-}
-
-template <typename BigInt>
-SInt HyperCIGAM<BigInt>::SampleDominantVertexFromPrefix(
-    const SInt i_begin, const SInt i_end, const std::vector<double>& prefix) {
-    assert(i_begin >= 0);
-    assert(i_begin < i_end);
-    assert(static_cast<std::size_t>(i_end) < prefix.size());
-
-    const double mass_begin = prefix[static_cast<std::size_t>(i_begin)];
-    const double mass_end   = prefix[static_cast<std::size_t>(i_end)];
-
-    if (!(mass_end > mass_begin)) {
-        throw ConfigurationError("CIGAM approximate leaf has zero dominant mass");
-    }
-
-    const double u = std::min(rng_.GenerateCanonicalDoubleStream(), std::nextafter(1.0, 0.0));
-
-    double target = mass_begin + (u * (mass_end - mass_begin));
-
-    if (!(target < mass_end)) {
-        target = std::nextafter(mass_end, mass_begin);
-    }
-
-    const auto begin = prefix.begin() + static_cast<std::ptrdiff_t>(i_begin + 1);
-    const auto end   = prefix.begin() + static_cast<std::ptrdiff_t>(i_end + 1);
-
-    const auto it = std::upper_bound(begin, end, target);
-
-    if (it == end) {
-        throw ConfigurationError("CIGAM could not sample a dominant vertex from prefix mass");
-    }
-
-    return static_cast<SInt>(std::distance(prefix.begin(), it)) - 1;
-}
 
 // #### Math/ Layer helpers ####
 template <typename BigInt>
@@ -787,23 +793,17 @@ long double HyperCIGAM<BigInt>::LogProbabilityForDominant(const SInt i, const SI
         throw ConfigurationError("CIGAM layer is outside its valid range");
     }
 
-    const long double prestige = RankValue(i);
+#ifndef NDEBUG
+    if (i % size_ != rank_) {
+        throw ConfigurationError("CIGAM accessed a dominant not owned by this PE");
+    }
+#endif
 
-    /*
-     * The paper fixes zeta = 2:
-     *
-     *   p(i, layer) = c_layer^(-2 + prestige).
-     *
-     * Thus:
-     *
-     *   log p = (-2 + prestige) log(c_layer).
-     */
-    const long double log_probability = (-2.0L + prestige) * log_c_[static_cast<std::size_t>(layer)];
+    const SInt local_index = (i - rank_) / size_;
 
-    /*
-     * With c > 1 and prestige in [0, 1], log_probability lies in
-     * [-2 log(c), -log(c)] and is therefore strictly negative.
-     */
+    const long double log_probability =
+        dominant_exponent_[static_cast<std::size_t>(local_index)] * log_c_[static_cast<std::size_t>(layer)];
+
     if (!std::isfinite(log_probability) || log_probability >= 0.0L) {
         throw ConfigurationError("CIGAM generated an invalid hyperedge probability");
     }
@@ -830,23 +830,19 @@ long double HyperCIGAM<BigInt>::LogBlockSize(
 
 // #### Endpoint/hyperedge sampling ####
 template <typename BigInt>
-std::vector<SInt> HyperCIGAM<BigInt>::SampleBoundedHyperedge(
-    const SInt k, const SInt i, const SInt j_min, const SInt j_max, const long double log_block_size,
-    LogBinomCache& binom_cache) {
-    const SInt j = SampleEndpoint(k, i, j_min, j_max, log_block_size, binom_cache);
+void HyperCIGAM<BigInt>::SampleBoundedHyperedge(
+    const SInt k, const SInt dominant, const SInt j_min, const SInt j_max, const long double log_block_size,
+    LogBinomCache& binom_cache, std::vector<SInt>& pins, FloydScratchSet& scratch) {
+    pins.clear();
+    pins.push_back(dominant);
 
-    std::vector<SInt> pins;
-    pins.reserve(k);
-
-    pins.push_back(i);
+    const SInt endpoint = SampleEndpoint(k, dominant, j_min, j_max, log_block_size, binom_cache);
 
     if (k > 2) {
-        auto middle = FloydSample(i + 1, j - i - 1, k - 2, mersenne_);
-        pins.insert(pins.end(), middle.begin(), middle.end());
+        FloydSampleInto(dominant + 1, endpoint - dominant - 1, k - 2, mersenne_, pins, scratch, 1);
     }
 
-    pins.push_back(j);
-    return pins;
+    pins.push_back(endpoint);
 }
 
 template <typename BigInt>
@@ -992,15 +988,6 @@ SInt HyperCIGAM<BigInt>::BlockCountSeed(const SInt k, const SInt i, const SInt l
 }
 
 template <typename BigInt>
-SInt HyperCIGAM<BigInt>::ApproxRangeCountSeed(SInt k, SInt i_begin, SInt layer, SInt level) const {
-    return sampling::Spooky::hash(
-        static_cast<unsigned long long>(config_.seed) + (static_cast<unsigned long long>(k) * kCountSeedMultiplier)
-        + (static_cast<unsigned long long>(layer) * kRankSeedMultiplier)
-        + (static_cast<unsigned long long>(i_begin) * kEdgeSeedMultiplier)
-        + (static_cast<unsigned long long>(level) * kEdgeRankSeedMultiplier));
-}
-
-template <typename BigInt>
 SInt HyperCIGAM<BigInt>::EdgeSeed(const SInt count_seed) {
     return sampling::Spooky::hash(count_seed + kEdgeRankSeedMultiplier);
 }
@@ -1135,7 +1122,7 @@ typename HyperCIGAM<BigInt>::PythonReferenceRanks HyperCIGAM<BigInt>::GeneratePy
 }
 
 template <typename BigInt>
-PEID HyperCIGAM<BigInt>::PythonBlockOwner(const SInt k, const SInt dominant, const SInt layer) const {
+PEID HyperCIGAM<BigInt>::BlockOwner(const SInt k, const SInt dominant, const SInt layer) const {
     const std::uint64_t key =
         static_cast<std::uint64_t>(config_.seed) ^ (static_cast<std::uint64_t>(k) * 0x9e3779b97f4a7c15ULL)
         ^ (static_cast<std::uint64_t>(dominant) * 0xd1b54a32d192ed03ULL)
@@ -1198,31 +1185,27 @@ HyperCIGAM<BigInt>::PythonBlockPopulation(const SInt k, const SInt dominant, con
 }
 
 template <typename BigInt>
-std::vector<SInt>
-HyperCIGAM<BigInt>::SamplePythonBlockHyperedge(const SInt k, const SInt dominant, const SInt j_min, const SInt j_max) {
+std::vector<SInt> HyperCIGAM<BigInt>::SamplePythonBlockHyperedge(
+    const SInt k, const SInt dominant, const SInt j_min, const SInt j_max, SInt& sampling_attempts,
+    SInt& block_rejections) {
     if (j_min > j_max) {
         throw ConfigurationError("Cannot sample from an empty CIGAM block");
     }
 
     const SInt suffix_universe_size = j_max - dominant;
-
-    const SInt suffix_sample_size = k - 1;
+    const SInt suffix_sample_size   = k - 1;
 
     if (suffix_sample_size > suffix_universe_size) {
         throw ConfigurationError("CIGAM block does not contain enough vertices");
     }
 
     while (true) {
-        // Uniformly select k - 1 positions from:
-        //
-        //     [dominant + 1, j_max].
-        //
-        // The candidate is accepted when at least one selected position is
-        // in [j_min, j_max]. Since the sample is sorted, testing the final
-        // position is sufficient.
+        ++sampling_attempts;
+
         auto suffix = FloydSample(dominant + 1, suffix_universe_size, suffix_sample_size, mersenne_);
 
         if (suffix.empty() || suffix.back() < j_min) {
+            ++block_rejections;
             continue;
         }
 
@@ -1264,15 +1247,49 @@ void HyperCIGAM<BigInt>::GeneratePythonBlock(
 
     mersenne_.RandomInit(PythonBlockEdgeSeed(k, dominant, layer));
 
-    std::set<std::vector<SInt>> selected_rank_positions;
+    struct PendingPaperDebugData {
+        SInt sampling_attempts    = 0;
+        SInt duplicate_rejections = 0;
+
+        std::chrono::steady_clock::duration duration{};
+    };
+
+    std::map<std::vector<SInt>, PendingPaperDebugData> selected_rank_positions;
+
+    SInt pending_sampling_attempts    = 0;
+    SInt pending_duplicate_rejections = 0;
+    auto pending_event_start          = std::chrono::steady_clock::now();
 
     while (static_cast<SInt>(selected_rank_positions.size()) < block_count) {
-        auto pins = SamplePythonBlockHyperedge(k, dominant, j_min, j_max);
+        SInt candidate_sampling_attempts = 0;
+        SInt candidate_block_rejections  = 0;
 
-        selected_rank_positions.insert(std::move(pins));
+        auto pins = SamplePythonBlockHyperedge(
+            k, dominant, j_min, j_max, candidate_sampling_attempts, candidate_block_rejections);
+
+        pending_sampling_attempts += candidate_sampling_attempts;
+
+        const auto [it, inserted] = selected_rank_positions.try_emplace(std::move(pins));
+
+        if (!inserted) {
+            ++pending_duplicate_rejections;
+            continue;
+        }
+
+        it->second = {
+            .sampling_attempts    = pending_sampling_attempts,
+            .duplicate_rejections = pending_duplicate_rejections,
+            .duration             = std::chrono::steady_clock::now() - pending_event_start,
+        };
+
+        pending_sampling_attempts    = 0;
+        pending_duplicate_rejections = 0;
+        pending_event_start          = std::chrono::steady_clock::now();
     }
 
-    for (const auto& rank_positions: selected_rank_positions) {
+    const long double block_log_population = std::log(population.convert_to<long double>());
+
+    for (const auto& [rank_positions, debug_data]: selected_rank_positions) {
         std::vector<SInt> original_pins;
         original_pins.reserve(rank_positions.size());
 
@@ -1283,6 +1300,26 @@ void HyperCIGAM<BigInt>::GeneratePythonBlock(
         std::sort(original_pins.begin(), original_pins.end());
 
         PushUncompressedHyperedge(graph_, memory_stats_, original_pins);
+
+        if (debug_logger_) {
+            const auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(debug_data.duration).count();
+
+            debug_logger_->LogHyperedge({
+                .hyperedge_id         = next_debug_hyperedge_id_++,
+                .mode                 = static_cast<SInt>(config_.cigam_mode),
+                .hyperedge_size       = k,
+                .dominant_vertex      = dominant,
+                .layer                = layer,
+                .endpoint_vertex      = rank_positions.back(),
+                .block_j_min          = j_min,
+                .block_j_max          = j_max,
+                .block_log_population = block_log_population,
+                .log_probability      = log_probability,
+                .sampling_attempts    = debug_data.sampling_attempts,
+                .duplicate_rejections = debug_data.duplicate_rejections,
+                .duration_ns          = duration_ns,
+            });
+        }
     }
 }
 
@@ -1331,7 +1368,7 @@ void HyperCIGAM<BigInt>::GeneratePythonDistributedCSR() {
 
         for (SInt dominant = 0; dominant < dominant_end; ++dominant) {
             for (SInt layer = 0; layer < L; ++layer) {
-                if (PythonBlockOwner(k, dominant, layer) != rank_) {
+                if (BlockOwner(k, dominant, layer) != rank_) {
                     continue;
                 }
 
@@ -1378,6 +1415,34 @@ void HyperCIGAM<BigInt>::GeneratePythonDistributedCSR() {
               << " Python-reference CIGAM hyperedges\n";
 #endif
 }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+template <typename BigInt>
+void HyperCIGAM<BigInt>::AccumulateLogBinomStats(const LogBinomCacheStats& stats) {
+    log_binom_stats_.map_calls += stats.map_calls;
+    log_binom_stats_.map_hits += stats.map_hits;
+    log_binom_stats_.map_misses += stats.map_misses;
+    log_binom_stats_.map_inserts += stats.map_inserts;
+
+    log_binom_stats_.candidate_calls += stats.candidate_calls;
+    log_binom_stats_.candidate_exact_hits += stats.candidate_exact_hits;
+    log_binom_stats_.candidate_recurrence_hits += stats.candidate_recurrence_hits;
+    log_binom_stats_.candidate_direct_evals += stats.candidate_direct_evals;
+    log_binom_stats_.candidate_below_range += stats.candidate_below_range;
+
+    log_binom_stats_.candidate_distance_sum += stats.candidate_distance_sum;
+    log_binom_stats_.candidate_distance_observations += stats.candidate_distance_observations;
+    log_binom_stats_.candidate_max_distance =
+        std::max(log_binom_stats_.candidate_max_distance, stats.candidate_max_distance);
+
+    log_binom_stats_.forward_steps += stats.forward_steps;
+    log_binom_stats_.backward_steps += stats.backward_steps;
+
+    log_binom_stats_.min_key  = std::min(log_binom_stats_.min_key, stats.min_key);
+    log_binom_stats_.max_key  = std::max(log_binom_stats_.max_key, stats.max_key);
+    log_binom_stats_.max_size = std::max(log_binom_stats_.max_size, stats.max_size);
+}
+#endif
 
 template <typename BigInt>
 CountInt

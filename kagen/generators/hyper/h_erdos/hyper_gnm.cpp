@@ -47,7 +47,7 @@ HyperGNM<BigInt>::HyperGNM(const PGeneratorConfig& config, const PEID rank, cons
 
     if (config_.debug) {
         debug_logger_.emplace(
-            config_.output_graph.filename + "_hgnm_debug_rank_" + std::to_string(rank_) + ".csv", false);
+            config_.output_graph.filename + "_hgnm_debug_pe_" + std::to_string(rank_) + ".csv", false);
     }
 }
 
@@ -382,31 +382,72 @@ bool HyperGNM<BigInt>::TryPushHyperedge(const std::vector<SInt>& pins, Hyperedge
 
 template <typename BigInt>
 void HyperGNM<BigInt>::GenerateSampledHyperedges(
-    SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m, SInt& edge_seed,
-    LogBinomCache& log_binom_cache) {
-    auto              local_seen = MakeLocalSeenSet(config_.allow_duplicates, local_m);
+    const SInt hyperedge_size, const SInt local_min_begin, const SInt local_min_end, const SInt local_m,
+    SInt& edge_seed, LogBinomCache& log_binom_cache) {
+    auto local_seen = MakeLocalSeenSet(config_.allow_duplicates, local_m);
+
     std::vector<SInt> pins;
-    pins.reserve(hyperedge_size);
+    pins.reserve(static_cast<std::size_t>(hyperedge_size));
 
-    const std::uint64_t max_attempts = std::max(std::uint64_t(local_m) * 10, std::uint64_t(1000));
+    const std::uint64_t max_attempts = std::max<std::uint64_t>(static_cast<std::uint64_t>(local_m) * 10, 1000);
 
-    std::uint64_t attempts  = 0;
-    SInt          generated = 0;
+    std::uint64_t total_attempts = 0;
+    SInt          generated      = 0;
 
     while (generated < local_m) {
-        const SInt minimum_vertex = SampleMinimumImplicit(
-            local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache);
+        const auto event_start = std::chrono::steady_clock::now();
 
-        SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
+        std::uint64_t sampling_attempts    = 0;
+        std::uint64_t duplicate_rejections = 0;
+        std::uint64_t minimum_search_steps = 0;
+        std::uint64_t minimum_cache_gets   = 0;
 
-        ++attempts;
+        while (true) {
+            std::uint64_t attempt_search_steps = 0;
+            std::uint64_t attempt_cache_gets   = 0;
 
-        if (TryPushHyperedge(pins, local_seen)) {
+            const SInt minimum_vertex = SampleMinimumImplicit(
+                local_min_begin, local_min_end, config_.n, hyperedge_size, rng_, edge_seed, log_binom_cache,
+                &attempt_search_steps, &attempt_cache_gets);
+
+            SampleHyperedgeInto(minimum_vertex, hyperedge_size, pins);
+
+            ++sampling_attempts;
+            ++total_attempts;
+
+            minimum_search_steps += attempt_search_steps;
+            minimum_cache_gets += attempt_cache_gets;
+
+            if (!TryPushHyperedge(pins, local_seen)) {
+                ++duplicate_rejections;
+
+                if (total_attempts > max_attempts) {
+                    throw ConfigurationError("HGNM rejection sampling exceeded attempt limit");
+                }
+
+                continue;
+            }
+
             ++generated;
-        }
 
-        if (attempts > max_attempts) {
-            throw ConfigurationError("HGNM rejection sampling exceeded attempt limit");
+            if (debug_logger_) {
+                const auto duration_ns =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - event_start)
+                        .count();
+
+                debug_logger_->LogHyperedge({
+                    .hyperedge_id         = next_debug_hyperedge_id_++,
+                    .hyperedge_size       = hyperedge_size,
+                    .minimum_vertex       = pins.front(),
+                    .sampling_attempts    = static_cast<SInt>(sampling_attempts),
+                    .duplicate_rejections = static_cast<SInt>(duplicate_rejections),
+                    .minimum_search_steps = static_cast<SInt>(minimum_search_steps),
+                    .minimum_cache_gets   = static_cast<SInt>(minimum_cache_gets),
+                    .duration_ns          = duration_ns,
+                });
+            }
+
+            break;
         }
     }
 }
@@ -415,10 +456,11 @@ template <typename BigInt>
 HGNMLocalGenerationRange HyperGNM<BigInt>::PrepareLocalGenerationRange(const SInt hyperedge_size, const SInt m_k) {
     if (!config_.approx) {
         ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
-            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_
+            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
+            debug_logger_ ? &*debug_logger_ : nullptr, &next_debug_hyperedge_id_
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ,
-            NULL
+            &instrumentation_
 #endif
         );
 
@@ -455,7 +497,8 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
 
     if (!data.use_approx) {
         ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
-            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_
+            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
+            debug_logger_ ? &*debug_logger_ : nullptr, &next_debug_hyperedge_id_
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ,
             &instrumentation_
