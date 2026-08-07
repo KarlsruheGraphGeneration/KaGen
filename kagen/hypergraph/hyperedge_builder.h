@@ -31,8 +31,6 @@ public:
           config_(config),
           logger_(logger) {}
 
-
-
     void Build(const Center& center) {
         ResetBuildState();
         const auto timer_start_total = config_.debug ? Clock::now() : Clock::time_point{};
@@ -238,9 +236,12 @@ private:
                 CountOutside(stats);
                 return;
 
-            case CellBallRelation::INSIDE:
-                CountInside(stats, geometry_.AddWholeCell(cell, ranges_));
+            case CellBallRelation::INSIDE: {
+                const SInt added = geometry_.AddWholeCell(cell, ranges_);
+
+                CountInside(stats, added);
                 return;
+            }
 
             case CellBallRelation::PARTIAL:
                 ProcessPartialCell(center, radius, cell, approximation_allowed, stats);

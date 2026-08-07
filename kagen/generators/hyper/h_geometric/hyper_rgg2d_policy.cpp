@@ -115,7 +115,14 @@ void HyperRGG2DPolicy::CandidateCells(const Center& center, const LPFloat radius
 }
 
 std::optional<HyperRGG2DPolicy::StoredCell> HyperRGG2DPolicy::TryGetStoredCell(const Cell& cell) const {
-    const auto it = gen_->cells_.find(cell.global_cell_id);
+    auto it = gen_->cells_.find(cell.global_cell_id);
+
+    if (it == gen_->cells_.end()) {
+        gen_->GenerateCells(cell.chunk_id);
+
+        it = gen_->cells_.find(cell.global_cell_id);
+    }
+
     if (it == gen_->cells_.end()) {
         return std::nullopt;
     }
@@ -467,6 +474,7 @@ const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const
 }
 
 void HyperRGG2DPolicy::PrintExactCacheStats() const {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const std::size_t current_bytes = static_cast<std::size_t>(exact_remote_live_vertices_) * sizeof(Vertex);
 
     const std::size_t peak_bytes = static_cast<std::size_t>(exact_remote_peak_vertices_) * sizeof(Vertex);
@@ -499,6 +507,7 @@ void HyperRGG2DPolicy::PrintExactCacheStats() const {
               << " local_reuse<=4=" << local_exact_reuse_distance_le_4_
               << " local_reuse<=16=" << local_exact_reuse_distance_le_16_
               << " local_reuse>16=" << local_exact_reuse_distance_gt_16_ << '\n';
+#endif
 }
 
 bool HyperRGG2DPolicy::IsLocalCell(const Cell& cell) const {
