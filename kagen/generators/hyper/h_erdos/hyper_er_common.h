@@ -378,6 +378,14 @@ struct LogBinomCache {
         range_initialized = true;
     }
 };
+
+struct HyperERPartitionRange {
+    SInt begin;
+    SInt end;
+};
+
+HyperERPartitionRange AssignPartitionsToPE(SInt num_partitions, PEID rank, PEID size);
+
 inline std::size_t ComputeLogBinomCacheSize(const SInt local_m, const SInt local_min_begin, const SInt local_min_end) {
     constexpr std::size_t kMaximumInitialSize = 1U << 16;
 
@@ -802,9 +810,10 @@ inline SInt EstimateMinimumCandidate(
 
 template <typename RNG>
 SInt SampleMinimumImplicitK2(const SInt local_begin, const SInt local_end, const SInt n, RNG& rng, SInt& seed) {
+    const SInt draw_seed = sampling::Spooky::hash(seed++);
+
     const long double u = std::min<long double>(
-        static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
-    ++seed;
+        static_cast<long double>(rng.GenerateUniform(draw_seed, 0.0L, 1.0L)), std::nextafter(1.0L, 0.0L));
 
     const auto choose2 = [](const long double x) {
         return (x * (x - 1.0L)) / 2.0L;
@@ -813,9 +822,9 @@ SInt SampleMinimumImplicitK2(const SInt local_begin, const SInt local_end, const
     const long double begin_tail = choose2(static_cast<long double>(n - local_begin));
     const long double end_tail   = (n - local_end >= 2) ? choose2(static_cast<long double>(n - local_end)) : 0.0L;
 
-    const long double target_tail = begin_tail - u * (begin_tail - end_tail);
+    const long double target_tail = begin_tail - (u * (begin_tail - end_tail));
 
-    long double x_real = (1.0L + std::sqrt(1.0L + 8.0L * target_tail)) / 2.0L;
+    long double x_real = (1.0L + std::sqrt(1.0L + (8.0L * target_tail))) / 2.0L;
 
     SInt x = static_cast<SInt>(std::floor(x_real));
 
@@ -869,9 +878,10 @@ SInt SampleMinimumImplicit(
      *
      *     C(n - (s + 1), k) <= target_tail.
      */
-    const long double uniform01 = std::min<long double>(
-        static_cast<long double>(rng.GenerateCanonicalDoubleStream()), std::nextafter(1.0L, 0.0L));
-    ++seed;
+    const SInt draw_seed = sampling::Spooky::hash(seed++);
+
+    const long double u = std::min<long double>(
+        static_cast<long double>(rng.GenerateUniform(draw_seed, 0.0L, 1.0L)), std::nextafter(1.0L, 0.0L));
 
     auto cached_log_binomial = [&](const SInt x) -> long double {
         if (cache_gets) {
@@ -912,7 +922,7 @@ SInt SampleMinimumImplicit(
      * target_tail / begin_tail
      *     = 1 - uniform01 * local_mass_fraction.
      */
-    const long double log_target_ratio = std::log1pl(-uniform01 * local_mass_fraction);
+    const long double log_target_ratio = std::log1pl(-u * local_mass_fraction);
 
     const SInt begin_x = n - local_begin;
 
@@ -2325,9 +2335,9 @@ template <typename BigInt>
 class ExactFixedCountHyperedgeGenerator {
 public:
     ExactFixedCountHyperedgeGenerator(
-        const PGeneratorConfig& config, PEID rank, PEID size, RNGWrapper<>& rng, Mersenne& mersenne, Graph& graph,
-        HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch, ErdosHypergraphDebugLogger* debug_logger,
-        SInt* next_debug_hyperedge_id
+        const PGeneratorConfig& config, SInt partition_id, SInt num_partitions, RNGWrapper<>& rng, Mersenne& mersenne,
+        Graph& graph, HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch,
+        ErdosHypergraphDebugLogger* debug_logger, SInt* next_debug_hyperedge_id
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         ,
         HGNPInstrumentation* instrumentation
@@ -2364,8 +2374,8 @@ private:
     bool TryPushHyperedge(const std::vector<SInt>& pins, HyperedgeSeenSet& local_seen);
 
     const PGeneratorConfig& config_;
-    PEID                    rank_;
-    PEID                    size_;
+    SInt                    partition_id_;
+    SInt                    num_partitions_;
 
     RNGWrapper<>&               rng_;
     Mersenne&                   mersenne_;

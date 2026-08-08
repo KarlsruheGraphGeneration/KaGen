@@ -28,6 +28,7 @@ struct HGNMLocalGenerationRange {
 struct HGNMSizePlan {
     SInt                     hyperedge_size;
     SInt                     m_k;
+    SInt                     partition_id;
     HGNMLocalGenerationRange range;
 };
 
@@ -45,7 +46,7 @@ private:
 
     void ValidateDuplicateCheckingIsFeasible(SInt local_m) const;
     void ValidateExactSparseDensity(SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m) const;
-    HGNMLocalGenerationRange PrepareLocalGenerationRange(SInt hyperedge_size, SInt m_k);
+    HGNMLocalGenerationRange PrepareLocalGenerationRange(SInt hyperedge_size, SInt m_k, SInt partition_id);
 
     std::pair<SInt, SInt> ResolveSizeRange() const;
     double                ValidateAndGetSizeAlpha() const;
@@ -59,7 +60,8 @@ private:
         SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt local_m, SInt& edge_seed,
         LogBinomCache& log_binom_cache);
 
-    void GenerateHyperedgesOfSize(SInt hyperedge_size, SInt m_k, const HGNMLocalGenerationRange& data);
+    void
+    GenerateHyperedgesOfSize(SInt hyperedge_size, SInt m_k, SInt partition_id, const HGNMLocalGenerationRange& data);
 
     bool TryPushHyperedge(const std::vector<SInt>& pins, HyperedgeSeenSet& local_seen);
 

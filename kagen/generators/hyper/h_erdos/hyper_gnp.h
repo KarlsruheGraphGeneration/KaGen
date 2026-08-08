@@ -36,6 +36,7 @@ struct HGNPLocalGenerationRange {
 
 struct HGNPSizePlan {
     SInt                     hyperedge_size = 0;
+    SInt                     partition_id   = 0;
     HGNPLocalGenerationRange range;
 };
 
@@ -59,9 +60,9 @@ private:
     std::vector<HGNPSizePlan> BuildGenerationPlan(SInt lower_bound, SInt upper_bound);
     SInt                      SampleExactEdgeCount(const CountInt& population, double probability, SInt seed);
     bool         AppendSizePlanIfNeeded(SInt hyperedge_size, SInt lower_bound, std::vector<HGNPSizePlan>& plan);
-    HGNPSizePlan PrepareSizePlan(SInt hyperedge_size, double probability);
-    HGNPLocalGenerationRange PrepareApproxLocalRange(SInt hyperedge_size, double probability);
-    SInt                     LocalCountSeed(SInt hyperedge_size) const;
+    HGNPSizePlan PrepareSizePlan(SInt hyperedge_size, double probability, SInt partition_id);
+    HGNPLocalGenerationRange PrepareApproxLocalRange(SInt hyperedge_size, double probability, SInt partition_id);
+    SInt                     LocalCountSeed(SInt hyperedge_size, SInt partition_id) const;
     void                     PrepareSampledExactPlan(HGNPSizePlan& entry, double probability);
     long double
     LogBinomialPoissonRatioRelativeToMode(SInt value, SInt mode, long double population, long double probability) const;
@@ -82,14 +83,14 @@ private:
     void                  ValidateProbability(double probability) const;
     bool                  ShouldSkipSizeGeneration(SInt hyperedge_size, double probability) const;
     void                  SetLocalVertexRange();
-    std::pair<SInt, SInt> LocalMinOwnerRange(SInt hyperedge_size) const;
+    std::pair<SInt, SInt> LocalMinOwnerRange(SInt hyperedge_size, SInt partition_id) const;
     void                  GenerateLocalHyperedges(
         const HGNPSizePlan& entry, SInt& edge_seed, LogBinomCache& cache, std::vector<SInt>& pins,
         HyperedgeSeenSet& seen);
     void SampleLocalHyperedgeInto(
         SInt hyperedge_size, SInt local_min_begin, SInt local_min_end, SInt& edge_seed, LogBinomCache& log_binom_cache,
         std::vector<SInt>& pins, std::uint64_t& minimum_search_steps, std::uint64_t& minimum_cache_gets);
-    SInt             LocalEdgeSeed(SInt hyperedge_size) const;
+    SInt             LocalEdgeSeed(SInt hyperedge_size, SInt partition_id) const;
     void             GenerateApproxHyperedgesFromPlan(const HGNPSizePlan& entry);
     PGeneratorConfig config_;
 

@@ -108,7 +108,7 @@ void HyperGNM<BigInt>::LogSizeCounts(const std::unordered_map<SInt, SInt>& size_
 template <typename BigInt>
 void HyperGNM<BigInt>::GenerateHyperedgesFromPlan(const std::vector<HGNMSizePlan>& plan) {
     for (const auto& entry: plan) {
-        GenerateHyperedgesOfSize(entry.hyperedge_size, entry.m_k, entry.range);
+        GenerateHyperedgesOfSize(entry.hyperedge_size, entry.m_k, entry.partition_id, entry.range);
     }
 }
 
@@ -129,17 +129,23 @@ void HyperGNM<BigInt>::GenerateCSR() {
     std::size_t expected_local_edges = 0;
     std::size_t expected_local_pins  = 0;
 
+    const auto partitions = AssignPartitionsToPE(config_.k, rank_, size_);
+
     for (const auto& [k, m_k]: size_counts) {
-        auto range = PrepareLocalGenerationRange(k, m_k);
+        for (SInt partition = partitions.begin; partition < partitions.end; ++partition) {
+            auto range = PrepareLocalGenerationRange(k, m_k, partition);
 
-        expected_local_edges += static_cast<std::size_t>(range.local_m);
-        expected_local_pins += static_cast<std::size_t>(range.local_m) * static_cast<std::size_t>(k);
+            expected_local_edges += static_cast<std::size_t>(range.local_m);
 
-        plan.push_back({
-            .hyperedge_size = k,
-            .m_k            = m_k,
-            .range          = range,
-        });
+            expected_local_pins += static_cast<std::size_t>(range.local_m) * static_cast<std::size_t>(k);
+
+            plan.push_back({
+                .hyperedge_size = k,
+                .m_k            = m_k,
+                .partition_id   = partition,
+                .range          = range,
+            });
+        }
     }
 
     graph_.hyperedge_offsets.reserve(expected_local_edges + 1);
@@ -453,10 +459,11 @@ void HyperGNM<BigInt>::GenerateSampledHyperedges(
 }
 
 template <typename BigInt>
-HGNMLocalGenerationRange HyperGNM<BigInt>::PrepareLocalGenerationRange(const SInt hyperedge_size, const SInt m_k) {
+HGNMLocalGenerationRange
+HyperGNM<BigInt>::PrepareLocalGenerationRange(const SInt hyperedge_size, const SInt m_k, const SInt partition_id) {
     if (!config_.approx) {
         ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
-            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
+            config_, partition_id, config_.k, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
             debug_logger_ ? &*debug_logger_ : nullptr, &next_debug_hyperedge_id_
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ,
@@ -490,14 +497,14 @@ HGNMLocalGenerationRange HyperGNM<BigInt>::PrepareLocalGenerationRange(const SIn
 
 template <typename BigInt>
 void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
-    const SInt hyperedge_size, const SInt m_k, const HGNMLocalGenerationRange& data) {
+    const SInt hyperedge_size, const SInt m_k, const SInt partition_id, const HGNMLocalGenerationRange& data) {
     if (hyperedge_size == 0 || hyperedge_size > config_.n || m_k == 0) {
         return;
     }
 
     if (!data.use_approx) {
         ExactFixedCountHyperedgeGenerator<BigInt> exact_generator(
-            config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
+            config_, partition_id, config_.k, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
             debug_logger_ ? &*debug_logger_ : nullptr, &next_debug_hyperedge_id_
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ,

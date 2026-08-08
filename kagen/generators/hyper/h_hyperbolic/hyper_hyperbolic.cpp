@@ -32,7 +32,9 @@ PGeneratorConfig
 Hyper_HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, const bool output) const {
     config.setChunkSizeIfMissing(size);
 
-    EnsureOneChunkPerPE(config, size);
+    if (config.k < static_cast<SInt>(size)) {
+        throw ConfigurationError("Number of chunks must be at least the number of PEs");
+    }
 
     if (config.avg_degree == 0) {
         if (config.m == 0 || config.n == 0) {
@@ -152,12 +154,15 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
       total_annuli_(std::floor(alpha_ * target_r_ / std::numbers::ln2)),
       current_hyperedge_radius_(static_cast<Double>(config_.r)),
       current_hyperedge_pdm_radius_((std::cosh(current_hyperedge_radius_) - 1) / 2) {
-    SInt chunks_per_pe   = config_.k / size_;
-    SInt leftover_chunks = config_.k % size_;
-    local_chunks_        = chunks_per_pe + static_cast<SInt>((SInt)rank_ < leftover_chunks);
+    const SInt chunks_per_pe   = config_.k / size_;
+    const SInt leftover_chunks = config_.k % size_;
 
-    local_chunk_start_ = (local_chunks_ * rank_) + ((SInt)rank_ >= leftover_chunks ? leftover_chunks : 0);
-    local_chunk_end_   = local_chunk_start_ + local_chunks_;
+    local_chunks_ = chunks_per_pe + static_cast<SInt>(static_cast<SInt>(rank_) < leftover_chunks);
+
+    local_chunk_start_ =
+        (static_cast<SInt>(rank_) * chunks_per_pe) + std::min<SInt>(static_cast<SInt>(rank_), leftover_chunks);
+
+    local_chunk_end_ = local_chunk_start_ + local_chunks_;
 
     Double phi_per_chunk = 2 * M_PI / config_.k;
     pe_min_phi_          = local_chunk_start_ * phi_per_chunk;
@@ -175,7 +180,7 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
 
     for (SInt i = 0; i < total_annuli_; ++i) {
         global_cell_ids_.push_back(total_cells);
-        total_cells += GridSizeForAnnulus(i) * size_;
+        total_cells += GridSizeForAnnulus(i) * config_.k;
     }
 
     cells_.set_empty_key(total_cells + 1);
@@ -443,7 +448,7 @@ inline SInt Hyper_Hyperbolic<Double>::ComputeGlobalCellId(const SInt annulus, co
 
 template <typename Double>
 inline SInt Hyper_Hyperbolic<Double>::GridSizeForAnnulus(const SInt annulus_id) {
-    return std::max<SInt>(1, TotalGridSizeForAnnulus(annulus_id) / size_);
+    return std::max<SInt>(1, TotalGridSizeForAnnulus(annulus_id) / config_.k);
 }
 
 template <typename Double>

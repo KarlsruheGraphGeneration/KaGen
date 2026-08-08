@@ -238,7 +238,6 @@ private:
 
             case CellBallRelation::INSIDE: {
                 const SInt added = geometry_.AddWholeCell(cell, ranges_);
-
                 CountInside(stats, added);
                 return;
             }

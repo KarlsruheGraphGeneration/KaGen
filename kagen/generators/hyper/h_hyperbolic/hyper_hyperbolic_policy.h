@@ -77,13 +77,9 @@ public:
         return gen_.current_hyperedge_radius_;
     }
 
-    CellBallRelation ClassifyCell(const Center& center, const Double radius, const Cell& cell) const {
+    CellBallRelation ClassifyCell(const Center& /*center*/, const Double /*radius*/, const Cell& cell) const {
         if (CellAABBOutsideBall(cell)) {
             return CellBallRelation::OUTSIDE;
-        }
-
-        if (!IsLocalCell(cell)) {
-            return CellBallRelation::PARTIAL;
         }
 
         if (ShouldTryInside(cell) && HyperbolicCellInside(cell)) {

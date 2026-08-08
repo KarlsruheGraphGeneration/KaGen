@@ -148,7 +148,7 @@ void HyperGNP<BigInt>::GenerateHyperedgesFromSizePlan(const HGNPSizePlan& entry)
     }
 
     ExactFixedCountHyperedgeGenerator<BigInt> fixed_count_generator(
-        config_, rank_, size_, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
+        config_, entry.partition_id, config_.k, rng_, mersenne_, graph_, memory_stats_, floyd_scratch_,
         debug_logger_ ? &*debug_logger_ : nullptr, &next_debug_hyperedge_id_
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         ,
@@ -184,7 +184,7 @@ void HyperGNP<BigInt>::GenerateApproxHyperedgesFromPlan(const HGNPSizePlan& entr
 
     auto seen = MakeLocalSeenSet(config_.allow_duplicates, entry.range.local_m);
 
-    SInt edge_seed = LocalEdgeSeed(entry.hyperedge_size);
+    SInt edge_seed = LocalEdgeSeed(entry.hyperedge_size, entry.partition_id);
 
     mersenne_.RandomInit(edge_seed);
 
@@ -634,7 +634,7 @@ template <typename BigInt>
 void HyperGNP<BigInt>::PrepareSampledExactPlan(HGNPSizePlan& entry, const double probability) {
     const SInt k = entry.hyperedge_size;
 
-    const auto [min_begin, min_end] = LocalMinOwnerRange(k);
+    const auto [min_begin, min_end] = LocalMinOwnerRange(k, entry.partition_id);
 
     entry.range.begin   = min_begin;
     entry.range.end     = min_end;
@@ -663,7 +663,7 @@ void HyperGNP<BigInt>::PrepareSampledExactPlan(HGNPSizePlan& entry, const double
         ScopedMPITimer timer(instrumentation_.count_sampling_seconds);
 #endif
 
-        local_m = SampleExactEdgeCount(local_population, probability, LocalCountSeed(k));
+        local_m = SampleExactEdgeCount(local_population, probability, LocalCountSeed(k, entry.partition_id));
     }
 
     entry.range.local_m = local_m;
@@ -819,37 +819,39 @@ bool HyperGNP<BigInt>::AppendSizePlanIfNeeded(
         return true;
     }
 
-    HGNPSizePlan entry = PrepareSizePlan(hyperedge_size, probability);
+    const auto partitions = AssignPartitionsToPE(config_.k, rank_, size_);
 
-    if (entry.range.local_m > 0) {
+    for (SInt partition_id = partitions.begin; partition_id < partitions.end; ++partition_id) {
+        HGNPSizePlan entry = PrepareSizePlan(hyperedge_size, probability, partition_id);
+
+        if (entry.range.local_m > 0) {
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-        ++instrumentation_.active_sizes;
+            ++instrumentation_.active_sizes;
 
-        instrumentation_.planned_edges += static_cast<std::uint64_t>(entry.range.local_m);
+            instrumentation_.planned_edges += static_cast<std::uint64_t>(entry.range.local_m);
 
-        instrumentation_.planned_pins +=
-            static_cast<std::uint64_t>(entry.range.local_m) * static_cast<std::uint64_t>(hyperedge_size);
-
+            instrumentation_.planned_pins +=
+                static_cast<std::uint64_t>(entry.range.local_m) * static_cast<std::uint64_t>(hyperedge_size);
 #endif
 
-        plan.push_back(std::move(entry));
-
+            plan.push_back(std::move(entry));
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-    } else {
-        ++instrumentation_.zero_count_sizes;
+        } else {
+            ++instrumentation_.zero_count_sizes;
 #endif
+        }
     }
-
     return true;
 }
 
 template <typename BigInt>
-HGNPSizePlan HyperGNP<BigInt>::PrepareSizePlan(const SInt hyperedge_size, const double probability) {
+HGNPSizePlan HyperGNP<BigInt>::PrepareSizePlan(const SInt hyperedge_size, const double probability, SInt partition_id) {
     HGNPSizePlan entry;
     entry.hyperedge_size = hyperedge_size;
+    entry.partition_id   = partition_id;
 
     if (config_.approx) {
-        entry.range = PrepareApproxLocalRange(hyperedge_size, probability);
+        entry.range = PrepareApproxLocalRange(hyperedge_size, probability, partition_id);
     } else {
         PrepareSampledExactPlan(entry, probability);
     }
@@ -858,17 +860,17 @@ HGNPSizePlan HyperGNP<BigInt>::PrepareSizePlan(const SInt hyperedge_size, const 
 }
 
 template <typename BigInt>
-SInt HyperGNP<BigInt>::LocalCountSeed(const SInt hyperedge_size) const {
+SInt HyperGNP<BigInt>::LocalCountSeed(const SInt hyperedge_size, const SInt partition_id) const {
     return sampling::Spooky::hash(
         static_cast<unsigned long long>(config_.seed)
         + (static_cast<unsigned long long>(hyperedge_size) * kCountSeedMultiplier)
-        + (static_cast<unsigned long long>(rank_) * kRankSeedMultiplier));
+        + (static_cast<unsigned long long>(partition_id) * kRankSeedMultiplier));
 }
 
 template <typename BigInt>
 HGNPLocalGenerationRange
-HyperGNP<BigInt>::PrepareApproxLocalRange(const SInt hyperedge_size, const double probability) {
-    const auto [begin, end] = LocalMinOwnerRange(hyperedge_size);
+HyperGNP<BigInt>::PrepareApproxLocalRange(const SInt hyperedge_size, const double probability, SInt partition_id) {
+    const auto [begin, end] = LocalMinOwnerRange(hyperedge_size, partition_id);
 
     HGNPLocalGenerationRange range;
     range.begin = begin;
@@ -896,7 +898,7 @@ HyperGNP<BigInt>::PrepareApproxLocalRange(const SInt hyperedge_size, const doubl
 
     const double lambda = static_cast<double>(std::exp(log_lambda));
 
-    range.local_m = lambda > 0.0 ? rng_.GeneratePoisson(LocalCountSeed(hyperedge_size), lambda) : 0;
+    range.local_m = lambda > 0.0 ? rng_.GeneratePoisson(LocalCountSeed(hyperedge_size, partition_id), lambda) : 0;
 
     return range;
 }
@@ -1098,12 +1100,13 @@ void HyperGNP<BigInt>::SetLocalVertexRange() {
 }
 
 template <typename BigInt>
-std::pair<SInt, SInt> HyperGNP<BigInt>::LocalMinOwnerRange(const SInt hyperedge_size) const {
+std::pair<SInt, SInt> HyperGNP<BigInt>::LocalMinOwnerRange(const SInt hyperedge_size, const SInt partition_id) const {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const double start = MPI_Wtime();
+#endif
+    const SInt begin = FindMinBoundaryByMass(config_.n, hyperedge_size, partition_id, config_.k);
 
-    const SInt begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
-
-    const SInt end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+    const SInt end = FindMinBoundaryByMass(config_.n, hyperedge_size, partition_id + 1, config_.k);
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     instrumentation_.boundary_seconds += MPI_Wtime() - start;
 #endif
@@ -1245,12 +1248,11 @@ void HyperGNP<BigInt>::SampleLocalHyperedgeInto(
             minimum_vertex + 1, config_.n - minimum_vertex - 1, hyperedge_size - 1, mersenne_, pins, floyd_scratch_, 1);
     }
 }
-
 template <typename BigInt>
-SInt HyperGNP<BigInt>::LocalEdgeSeed(const SInt hyperedge_size) const {
+SInt HyperGNP<BigInt>::LocalEdgeSeed(const SInt hyperedge_size, const SInt partition_id) const {
     return sampling::Spooky::hash(
         static_cast<unsigned long long>(config_.seed)
-        + (static_cast<unsigned long long>(rank_) * kEdgeRankSeedMultiplier)
+        + (static_cast<unsigned long long>(partition_id) * kEdgeRankSeedMultiplier)
         + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
 }
 

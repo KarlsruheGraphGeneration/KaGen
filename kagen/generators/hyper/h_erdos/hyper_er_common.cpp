@@ -1,5 +1,7 @@
 #include "kagen/generators/hyper/h_erdos/hyper_er_common.h"
 
+#include "kagen/kagen.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -356,8 +358,8 @@ std::optional<SInt> TryBinomialSInt(SInt n, SInt k) {
 
 template <typename BigInt>
 ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
-    const PGeneratorConfig& config, const PEID rank, const PEID size, RNGWrapper<>& rng, Mersenne& mersenne,
-    Graph& graph, HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch,
+    const PGeneratorConfig& config, const SInt partition_id, const SInt num_partitions, RNGWrapper<>& rng,
+    Mersenne& mersenne, Graph& graph, HypergraphMemoryStats& memory_stats, FloydScratchSet& floyd_scratch,
     ErdosHypergraphDebugLogger* debug_logger, SInt* next_debug_hyperedge_id
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     ,
@@ -365,8 +367,8 @@ ExactFixedCountHyperedgeGenerator<BigInt>::ExactFixedCountHyperedgeGenerator(
 #endif
     )
     : config_(config),
-      rank_(rank),
-      size_(size),
+      partition_id_(partition_id),
+      num_partitions_(num_partitions),
       rng_(rng),
       mersenne_(mersenne),
       graph_(graph),
@@ -394,7 +396,7 @@ template <typename BigInt>
 SInt ExactFixedCountHyperedgeGenerator<BigInt>::EdgeSeed(const SInt hyperedge_size) const {
     return sampling::Spooky::hash(
         static_cast<unsigned long long>(config_.seed)
-        + (static_cast<unsigned long long>(rank_) * kEdgeRankSeedMultiplier)
+        + (static_cast<unsigned long long>(partition_id_) * kEdgeRankSeedMultiplier)
         + (static_cast<unsigned long long>(hyperedge_size) * kEdgeSeedMultiplier));
 }
 
@@ -441,11 +443,11 @@ ExactFixedCountHyperedgeGenerator<BigInt>::ComputeLocalCount(const SInt hyperedg
         throw ConfigurationError("Fixed-count generation exceeds the hyperedge population");
     }
 
-    if (size_ <= 0 || (size_ & (size_ - 1)) != 0) {
-        throw ConfigurationError("Minimum-partition fixed-count generation requires a power-of-two PE count");
+    if (num_partitions_ <= 0 || (num_partitions_ & (num_partitions_ - 1)) != 0) {
+        throw ConfigurationError("Minimum-partition fixed-count generation requires a power-of-two partition count");
     }
 
-    if (size_ == 1) {
+    if (num_partitions_ == 1) {
         return {
             .local_m          = global_m,
             .local_population = total_population,
@@ -454,7 +456,8 @@ ExactFixedCountHyperedgeGenerator<BigInt>::ComputeLocalCount(const SInt hyperedg
 
     const SInt num_minima = config_.n - hyperedge_size + 1;
 
-    return ComputeLocalCountRecursive(hyperedge_size, 0, size_, rank_, 0, num_minima, total_population, global_m, 0);
+    return ComputeLocalCountRecursive(
+        hyperedge_size, 0, num_partitions_, partition_id_, 0, num_minima, total_population, global_m, 0);
 }
 
 template <typename BigInt>
@@ -469,7 +472,7 @@ MinimumPartitionLocalCount ExactFixedCountHyperedgeGenerator<BigInt>::ComputeLoc
     }
 
     const SInt rank_mid = rank_begin + ((rank_end - rank_begin) / 2);
-    const SInt min_mid  = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_mid, size_);
+    const SInt min_mid  = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_mid, num_partitions_);
 
     const CountInt left_population  = MinRangeMassExact(min_begin, min_mid, config_.n, hyperedge_size);
     const CountInt right_population = population - left_population;
@@ -536,6 +539,23 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::ValidateExactSparseDensity(
     }
 }
 
+HyperERPartitionRange AssignPartitionsToPE(const SInt num_partitions, const PEID rank, const PEID size) {
+    const SInt p = static_cast<SInt>(size);
+    const SInt r = static_cast<SInt>(rank);
+
+    const SInt per_rank  = num_partitions / p;
+    const SInt remainder = num_partitions % p;
+
+    const SInt count = per_rank + static_cast<SInt>(r < remainder);
+
+    const SInt begin = (r * per_rank) + std::min<SInt>(r, remainder);
+
+    return {
+        .begin = begin,
+        .end   = begin + count,
+    };
+}
+
 template <typename BigInt>
 FixedCountLocalRange
 ExactFixedCountHyperedgeGenerator<BigInt>::PrepareLocalRange(const SInt hyperedge_size, const SInt global_m) {
@@ -545,8 +565,8 @@ ExactFixedCountHyperedgeGenerator<BigInt>::PrepareLocalRange(const SInt hyperedg
 
     // Minimum-vertex ownership remains the work partition. Each rank needs
     // only its own two boundaries and its O(log P) deterministic split path.
-    const SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
-    const SInt min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+    const SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, partition_id_, num_partitions_);
+    const SInt min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, partition_id_ + 1, num_partitions_);
 
     const MinimumPartitionLocalCount local = ComputeLocalCount(hyperedge_size, global_m);
 
