@@ -218,7 +218,7 @@ SInt OffsetToEdge(const SInt version, const SInt n, const SInt offset) {
 }
 
 SInt ReadFirstEdge(std::ifstream& in, const SInt version, const SInt n, const SInt u) {
-    const int  edge_id_width = Has32BitVertexIDs(version) ? 4 : 8;
+    const int  edge_id_width = Has32BitEdgeIDs(version) ? 4 : 8;
     const SInt offset        = 3 * sizeof(ParhipID) + u * edge_id_width;
     in.seekg(static_cast<std::streamsize>(offset));
     if (in.rdstate()) {
