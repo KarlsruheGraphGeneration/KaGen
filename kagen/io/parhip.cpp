@@ -107,7 +107,7 @@ void ParhipWriter::WriteOffsets(const std::string& filename, const XadjArray& xa
 void ParhipWriter::WriteOffsets(const std::string& filename) {
     std::vector<ParhipID> offset(graph_.NumberOfLocalVertices() + 1);
 
-    const int vertex_id_width = config_.width == 32 ? 4 : 8;
+    const int vertex_id_width = config_.vtx_width == 32 ? 4 : 8;
     SInt cur_offset = 3 * sizeof(ParhipID) + (info_.global_n + 1) * sizeof(ParhipID) + info_.offset_m * vertex_id_width;
     SInt cur_edge   = 0;
     SInt cur_vertex = 0;

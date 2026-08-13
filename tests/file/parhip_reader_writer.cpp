@@ -187,25 +187,28 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format) {
     EXPECT_THAT(total_read_graph, EqualWeights(total_generated_graph));
 }
 
-// The same graph, once written with 32 bit and once with 64 bit vertex IDs (edge IDs are always 64 bit), must be read
-// back identically -- independent of how the reader distributes the vertices among the PEs.
-struct ParhipVertexIDWidthTestFixture : public ::testing::TestWithParam<std::string> {};
+// Files with 32 and 64 bit vertex IDs must be read back identically, for every distribution and write path.
+struct ParhipVertexIDWidthTestFixture : public ::testing::TestWithParam<std::tuple<std::string, GraphRepresentation>> {
+};
 
 INSTANTIATE_TEST_SUITE_P(
     ParhipReaderTest, ParhipVertexIDWidthTestFixture,
-    ::testing::Values(std::string("balance-vertices"), std::string("balance-edges")),
+    ::testing::Combine(
+        ::testing::Values(std::string("balance-vertices"), std::string("balance-edges")),
+        ::testing::Values(GraphRepresentation::CSR, GraphRepresentation::EDGE_LIST)),
     [](const ::testing::TestParamInfo<ParhipVertexIDWidthTestFixture::ParamType>& info) -> std::string {
-        std::string name = info.param;
+        std::string name = std::get<0>(info.param);
         std::replace(name.begin(), name.end(), '-', '_');
-        return name;
+        return name + (std::get<1>(info.param) == GraphRepresentation::CSR ? "_csr" : "_edge_list");
     });
 
 TEST_P(ParhipVertexIDWidthTestFixture, read_graph_with_32bit_and_64bit_vertex_ids) {
-    const ::testing::TestInfo* test_info    = ::testing::UnitTest::GetInstance()->current_test_info();
-    const std::string          instance_id  = get_instance_id(test_info->name());
-    const std::string          distribution = GetParam();
-    const SInt                 n            = 1000;
-    const SInt                 m            = 16 * n;
+    const ::testing::TestInfo* test_info      = ::testing::UnitTest::GetInstance()->current_test_info();
+    const std::string          instance_id    = get_instance_id(test_info->name());
+    const std::string          distribution   = std::get<0>(GetParam());
+    const GraphRepresentation  representation = std::get<1>(GetParam());
+    const SInt                 n              = 1000;
+    const SInt                 m              = 16 * n;
     const WeightRange          weight_range{1, 100};
     MPI_Comm                   comm = MPI_COMM_WORLD;
     int                        rank, size;
@@ -214,7 +217,11 @@ TEST_P(ParhipVertexIDWidthTestFixture, read_graph_with_32bit_and_64bit_vertex_id
 
     // setup
     kagen::KaGen generator(comm);
-    generator.UseCSRRepresentation();
+    if (representation == GraphRepresentation::CSR) {
+        generator.UseCSRRepresentation();
+    } else {
+        generator.UseEdgeListRepresentation();
+    }
     generator.ConfigureEdgeWeightGeneration(
         kagen::EdgeWeightGeneratorType::UNIFORM_RANDOM, weight_range.first, weight_range.second);
 
@@ -242,7 +249,8 @@ TEST_P(ParhipVertexIDWidthTestFixture, read_graph_with_32bit_and_64bit_vertex_id
     EXPECT_FALSE(parhip::Has32BitVertexIDs(version_64bit));
     EXPECT_FALSE(parhip::Has32BitEdgeIDs(version_32bit));
     EXPECT_FALSE(parhip::Has32BitEdgeIDs(version_64bit));
-    EXPECT_EQ(std::filesystem::file_size(filename_64bit) - std::filesystem::file_size(filename_32bit), 4 * 2 * m);
+    EXPECT_EQ(
+        std::filesystem::file_size(filename_64bit) - std::filesystem::file_size(filename_32bit), 4 * info.global_m);
 
     // read both graphs back with the same distribution
     auto read = [&](const std::string& filename) {
