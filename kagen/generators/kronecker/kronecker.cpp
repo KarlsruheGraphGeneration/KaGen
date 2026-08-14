@@ -48,9 +48,7 @@ KroneckerFactory::Create(const PGeneratorConfig& config, const PEID rank, const 
 
 Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : Graph500Generator(config),
-      config_(config),
-      size_(size),
-      rank_(rank) {
+      config_(config) {
     log_n_                     = std::log2(config_.n);
     const SInt edges_per_pe    = config_.m / size;
     const SInt remaining_edges = config_.m % size;

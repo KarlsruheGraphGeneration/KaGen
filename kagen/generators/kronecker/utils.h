@@ -38,7 +38,7 @@ namespace kagen::kronecker {
 // void* xrealloc(void* p, size_t nbytes); /* In utils.c */
 // uint_fast64_t random_up_to(mrg_state* st, uint_fast64_t n);
 
-void make_mrg_seed(uint64_t userseed1, uint64_t userseed2, uint_fast32_t* seed) {
+inline void make_mrg_seed(uint64_t userseed1, uint64_t userseed2, uint_fast32_t* seed) {
     seed[0] = (uint32_t)(userseed1 & UINT32_C(0x3FFFFFFF)) + 1;
     seed[1] = (uint32_t)((userseed1 >> 30) & UINT32_C(0x3FFFFFFF)) + 1;
     seed[2] = (uint32_t)(userseed2 & UINT32_C(0x3FFFFFFF)) + 1;
