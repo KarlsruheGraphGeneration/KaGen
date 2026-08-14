@@ -89,33 +89,59 @@ public:
         return CellBallRelation::PARTIAL;
     }
 
-    Double CellCoverage(const Center& center, const Double hyperball_radius, const Cell& cell) const {
-        const Double min_phi = cell.min_phi;
-        const Double max_phi = cell.max_phi;
-
-        const Double cell_phi_width = max_phi - min_phi;
+    Double CellCoverage(const Center& center, const Double /*hyperball_radius*/, const Cell& cell) const {
+        const Double cell_phi_width = cell.max_phi - cell.min_phi;
 
         if (cell_phi_width <= Double{0.0}) {
             return Double{0.0};
         }
 
-        Double half_angle = current_annulus_half_angle_[cell.annulus_id];
+        // 8-point Gauss-Legendre rule on [-1, 1].
+        static constexpr double nodes[] = {
+            -0.9602898564975363, -0.7966664774136267, -0.5255324099163290, -0.1834346424956498,
+            0.1834346424956498,  0.5255324099163290,  0.7966664774136267,  0.9602898564975363,
+        };
 
-        if (half_angle < Double{0.0}) {
-            const auto& mid = annulus_mid_[cell.annulus_id];
-            half_angle      = AllowedHalfAngleAtRadius(mid.r, mid.cosh_r, mid.sinh_r);
+        static constexpr double weights[] = {
+            0.1012285362903763, 0.2223810344533745, 0.3137066458778873, 0.3626837833783620,
+            0.3626837833783620, 0.3137066458778873, 0.2223810344533745, 0.1012285362903763,
+        };
+
+        const Double u_min = std::cosh(gen_.alpha_ * cell.min_r);
+        const Double u_max = std::cosh(gen_.alpha_ * cell.max_r);
+
+        const Double u_mid  = (u_min + u_max) / Double{2.0};
+        const Double u_half = (u_max - u_min) / Double{2.0};
+
+        Double weighted_overlap = Double{0.0};
+
+        for (std::size_t i = 0; i < 8; ++i) {
+            const Double u = u_mid + (u_half * static_cast<Double>(nodes[i]));
+
+            const Double r = std::acosh(u) / gen_.alpha_;
+
+            const Double cosh_r = std::cosh(r);
+            const Double sinh_r = std::sinh(r);
+
+            const Double half_angle = AllowedHalfAngleAtRadius(r, cosh_r, sinh_r);
+
+            Double overlap = Double{0.0};
+
+            if (half_angle >= Double{M_PI}) {
+                overlap = cell_phi_width;
+            } else if (half_angle > Double{0.0}) {
+                overlap = circular_interval::CircularOverlap(
+                    cell.min_phi, cell.max_phi, center.phi - half_angle, center.phi + half_angle, gen_.cell_eps_);
+            }
+
+            weighted_overlap += static_cast<Double>(weights[i]) * overlap;
         }
 
-        Double overlap_phi = Double{0.0};
+        // Division by 2 is the normalization of Gauss-Legendre weights
+        // when computing the average over [u_min, u_max].
+        const Double mean_overlap = weighted_overlap / Double{2.0};
 
-        if (half_angle >= Double{M_PI}) {
-            overlap_phi = cell_phi_width;
-        } else if (half_angle > Double{0.0}) {
-            overlap_phi = circular_interval::CircularOverlap(
-                min_phi, max_phi, center.phi - half_angle, center.phi + half_angle, gen_.cell_eps_);
-        }
-
-        return std::clamp(overlap_phi / cell_phi_width, Double{0.0}, Double{1.0});
+        return std::clamp(mean_overlap / cell_phi_width, Double{0.0}, Double{1.0});
     }
 
     SInt AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
@@ -175,6 +201,10 @@ public:
         out << "phi=" << center.phi << ";r=" << center.r;
 
         return out.str();
+    }
+
+    bool ShouldApproximatePartialCell(const Cell& cell) const {
+        return !IsLocalCell(cell) && !exact_vertices_.contains(cell.global_cell_id);
     }
 
 private:

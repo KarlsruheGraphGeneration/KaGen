@@ -6,6 +6,7 @@
 #include "kagen/sampling/hash.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <optional>
@@ -51,12 +52,10 @@ SInt HyperRGG2DPolicy::GetNumVerticeOfCellCoord(const SSInt global_cell_x, const
     return std::get<0>(cell_it->second);
 }
 
-double HyperRGG2DPolicy::MinimumRadius(const Center& /*unused*/) {
-    constexpr double target = 2.0;
-
-    const double density = static_cast<double>(gen_->config_.n);
-
-    return std::sqrt(target / (M_PI * density));
+double HyperRGG2DPolicy::MinimumRadius(
+    const Center& /*unused*/
+) {
+    return EuclideanRadiusForExpectedHyperedgeSize(2, gen_->config_.n);
 }
 
 LPFloat HyperRGG2DPolicy::Radius(const Center& center) const {
@@ -134,10 +133,11 @@ std::optional<HyperRGG2DPolicy::StoredCell> HyperRGG2DPolicy::TryGetStoredCell(c
 }
 
 CellBallRelation HyperRGG2DPolicy::ClassifyCell(const Center& center, const LPFloat radius, const Cell& cell) const {
-    const CellBounds bounds    = GetCellBounds(cell);
-    const LPFloat    radius_sq = radius * radius;
+    const LPFloat radius_sq = radius * radius;
+    CellBounds    bounds    = GetCellBounds(cell);
 
     const LPFloat closest_x = std::clamp(center.x, bounds.min_x, bounds.max_x);
+
     const LPFloat closest_y = std::clamp(center.y, bounds.min_y, bounds.max_y);
 
     const LPFloat dx_min = center.x - closest_x;
@@ -232,8 +232,10 @@ double HyperRGG2DPolicy::EstimateCoverageRecursive(
 double HyperRGG2DPolicy::CellCoverage(const Center& center, const LPFloat radius, const Cell& cell) const {
     const CellBounds bounds = GetCellBounds(cell);
 
-    return EstimatedCircleRectCoverage(
-        center.x, center.y, bounds.min_x, bounds.max_x, bounds.min_y, bounds.max_y, radius);
+    const double coverage =
+        EstimatedCircleRectCoverage(center.x, center.y, bounds.min_x, bounds.max_x, bounds.min_y, bounds.max_y, radius);
+
+    return coverage;
 }
 
 SInt HyperRGG2DPolicy::AddWholeCell(const Cell& cell, std::vector<PinRange>& ranges) const {
@@ -286,10 +288,13 @@ SInt HyperRGG2DPolicy::AddPartialCellRange(
     const Center& /*center*/, const Cell& cell, const double coverage, std::vector<SInt>& /*pins*/,
     std::vector<PinRange>& ranges) const {
     const auto sample = PreparePartialCellSample(cell, coverage);
+
     if (!sample) {
         return 0;
     }
+
     auto sampled = getRandomPinRange(sample->stored.size, sample->count, sample->stored.offset, gen_->mersenne);
+
     ranges.push_back(sampled);
 
     return sample->count;
@@ -299,6 +304,7 @@ SInt HyperRGG2DPolicy::AddPartialCellFloyd(
     const Center& /*center*/, const Cell& cell, const double coverage, std::vector<SInt>& pins,
     std::vector<PinRange>& /*ranges*/) const {
     const auto sample = PreparePartialCellSample(cell, coverage);
+
     if (!sample) {
         return 0;
     }
@@ -339,6 +345,7 @@ SInt HyperRGG2DPolicy::AddPartialCellExact(
             ++vertex_counter;
         }
     }
+
     gen_->AddExactDebugStats(1, static_cast<SInt>(std::distance(first, last)), vertex_counter);
     return vertex_counter;
 }
@@ -406,6 +413,7 @@ const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const
         ++exact_remote_cache_hits_;
 
         const auto lru_it = exact_lru_pos_.find(cell.global_cell_id);
+
         if (lru_it == exact_lru_pos_.end()) {
             throw std::logic_error("LRU cache metadata is inconsistent");
         }
@@ -473,42 +481,7 @@ const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const
     return cached;
 }
 
-void HyperRGG2DPolicy::PrintExactCacheStats() const {
-#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-    const std::size_t current_bytes = static_cast<std::size_t>(exact_remote_live_vertices_) * sizeof(Vertex);
-
-    const std::size_t peak_bytes = static_cast<std::size_t>(exact_remote_peak_vertices_) * sizeof(Vertex);
-
-    std::cerr << " exact_remote_hits=" << exact_remote_cache_hits_
-              << " exact_remote_misses=" << exact_remote_cache_misses_
-              << " exact_remote_generated_vertices=" << exact_remote_cached_vertices_
-              << " exact_remote_live_capacity=" << exact_remote_live_vertices_
-              << " exact_remote_peak_capacity=" << exact_remote_peak_vertices_
-              << " exact_remote_live_bytes=" << current_bytes << " exact_remote_peak_bytes=" << peak_bytes << '\n';
-
-    const double avg_reuse = exact_remote_reuse_count_ != 0 ? static_cast<double>(exact_remote_reuse_distance_sum_)
-                                                                  / static_cast<double>(exact_remote_reuse_count_)
-                                                            : 0.0;
-
-    std::cerr << " remote_reuse_count=" << exact_remote_reuse_count_ << " remote_reuse_avg=" << avg_reuse
-              << " remote_reuse_max=" << exact_remote_reuse_distance_max_
-              << " reuse<=1=" << exact_remote_reuse_distance_le_1_ << " reuse<=4=" << exact_remote_reuse_distance_le_4_
-              << " reuse<=16=" << exact_remote_reuse_distance_le_16_
-              << " reuse>16=" << exact_remote_reuse_distance_gt_16_ << '\n';
-
-    const double local_avg_reuse = local_exact_reuse_count_ != 0 ? static_cast<double>(local_exact_reuse_distance_sum_)
-                                                                       / static_cast<double>(local_exact_reuse_count_)
-                                                                 : 0.0;
-
-    std::cerr << " local_exact_accesses=" << local_exact_access_counter_
-              << " local_exact_reuse_count=" << local_exact_reuse_count_ << " local_exact_reuse_avg=" << local_avg_reuse
-              << " local_exact_reuse_max=" << local_exact_reuse_distance_max_
-              << " local_reuse<=1=" << local_exact_reuse_distance_le_1_
-              << " local_reuse<=4=" << local_exact_reuse_distance_le_4_
-              << " local_reuse<=16=" << local_exact_reuse_distance_le_16_
-              << " local_reuse>16=" << local_exact_reuse_distance_gt_16_ << '\n';
-#endif
-}
+void HyperRGG2DPolicy::PrintExactCacheStats() const {}
 
 bool HyperRGG2DPolicy::IsLocalCell(const Cell& cell) const {
     return gen_->IsLocalChunk(cell.chunk_id);
@@ -540,6 +513,39 @@ void HyperRGG2DPolicy::RecordLocalExactAccess(const SInt global_cell_id) const {
     } else {
         ++local_exact_reuse_distance_gt_16_;
     }
+}
+
+bool HyperRGG2DPolicy::ShouldApproximatePartialCell(const Cell& cell) const {
+    //
+    // Local cells should always use exact processing.
+    //
+    // If their vertices are already materialized, exact processing is
+    // extremely cheap.
+    //
+    // Even if they are not materialized yet, our measurements show that
+    // exact processing is still preferable.
+    //
+    if (IsLocalCell(cell)) {
+        return false;
+    }
+
+    //
+    // A remote cell already present in the exact-cell cache should also
+    // use exact processing. Cache hits are extremely cheap.
+    //
+    if (exact_vertices_.contains(cell.global_cell_id)) {
+        return false;
+    }
+
+    //
+    // This is the only interesting approximation case:
+    //
+    //     remote cell
+    //     + not currently present in the exact cache
+    //
+    // Exact processing would cause deterministic vertex regeneration.
+    //
+    return true;
 }
 
 } // namespace kagen

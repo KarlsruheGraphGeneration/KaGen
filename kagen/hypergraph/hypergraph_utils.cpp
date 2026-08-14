@@ -505,21 +505,29 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
 
     const double target_per_edge = static_cast<double>(config.size_dist_pin_budget) / static_cast<double>(config.m);
 
+    if (config.size_dist_upper_bound > 0 && config.size_dist_lower_bound > config.size_dist_upper_bound) {
+        throw ConfigurationError(
+            "lower hyperedge size bound "
+            "must not exceed upper hyperedge size bound");
+    }
+
     const int total_annuli = std::max(1, static_cast<int>(std::floor(alpha * target_r / std::numbers::ln2)));
 
     const auto radial_samples = BuildRadialSamples(64, alpha, target_r);
 
-    auto upper_for_center = [&](double center_r) {
-        if (config.max_hyperedge_radius != -1.0) {
-            return config.max_hyperedge_radius;
+    //
+    // Find the hyperbolic radius whose hyperball has the requested
+    // expected number of pins for a center at center_r.
+    //
+    auto radius_for_expected_pins = [&](const double center_r, const double desired_pins) {
+        if (desired_pins <= 0.0) {
+            throw ConfigurationError(
+                "expected hyperedge size "
+                "must be positive");
         }
 
-        return center_r + target_r;
-    };
-
-    auto default_lower_for_center = [&](double center_r) {
-        if (config.min_hyperedge_radius != -1.0) {
-            return config.min_hyperedge_radius;
+        if (desired_pins >= static_cast<double>(config.n)) {
+            return center_r + target_r;
         }
 
         double lo = 0.0;
@@ -528,7 +536,9 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
         for (int i = 0; i < 48; ++i) {
             const double mid = 0.5 * (lo + hi);
 
-            if (ExpectedPinsForCenterRadiusGeneratorApprox(center_r, mid, config, alpha, target_r) >= 2.0) {
+            const double expected = ExpectedPinsForCenterRadiusGeneratorApprox(center_r, mid, config, alpha, target_r);
+
+            if (expected >= desired_pins) {
                 hi = mid;
             } else {
                 lo = mid;
@@ -538,14 +548,40 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
         return hi;
     };
 
+    //
+    // Generation approximates center-dependent size bounds once per
+    // center annulus, using the annulus midpoint. Reproduce that here
+    // so the pin-budget solver uses the same radius distribution.
+    //
     std::vector<double> lower_by_annulus(total_annuli);
+
+    std::vector<double> upper_by_annulus(total_annuli);
 
     for (int a = 0; a < total_annuli; ++a) {
         const double min_r = a * target_r / total_annuli;
+
         const double max_r = (a + 1) * target_r / total_annuli;
+
         const double mid_r = 0.5 * (min_r + max_r);
 
-        lower_by_annulus[a] = default_lower_for_center(mid_r);
+        if (config.min_hyperedge_radius != -1.0) {
+            lower_by_annulus[a] = config.min_hyperedge_radius;
+        } else {
+            lower_by_annulus[a] = radius_for_expected_pins(mid_r, static_cast<double>(config.size_dist_lower_bound));
+        }
+
+        if (config.max_hyperedge_radius != -1.0) {
+            upper_by_annulus[a] = config.max_hyperedge_radius;
+        } else if (config.size_dist_upper_bound > 0) {
+            upper_by_annulus[a] = radius_for_expected_pins(mid_r, static_cast<double>(config.size_dist_upper_bound));
+        } else {
+            //
+            // Sentinel: no expected-size upper bound.
+            // The actual upper radius will depend on the sampled
+            // center position.
+            //
+            upper_by_annulus[a] = -1.0;
+        }
     }
 
     auto expected_per_edge = [&](double exponent) {
@@ -558,22 +594,34 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
 
         for (int a = 0; a < total_annuli; ++a) {
             const double ann_min_r = a * target_r / total_annuli;
+
             const double ann_max_r = (a + 1) * target_r / total_annuli;
 
             const double ring_area = PGGeometry<double>::RadiusToHyperbolicArea(alpha * ann_max_r)
                                      - PGGeometry<double>::RadiusToHyperbolicArea(alpha * ann_min_r);
 
             const double annulus_weight = ring_area / total_area;
-            const double lower          = lower_by_annulus[a];
+
+            const double lower = lower_by_annulus[a];
 
             for (int i = 0; i < CENTER_SAMPLES_PER_ANNULUS; ++i) {
                 const double q0 = static_cast<double>(i) / CENTER_SAMPLES_PER_ANNULUS;
+
                 const double q1 = static_cast<double>(i + 1) / CENTER_SAMPLES_PER_ANNULUS;
+
                 const double qc = 0.5 * (q0 + q1);
 
                 const double center_r = HyperbolicRadialQuantile(qc, alpha, ann_min_r, ann_max_r);
 
-                const double upper = std::max(lower, upper_for_center(center_r));
+                double upper;
+
+                if (upper_by_annulus[a] > 0.0) {
+                    upper = upper_by_annulus[a];
+                } else {
+                    upper = center_r + target_r;
+                }
+
+                upper = std::max(lower, upper);
 
                 const double expected =
                     ExpectedPinsOverRadius(center_r, lower, upper, exponent, config, target_r, radial_samples);
@@ -581,6 +629,7 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
                 const double weight = annulus_weight / CENTER_SAMPLES_PER_ANNULUS;
 
                 weighted_total += weight * expected;
+
                 total_weight += weight;
             }
         }
@@ -600,8 +649,10 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
     }
 
     for (int iter = 0; iter < 32; ++iter) {
-        const double mid            = 0.5 * (lo + hi);
-        const double cur            = expected_per_edge(mid);
+        const double mid = 0.5 * (lo + hi);
+
+        const double cur = expected_per_edge(mid);
+
         const double relative_error = std::abs(cur - target_per_edge) / std::max(1.0, target_per_edge);
 
         if (relative_error <= 1e-4) {
@@ -624,6 +675,22 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
     const double exponent = 0.5 * (lo + hi);
 
     return exponent;
+}
+
+double EuclideanRadiusForExpectedHyperedgeSize(const SInt expected_size, const SInt num_vertices) {
+    if (expected_size <= 0) {
+        throw ConfigurationError("expected hyperedge size must be positive");
+    }
+
+    if (num_vertices <= 0) {
+        throw ConfigurationError("number of vertices must be positive");
+    }
+
+    return std::sqrt(static_cast<double>(expected_size) / (M_PI * static_cast<double>(num_vertices)));
+}
+
+double ExpectedHyperedgeSizeForEuclideanRadius(const double radius, const SInt num_vertices) {
+    return (static_cast<double>(num_vertices) * M_PI * radius * radius);
 }
 
 } // namespace kagen

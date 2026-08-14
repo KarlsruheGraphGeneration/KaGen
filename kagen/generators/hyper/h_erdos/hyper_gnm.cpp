@@ -114,6 +114,7 @@ void HyperGNM<BigInt>::GenerateHyperedgesFromPlan(const std::vector<HGNMSizePlan
 
 template <typename BigInt>
 void HyperGNM<BigInt>::GenerateCSR() {
+    // Parameter handling
     auto [lower_bound, hard_upper_bound] = ResolveSizeRange();
     double alpha                         = ValidateAndGetSizeAlpha();
 
@@ -129,6 +130,7 @@ void HyperGNM<BigInt>::GenerateCSR() {
     std::size_t expected_local_edges = 0;
     std::size_t expected_local_pins  = 0;
 
+    // Create virtual partitions so different PE counts can generate the same graph
     const auto partitions = AssignPartitionsToPE(config_.k, rank_, size_);
 
     for (const auto& [k, m_k]: size_counts) {
@@ -481,11 +483,11 @@ HyperGNM<BigInt>::PrepareLocalGenerationRange(const SInt hyperedge_size, const S
         };
     }
 
-    const SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_, size_);
+    const SInt min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, partition_id, config_.k);
 
-    const SInt min_end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_ + 1, size_);
+    const SInt min_end = FindMinBoundaryByMass(config_.n, hyperedge_size, partition_id + 1, config_.k);
 
-    const SInt local_m = ApproximateLocalHyperedgeCount(hyperedge_size, m_k);
+    const SInt local_m = ApproximateLocalHyperedgeCount(hyperedge_size, m_k, partition_id);
 
     return {
         .min_begin  = min_begin,
@@ -541,8 +543,9 @@ void HyperGNM<BigInt>::GenerateHyperedgesOfSize(
 }
 
 template <typename BigInt>
-SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCount(const SInt hyperedge_size, const SInt m_k) {
-    if (size_ == 1) {
+SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCount(
+    const SInt hyperedge_size, const SInt m_k, const SInt partition_id) {
+    if (config_.k == 1) {
         return m_k;
     }
 
@@ -550,12 +553,11 @@ SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCount(const SInt hyperedge_size,
 
     LogBinomCache log_binom_cache(hyperedge_size, cache_size);
 
-    const SInt result =
-        ApproximateLocalHyperedgeCountRecursive(hyperedge_size, 0, size_, rank_, 1.0L, m_k, 0, log_binom_cache);
+    const SInt result = ApproximateLocalHyperedgeCountRecursive(
+        hyperedge_size, 0, config_.k, partition_id, 1.0L, m_k, 0, log_binom_cache);
 
     AccumulateCacheStats(log_binom_cache, cache_size);
 
-    return result;
     return result;
 }
 
@@ -627,8 +629,9 @@ SInt HyperGNM<BigInt>::ApproximateLocalHyperedgeCountRecursive(
 
     const SInt rank_mid = rank_begin + ((rank_end - rank_begin) / 2);
 
-    const SInt left_min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_begin, size_);
-    const SInt left_min_end   = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_mid, size_);
+    const SInt left_min_begin = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_begin, config_.k);
+
+    const SInt left_min_end = FindMinBoundaryByMass(config_.n, hyperedge_size, rank_mid, config_.k);
 
     const long double left_mass =
         MinRangeMassApproxCached(left_min_begin, left_min_end, config_.n, hyperedge_size, log_binom_cache);

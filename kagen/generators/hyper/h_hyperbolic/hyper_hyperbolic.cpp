@@ -60,9 +60,41 @@ Hyper_HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID rank,
 
     config.is_hypergraph = true;
 
+    if (config.size_dist_upper_bound > 0 && config.size_dist_lower_bound > config.size_dist_upper_bound) {
+        throw ConfigurationError(
+            "lower hyperedge size bound "
+            "must not exceed upper hyperedge size bound");
+    }
+
+    if (config.size_dist_lower_bound > config.n) {
+        throw ConfigurationError(
+            "lower hyperedge size bound "
+            "must not exceed number of vertices");
+    }
+
+    if (config.size_dist_upper_bound > 0 && config.size_dist_upper_bound > config.n) {
+        throw ConfigurationError(
+            "upper hyperedge size bound "
+            "must not exceed number of vertices");
+    }
+
     if (config.size_dist_pin_budget > 0) {
         if (config.n <= 0 || config.m <= 0) {
             throw ConfigurationError("expected total pins requires n > 0 and m > 0");
+        }
+
+        const double target_size = static_cast<double>(config.size_dist_pin_budget) / static_cast<double>(config.m);
+
+        if (target_size < static_cast<double>(config.size_dist_lower_bound)) {
+            throw ConfigurationError(
+                "expected total pins is incompatible with "
+                "lower hyperedge size bound");
+        }
+
+        if (config.size_dist_upper_bound > 0 && target_size > static_cast<double>(config.size_dist_upper_bound)) {
+            throw ConfigurationError(
+                "expected total pins is incompatible with "
+                "upper hyperedge size bound");
         }
 
         if (!config.random_radius) {
@@ -109,14 +141,20 @@ Hyper_HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID rank,
 }
 
 template <typename Double>
-void Hyper_Hyperbolic<Double>::PrecomputeMinimumRadii() {
-    minimum_radii_by_center_annulus_.resize(total_annuli_);
+void Hyper_Hyperbolic<Double>::PrecomputeRadiusBounds() {
+    if (config_.min_hyperedge_radius == -1.0) {
+        minimum_radii_by_center_annulus_.resize(total_annuli_);
+    }
 
-    constexpr Double desired_pins = Double{2.0};
+    if (config_.size_dist_upper_bound > 0) {
+        maximum_radii_by_center_annulus_.resize(total_annuli_);
+    }
 
     for (SInt a = 0; a < total_annuli_; ++a) {
         const Double min_r = a * target_r_ / total_annuli_;
+
         const Double max_r = (a + 1) * target_r_ / total_annuli_;
+
         const Double mid_r = (min_r + max_r) / Double{2.0};
 
         const HyperbolicHyperedgeCenter<Double> center{
@@ -126,7 +164,15 @@ void Hyper_Hyperbolic<Double>::PrecomputeMinimumRadii() {
             .annulus_id = a,
         };
 
-        minimum_radii_by_center_annulus_[a] = FindRadiusForExpectedPins(center, desired_pins);
+        if (config_.min_hyperedge_radius == -1.0) {
+            minimum_radii_by_center_annulus_[a] =
+                FindRadiusForExpectedPins(center, static_cast<Double>(config_.size_dist_lower_bound));
+        }
+
+        if (config_.size_dist_upper_bound > 0) {
+            maximum_radii_by_center_annulus_[a] =
+                FindRadiusForExpectedPins(center, static_cast<Double>(config_.size_dist_upper_bound));
+        }
     }
 }
 
@@ -193,8 +239,11 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
 
     num_nodes_ = 0;
 
-    if (config_.random_radius && config_.min_hyperedge_radius == -1.0) {
-        PrecomputeMinimumRadii();
+    if (config_.random_radius) {
+        if (config_.min_hyperedge_radius == -1.0
+            || (config_.size_dist_upper_bound > 0 && config_.max_hyperedge_radius == -1.0)) {
+            PrecomputeRadiusBounds();
+        }
     }
 
     annulus_min_r_.resize(total_annuli_);
@@ -804,6 +853,10 @@ template <typename Double>
 Double Hyper_Hyperbolic<Double>::MaximumRadius(const HyperbolicHyperedgeCenter<Double>& center) const {
     if (config_.max_hyperedge_radius != -1.0) {
         return static_cast<Double>(config_.max_hyperedge_radius);
+    }
+
+    if (config_.size_dist_upper_bound > 0) {
+        return maximum_radii_by_center_annulus_[center.annulus_id];
     }
 
     return center.r + target_r_;

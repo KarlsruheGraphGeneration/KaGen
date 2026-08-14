@@ -67,7 +67,7 @@ private:
 
     void SampleHyperedgeInto(SInt minimum_vertex, SInt hyperedge_size, std::vector<SInt>& pins);
 
-    SInt ApproximateLocalHyperedgeCount(SInt hyperedge_size, SInt m_k);
+    SInt ApproximateLocalHyperedgeCount(SInt hyperedge_size, SInt m_k, SInt partition_id);
 
     SInt ApproximateLocalHyperedgeCountRecursive(
         SInt hyperedge_size, SInt rank_begin, SInt rank_end, SInt target_rank, long double population_mass, SInt draws,

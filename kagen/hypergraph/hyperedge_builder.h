@@ -33,6 +33,7 @@ public:
 
     void Build(const Center& center) {
         ResetBuildState();
+
         const auto timer_start_total = config_.debug ? Clock::now() : Clock::time_point{};
 
         const auto radius = CollectCandidateCells(center);
@@ -211,7 +212,8 @@ private:
     void ProcessPartialCell(
         const Center& center, const Double radius, const Cell& cell, const bool approximation_allowed,
         BuildStats& stats) {
-        const bool use_exact = partial_cell_mode_ == PartialCellMode::GenerateAndCheck || !approximation_allowed;
+        const bool use_exact = partial_cell_mode_ == PartialCellMode::GenerateAndCheck || !approximation_allowed
+                               || !geometry_.ShouldApproximatePartialCell(cell);
 
         if (use_exact) {
             CountPartial(stats, geometry_.AddPartialCellExact(center, radius, cell, pins_));

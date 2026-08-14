@@ -160,6 +160,7 @@ private:
     std::vector<SInt>                      cells_per_annulus_;
     std::vector<std::pair<Double, Double>> boundaries_;
     std::vector<Double>                    minimum_radii_by_center_annulus_;
+    std::vector<Double>                    maximum_radii_by_center_annulus_;
     std::vector<Double>                    annulus_min_r_;
     std::vector<Double>                    annulus_max_r_;
     std::vector<Double>                    annulus_min_cosh_;
@@ -266,7 +267,7 @@ private:
 
     Double SampleRadius(const HyperbolicHyperedgeCenter<Double>& center);
 
-    void PrecomputeMinimumRadii();
+    void PrecomputeRadiusBounds();
 
     Double Radius(const HyperbolicHyperedgeCenter<Double>& center, Mersenne& mersenne);
 

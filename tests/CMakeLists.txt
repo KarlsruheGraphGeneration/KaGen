@@ -94,3 +94,28 @@ kagen_add_test(test_redistribute_edges
 kagen_add_test(test_rmat_distribution
         FILES rmat/rmat_distribution_test.cpp
         CORES 1 2 4)
+
+# Hypergraph Generator
+kagen_add_test(test_hgnm
+    FILES hypergraph/hgnm_test.cpp
+    CORES 1 2 3 4)
+
+kagen_add_test(test_hgnp
+    FILES hypergraph/hgnp_test.cpp
+    CORES 1 2 3 4)
+
+kagen_add_test(test_hrgg2d
+    FILES hypergraph/hrgg2d_test.cpp
+    CORES 1 2 4)
+
+kagen_add_test(test_hrhg
+    FILES hypergraph/hrhg_test.cpp
+    CORES 1 2 4)
+
+kagen_add_test(test_hrgg2d_geometry
+    FILES hypergraph/hrgg2d_geometry_test.cpp
+    CORES 1)
+
+kagen_add_test(test_hrhg_geometry
+    FILES hypergraph/hrhg_geometry_test.cpp
+    CORES 1)

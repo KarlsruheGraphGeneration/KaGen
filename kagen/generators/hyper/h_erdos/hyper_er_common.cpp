@@ -596,29 +596,35 @@ bool ExactFixedCountHyperedgeGenerator<BigInt>::TryPushHyperedge(
     bool accepted = true;
 
     if (!config_.allow_duplicates) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         const double duplicate_start = MPI_Wtime();
+#endif
 
         accepted = local_seen.insert(FingerprintPins(pins)).second;
 
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-
         if (instrumentation_ != nullptr) {
             instrumentation_->duplicate_check_seconds += MPI_Wtime() - duplicate_start;
         }
+#endif
     }
 
     if (!accepted) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         if (instrumentation_ != nullptr) {
             ++instrumentation_->duplicate_rejects;
         }
+#endif
 
         return false;
-#endif
     }
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const double write_start = MPI_Wtime();
 #endif
+
     PushUncompressedHyperedge(graph_, memory_stats_, pins);
+
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     if (instrumentation_ != nullptr) {
         instrumentation_->csr_write_seconds += MPI_Wtime() - write_start;
@@ -628,6 +634,7 @@ bool ExactFixedCountHyperedgeGenerator<BigInt>::TryPushHyperedge(
         instrumentation_->generated_pins += static_cast<std::uint64_t>(pins.size());
     }
 #endif
+
     return true;
 }
 

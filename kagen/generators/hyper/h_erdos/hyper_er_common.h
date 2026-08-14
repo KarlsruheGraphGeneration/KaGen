@@ -171,7 +171,6 @@ struct LogBinomCache {
     }
 
     long double LogBinomialRatioSmallK(const SInt x, const SInt anchor_x) const {
-        assert(fixed_k >= 0);
         assert(x >= fixed_k);
         assert(anchor_x >= fixed_k);
 
@@ -184,7 +183,7 @@ struct LogBinomCache {
          * In the minimum sampler x <= anchor_x, so each term is
          * nonpositive.
          */
-        const long double difference = static_cast<long double>(x - anchor_x);
+        const long double difference = static_cast<long double>(x) - static_cast<long double>(anchor_x);
 
         long double result = 0.0L;
 
@@ -731,10 +730,10 @@ inline SInt ResolveMinimumCandidate(
     if (candidate_valid && predecessor_invalid) {
         return candidate;
     }
-
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     std::cerr << "Expensive minOwner[ candidate:" << candidate << " , local_begin:" << local_begin
               << " , local_end:" << local_end;
-
+#endif
     /*
      * Restrict the fallback search to the unresolved side of candidate.
      */
@@ -742,16 +741,15 @@ inline SInt ResolveMinimumCandidate(
     SInt right;
 
     if (!candidate_valid) {
-        /*
-         * Candidate lies strictly before the answer.
-         */
+        if (candidate == local_end - 1) {
+            throw ConfigurationError(
+                "Minimum sampler predicate has no solution "
+                "inside the local range");
+        }
+
         left  = candidate + 1;
         right = local_end - 1;
     } else {
-        /*
-         * Candidate satisfies the predicate, but its predecessor does too,
-         * so the answer lies strictly to the left.
-         */
         left  = local_begin;
         right = candidate - 1;
     }
@@ -769,9 +767,10 @@ inline SInt ResolveMinimumCandidate(
             left = mid + 1;
         }
     }
-
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     std::cerr << " , resolved:" << left
               << " , abs(candidate-resolved):" << (candidate > left ? candidate - left : left - candidate) << "]\n";
+#endif
     return left;
 }
 
@@ -1017,6 +1016,11 @@ SInt SampleMinimumImplicit(
     if (candidate_valid && predecessor_invalid) {
         return candidate;
     }
+
+    // Rare fallback.
+    // The recurrence could not prove correctness, so perform the exact
+    // monotone search using the already-defined predicate.
+    return ResolveMinimumCandidate(candidate, local_begin, local_end, at_or_right_of_answer, steps);
 }
 
 template <typename RNG>

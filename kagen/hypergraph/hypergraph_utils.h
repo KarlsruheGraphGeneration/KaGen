@@ -35,6 +35,9 @@ double getSampledOrConstantRadius(
 double
 SampleHyperedgeRadius(const PGeneratorConfig& config, double lower_bound, double upper_bound, Mersenne& mersenne);
 
+double EuclideanRadiusForExpectedHyperedgeSize(SInt expected_size, SInt num_vertices);
+double ExpectedHyperedgeSizeForEuclideanRadius(double radius, SInt num_vertices);
+
 double SampleHyperedgeRadiusFromUniform(
     const PGeneratorConfig& config, double uniform_random, double lower_bound, double upper_bound);
 
@@ -46,8 +49,8 @@ double QuantileOrConstantHyperedgeRadius(const PGeneratorConfig& config);
 
 template <typename RNG>
 void FloydSampleGeometricAppend(
-    const SInt universe_offset, const SInt universe_size, const SInt sample_size, RNG& rng,
-    std::vector<SInt>& out, std::unordered_set<SInt>& selected) {
+    const SInt universe_offset, const SInt universe_size, const SInt sample_size, RNG& rng, std::vector<SInt>& out,
+    std::unordered_set<SInt>& selected) {
     if (sample_size > universe_size) {
         throw ConfigurationError("Cannot sample more pins than available vertices");
     }

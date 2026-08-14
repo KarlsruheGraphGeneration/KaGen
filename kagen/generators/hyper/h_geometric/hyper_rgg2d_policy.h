@@ -153,6 +153,8 @@ private:
 
 public:
     void PrintExactCacheStats() const;
+
+    bool ShouldApproximatePartialCell(const Cell& cell) const;
 };
 
 } // namespace kagen

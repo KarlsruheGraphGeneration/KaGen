@@ -146,11 +146,11 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         auto* radius_exponent = radius_mode->add_option(
             "--radius-exponent", config.hyperedge_radius_exponent,
             "Use variable hyperedge radii with the given distribution exponent");
+
         radius_exponent->each(set_random_radius);
 
         auto* pin_budget = add_option_pin_budget(radius_mode);
 
-        // Exactly one of fixed radius, exponent, or pin budget.
         radius_mode->require_option(1);
         radius_mode->silent();
 
@@ -164,16 +164,29 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
             "--maxr,--radius-upper-bound", config.max_hyperedge_radius,
             "Optional upper bound for variable hyperedge radius");
 
+        auto* min_size = variable_radius_params->add_option(
+            "--lower-size-bound", config.size_dist_lower_bound, "Optional lower bound on expected hyperedge size");
+
+        auto* max_size = variable_radius_params->add_option(
+            "--upper-size-bound", config.size_dist_upper_bound, "Optional upper bound on expected hyperedge size");
+
         auto* radius_quantile = variable_radius_params->add_option(
             "--rq,--radius-quantile", config.quantile,
             "Quantile used to tune the spatial grid for variable hyperedge radii");
 
         radius_quantile->check(CLI::Range(0.0, 1.0));
 
-        // Variable-radius parameters must not be combined with fixed-radius mode.
         min_radius->excludes(fixed_radius);
         max_radius->excludes(fixed_radius);
+        min_size->excludes(fixed_radius);
+        max_size->excludes(fixed_radius);
         radius_quantile->excludes(fixed_radius);
+
+        min_radius->excludes(min_size);
+        min_size->excludes(min_radius);
+
+        max_radius->excludes(max_size);
+        max_size->excludes(max_radius);
 
         return radius_mode;
     };
