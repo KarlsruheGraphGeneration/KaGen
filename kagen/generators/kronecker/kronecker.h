@@ -44,6 +44,7 @@ private:
     // Constants and variables
     int     log_n_;
     SInt    num_edges_;
+    SInt    first_edge_;
     int64_t scramble1_, scramble2_;
 
     int Bernoulli(kronecker::mrg_state* st, int level, int nlevels);
