@@ -55,11 +55,16 @@ Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID
     const SInt edges_per_pe    = config_.m / size;
     const SInt remaining_edges = config_.m % size;
     num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
+    first_edge_                = rank * edges_per_pe + std::min<SInt>(rank, remaining_edges);
 }
 
 void Kronecker::GenerateEdgeList() {
     uint_fast32_t seed[5];
-    kronecker::make_mrg_seed(sampling::Spooky::hash((config_.seed + 1) * size_), sampling::Spooky::hash(rank_), seed);
+    /* The seed must be identical on all PEs: it determines the vertex scrambling permutation, and the edge
+     * stream is partitioned by global edge index below. Otherwise each PE would apply its own permutation to
+     * its share of the edges, which flattens the degree distribution as the number of PEs grows. */
+    kronecker::make_mrg_seed(
+        sampling::Spooky::hash(config_.seed + 1), sampling::Spooky::hash(config_.seed + 2), seed);
 
     kronecker::mrg_state state;
 
@@ -82,7 +87,7 @@ void Kronecker::GenerateEdgeList() {
 #endif
     for (SInt i = 0; i < num_edges_; ++i) {
         kronecker::mrg_state new_state = state;
-        kronecker::mrg_skip(&new_state, 0, (uint64_t)i, 0);
+        kronecker::mrg_skip(&new_state, 0, (uint64_t)(first_edge_ + i), 0);
         GenerateEdge(config_.n, 0, &new_state);
     }
 }
