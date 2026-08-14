@@ -11,6 +11,7 @@
 #include <stdlib.h>
 
 #include <cmath>
+#include <iostream>
 
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS
@@ -36,7 +37,25 @@
 /* #define SPK_NOISE_LEVEL 1000 -- in INITIATOR_DENOMINATOR units */
 
 namespace kagen {
-PGeneratorConfig KroneckerFactory::NormalizeParameters(PGeneratorConfig config, PEID, PEID, bool) const {
+PGeneratorConfig
+KroneckerFactory::NormalizeParameters(PGeneratorConfig config, PEID, PEID, const bool output) const {
+    if (config.n < 2) {
+        throw ConfigurationError("number of vertices must be at least two");
+    }
+
+    const SInt log_n = std::log2(config.n);
+    if (log_n > 63) {
+        throw ConfigurationError("number of vertices is too large (cannot be larger than 63 bits)");
+    }
+
+    if (config.n != 1ull << log_n) {
+        if (output) {
+            std::cout << "Warning: generator requires the number of vertices to be a power of two" << std::endl;
+            std::cout << "  Changing the number of vertices to " << (1ull << log_n) << std::endl;
+        }
+        config.n = 1ull << log_n;
+    }
+
     config.external.refuse_external_mode = true;
     return config;
 }
