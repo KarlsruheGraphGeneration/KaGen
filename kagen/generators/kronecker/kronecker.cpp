@@ -21,8 +21,8 @@
  * probabilities are defined as fractions (a = INITIATOR_A_NUMERATOR /
  * INITIATOR_DENOMINATOR, b = c = INITIATOR_BC_NUMERATOR /
  * INITIATOR_DENOMINATOR, d = 1 - a - b - c. */
-#define INITIATOR_A_NUMERATOR  2500
-#define INITIATOR_BC_NUMERATOR 2500
+#define INITIATOR_A_NUMERATOR  5700
+#define INITIATOR_BC_NUMERATOR 1900
 #define INITIATOR_DENOMINATOR  10000
 
 /* If this macro is defined to a non-zero value, use SPK_NOISE_LEVEL /
