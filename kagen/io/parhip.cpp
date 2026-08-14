@@ -107,7 +107,7 @@ void ParhipWriter::WriteOffsets(const std::string& filename, const XadjArray& xa
 void ParhipWriter::WriteOffsets(const std::string& filename) {
     std::vector<ParhipID> offset(graph_.NumberOfLocalVertices() + 1);
 
-    const int vertex_id_width = config_.width == 32 ? 4 : 8;
+    const int vertex_id_width = config_.vtx_width == 32 ? 4 : 8;
     SInt cur_offset = 3 * sizeof(ParhipID) + (info_.global_n + 1) * sizeof(ParhipID) + info_.offset_m * vertex_id_width;
     SInt cur_edge   = 0;
     SInt cur_vertex = 0;
@@ -218,7 +218,7 @@ SInt OffsetToEdge(const SInt version, const SInt n, const SInt offset) {
 }
 
 SInt ReadFirstEdge(std::ifstream& in, const SInt version, const SInt n, const SInt u) {
-    const int  edge_id_width = Has32BitVertexIDs(version) ? 4 : 8;
+    const int  edge_id_width = Has32BitEdgeIDs(version) ? 4 : 8;
     const SInt offset        = 3 * sizeof(ParhipID) + u * edge_id_width;
     in.seekg(static_cast<std::streamsize>(offset));
     if (in.rdstate()) {
