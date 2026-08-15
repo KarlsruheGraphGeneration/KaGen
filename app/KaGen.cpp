@@ -269,8 +269,6 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
                           ->expected(1, -1)
                           ->check(CLI::Range(min_hyperedge_size, max_hyperedge_size));
 
-        lower->needs(upper);
-        upper->needs(lower);
         sizes->excludes(lower);
         sizes->excludes(upper);
 
@@ -553,8 +551,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");
 
         add_hyperedge_radius_options(hyperedge_dist_options);
-
-        hyperedge_dist_options->require_option(1);
 
         add_partial_cell_mode(cmd);
     }
