@@ -11,6 +11,7 @@
 #include <stdlib.h>
 
 #include <cmath>
+#include <iostream>
 
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS
@@ -21,8 +22,8 @@
  * probabilities are defined as fractions (a = INITIATOR_A_NUMERATOR /
  * INITIATOR_DENOMINATOR, b = c = INITIATOR_BC_NUMERATOR /
  * INITIATOR_DENOMINATOR, d = 1 - a - b - c. */
-#define INITIATOR_A_NUMERATOR  2500
-#define INITIATOR_BC_NUMERATOR 2500
+#define INITIATOR_A_NUMERATOR  5700
+#define INITIATOR_BC_NUMERATOR 1900
 #define INITIATOR_DENOMINATOR  10000
 
 /* If this macro is defined to a non-zero value, use SPK_NOISE_LEVEL /
@@ -36,7 +37,25 @@
 /* #define SPK_NOISE_LEVEL 1000 -- in INITIATOR_DENOMINATOR units */
 
 namespace kagen {
-PGeneratorConfig KroneckerFactory::NormalizeParameters(PGeneratorConfig config, PEID, PEID, bool) const {
+PGeneratorConfig
+KroneckerFactory::NormalizeParameters(PGeneratorConfig config, PEID, PEID, const bool output) const {
+    if (config.n < 2) {
+        throw ConfigurationError("number of vertices must be at least two");
+    }
+
+    const SInt log_n = std::log2(config.n);
+    if (log_n > 63) {
+        throw ConfigurationError("number of vertices is too large (cannot be larger than 63 bits)");
+    }
+
+    if (config.n != 1ull << log_n) {
+        if (output) {
+            std::cout << "Warning: generator requires the number of vertices to be a power of two" << std::endl;
+            std::cout << "  Changing the number of vertices to " << (1ull << log_n) << std::endl;
+        }
+        config.n = 1ull << log_n;
+    }
+
     config.external.refuse_external_mode = true;
     return config;
 }
@@ -48,18 +67,21 @@ KroneckerFactory::Create(const PGeneratorConfig& config, const PEID rank, const 
 
 Kronecker::Kronecker(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : Graph500Generator(config),
-      config_(config),
-      size_(size),
-      rank_(rank) {
+      config_(config) {
     log_n_                     = std::log2(config_.n);
     const SInt edges_per_pe    = config_.m / size;
     const SInt remaining_edges = config_.m % size;
     num_edges_                 = edges_per_pe + ((SInt)rank < remaining_edges);
+    first_edge_                = rank * edges_per_pe + std::min<SInt>(rank, remaining_edges);
 }
 
 void Kronecker::GenerateEdgeList() {
     uint_fast32_t seed[5];
-    kronecker::make_mrg_seed(sampling::Spooky::hash((config_.seed + 1) * size_), sampling::Spooky::hash(rank_), seed);
+    /* The seed must be identical on all PEs: it determines the vertex scrambling permutation, and the edge
+     * stream is partitioned by global edge index below. Otherwise each PE would apply its own permutation to
+     * its share of the edges, which flattens the degree distribution as the number of PEs grows. */
+    kronecker::make_mrg_seed(
+        sampling::Spooky::hash(config_.seed + 1), sampling::Spooky::hash(config_.seed + 2), seed);
 
     kronecker::mrg_state state;
 
@@ -82,7 +104,7 @@ void Kronecker::GenerateEdgeList() {
 #endif
     for (SInt i = 0; i < num_edges_; ++i) {
         kronecker::mrg_state new_state = state;
-        kronecker::mrg_skip(&new_state, 0, (uint64_t)i, 0);
+        kronecker::mrg_skip(&new_state, 0, (uint64_t)(first_edge_ + i), 0);
         GenerateEdge(config_.n, 0, &new_state);
     }
 }

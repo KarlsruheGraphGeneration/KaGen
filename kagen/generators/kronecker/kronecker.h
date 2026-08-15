@@ -39,12 +39,12 @@ protected:
 private:
     // Config
     const PGeneratorConfig& config_;
-    PEID                    size_, rank_;
 
     // Constants and variables
-    int     log_n_;
-    SInt    num_edges_;
-    int64_t scramble1_, scramble2_;
+    int      log_n_;
+    SInt     num_edges_;
+    SInt     first_edge_;
+    uint64_t scramble1_, scramble2_;
 
     int Bernoulli(kronecker::mrg_state* st, int level, int nlevels);
 

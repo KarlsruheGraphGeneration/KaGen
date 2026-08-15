@@ -13,7 +13,7 @@
 #include "kagen/generators/kronecker/splittable_mrg.h"
 
 namespace kagen::kronecker{
-const mrg_transition_matrix mrg_skip_matrices[][256] = {
+inline const mrg_transition_matrix mrg_skip_matrices[][256] = {
     /* Byte 0 */ {
         {0, 0, 0, 0, 1, 0, 0, 0, 1},
         {0, 0, 0, 1, 0, 0, 0, 1, 107374182},

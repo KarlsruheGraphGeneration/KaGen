@@ -39,7 +39,7 @@ typedef struct mrg_transition_matrix {
     uint_fast32_t a, b, c, d;
 } mrg_transition_matrix;
 
-static void mrg_orig_step(mrg_state* state) { /* Use original A, not fully optimized yet */
+inline void mrg_orig_step(mrg_state* state) { /* Use original A, not fully optimized yet */
     uint_fast32_t new_elt = mod_mac_y(mod_mul_x(state->z1), state->z5);
     state->z5             = state->z4;
     state->z4             = state->z3;
@@ -78,7 +78,7 @@ inline void mrg_seed(mrg_state* st, const uint_fast32_t seed[5]) {
     st->z5 = seed[4];
 }
 
-static void mrg_apply_transition(const mrg_transition_matrix* mat, const mrg_state* st, mrg_state* r) {
+inline void mrg_apply_transition(const mrg_transition_matrix* mat, const mrg_state* st, mrg_state* r) {
     uint_fast32_t o1 =
         mod_mac_y(mod_mul(mat->d, st->z1), mod_mac4(0, mat->s, st->z2, mat->a, st->z3, mat->b, st->z4, mat->c, st->z5));
     uint_fast32_t o2 = mod_mac_y(
@@ -96,7 +96,7 @@ static void mrg_apply_transition(const mrg_transition_matrix* mat, const mrg_sta
     r->z5 = o5;
 }
 
-static void mrg_step(const mrg_transition_matrix* mat, mrg_state* state) {
+inline void mrg_step(const mrg_transition_matrix* mat, mrg_state* state) {
     mrg_apply_transition(mat, state, state);
 }
 
