@@ -137,7 +137,7 @@ std::vector<SInt> ReadExplicitVertexDistribution(const std::string& filename, co
 
     if (!is_prefix_sum) {
         number_of_vertices.push_back(0);
-        std::exclusive_scan(number_of_vertices.begin(), number_of_vertices.end(), number_of_vertices.begin(), 0);
+        std::exclusive_scan(number_of_vertices.begin(), number_of_vertices.end(), number_of_vertices.begin(), SInt{0});
     }
 
     return number_of_vertices;

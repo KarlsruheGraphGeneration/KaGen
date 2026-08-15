@@ -145,7 +145,7 @@ std::vector<SInt> ComputeBalancedVertexDistribution(const SInt n, MPI_Comm comm)
     for (PEID pe = 0; pe < size; ++pe) {
         distribution[pe] = num_vertices_per_pe + (static_cast<SInt>(pe) < remaining_vertices);
     }
-    std::exclusive_scan(distribution.begin(), distribution.end(), distribution.begin(), 0);
+    std::exclusive_scan(distribution.begin(), distribution.end(), distribution.begin(), SInt{0});
     distribution.back() = n;
 
     return distribution;
