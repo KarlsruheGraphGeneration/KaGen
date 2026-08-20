@@ -1,6 +1,7 @@
 #include "kagen/tools/statistics.h"
 
 #include "kagen/definitions.h"
+#include "kagen/kagen.h"
 #include "kagen/tools/utils.h"
 
 #include <mpi.h>
@@ -90,6 +91,14 @@ LPFloat ReduceSD(const SInt value, MPI_Comm comm) {
     return 0.0; // non-root
 }
 
+namespace {
+// Reduces already-computed local min/sum/max degrees into global DegreeStatistics.
+DegreeStatistics ReduceLocalDegreeStatistics(
+    const SInt local_min, const SInt local_sum, const SInt local_max, const SInt global_num_nodes, MPI_Comm comm) {
+    return {ReduceMin(local_min, comm), 1.0 * ReduceSum(local_sum, comm) / global_num_nodes, ReduceMax(local_max, comm)};
+}
+} // namespace
+
 DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, const SInt global_num_nodes, MPI_Comm comm) {
     assert(std::is_sorted(edges.begin(), edges.end()));
 
@@ -120,15 +129,22 @@ DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, const SInt global
     }
     update(cur_degree);
 
-    SInt global_min = 0, global_sum = 0, global_max = 0;
-    MPI_Reduce(&min, &global_min, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, ROOT, comm);
-    MPI_Reduce(&sum, &global_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
-    MPI_Reduce(&max, &global_max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOT, comm);
+    return ReduceLocalDegreeStatistics(min, sum, max, global_num_nodes, comm);
+}
 
-    PEID size = 0;
-    MPI_Comm_size(comm, &size);
+DegreeStatistics ReduceDegreeStatistics(const XadjArray& xadj, const SInt global_num_nodes, MPI_Comm comm) {
+    SInt min = std::numeric_limits<SInt>::max();
+    SInt sum = 0;
+    SInt max = std::numeric_limits<SInt>::lowest();
 
-    return {global_min, 1.0 * global_sum / global_num_nodes, global_max};
+    for (std::size_t i = 0; i + 1 < xadj.size(); ++i) {
+        const SInt deg = xadj[i + 1] - xadj[i];
+        min            = std::min(min, deg);
+        max            = std::max(max, deg);
+        sum += deg;
+    }
+
+    return ReduceLocalDegreeStatistics(min, sum, max, global_num_nodes, comm);
 }
 
 std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
@@ -167,19 +183,48 @@ std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, const VertexRange ver
     return global_bins;
 }
 
+std::vector<SInt> ComputeDegreeBins(const XadjArray& xadj, MPI_Comm comm) {
+    std::vector<SInt> bins(std::numeric_limits<SInt>::digits);
+
+    for (std::size_t i = 0; i + 1 < xadj.size(); ++i) {
+        const SInt deg = xadj[i + 1] - xadj[i];
+        const SInt bin = (deg == 0) ? 0 : (std::log2(deg) + 1);
+        ++bins[bin];
+    }
+
+    std::vector<SInt> global_bins(bins.size());
+    MPI_Reduce(bins.data(), global_bins.data(), bins.size(), KAGEN_MPI_SINT, MPI_SUM, ROOT, comm);
+
+    return global_bins;
+}
+
+namespace {
+// Shared tail for ComputeEdgeLocality: given how many of the local edge endpoints are cut edges (point outside
+// vertex_range) and the local edge count, reduces both and turns them into a locality fraction.
+double ReduceEdgeLocality(const SInt num_local_cut_edges, const SInt num_local_edges, MPI_Comm comm) {
+    const SInt num_global_cut_edges = ReduceSum(num_local_cut_edges, comm);
+    const SInt num_global_edges     = ReduceSum(num_local_edges, comm);
+    return 1.0 - DivideOrDefault(static_cast<double>(num_global_cut_edges), static_cast<double>(num_global_edges), 0.0);
+}
+
+// Shared tail for ComputeNumberOfGhostNodes: reduces the count of distinct out-of-range endpoints found locally.
+SInt ReduceNumberOfGhostNodes(const std::unordered_set<SInt>& ghost_nodes, MPI_Comm comm) {
+    return ReduceSum(static_cast<SInt>(ghost_nodes.size()), comm);
+}
+} // namespace
+
 double ComputeEdgeLocality(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
     const SInt num_local_cut_edges = std::count_if(edges.begin(), edges.end(), [&vertex_range](const auto& edge) {
         return std::get<1>(edge) < vertex_range.first || std::get<1>(edge) >= vertex_range.second;
     });
-    const SInt num_local_edges     = edges.size();
+    return ReduceEdgeLocality(num_local_cut_edges, edges.size(), comm);
+}
 
-    SInt num_global_cut_edges = 0;
-    SInt num_global_edges     = 0;
-
-    MPI_Reduce(&num_local_cut_edges, &num_global_cut_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
-    MPI_Reduce(&num_local_edges, &num_global_edges, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
-
-    return 1.0 - DivideOrDefault(static_cast<double>(num_global_cut_edges), static_cast<double>(num_global_edges), 0.0);
+double ComputeEdgeLocality(const AdjncyArray& adjncy, const VertexRange vertex_range, MPI_Comm comm) {
+    const SInt num_local_cut_edges = std::count_if(adjncy.begin(), adjncy.end(), [&vertex_range](const SInt to) {
+        return to < vertex_range.first || to >= vertex_range.second;
+    });
+    return ReduceEdgeLocality(num_local_cut_edges, adjncy.size(), comm);
 }
 
 SInt ComputeNumberOfGhostNodes(const Edgelist& edges, const VertexRange vertex_range, MPI_Comm comm) {
@@ -191,10 +236,19 @@ SInt ComputeNumberOfGhostNodes(const Edgelist& edges, const VertexRange vertex_r
         }
     }
 
-    const SInt num_local_ghost_nodes  = ghost_nodes.size();
-    SInt       num_global_ghost_nodes = 0;
-    MPI_Reduce(&num_local_ghost_nodes, &num_global_ghost_nodes, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOT, comm);
-    return num_global_ghost_nodes;
+    return ReduceNumberOfGhostNodes(ghost_nodes, comm);
+}
+
+SInt ComputeNumberOfGhostNodes(const AdjncyArray& adjncy, const VertexRange vertex_range, MPI_Comm comm) {
+    std::unordered_set<SInt> ghost_nodes;
+
+    for (const SInt to: adjncy) {
+        if (to < vertex_range.first || to >= vertex_range.second) {
+            ghost_nodes.insert(to);
+        }
+    }
+
+    return ReduceNumberOfGhostNodes(ghost_nodes, comm);
 }
 
 namespace {
@@ -270,6 +324,70 @@ void PrintBasicStatistics(const Edgelist& edges, const VertexRange vertex_range,
     PrintBasicStatistics(vertex_range.second - vertex_range.first, edges.size(), root, comm);
 }
 
+namespace {
+struct AdvancedStatistics {
+    double             density;
+    DegreeStatistics   degree;
+    std::vector<SInt>  degree_bins;
+    double             edge_locality;
+    SInt               global_num_nodes;
+    SInt               global_num_ghost_nodes;
+};
+
+void PrintAdvancedStatistics(const AdvancedStatistics& stats) {
+    std::cout << "Density: " << std::fixed << std::setprecision(4) << stats.density << "\n";
+    std::cout << "Degrees: [Min=" << stats.degree.min << " | Mean=" << std::fixed << std::setprecision(1)
+               << stats.degree.mean << " | Max=" << stats.degree.max << "]\n";
+
+    // Find last non-empty degree bin
+    SInt last_nonempty_degree_bin = 0;
+    for (SInt i = 0; i < stats.degree_bins.size(); ++i) {
+        if (stats.degree_bins[i] > 0) {
+            last_nonempty_degree_bin = i;
+        }
+    }
+
+    // Print degree bins
+    const SInt digits10 = std::log10(1 << last_nonempty_degree_bin) + 1;
+
+    std::cout << "Degree bins:\n";
+    for (SInt i = 0; i <= last_nonempty_degree_bin; ++i) {
+        const SInt from = (i == 0) ? 0 : 1 << (i - 1);
+        const SInt to   = 2 * from;
+        std::cout << "  Degree in [" << std::setw(digits10) << from << ", " << std::setw(digits10) << to
+                  << "): " << stats.degree_bins[i] << "\n";
+    }
+
+    // Print locality statistics
+    const double ghost_node_fraction =
+        1.0 * stats.global_num_ghost_nodes / (stats.global_num_nodes + stats.global_num_ghost_nodes);
+    std::cout << "Edge locality: " << std::fixed << std::setprecision(4) << stats.edge_locality << std::endl;
+    std::cout << "Fraction of ghost nodes: " << std::fixed << std::setprecision(4) << ghost_node_fraction
+              << std::endl;
+    std::cout << "  There are " << stats.global_num_nodes << " real vertices and " << stats.global_num_ghost_nodes
+              << " ghost vertices" << std::endl;
+}
+} // namespace
+
+void PrintAdvancedStatistics(
+    const XadjArray& xadj, const AdjncyArray& adjncy, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
+    const auto local_num_nodes  = xadj.size() - 1;
+    const auto global_num_nodes = ReduceSum(local_num_nodes, comm);
+    const auto global_num_edges = ReduceSum(adjncy.size(), comm);
+
+    const double density  = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
+    const auto   degree   = ReduceDegreeStatistics(xadj, global_num_nodes, comm);
+    const auto   degree_bins = ComputeDegreeBins(xadj, comm);
+
+    const double edge_locality          = ComputeEdgeLocality(adjncy, vertex_range, comm);
+    const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(adjncy, vertex_range, comm);
+
+    if (root) {
+        PrintAdvancedStatistics(
+            AdvancedStatistics{density, degree, degree_bins, edge_locality, global_num_nodes, global_num_ghost_nodes});
+    }
+}
+
 void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
     // Sort edges for degree computation
     if (!std::is_sorted(edges.begin(), edges.end())) {
@@ -279,49 +397,19 @@ void PrintAdvancedStatistics(Edgelist& edges, const VertexRange vertex_range, co
     // Compute degree statistics
     const auto local_num_nodes  = vertex_range.second - vertex_range.first;
     const auto global_num_nodes = ReduceSum(local_num_nodes, comm);
-    const auto local_num_edges  = edges.size();
-    const auto global_num_edges = ReduceSum(local_num_edges, comm);
+    const auto global_num_edges = ReduceSum(edges.size(), comm);
 
-    const double density = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
-    const auto [min_degree, mean_degree, max_degree] = ReduceDegreeStatistics(edges, global_num_nodes, comm);
-    const auto degree_bins                           = ComputeDegreeBins(edges, vertex_range, comm);
+    const double density     = 1.0 * global_num_edges / global_num_nodes / (global_num_nodes - 1);
+    const auto   degree      = ReduceDegreeStatistics(edges, global_num_nodes, comm);
+    const auto   degree_bins = ComputeDegreeBins(edges, vertex_range, comm);
 
     // Compute locality statistics
     const double edge_locality          = ComputeEdgeLocality(edges, vertex_range, comm);
     const SInt   global_num_ghost_nodes = ComputeNumberOfGhostNodes(edges, vertex_range, comm);
-    const double ghost_node_fraction    = 1.0 * global_num_ghost_nodes / (global_num_nodes + global_num_ghost_nodes);
 
-    // Print on root
     if (root) {
-        std::cout << "Density: " << std::fixed << std::setprecision(4) << density << "\n";
-        std::cout << "Degrees: [Min=" << min_degree << " | Mean=" << std::fixed << std::setprecision(1) << mean_degree
-                  << " | Max=" << max_degree << "]\n";
-
-        // Find last non-empty degree bin
-        SInt last_nonempty_degree_bin = 0;
-        for (SInt i = 0; i < degree_bins.size(); ++i) {
-            if (degree_bins[i] > 0) {
-                last_nonempty_degree_bin = i;
-            }
-        }
-
-        // Print degree bins
-        const SInt digits10 = std::log10(1 << last_nonempty_degree_bin) + 1;
-
-        std::cout << "Degree bins:\n";
-        for (SInt i = 0; i <= last_nonempty_degree_bin; ++i) {
-            const SInt from = (i == 0) ? 0 : 1 << (i - 1);
-            const SInt to   = 2 * from;
-            std::cout << "  Degree in [" << std::setw(digits10) << from << ", " << std::setw(digits10) << to
-                      << "): " << degree_bins[i] << "\n";
-        }
-
-        // Print locality statistics
-        std::cout << "Edge locality: " << std::fixed << std::setprecision(4) << edge_locality << std::endl;
-        std::cout << "Fraction of ghost nodes: " << std::fixed << std::setprecision(4) << ghost_node_fraction
-                  << std::endl;
-        std::cout << "  There are " << global_num_nodes << " real vertices and " << global_num_ghost_nodes
-                  << " ghost vertices" << std::endl;
+        PrintAdvancedStatistics(
+            AdvancedStatistics{density, degree, degree_bins, edge_locality, global_num_nodes, global_num_ghost_nodes});
     }
 }
 } // namespace kagen

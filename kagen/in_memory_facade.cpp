@@ -169,8 +169,7 @@ Graph GenerateInMemory(const PGeneratorConfig& config_template, GraphRepresentat
                 PrintBasicStatistics(graph.xadj, graph.adjncy, graph.vertex_range, rank == ROOT, comm);
             }
             if (config.statistics_level >= StatisticsLevel::ADVANCED) {
-                std::cout << "Advanced statistics are not available when generating the graph in CSR representation"
-                          << std::endl;
+                PrintAdvancedStatistics(graph.xadj, graph.adjncy, graph.vertex_range, rank == ROOT, comm);
             }
         }
         if (output_info && config.statistics_level != StatisticsLevel::NONE) {
