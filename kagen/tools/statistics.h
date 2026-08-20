@@ -26,17 +26,24 @@ struct DegreeStatistics {
 };
 
 DegreeStatistics ReduceDegreeStatistics(const Edgelist& edges, SInt global_num_nodes, MPI_Comm comm);
+DegreeStatistics ReduceDegreeStatistics(const XadjArray& xadj, SInt global_num_nodes, MPI_Comm comm);
 
 std::vector<SInt> ComputeDegreeBins(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+std::vector<SInt> ComputeDegreeBins(const XadjArray& xadj, MPI_Comm comm);
 
 double ComputeEdgeLocality(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+double ComputeEdgeLocality(const AdjncyArray& adjncy, VertexRange vertex_range, MPI_Comm comm);
 
 SInt ComputeNumberOfGhostNodes(const Edgelist& edges, VertexRange vertex_range, MPI_Comm comm);
+SInt ComputeNumberOfGhostNodes(const AdjncyArray& adjncy, VertexRange vertex_range, MPI_Comm comm);
 
 void PrintBasicStatistics(
     const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, bool root, MPI_Comm comm);
 
 void PrintBasicStatistics(const Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
+
+void PrintAdvancedStatistics(
+    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange vertex_range, bool root, MPI_Comm comm);
 
 void PrintAdvancedStatistics(Edgelist& edges, VertexRange vertex_range, bool root, MPI_Comm comm);
 } // namespace kagen
