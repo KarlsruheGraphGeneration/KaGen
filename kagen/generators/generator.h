@@ -1,11 +1,11 @@
 #pragma once
 
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/kagen.h"
 
 #include <mpi.h>
 
-#include <exception>
 #include <memory>
 
 namespace kagen {
@@ -23,6 +23,8 @@ public:
 
     SInt GetNumberOfEdges() const;
 
+    bool HasSplitVertices() const;
+
     Graph Take();
 
     virtual void PermuteVertices(const PGeneratorConfig& config, MPI_Comm comm);
@@ -39,6 +41,11 @@ protected:
     virtual void FinalizeCSR(MPI_Comm comm);
 
     void SetVertexRange(VertexRange vetrex_range);
+
+    void SetHasSplitVertices(bool has_split_vertices);
+
+    void SetPartialVertices(
+        std::optional<SplitVertexInfo> left_partial_vertex, std::optional<SplitVertexInfo> right_partial_vertex);
 
     inline void PushCoordinate(const HPFloat x, const HPFloat y) {
         graph_.coordinates.first.emplace_back(x, y);
@@ -76,18 +83,6 @@ protected:
 
 private:
     void Reset();
-};
-
-class ConfigurationError : public std::exception {
-public:
-    ConfigurationError(std::string what) : _what(std::move(what)) {}
-
-    const char* what() const noexcept override {
-        return _what.c_str();
-    }
-
-private:
-    std::string _what;
 };
 
 class EdgeListOnlyGenerator : virtual Generator {

@@ -143,6 +143,7 @@ Graph PlainEdgelistReader::Read(const SInt from, const SInt to, SInt, GraphRepre
     }
 
     Graph graph;
+    graph.representation = GraphRepresentation::EDGE_LIST;
     while (toker_.ValidPosition() && toker_.Position() < to) {
         const SInt u = toker_.ScanUnsigned();
         const SInt v = toker_.ScanUnsigned();
@@ -230,6 +231,7 @@ Graph WeightedBinaryEdgelistReader::Read(const SInt from, const SInt to, SInt, G
     }
 
     Graph graph;
+    graph.representation = GraphRepresentation::EDGE_LIST;
     for (std::size_t i = 0; i < data.size();) {
         SInt from = 0;
         std::memcpy(&from, data.data() + i, vtx_width_);
@@ -248,6 +250,15 @@ Graph WeightedBinaryEdgelistReader::Read(const SInt from, const SInt to, SInt, G
     }
 
     return graph;
+}
+
+Graph WeightedBinaryEdgelistReader::ReadStrictEdgeRange(
+    const SInt from_edge, const SInt to_edge, GraphRepresentation) {
+    // Fixed-width records are directly edge-indexed, so a strict edge range is exactly the [from_edge, to_edge)
+    // record slice (Read already treats its bounds as edge indices). Whether this contiguous slice maps to a
+    // coherent, splittable vertex partition depends on the file being globally tail-sorted, which the caller
+    // verifies collectively (StrictEdgeRangeRequiresSortednessCheck) before trusting the result.
+    return Read(from_edge, to_edge, /*to_edge=*/0, GraphRepresentation::EDGE_LIST);
 }
 
 SInt WeightedBinaryEdgelistReader::FindNodeByEdge(SInt) {

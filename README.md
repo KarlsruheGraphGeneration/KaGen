@@ -257,6 +257,36 @@ An edge is owned by the PE that owns its tail vertex.
 Thus, an edge (u, v) is in the edge list of the PE that owns vertex u, while the reverse edge 
 (v, u) is in the edge list of the PE owning vertex v.
 
+## Distributing the Generated Graph Across PEs
+
+Several generators (`gnm-directed`, `gnm-undirected`, `rgg2d`, `rgg3d`, `rmat`, `kronecker`) as well as the
+[File Graph Generator](#file-graph-generator) accept a `--redistribution` (generators) / `--distribution` (file
+graph generator) option controlling how the graph is split across PEs:
+
+* `balance-vertices` (default): each PE owns roughly the same number of *vertices*. This may leave PEs with a
+  very different number of edges if the graph has vertices of very different degree (e.g. a scale-free graph
+  with a few high-degree hub vertices).
+* `balance-edges`: each PE owns roughly the same number of *edges*, without splitting any single vertex's
+  outgoing edges across multiple PEs (a PE still owns a vertex's whole adjacency). This bounds the remaining
+  imbalance by the degree of the single largest vertex assigned to any one PE, which may still be significant
+  for graphs with a very dominant hub.
+* `balance-edges-strict`: each PE owns exactly (+/-1) the same number of edges, splitting a single vertex's own
+  edges across multiple PEs if necessary to achieve this. This breaks the "a PE owns a vertex's whole adjacency"
+  invariant described above, so it is **only supported for edge-list-shaped consumption**: plain edge list /
+  binary edge list output, and the in-memory `Edgelist` API. It is incompatible with adjacency-grouped output
+  formats (METIS, ParHIP, HMETIS, DOT, XtraPuLP, freight-netl, netd-are), `--validate-simple-graph`, statistics,
+  and cross-PE-lookup edge weight generators (`hashing_based`, `uniform_random`); combining `balance-edges-strict`
+  with any of these fails fast with a `ConfigurationError` instead of producing corrupted output -- but only if
+  the graph actually ends up with a split vertex (a graph with no real hub is fully compatible with everything
+  regardless of which mode was requested).
+
+For the geometric generators (`rgg2d`, `rgg3d`), both `balance-edges` and `balance-edges-strict` are additionally
+incompatible with `--coordinates` (redistributing/splitting vertices would require a second, coordinate-aware
+exchange that isn't implemented) and with `--edgeweights-generator=euclidean_distance` (those weights are
+computed during generation, in lockstep with the edge list at the time, and would desync from their edges once
+redistributed); both combinations fail fast with a `ConfigurationError`. Use `--redistribution=balance-vertices`
+(the default) if you need coordinates or Euclidean-distance edge weights from these generators.
+
 ## Communication-free Graph Generators
 
 ### Erdos-Renyi Graphs with Fixed Number of Edges
@@ -273,6 +303,7 @@ mpirun -n <nproc> ./KaGen <gnm-directed|gnm-undirected>
   [--self-loops]
   [-k <number of chunks>]
   [-s <seed>]
+  [--redistribution=<balance-vertices|balance-edges|balance-edges-strict>]
 ```
 
 #### Library
@@ -327,6 +358,7 @@ mpirun -n <nproc> ./KaGen <rgg2d|rgg3d>
   [-M <number of edges as a power of two>] # only if -n or -r are omitted
   [-k <number of chunks>] 
   [-s <seed>]
+  [--redistribution=<balance-vertices|balance-edges|balance-edges-strict>] # see note below on --coordinates
 ```
 
 #### Library
@@ -489,6 +521,7 @@ mpirun -n <nproc> ./KaGen rmat
   [--directed]
   [--self-loops]
   [-s <seed>]
+  [--redistribution=<balance-vertices|balance-edges|balance-edges-strict>]
 ```
 
 #### Library 
@@ -516,6 +549,7 @@ mpirun -n <nproc> ./KaGen kronecker
   [--directed]
   [--self-loops]
   [-s <seed>]
+  [--redistribution=<balance-vertices|balance-edges|balance-edges-strict>]
 ```
 
 #### Library 
@@ -571,7 +605,7 @@ Can be used to convert input formats to output format, or to load static graphs 
 mpirun -n <nproc> ./KaGen file
   --filename=<path to graph>
   --input-format=<metis|parhip>
-  [--distribution=<balance-vertices|balance-edges>]
+  [--distribution=<balance-vertices|balance-edges|balance-edges-strict>]
 ```
 
 #### Library 

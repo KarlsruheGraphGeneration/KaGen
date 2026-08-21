@@ -217,7 +217,8 @@ Statistics ComputeStatistics(const Configuration& stats_config) {
     }
 
     if (stats_config.num_chunks == 1) {
-        const Graph graph = FinalizeGraphFragment(std::move(first_fragment), false, MPI_COMM_WORLD);
+        const Graph graph =
+            FinalizeGraphFragment(std::move(first_fragment), stats_config.io_config, false, MPI_COMM_WORLD);
         return computator.Finalize(graph);
     } else {
         return computator.Finalize();
