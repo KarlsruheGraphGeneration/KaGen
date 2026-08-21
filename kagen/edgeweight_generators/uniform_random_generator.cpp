@@ -8,6 +8,8 @@
 
 #include <cassert>
 #include <random>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -37,22 +39,29 @@ struct EdgeHasher {
         std::size_t h2   = std::hash<std::uint64_t>{}(static_cast<uint64_t>(edge.second));
         std::size_t seed = h1;
         hash_combine(seed, h2);
-	return seed;
+        return seed;
     }
 };
+
+// Picks one direction of an undirected edge as the canonical one; PE holding tail draws the weight and sends it
+// to the PE holding the head. Symmetric in u and v, so both PEs agree without communicating. The parity term is a
+// load-balancing tie-break: plain u < v would make the smaller vertex canonical for every cut edge, putting all
+// weight generation on the low-rank PEs. A self loop is its own reverse edge, hence always canonical.
+bool is_canonically_ordered(SInt u, SInt v) {
+    if (u == v) {
+        return true;
+    }
+    return ((u ^ v) & 1u) == 0 ? u < v : u > v;
+}
 
 std::pair<SInt, SInt> get_canonical_order(std::pair<SInt, SInt> const& edge) {
     auto u = std::get<0>(edge);
     auto v = std::get<1>(edge);
-    if (u < v) {
+    if (is_canonically_ordered(u, v)) {
         return std::make_pair(u, v);
     } else {
         return std::make_pair(v, u);
     }
-}
-
-bool is_canonically_ordered(SInt u, SInt v) {
-    return u < v;
 }
 
 template <typename Edge>
@@ -100,18 +109,23 @@ void GenerateEdgeWeightsImpl(
     std::unordered_map<PEID, std::vector<EdgeData>> message_buffers;
     std::unordered_map<Edge, SInt, EdgeHasher>      edge_to_weight_map;
 
-    for (const auto& edge: edge_range) {
+    edge_to_weight_map.reserve(edge_range.size());
+    weights.resize(edge_range.size());
+
+    for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
+        const auto edge = *it;
         if (is_canonically_ordered(edge)) {
-            auto it = edge_to_weight_map.find(edge);
-            if (it == edge_to_weight_map.end()) {
+            auto [map_it, inserted] = edge_to_weight_map.try_emplace(edge, 0);
+            if (inserted) {
                 const SSInt weight = weight_dist(gen);
                 const SInt  head   = std::get<1>(edge);
-                edge_to_weight_map.emplace(edge, weight);
+                map_it->second     = weight;
                 if ((head < local_from || head >= local_to)) {
                     const SInt pe = static_cast<SInt>(FindPEInRange(head, ranges));
                     message_buffers[pe].emplace_back(edge, weight);
                 }
             }
+            weights[it.edge_index()] = map_it->second;
         }
     }
 
@@ -128,11 +142,19 @@ void GenerateEdgeWeightsImpl(
         edge_to_weight_map.emplace(key, weight);
     }
     dump(std::move(recv_buf));
-    weights.resize(edge_range.size());
+
     for (auto it = edge_range.begin(); it != edge_range.end(); ++it) {
-        auto find_result_it = edge_to_weight_map.find(get_canonical_order(*it));
-        assert(find_result_it != edge_to_weight_map.end());
-        weights[it.edge_index()] = find_result_it->second;
+        const auto edge = *it;
+        if (!is_canonically_ordered(edge)) {
+            auto find_result_it = edge_to_weight_map.find(get_canonical_order(edge));
+            if (find_result_it == edge_to_weight_map.end()) {
+                const auto [u, v] = edge;
+                throw std::runtime_error(
+                    "Edge (" + std::to_string(u) + ", " + std::to_string(v)
+                    + ") has no reverse edge: uniform random edge weights require an undirected graph.");
+            }
+            weights[it.edge_index()] = find_result_it->second;
+        }
     }
 }
 
