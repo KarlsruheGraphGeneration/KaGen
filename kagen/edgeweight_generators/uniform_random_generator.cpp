@@ -43,6 +43,10 @@ struct EdgeHasher {
     }
 };
 
+// Picks one direction of an undirected edge as the canonical one; PE holding tail draws the weight and sends it
+// to the PE holding the head. Symmetric in u and v, so both PEs agree without communicating. The parity term is a
+// load-balancing tie-break: plain u < v would make the smaller vertex canonical for every cut edge, putting all
+// weight generation on the low-rank PEs. Self loops are canonical in neither direction, i.e. unsupported.
 bool is_canonically_ordered(SInt u, SInt v) {
     return ((u ^ v) & 1u) == 0 ? u < v : u > v;
 }
