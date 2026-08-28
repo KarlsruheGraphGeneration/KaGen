@@ -1,4 +1,5 @@
 #include "kagen/generators/path/path_directed.h"
+#include "kagen/sampling/hash.hpp"
 
 #ifdef KAGEN_XXHASH_FOUND
     #include "kagen/tools/random_permutation.h"
@@ -17,14 +18,19 @@ PGeneratorConfig PathDirectedFactory::NormalizeParameters(PGeneratorConfig confi
         throw ConfigurationError("path permutation requires xxHash, but build was configured without xxHash");
     }
 #endif // KAGEN_XXHASH_FOUND
-
+    if (config.p == 0.0) {
+        config.p = 1.0;
+    }
+    if (config.p > 1.0) {
+      throw ConfigurationError("edge probability p must be in [0, 1]");
+    }
     return config;
 }
 
 PathDirected::PathDirected(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : config_(config),
       rank_(rank),
-      size_(size) {}
+      size_(size), rng_(config) {}
 
 void PathDirected::GenerateEdgeList() {
     if (config_.n <= 1) {
@@ -59,7 +65,11 @@ void PathDirected::GenerateEdgeList() {
         }();
 
         if (is_valid) {
-            PushEdge(i, j);
+            SInt edge_seed = std::min(i, j) *config_.n + std::max(i, j);
+            SInt h         = sampling::Spooky::hash(config_.seed + edge_seed);
+            if (rng_.GenerateBinomial(h, 1, config_.p)) {
+                PushEdge(i, j);
+            }
         }
     }
 }

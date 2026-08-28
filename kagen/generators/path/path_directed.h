@@ -3,6 +3,7 @@
 #include "kagen/context.h"
 #include "kagen/generators/generator.h"
 #include "kagen/kagen.h"
+#include "kagen/tools/rng_wrapper.h"
 
 namespace kagen {
 class PathDirectedFactory : public GeneratorFactory {
@@ -27,5 +28,7 @@ private:
 
     PEID rank_;
     PEID size_;
+
+    RNGWrapper<> rng_;
 };
 } // namespace kagen
