@@ -21,6 +21,10 @@ if (NOT MKL_FOUND)
     list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "mkl.*")
 endif ()
 
+if (NOT KAGEN_ENABLE_BRAIN_GRAPH)
+    list(FILTER KAGEN_SOURCE_FILES EXCLUDE REGEX "brain.*")
+endif ()
+
 add_library(KaGen ${KAGEN_SOURCE_FILES})
 target_compile_features(KaGen PRIVATE cxx_std_17)
 target_link_libraries(KaGen PUBLIC ${KAGEN_LINK_LIBRARIES})

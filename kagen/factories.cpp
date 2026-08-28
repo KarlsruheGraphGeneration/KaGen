@@ -15,9 +15,15 @@
 #include "kagen/generators/path/path_directed.h"
 #include "kagen/generators/rmat/rmat.h"
 
+#include <memory>
+
 #ifdef KAGEN_CGAL_FOUND
     #include "kagen/generators/geometric/delaunay.h"
 #endif // KAGEN_CGAL_FOUND
+
+#ifdef KAGEN_ENABLE_BRAIN_GRAPH
+    #include "kagen/generators/brain/brain.h"
+#endif
 
 namespace kagen {
 std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType type) {
@@ -79,6 +85,14 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
 
         case GeneratorType::FILE:
             return std::make_unique<FileGraphFactory>();
+
+        case GeneratorType::BRAIN:
+#ifdef KAGEN_ENABLE_BRAIN_GRAPH
+            return std::make_unique<BrainFactory>();
+#else
+            // throw exception after switch
+            break;
+#endif
     }
 
     throw std::runtime_error("invalid graph generator type");
