@@ -88,11 +88,6 @@ public:
 
         CandidateCollector collector{*this};
         collector.Collect(center, radius, cells);
-        if (collector.duplicate_candidates_ != 0) {
-            std::cout << "duplicate_candidates_" << collector.duplicate_candidates_
-                      << " at hyperedge center: " << center.phi << "," << center.r << "," << center.sampled_id << ","
-                      << center.annulus_id << "\n";
-        }
     }
     Double Radius(const Center& /*unused*/) const {
         return gen_.current_hyperedge_radius_;
