@@ -29,9 +29,7 @@ void SpatialGrid2D::InitSpatialGrid2D(const PGeneratorConfig& config) {
 
     const LPFloat desired_cell_size = 2.0 * representative_radius;
 
-    cells_per_dim_ = static_cast<SInt>(std::floor(chunk_size_ / desired_cell_size));
-
-    cells_per_dim_ = std::max<SInt>(1, cells_per_dim_);
+    cells_per_dim_ = std::max<SInt>(1, static_cast<SInt>(std::floor(chunk_size_ / desired_cell_size)));
 
     cells_per_chunk_ = cells_per_dim_ * cells_per_dim_;
 

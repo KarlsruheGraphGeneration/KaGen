@@ -113,7 +113,6 @@ public:
     void FinalizeEdgeList(MPI_Comm comm) final;
 };
 
-
 class GeneratorFactory {
 public:
     virtual ~GeneratorFactory();

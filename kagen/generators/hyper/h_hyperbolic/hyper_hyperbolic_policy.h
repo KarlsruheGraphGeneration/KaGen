@@ -41,6 +41,22 @@ public:
         Double max_y;
     };
 
+    struct CellRegion {
+        SInt first_annulus;
+        SInt last_annulus; // inclusive
+
+        Double min_r;
+        Double max_r;
+
+        Double min_phi;
+        Double max_phi;
+
+        Double min_x;
+        Double max_x;
+        Double min_y;
+        Double max_y;
+    };
+
     explicit HyperbolicGeometryPolicy(GeneratorT& generator, const SInt annulus_id, const SInt chunk_id)
         : gen_(generator),
           rng_(RNGWrapper(generator.config_)) {
@@ -72,21 +88,212 @@ public:
 
         CandidateCollector collector{*this};
         collector.Collect(center, radius, cells);
+        if (collector.duplicate_candidates_ != 0) {
+            std::cout << "duplicate_candidates_" << collector.duplicate_candidates_
+                      << " at hyperedge center: " << center.phi << "," << center.r << "," << center.sampled_id << ","
+                      << center.annulus_id << "\n";
+        }
     }
     Double Radius(const Center& /*unused*/) const {
         return gen_.current_hyperedge_radius_;
     }
 
     CellBallRelation ClassifyCell(const Center& /*center*/, const Double /*radius*/, const Cell& cell) const {
+        static std::uint64_t calls   = 0;
+        static std::uint64_t outside = 0;
+        static std::uint64_t inside  = 0;
+        static std::uint64_t partial = 0;
+
+        CellBallRelation result;
+
         if (CellAABBOutsideBall(cell)) {
+            result = CellBallRelation::OUTSIDE;
+            ++outside;
+        } else if (ShouldTryInside(cell) && HyperbolicCellInside(cell)) {
+            result = CellBallRelation::INSIDE;
+            ++inside;
+        } else {
+            result = CellBallRelation::PARTIAL;
+            ++partial;
+        }
+
+        ++calls;
+
+        if (calls % 100000 == 0) {
+            std::cerr << "[cell classification]"
+                      << " calls=" << calls << " inside=" << static_cast<double>(inside) / static_cast<double>(calls)
+                      << " partial=" << static_cast<double>(partial) / static_cast<double>(calls)
+                      << " outside=" << static_cast<double>(outside) / static_cast<double>(calls) << '\n';
+        }
+
+        return result;
+    }
+
+    CellBallRelation ClassifyRegion(const CellRegion& region) const {
+        const poincare_geometry::AABB<Double> box{
+            .min_x = region.min_x,
+            .max_x = region.max_x,
+            .min_y = region.min_y,
+            .max_y = region.max_y,
+        };
+
+        if (poincare_geometry::AABBOutsideBall(box, ball_)) {
             return CellBallRelation::OUTSIDE;
         }
 
-        if (ShouldTryInside(cell) && HyperbolicCellInside(cell)) {
+        const Double max_delta = MaxAngularDistanceToInterval(center_phi_, region.min_phi, region.max_phi);
+
+        const Double cos_delta = std::cos(max_delta);
+
+        const Double min_cosh = std::cosh(region.min_r);
+
+        const Double min_sinh = std::sinh(region.min_r);
+
+        const Double max_cosh = std::cosh(region.max_r);
+
+        const Double max_sinh = std::sinh(region.max_r);
+
+        const Double cosh_d_min_r = (center_cosh_r_ * min_cosh) - (center_sinh_r_ * min_sinh * cos_delta);
+
+        if (cosh_d_min_r > radius_cosh_) {
+            return CellBallRelation::PARTIAL;
+        }
+
+        const Double cosh_d_max_r = (center_cosh_r_ * max_cosh) - (center_sinh_r_ * max_sinh * cos_delta);
+
+        if (cosh_d_max_r <= radius_cosh_) {
             return CellBallRelation::INSIDE;
         }
 
         return CellBallRelation::PARTIAL;
+    }
+
+    CellRegion
+    MakeRegion(const SInt first_annulus, const SInt last_annulus, const Double min_phi, const Double max_phi) const {
+        if (first_annulus < 0 || last_annulus >= gen_.total_annuli_ || first_annulus > last_annulus) {
+            throw std::out_of_range("MakeRegion: invalid annulus range");
+        }
+
+        if (!(min_phi < max_phi)) {
+            throw std::logic_error("MakeRegion: invalid angular interval");
+        }
+
+        const Double min_r = gen_.annulus_min_r_[first_annulus];
+
+        const Double max_r = gen_.annulus_max_r_[last_annulus];
+
+        const auto box = poincare_geometry::ComputeCellAABB(min_r, max_r, min_phi, max_phi, gen_.cell_eps_);
+
+        return CellRegion{
+            .first_annulus = first_annulus,
+            .last_annulus  = last_annulus,
+
+            .min_r = min_r,
+            .max_r = max_r,
+
+            .min_phi = min_phi,
+            .max_phi = max_phi,
+
+            .min_x = box.min_x,
+            .max_x = box.max_x,
+            .min_y = box.min_y,
+            .max_y = box.max_y,
+        };
+    }
+
+    std::pair<CellRegion, CellRegion> SplitRegionRadially(const CellRegion& region) const {
+        if (region.first_annulus >= region.last_annulus) {
+            throw std::logic_error("SplitRegionRadially: cannot split single-annulus region");
+        }
+
+        const SInt mid_annulus = region.first_annulus + (region.last_annulus - region.first_annulus) / 2;
+
+        CellRegion inner = MakeRegion(region.first_annulus, mid_annulus, region.min_phi, region.max_phi);
+
+        CellRegion outer = MakeRegion(mid_annulus + 1, region.last_annulus, region.min_phi, region.max_phi);
+
+        return {std::move(inner), std::move(outer)};
+    }
+
+    std::pair<CellRegion, CellRegion> SplitRegionAngularly(const CellRegion& region) const {
+        const Double mid_phi = (region.min_phi + region.max_phi) / Double{2.0};
+
+        if (!(region.min_phi < mid_phi && mid_phi < region.max_phi)) {
+            throw std::logic_error("SplitRegionAngularly: cannot split angular interval");
+        }
+
+        CellRegion left = MakeRegion(region.first_annulus, region.last_annulus, region.min_phi, mid_phi);
+
+        CellRegion right = MakeRegion(region.first_annulus, region.last_annulus, mid_phi, region.max_phi);
+
+        return {std::move(left), std::move(right)};
+    }
+
+    void TraverseRegion(
+        const CellRegion& region, std::vector<CellRegion>& leaf_regions, std::vector<CellRegion>& inside_regions,
+        std::uint64_t& regions_visited, std::uint64_t& leaves_visited, std::uint64_t& outside_regions,
+        std::uint64_t& inside_regions_count, std::uint64_t& partial_regions) const {
+        const CellBallRelation relation = ClassifyRegion(region);
+        switch (relation) {
+            case CellBallRelation::OUTSIDE:
+                ++outside_regions;
+                break;
+
+            case CellBallRelation::INSIDE:
+                ++inside_regions_count;
+                break;
+
+            case CellBallRelation::PARTIAL:
+                ++partial_regions;
+                break;
+        }
+
+        ++regions_visited;
+        if (relation == CellBallRelation::OUTSIDE) {
+            return;
+        }
+
+        if (relation == CellBallRelation::INSIDE) {
+            inside_regions.push_back(region);
+            return;
+        }
+
+        const bool single_annulus = region.first_annulus == region.last_annulus;
+
+        const Double angular_width = region.max_phi - region.min_phi;
+
+        if (!single_annulus) {
+            const auto [inner, outer] = SplitRegionRadially(region);
+
+            TraverseRegion(
+                inner, leaf_regions, inside_regions, regions_visited, leaves_visited, outside_regions,
+                inside_regions_count, partial_regions);
+
+            TraverseRegion(
+                outer, leaf_regions, inside_regions, regions_visited, leaves_visited, outside_regions,
+                inside_regions_count, partial_regions);
+
+            return;
+        }
+
+        // From here on, the region is exactly one annulus.
+        const Double leaf_width = gen_.CellWidthForChunkAnnulus(region.first_annulus, 0);
+
+        if (angular_width <= leaf_width) {
+            leaf_regions.push_back(region);
+            ++leaves_visited;
+            return;
+        }
+
+        const auto [left, right] = SplitRegionAngularly(region);
+
+        TraverseRegion(
+            left, leaf_regions, inside_regions, regions_visited, leaves_visited, outside_regions, inside_regions_count,
+            partial_regions);
+
+        TraverseRegion(
+            right, leaf_regions, inside_regions, regions_visited, leaves_visited, outside_regions, inside_regions_count,
+            partial_regions);
     }
 
     Double CellCoverage(const Center& center, const Double /*hyperball_radius*/, const Cell& cell) const {
@@ -247,60 +454,150 @@ private:
     // ===== Candidate search =====
     struct CandidateCollector {
         HyperbolicGeometryPolicy& policy;
+        std::unordered_set<SInt>  seen_candidate_cells_;
         GeneratorT&               gen() {
             return policy.gen_;
         }
 
         void Collect(const Center& center, const Double radius, std::vector<Cell>& cells) {
             cells.clear();
-
-            const Double r_min = std::max(Double{0.0}, center.r - radius);
-            const Double r_max = std::min(gen().target_r_, center.r + radius);
-
-            if (r_max < r_min) {
-                return;
-            }
-
-            const Double annulus_width = gen().target_r_ / static_cast<Double>(gen().total_annuli_);
-
-            SInt first_annulus = static_cast<SInt>(std::floor(r_min / annulus_width));
-            SInt last_annulus  = static_cast<SInt>(std::floor(r_max / annulus_width));
-
-            first_annulus = std::clamp<SInt>(first_annulus, 0, gen().total_annuli_ - 1);
-            last_annulus  = std::clamp<SInt>(last_annulus, 0, gen().total_annuli_ - 1);
+            seen_candidate_cells_.clear();
 
             std::fill(
                 policy.current_annulus_half_angle_.begin(), policy.current_annulus_half_angle_.end(), Double{-1.0});
 
-            for (SInt annulus_id = first_annulus; annulus_id <= last_annulus; ++annulus_id) {
+            if (gen().total_annuli_ <= 0) {
+                return;
+            }
+
+            //
+            // Start in the annulus containing the hyperball center.
+            //
+            const Double annulus_width = gen().target_r_ / static_cast<Double>(gen().total_annuli_);
+
+            SInt center_annulus = static_cast<SInt>(std::floor(center.r / annulus_width));
+
+            center_annulus = std::clamp<SInt>(center_annulus, 0, gen().total_annuli_ - 1);
+
+            //
+            // Center annulus.
+            //
+            AddCandidateCellsInAnnulus(center, center_annulus, cells);
+
+            //
+            // Walk outward.
+            //
+            for (SInt annulus_id = center_annulus + 1; annulus_id < gen().total_annuli_; ++annulus_id) {
+                const Double min_r = gen().annulus_min_r_[annulus_id];
+
+                //
+                // Closest possible point in this annulus is already
+                // farther away radially than the hyperball radius.
+                //
+                if (min_r - center.r > radius) {
+                    break;
+                }
+
+                AddCandidateCellsInAnnulus(center, annulus_id, cells);
+            }
+
+            //
+            // Walk inward.
+            //
+            for (SInt annulus_id = center_annulus; annulus_id > 0;) {
+                --annulus_id;
+
+                const Double max_r = gen().annulus_max_r_[annulus_id];
+
+                if (center.r - max_r > radius) {
+                    break;
+                }
+
                 AddCandidateCellsInAnnulus(center, annulus_id, cells);
             }
         }
 
-        void AddCandidateCellsInAnnulus(const Center& center, const SInt annulus_id, std::vector<Cell>& cells) {
-            const Double half_angle                        = policy.AllowedHalfAngleForAnnulus(center.r, annulus_id);
-            policy.current_annulus_half_angle_[annulus_id] = half_angle;
+        void AddOccupiedCellsInAngularInterval(
+            const SInt annulus_id, const Double min_phi, const Double max_phi, std::vector<Cell>& cells) {
+            const auto& occupied = gen().nonempty_cells_per_annulus_[annulus_id];
 
-            if (half_angle <= 0.0) {
+            if (occupied.empty()) {
                 return;
             }
 
-            AddCellsInAngularInterval(annulus_id, center.phi - half_angle, center.phi + half_angle, cells);
+            const auto parts = circular_interval::Split(min_phi, max_phi, gen().cell_eps_);
+
+            for (int p = 0; p < parts.count; ++p) {
+                const Double q_begin = parts.parts[p].first;
+
+                const Double q_end = parts.parts[p].second;
+
+                if (!(q_begin < q_end)) {
+                    continue;
+                }
+
+                const auto [first, last] = gen().GlobalCellRangeForAngularInterval(annulus_id, q_begin, q_end);
+
+                auto begin = std::lower_bound(occupied.begin(), occupied.end(), first);
+
+                auto end = std::upper_bound(begin, occupied.end(), last);
+
+                for (auto it = begin; it != end; ++it) {
+                    PushGlobalCell(annulus_id, *it, cells);
+                }
+            }
+        }
+
+        void AddCandidateCellsInAnnulus(const Center& center, const SInt annulus_id, std::vector<Cell>& cells) {
+            const Double half_angle = policy.AllowedHalfAngleForAnnulus(center.r, annulus_id);
+
+            policy.current_annulus_half_angle_[annulus_id] = half_angle;
+
+            if (!(half_angle > Double{0.0})) {
+                return;
+            }
+
+            const auto& occupied = gen().nonempty_cells_per_annulus_[annulus_id];
+
+            if (occupied.empty()) {
+                return;
+            }
+
+            //
+            // Entire angular extent of this annulus.
+            //
+            if (half_angle >= Double{M_PI}) {
+                for (const SInt global_cell: occupied) {
+                    PushGlobalCell(annulus_id, global_cell, cells);
+                }
+
+                return;
+            }
+
+            const Double center_phi = circular_interval::NormalizePhi(center.phi);
+
+            AddOccupiedCellsInAngularInterval(annulus_id, center_phi - half_angle, center_phi + half_angle, cells);
+        }
+        void PushGlobalCell(const SInt annulus_id, const SInt global_cell, std::vector<Cell>& cells) {
+            const auto [chunk_id, local_cell_id] = gen().GlobalCellToChunkCell(annulus_id, global_cell);
+
+            const SInt global_cell_id = gen().ComputeGlobalCellId(annulus_id, chunk_id, local_cell_id);
+
+            const auto it = gen().cells_.find(global_cell_id);
+
+            if (it == gen().cells_.end()) {
+                return;
+            }
+
+            if (!seen_candidate_cells_.insert(global_cell_id).second) {
+                return;
+            }
+
+            PushCandidateCell(annulus_id, chunk_id, local_cell_id, cells);
         }
 
         void AddCellsInAngularInterval(
             const SInt annulus_id, const Double min_phi, const Double max_phi, std::vector<Cell>& cells) {
-            const SInt grid_size  = gen().GridSizeForAnnulus(annulus_id);
-            const SInt num_chunks = gen().config_.k;
-
-            if (num_chunks <= 0 || grid_size <= 0) {
-                return;
-            }
-
-            const Double two_pi = Double{2.0 * M_PI};
-
-            const Double chunk_width = two_pi / static_cast<Double>(num_chunks);
-
             const auto query_parts = circular_interval::Split(min_phi, max_phi, gen().cell_eps_);
 
             for (int part = 0; part < query_parts.count; ++part) {
@@ -312,58 +609,11 @@ private:
                     continue;
                 }
 
-                // q_end is treated as exclusive.
-                const Double q_end_inside = std::nextafter(q_end, q_begin);
+                const auto [first_global_cell, last_global_cell] =
+                    gen().GlobalCellRangeForAngularInterval(annulus_id, q_begin, q_end);
 
-                SInt first_chunk = static_cast<SInt>(std::floor(q_begin / chunk_width));
-
-                SInt last_chunk = static_cast<SInt>(std::floor(q_end_inside / chunk_width));
-
-                first_chunk = std::clamp<SInt>(first_chunk, 0, num_chunks - 1);
-
-                last_chunk = std::clamp<SInt>(last_chunk, 0, num_chunks - 1);
-
-                for (SInt chunk_id = first_chunk; chunk_id <= last_chunk; ++chunk_id) {
-                    if (gen().chunks_.find(chunk_id) == std::end(gen().chunks_)) {
-                        gen().ComputeChunk(chunk_id);
-                        gen().ComputeAnnuli(chunk_id);
-                    }
-
-                    const auto& chunk = gen().chunks_[chunk_id];
-
-                    const Double chunk_min_phi = std::get<1>(chunk);
-
-                    const Double chunk_max_phi = std::get<2>(chunk);
-
-                    const Double overlap_begin = std::max(q_begin, chunk_min_phi);
-
-                    const Double overlap_end = std::min(q_end, chunk_max_phi);
-
-                    if (!(overlap_begin < overlap_end)) {
-                        continue;
-                    }
-
-                    gen().GenerateCells(annulus_id, chunk_id);
-
-                    const Double cell_width = (chunk_max_phi - chunk_min_phi) / static_cast<Double>(grid_size);
-
-                    if (!(cell_width > Double{0.0})) {
-                        continue;
-                    }
-
-                    SInt first_cell = static_cast<SInt>(std::floor((overlap_begin - chunk_min_phi) / cell_width));
-
-                    const Double overlap_end_inside = std::nextafter(overlap_end, overlap_begin);
-
-                    SInt last_cell = static_cast<SInt>(std::floor((overlap_end_inside - chunk_min_phi) / cell_width));
-
-                    first_cell = std::clamp<SInt>(first_cell, 0, grid_size - 1);
-
-                    last_cell = std::clamp<SInt>(last_cell, 0, grid_size - 1);
-
-                    for (SInt cell_id = first_cell; cell_id <= last_cell; ++cell_id) {
-                        PushCandidateCell(annulus_id, chunk_id, cell_id, cells);
-                    }
+                for (SInt global_cell = first_global_cell; global_cell <= last_global_cell; ++global_cell) {
+                    PushGlobalCell(annulus_id, global_cell, cells);
                 }
             }
         }
@@ -376,6 +626,7 @@ private:
             const auto& annulus     = gen().annuli_.find(global_chunk_id)->second;
             const auto& stored_cell = gen().cells_.find(global_cell_id)->second;
 
+            assert(std::get<0>(stored_cell) > 0);
             const Double min_r   = std::get<1>(annulus);
             const Double max_r   = std::get<2>(annulus);
             const Double min_phi = std::get<1>(stored_cell);
@@ -657,6 +908,10 @@ public:
                   << " reuse<=4=" << exact_remote_reuse_distance_le_4_
                   << " reuse<=16=" << exact_remote_reuse_distance_le_16_
                   << " reuse>16=" << exact_remote_reuse_distance_gt_16_ << '\n';
+    }
+    bool HierarchicalCandidateCells(
+        const Center& center, LPFloat radius, std::vector<Cell>& partial_cells, std::vector<PinRange>& ranges) const {
+        return false;
     }
 
 private:

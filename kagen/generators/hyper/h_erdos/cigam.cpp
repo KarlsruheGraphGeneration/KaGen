@@ -227,10 +227,6 @@ void HyperCIGAM<BigInt>::InitProbabilityConstants() {
     for (SInt layer = 0; layer < num_layers; ++layer) {
         const long double c = static_cast<long double>(config_.cigam_c[layer]);
 
-        if (!(c > 1.0L) || !std::isfinite(c)) {
-            throw ConfigurationError("CIGAM density parameters must be finite and greater than one");
-        }
-
         log_c_[static_cast<std::size_t>(layer)] = std::log(c);
     }
 
@@ -670,9 +666,6 @@ template <typename BigInt>
 long double HyperCIGAM<BigInt>::InverseTruncatedExpCDF(const long double u) const {
     const long double lambda = static_cast<long double>(config_.cigam_lambda);
 
-    if (!std::isfinite(lambda) || lambda <= 0.0L) {
-        throw ConfigurationError("CIGAM lambda must be finite and positive");
-    }
 
     if (!std::isfinite(u) || u < 0.0L || u > 1.0L) {
         throw ConfigurationError("CIGAM quantile must be finite and lie in [0, 1]");
@@ -721,9 +714,6 @@ template <typename BigInt>
 SInt HyperCIGAM<BigInt>::FirstPositionAfterBreakpoint(const long double breakpoint) const {
     const SInt n = config_.n;
 
-    if (breakpoint < 0.0L || breakpoint > 1.0L || !std::isfinite(breakpoint)) {
-        throw ConfigurationError("CIGAM breakpoint must be finite and lie in [0, 1]");
-    }
 
     if (breakpoint >= 1.0L) {
         return n;

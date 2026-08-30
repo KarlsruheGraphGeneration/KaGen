@@ -134,7 +134,8 @@ std::ostream& printHGNMData(std::ostream& out, const PGeneratorConfig& config) {
 }
 
 std::ostream& printHGNPData(std::ostream& out, const PGeneratorConfig& config) {
-    // TODO(clickup)[2026-06-07]: Implementation missing
+    out << "  Number of vertices:                 " << config.n << "\n";
+    out << "  Min/Max Hyperedge sizes:            " << config.size_dist_lower_bound << '/' << config.size_dist_upper_bound << "\n";
     return out;
 }
 

@@ -157,7 +157,9 @@ private:
 
     // Avoid costly recomputations
     std::vector<SInt>                      global_cell_ids_;
-    std::vector<SInt>                      cells_per_annulus_;
+    std::vector<Double>                    target_cell_width_per_annulus_;
+    std::vector<SInt>                      global_cells_per_annulus_;
+    std::vector<std::vector<SInt>>         nonempty_cells_per_annulus_;
     std::vector<std::pair<Double, Double>> boundaries_;
     std::vector<Double>                    minimum_radii_by_center_annulus_;
     std::vector<Double>                    maximum_radii_by_center_annulus_;
@@ -241,13 +243,19 @@ private:
 
     bool OutOfBounds(Double num) const;
 
+    void BuildNonemptyCellIndex();
+
     SInt ComputeGlobalChunkId(SInt annulus, SInt chunk) const;
 
     SInt ComputeGlobalCellId(SInt annulus, SInt chunk, SInt cell);
 
-    SInt TotalGridSizeForAnnulus(SInt annulus_id);
+    Double TargetCellWidthForAnnulus(SInt annulus_id);
 
-    SInt GridSizeForAnnulus(SInt annulus_id);
+    Double AngularReach(Double center_r, Double query_r, Double radius) const;
+
+    SInt CellsPerChunkForAnnulus(SInt annulus_id, SInt chunk_id);
+
+    Double CellWidthForChunkAnnulus(SInt annulus_id, SInt chunk_id);
 
     bool IsLocalChunk(SInt chunk_id) const;
 
@@ -277,6 +285,11 @@ private:
     SampleCenter(SInt annulus_id, SInt sampled_center_id, const CenterSamplingRegion& region);
 
     void SeedHyperedgeRNG(SInt sampled_center_id);
+
+    std::pair<SInt, SInt> GlobalCellToChunkCell(SInt annulus_id, SInt global_cell) const;
+    SInt                  ChunkCellToGlobalCell(SInt annulus_id, SInt chunk_id, SInt local_cell_id) const;
+    std::pair<SInt, SInt> GlobalCellRangeForAngularInterval(SInt annulus_id, Double min_phi, Double max_phi) const;
+    SInt                  GlobalCellForPhi(SInt annulus_id, Double phi) const;
 
     Hyper_Hyperbolic<Double>::CenterSamplingRegion
     BuildCenterSamplingRegion(const CenterAnnulus& center_annulus, const CenterCell& center_cell) const;

@@ -8,9 +8,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
 #include <limits>
 #include <vector>
-
 namespace kagen {
 
 HyperRGG2D::HyperRGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
@@ -93,14 +94,65 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
 
     CenterSampler sampler(*this, cell_width, lower_bound, upper_bound);
 
+    constexpr SInt dump_cell_x = 10;
+    constexpr SInt dump_cell_y = 10;
+
     for (SInt cell_row = 0; cell_row < cells_per_dim_; ++cell_row) {
         for (SInt cell_column = 0; cell_column < cells_per_dim_; ++cell_column) {
             const auto cell = GetCellPosition(chunk_row, chunk_column, cell_row, cell_column, total_cells_per_dim);
 
+            const bool dump_this_cell = cell.global_cell_x == dump_cell_x && cell.global_cell_y == dump_cell_y;
+
             const SInt cell_m = base_m + static_cast<SInt>(cell.global_cell_id < remainder);
 
+            // ----------------------------------------------------
+            // Dump vertices belonging to this cell
+            // ----------------------------------------------------
+
+            if (dump_this_cell) {
+                std::vector<Vertex> vertices;
+
+                GenerateVertices(chunk_id, cell.cell_id, vertices);
+
+                std::ofstream out("/tmp/cell_vertices.csv");
+
+                out << std::setprecision(17);
+
+                out << "vertex_id,x,y\n";
+
+                for (const auto& vertex: vertices) {
+                    out << std::get<2>(vertex) << "," << std::get<0>(vertex) << "," << std::get<1>(vertex) << "\n";
+                }
+
+                std::cout << "[geometry dump] dumped " << vertices.size() << " vertices from cell (" << dump_cell_x
+                          << ", " << dump_cell_y << ")\n";
+            }
+
+            // ----------------------------------------------------
+            // Generate centers normally
+            // ----------------------------------------------------
+
+            std::ofstream centers_out;
+
+            if (dump_this_cell) {
+                centers_out.open("/tmp/cell_centers.csv");
+                centers_out << std::setprecision(17);
+
+                centers_out << "sampled_id,x,y,radius\n";
+            }
+
             for (SInt emitted = 0; emitted < cell_m; emitted++) {
-                builder.Build(sampler.Sample(chunk_id, cell, emitted, base_m, remainder));
+                const Center center = sampler.Sample(chunk_id, cell, emitted, base_m, remainder);
+
+                if (dump_this_cell) {
+                    centers_out << center.sampled_id << "," << center.x << "," << center.y << "," << center.radius
+                                << "\n";
+                }
+
+                // IMPORTANT:
+                // use the already sampled center.
+                // Do NOT call sampler.Sample() again.
+                builder.Build(center);
             }
         }
     }

@@ -30,6 +30,7 @@ constexpr Double EPSILON_SCALE = 1000.0;
 
 PGeneratorConfig
 Hyper_HyperbolicFactory::NormalizeParameters(PGeneratorConfig config, PEID rank, PEID size, const bool output) const {
+    config.k = static_cast<SInt>(size);
     config.setChunkSizeIfMissing(size);
 
     if (config.k < static_cast<SInt>(size)) {
@@ -221,37 +222,15 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
     center_chunks_.set_empty_key(config_.k);
     center_annuli_.set_empty_key(total_annuli_ * config_.k);
 
-    SInt total_cells = 0;
-    cells_per_annulus_.resize(total_annuli_, std::numeric_limits<SInt>::max());
-
-    for (SInt i = 0; i < total_annuli_; ++i) {
-        global_cell_ids_.push_back(total_cells);
-        total_cells += GridSizeForAnnulus(i) * config_.k;
-    }
-
-    cells_.set_empty_key(total_cells + 1);
-    vertices_.set_empty_key(total_cells + 1);
-    center_cells_.set_empty_key(total_cells + 1);
-
-    chunk_eps_ = phi_per_chunk / EPSILON_SCALE<Double>;
-    cell_eps_  = (2 * M_PI / GridSizeForAnnulus(total_annuli_ - 1)) / EPSILON_SCALE<Double>;
-    point_eps_ = std::numeric_limits<Double>::epsilon();
-
-    num_nodes_ = 0;
-
-    if (config_.random_radius) {
-        if (config_.min_hyperedge_radius == -1.0
-            || (config_.size_dist_upper_bound > 0 && config_.max_hyperedge_radius == -1.0)) {
-            PrecomputeRadiusBounds();
-        }
-    }
-
     annulus_min_r_.resize(total_annuli_);
     annulus_max_r_.resize(total_annuli_);
     annulus_min_cosh_.resize(total_annuli_);
     annulus_min_sinh_.resize(total_annuli_);
     annulus_max_cosh_.resize(total_annuli_);
     annulus_max_sinh_.resize(total_annuli_);
+
+    target_cell_width_per_annulus_.resize(total_annuli_, Double{0.0});
+    global_cells_per_annulus_.resize(total_annuli_, SInt{1});
 
     for (SInt a = 0; a < total_annuli_; ++a) {
         const Double min_r = a * target_r_ / total_annuli_;
@@ -264,6 +243,61 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
         annulus_min_sinh_[a] = std::sinh(min_r);
         annulus_max_cosh_[a] = std::cosh(max_r);
         annulus_max_sinh_[a] = std::sinh(max_r);
+    }
+
+    SInt total_cells = 0;
+
+    for (SInt a = 0; a < total_annuli_; ++a) {
+        global_cell_ids_.push_back(total_cells);
+
+        const Double min_r = annulus_min_r_[a];
+        const Double max_r = annulus_max_r_[a];
+
+        const Double ring_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * max_r)
+                                 - PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * min_r);
+
+        const Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * target_r_);
+
+        const SInt expected_vertices_in_annulus =
+            static_cast<SInt>(static_cast<Double>(config_.n) * ring_area / total_area);
+
+        const SInt total_grid_size = std::max<SInt>(1, expected_vertices_in_annulus / config_.hyp_base);
+
+        const SInt cells_per_chunk = std::max<SInt>(1, total_grid_size / static_cast<SInt>(size_));
+
+        global_cells_per_annulus_[a] = config_.k * cells_per_chunk;
+
+        total_cells += global_cells_per_annulus_[a];
+    }
+    cells_.set_empty_key(total_cells + 1);
+    vertices_.set_empty_key(total_cells + 1);
+    center_cells_.set_empty_key(total_cells + 1);
+
+    chunk_eps_                 = phi_per_chunk / EPSILON_SCALE<Double>;
+    Double smallest_cell_width = Double{2.0 * M_PI};
+
+    for (SInt a = 0; a < total_annuli_; ++a) {
+        const SInt total_cells = global_cells_per_annulus_[a];
+
+        if (total_cells <= 0) {
+            continue;
+        }
+
+        const Double width = Double{2.0 * M_PI} / static_cast<Double>(total_cells);
+
+        smallest_cell_width = std::min(smallest_cell_width, width);
+    }
+
+    cell_eps_  = smallest_cell_width / EPSILON_SCALE<Double>;
+    point_eps_ = std::numeric_limits<Double>::epsilon();
+
+    num_nodes_ = 0;
+
+    if (config_.random_radius) {
+        if (config_.min_hyperedge_radius == -1.0
+            || (config_.size_dist_upper_bound > 0 && config_.max_hyperedge_radius == -1.0)) {
+            PrecomputeRadiusBounds();
+        }
     }
 
     if (config_.debug) {
@@ -302,8 +336,10 @@ Double Hyper_Hyperbolic<Double>::FindRadiusForExpectedPins(
 
             Double angular_reach;
 
-            if (denom <= Double{0.0}) {
-                angular_reach = M_PI;
+            if (denom <= std::numeric_limits<Double>::epsilon()) {
+                const Double radial_distance = std::abs(center.r - query_r);
+
+                angular_reach = radial_distance <= radius ? Double{M_PI} : Double{0.0};
             } else {
                 const Double x = ((std::cosh(center.r) * std::cosh(query_r)) - std::cosh(radius)) / denom;
 
@@ -356,6 +392,30 @@ void Hyper_Hyperbolic<Double>::ComputeAnnuli(const SInt chunk_id) {
 }
 
 template <typename Double>
+void Hyper_Hyperbolic<Double>::BuildNonemptyCellIndex() {
+    nonempty_cells_per_annulus_.clear();
+    nonempty_cells_per_annulus_.resize(total_annuli_);
+
+    for (SInt annulus_id = 0; annulus_id < total_annuli_; ++annulus_id) {
+        auto& occupied = nonempty_cells_per_annulus_[annulus_id];
+
+        const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+        occupied.reserve(std::min<SInt>(total_cells, config_.n));
+
+        const SInt base = global_cell_ids_[annulus_id];
+
+        for (SInt global_cell = 0; global_cell < total_cells; ++global_cell) {
+            const auto it = cells_.find(base + global_cell);
+
+            if (it != cells_.end() && std::get<0>(it->second) > 0) {
+                occupied.push_back(global_cell);
+            }
+        }
+    }
+}
+
+template <typename Double>
 void Hyper_Hyperbolic<Double>::ComputeCenterAnnuli(const SInt chunk_id) {
     ComputeAnnuliInto(center_chunks_, center_annuli_, chunk_id, 9101);
 }
@@ -379,10 +439,12 @@ void Hyper_Hyperbolic<Double>::GenerateCenterCells(const SInt annulus_id, SInt c
 
     GenerateCellsInto(annulus_id, chunk_id, center_chunks_, center_annuli_, center_cells_, 9201);
 }
+
 template <typename Double>
-SInt Hyper_Hyperbolic<Double>::VertexCellSeed(SInt annulus_id, SInt chunk_id, SInt cell_id) {
-    return config_.seed + (annulus_id * config_.k * GridSizeForAnnulus(annulus_id))
-           + (chunk_id * GridSizeForAnnulus(annulus_id)) + cell_id + config_.n;
+SInt Hyper_Hyperbolic<Double>::VertexCellSeed(const SInt annulus_id, const SInt chunk_id, const SInt cell_id) {
+    const SInt global_cell = ChunkCellToGlobalCell(annulus_id, chunk_id, cell_id);
+
+    return config_.seed + global_cell_ids_[annulus_id] + global_cell + config_.n;
 }
 
 template <typename Double>
@@ -491,20 +553,88 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(
 }
 
 template <typename Double>
-inline SInt Hyper_Hyperbolic<Double>::ComputeGlobalCellId(const SInt annulus, const SInt chunk, const SInt cell) {
-    return global_cell_ids_[annulus] + (chunk * GridSizeForAnnulus(annulus)) + cell;
+SInt Hyper_Hyperbolic<Double>::ComputeGlobalCellId(const SInt annulus, const SInt chunk, const SInt cell) {
+    const SInt global_cell = ChunkCellToGlobalCell(annulus, chunk, cell);
+
+    return global_cell_ids_[annulus] + global_cell;
 }
 
 template <typename Double>
-inline SInt Hyper_Hyperbolic<Double>::GridSizeForAnnulus(const SInt annulus_id) {
-    return std::max<SInt>(1, TotalGridSizeForAnnulus(annulus_id) / config_.k);
+Double Hyper_Hyperbolic<Double>::CellWidthForChunkAnnulus(
+    const SInt annulus_id, const SInt /*chunk_id*/
+) {
+    const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+    if (total_cells <= 0) {
+        throw std::logic_error("CellWidthForChunkAnnulus: invalid global cell count");
+    }
+
+    return Double{2.0 * M_PI} / static_cast<Double>(total_cells);
+}
+
+template <typename Double>
+Double Hyper_Hyperbolic<Double>::AngularReach(const Double center_r, const Double query_r, const Double radius) const {
+    const Double center_sinh = std::sinh(center_r);
+    const Double query_sinh  = std::sinh(query_r);
+
+    const Double denominator = center_sinh * query_sinh;
+
+    if (denominator <= std::numeric_limits<Double>::epsilon()) {
+        const Double radial_distance = std::abs(center_r - query_r);
+
+        return radial_distance <= radius ? Double{M_PI} : Double{0.0};
+    }
+
+    const Double argument = (std::cosh(center_r) * std::cosh(query_r) - std::cosh(radius)) / denominator;
+
+    if (argument <= Double{-1.0}) {
+        return Double{M_PI};
+    }
+
+    if (argument >= Double{1.0}) {
+        return Double{0.0};
+    }
+
+    return std::acos(argument);
+}
+
+template <typename Double>
+Double Hyper_Hyperbolic<Double>::TargetCellWidthForAnnulus(const SInt annulus_id) {
+    auto& cached = target_cell_width_per_annulus_[annulus_id];
+
+    if (cached > Double{0.0}) {
+        return cached;
+    }
+
+    const Double radius = static_cast<Double>(QuantileOrConstantHyperedgeRadius(config_));
+
+    const Double min_r = annulus_min_r_[annulus_id];
+
+    const Double max_r = annulus_max_r_[annulus_id];
+
+    const Double representative_r = (min_r + max_r) / Double{2.0};
+
+    const Double sinh_r = std::sinh(representative_r);
+
+    const Double ratio = sinh_r > Double{0.0} ? std::sinh(radius / Double{2.0}) / sinh_r : Double{1.0};
+
+    const Double half_width = Double{2.0} * std::asin(std::clamp(ratio, Double{0.0}, Double{1.0}));
+
+    cached = std::min<Double>(Double{2.0 * M_PI}, Double{2.0} * half_width);
+
+    if (!(cached > Double{0.0})) {
+        cached = std::numeric_limits<Double>::epsilon();
+    }
+
+    return cached;
 }
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateCSR() {
     graph_.hyperedge_offsets.reserve(config_.m + 1);
     graph_.hyperedge_range_offsets.reserve(config_.m + 1);
-    for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
+
+    for (SInt i = 0; i < config_.k; ++i) {
         ComputeChunk(i);
         ComputeAnnuli(i);
     }
@@ -514,31 +644,53 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
     }
     const SInt start_node = std::get<3>(chunks_[local_chunk_start_]);
     SetVertexRange(start_node, start_node + num_nodes_);
-
-    for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
+    const auto vertex_phase_start = std::chrono::steady_clock::now();
+    for (SInt i = 0; i < config_.k; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
+            // Metadata only: size, offset, bounds, AABB.
             GenerateCells(j, i);
-
-            if (config_.partial_cell_mode == PartialCellMode::GenerateAndCheck) {
-                for (SInt k = 0; k < GridSizeForAnnulus(j); ++k) {
-                    GenerateVertices(j, i, k);
-                }
-            }
         }
     }
+    BuildNonemptyCellIndex();
+    const auto vertex_phase_end = std::chrono::steady_clock::now();
+
+    std::cerr << "[HRHG timing] vertex/cell phase = "
+              << std::chrono::duration<double>(vertex_phase_end - vertex_phase_start).count() << " s\n";
+
     HyperbolicGeometryPolicy<Double>                   geometry(*this, 0, 0);
     HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(
         geometry, config_, debug_logger_ ? &*debug_logger_ : nullptr);
-
+    const auto hyperedge_phase_start = std::chrono::steady_clock::now();
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
             GenerateHyperedges(j, i, builder);
         }
     }
+    const auto hyperedge_phase_end = std::chrono::steady_clock::now();
+
+    std::cerr << "[HRHG timing] hyperedge phase = "
+              << std::chrono::duration<double>(hyperedge_phase_end - hyperedge_phase_start).count() << " s\n";
 
     if (config_.debug) {
         geometry.PrintExactCacheStats();
     }
+}
+
+template <typename Double>
+SInt Hyper_Hyperbolic<Double>::GlobalCellForPhi(const SInt annulus_id, Double phi) const {
+    const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+    if (total_cells <= 0) {
+        throw std::logic_error("GlobalCellForPhi: invalid global cell count");
+    }
+
+    phi = circular_interval::NormalizePhi(phi);
+
+    const Double cell_width = Double{2.0 * M_PI} / static_cast<Double>(total_cells);
+
+    SInt global_cell = static_cast<SInt>(std::floor(phi / cell_width));
+
+    return std::clamp<SInt>(global_cell, 0, total_cells - 1);
 }
 
 template <typename Double>
@@ -685,10 +837,18 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
     const Double min_phi = std::get<1>(chunk);
     const Double max_phi = std::get<2>(chunk);
 
-    Double       total_phi = max_phi - min_phi;
-    const Double grid_phi  = total_phi / GridSizeForAnnulus(annulus_id);
+    Double total_phi = max_phi - min_phi;
 
-    for (SInt i = 0; i < GridSizeForAnnulus(annulus_id); ++i) {
+    const SInt cells_per_chunk = CellsPerChunkForAnnulus(annulus_id, chunk_id);
+
+    if (cells_per_chunk == 0) {
+        std::get<3>(annulus) = true;
+        return;
+    }
+
+    const Double grid_phi = total_phi / static_cast<Double>(cells_per_chunk);
+
+    for (SInt i = 0; i < cells_per_chunk; ++i) {
         const SInt seed = config_.seed + seed_offset + (annulus_id * config_.k) + chunk_id + i + size;
 
         const SInt hash_value = sampling::Spooky::hash(seed);
@@ -699,9 +859,14 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
         const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, i);
 
         if constexpr (std::is_same_v<typename CellMap::mapped_type, Cell>) {
-            const Double cell_min_phi = min_phi + (grid_phi * i);
-            const Double cell_max_phi = min_phi + (grid_phi * (i + 1));
+            const SInt global_cell = ChunkCellToGlobalCell(annulus_id, chunk_id, i);
 
+            const Double global_cell_width =
+                Double{2.0 * M_PI} / static_cast<Double>(global_cells_per_annulus_[annulus_id]);
+
+            const Double cell_min_phi = static_cast<Double>(global_cell) * global_cell_width;
+
+            const Double cell_max_phi  = static_cast<Double>(global_cell + 1) * global_cell_width;
             const Double annulus_min_r = std::get<1>(annulus);
             const Double annulus_max_r = std::get<2>(annulus);
 
@@ -749,7 +914,9 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(
 
     GenerateCenterCells(annulus_id, chunk_id);
 
-    for (SInt cell_id = 0; cell_id < GridSizeForAnnulus(annulus_id); ++cell_id) {
+    const SInt cells_per_chunk = CellsPerChunkForAnnulus(annulus_id, chunk_id);
+
+    for (SInt cell_id = 0; cell_id < cells_per_chunk; ++cell_id) {
         current_cell_ = cell_id;
 
         const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
@@ -793,26 +960,23 @@ Hyper_Hyperbolic<Double>::CenterSamplingRegion Hyper_Hyperbolic<Double>::BuildCe
 }
 
 template <typename Double>
-SInt Hyper_Hyperbolic<Double>::TotalGridSizeForAnnulus(const SInt annulus_id) {
-    if (cells_per_annulus_[annulus_id] != std::numeric_limits<SInt>::max()) {
-        return cells_per_annulus_[annulus_id];
+SInt Hyper_Hyperbolic<Double>::CellsPerChunkForAnnulus(
+    const SInt annulus_id, const SInt /*chunk_id*/
+) {
+    const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+    if (total_cells <= 0) {
+        throw std::logic_error("CellsPerChunkForAnnulus: invalid global cell count");
     }
 
-    Double min_r      = annulus_id * target_r_ / total_annuli_;
-    Double max_r      = (annulus_id + 1) * target_r_ / total_annuli_;
-    Double ring_area  = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * max_r)
-                        - PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * min_r);
-    Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * target_r_);
+    if (total_cells % config_.k != 0) {
+        throw std::logic_error(
+            "CellsPerChunkForAnnulus: global cell count "
+            "not divisible by number of chunks");
+    }
 
-    SInt exp_points = config_.n * ring_area / total_area;
-    SInt cells      = exp_points / config_.hyp_base;
-
-    SInt result                    = std::max<SInt>(1, cells);
-    cells_per_annulus_[annulus_id] = result;
-
-    return result;
+    return total_cells / config_.k;
 }
-
 template <typename Double>
 inline bool Hyper_Hyperbolic<Double>::OutOfBounds(const Double num) const {
     return std::isnan(num) || num < -2 * M_PI || num > 2 * M_PI;
@@ -871,8 +1035,80 @@ Double Hyper_Hyperbolic<Double>::Radius(const HyperbolicHyperedgeCenter<Double>&
     const Double lower = MinimumRadius(center);
     const Double upper = std::max(lower, MaximumRadius(center));
 
-    return static_cast<Double>(
+    const Double sampled = static_cast<Double>(
         SampleHyperedgeRadius(config_, static_cast<double>(lower), static_cast<double>(upper), mersenne));
+
+    static std::uint64_t calls = 0;
+
+    if (++calls % 100000 == 0) {
+        std::cerr << "[radius sample]"
+                  << " center_r=" << center.r << " lower=" << lower << " upper=" << upper << " sampled=" << sampled
+                  << " target_r=" << target_r_ << '\n';
+    }
+
+    return sampled;
+}
+
+template <typename Double>
+std::pair<SInt, SInt>
+Hyper_Hyperbolic<Double>::GlobalCellToChunkCell(const SInt annulus_id, const SInt global_cell) const {
+    const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+    if (global_cell < 0 || global_cell >= total_cells) {
+        throw std::out_of_range("GlobalCellToChunkCell: global cell out of range");
+    }
+
+    const SInt cells_per_chunk = total_cells / config_.k;
+
+    const SInt chunk_id = global_cell / cells_per_chunk;
+
+    const SInt local_cell_id = global_cell % cells_per_chunk;
+
+    return {chunk_id, local_cell_id};
+}
+
+template <typename Double>
+SInt Hyper_Hyperbolic<Double>::ChunkCellToGlobalCell(
+    const SInt annulus_id, const SInt chunk_id, const SInt local_cell_id) const {
+    const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+    const SInt cells_per_chunk = total_cells / config_.k;
+
+    if (chunk_id < 0 || chunk_id >= config_.k) {
+        throw std::out_of_range("ChunkCellToGlobalCell: chunk out of range");
+    }
+
+    if (local_cell_id < 0 || local_cell_id >= cells_per_chunk) {
+        throw std::out_of_range("ChunkCellToGlobalCell: local cell out of range");
+    }
+
+    return chunk_id * cells_per_chunk + local_cell_id;
+}
+
+template <typename Double>
+std::pair<SInt, SInt> Hyper_Hyperbolic<Double>::GlobalCellRangeForAngularInterval(
+    const SInt annulus_id, const Double min_phi, const Double max_phi) const {
+    const SInt total_cells = global_cells_per_annulus_[annulus_id];
+
+    if (total_cells <= 0) {
+        throw std::logic_error("GlobalCellRangeForAngularInterval: invalid cell count");
+    }
+
+    const Double two_pi = Double{2.0 * M_PI};
+
+    const Double cell_width = two_pi / static_cast<Double>(total_cells);
+
+    const Double end_inside = std::nextafter(max_phi, min_phi);
+
+    SInt first_cell = static_cast<SInt>(std::floor(min_phi / cell_width));
+
+    SInt last_cell = static_cast<SInt>(std::floor(end_inside / cell_width));
+
+    first_cell = std::clamp<SInt>(first_cell, 0, total_cells - 1);
+
+    last_cell = std::clamp<SInt>(last_cell, 0, total_cells - 1);
+
+    return {first_cell, last_cell};
 }
 
 template class Hyper_Hyperbolic<LPFloat>;

@@ -36,7 +36,9 @@ public:
 
         const auto timer_start_total = config_.debug ? Clock::now() : Clock::time_point{};
 
-        const auto radius = CollectCandidateCells(center);
+        bool has_hierarchical_inside = false;
+
+        const auto radius = CollectCandidateCells(center, has_hierarchical_inside);
 
         BuildStats stats;
 
@@ -55,7 +57,7 @@ public:
             }
         }
 
-        const bool approximation_allowed = has_inside_cell;
+        const bool approximation_allowed = has_inside_cell || has_hierarchical_inside;
 
         for (std::size_t i = 0; i < cells_.size(); ++i) {
             ProcessCell(center, radius, cells_[i], relations[i], approximation_allowed, stats);
@@ -266,10 +268,19 @@ private:
             stats.partial_estimated_size);
     }
 
-    Double CollectCandidateCells(const Center& center) {
+    Double CollectCandidateCells(const Center& center, bool& has_hierarchical_inside) {
         geometry_.AddCenter(center, pins_);
+
         const auto radius = geometry_.Radius(center);
+
+#ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
+        has_hierarchical_inside = geometry_.HierarchicalCandidateCells(center, radius, cells_, ranges_);;
+#else
+        has_hierarchical_inside = false;
+
         geometry_.CandidateCells(center, radius, cells_);
+#endif
+
         return radius;
     }
 

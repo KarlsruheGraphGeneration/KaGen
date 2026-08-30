@@ -9,6 +9,8 @@
 
 #include "kagen/kagen.h"
 
+#include <sys/types.h>
+
 #include <iostream>
 #include <limits>
 #include <ostream>
@@ -103,10 +105,22 @@ struct Graph500RMATDefaults {
     static constexpr double c = 0.19;
 };
 // Handles behavior of by hyperballs partially covered cells
-enum class PartialCellMode { EstimateByCoverageRange, EstimateByCoverageFloyd, GenerateAndCheck };
+enum class PartialCellMode : std::uint8_t {
+    // Estimates number of vertices in cell covered by hyperball
+    // Samples range from cell vertices containing estimated number of vertices
+    EstimateByCoverageRange,
+
+    // Estimates number of vertices in cell covered by hyperball
+    // Samples that number of vertices in cell uniformly from cell vertices
+    EstimateByCoverageFloyd,
+
+    // Does distance checks for all vertices in cells
+    // partially covered by hyperedge
+    GenerateAndCheck
+};
 
 // Selects the CIGAM rank and edge-count generation strategy.
-enum class CIGAMMode {
+enum class CIGAMMode : uint8_t {
     // Paper-accurate implementation:
     // sample IID prestige values, sort them, and generate each block
     // according to the original CIGAM sampling algorithm.
@@ -190,23 +204,28 @@ struct PGeneratorConfig {
 
     OutputGraphConfig output_graph{};
 
-    // Hypergraph mode.
-    // If true, the generator produces hyperedge_offsets / hyperedge_pins instead of graph edges.
-    bool            is_hypergraph             = false;
-    bool            random_radius             = false;
-    double          min_hyperedge_radius      = -1.0;
-    double          max_hyperedge_radius      = -1.0;
-    double          hyperedge_radius_exponent = 2.5;
-    PartialCellMode partial_cell_mode         = PartialCellMode::GenerateAndCheck;
-    SInt            size_dist_pin_budget      = 0;
-    double          quantile                  = 0.95;
+    // Hypergraphs
+    bool debug         = false;
+    bool is_hypergraph = false; // If true, the generator produces hyperedge_offsets
+                                // hyperedge_pins instead of graph edges.
+    SInt size_dist_pin_budget  = 0;
+    SInt size_dist_lower_bound = 2;
+    SInt size_dist_upper_bound =
+        0; // Total expected number of pins for hypergraph. Controls hyperedge size distribution
 
-    bool debug = false;
+    // Geometric Hypergraphs
+    bool   random_radius             = false; // If true, sample random radii from distribution
+    double min_hyperedge_radius      = -1.0;  // Minimum hyperedge radius for radius distribution (-1 symbolizes unset)
+    double max_hyperedge_radius      = -1.0;  // Maximum hyperedge radius for radius distribution (-1 symbolizes unset)
+    double hyperedge_radius_exponent = 2.5;   // Exponent
+                                            // controlling hyperedge radius distributions TODO: Adapt for other distributions
+    PartialCellMode partial_cell_mode =
+        PartialCellMode::GenerateAndCheck; // Controls how cells partially covered by hyperball are generated
+    double quantile = 0.95;                // Controls size of cells depending on hyperedge radius distribution
 
-    // Hyperedge Distribution for Erdos Renyi
-    SInt                     size_dist_lower_bound = 2;
-    SInt                     size_dist_upper_bound = 0;
-    double                   size_dist_alpha       = 0.9;
+    // Erdos Renyi
+
+    double                   size_dist_alpha = 0.9; 
     std::vector<long double> size_probabilities;
     std::string              size_probabilities_file;
     std::vector<long double> size_expected_counts;

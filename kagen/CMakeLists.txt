@@ -28,6 +28,12 @@ option(
 )
 
 option(
+    KAGEN_ENABLE_HIERARCHICAL_CELLS
+    "Enable hierarchical traversal of geometric cells"
+    OFF
+)
+
+option(
     KAGEN_USE_LOGBINOM_CURSOR_CACHE
     "Use cursor recurrence for LogBinomCache::Get"
     OFF
@@ -35,9 +41,13 @@ option(
 
 add_library(KaGen ${KAGEN_SOURCE_FILES})
 
-target_compile_definitions(KaGen PRIVATE
-    $<$<BOOL:${KAGEN_ENABLE_HYPER_INSTRUMENTATION}>:KAGEN_ENABLE_HYPER_INSTRUMENTATION>
-    $<$<BOOL:${KAGEN_USE_LOGBINOM_CURSOR_CACHE}>:KAGEN_USE_LOGBINOM_CURSOR_CACHE>
+target_compile_definitions(KaGen
+    PRIVATE
+        $<$<BOOL:${KAGEN_ENABLE_HYPER_INSTRUMENTATION}>:KAGEN_ENABLE_HYPER_INSTRUMENTATION>
+        $<$<BOOL:${KAGEN_USE_LOGBINOM_CURSOR_CACHE}>:KAGEN_USE_LOGBINOM_CURSOR_CACHE>
+
+    PUBLIC
+        $<$<BOOL:${KAGEN_ENABLE_HIERARCHICAL_CELLS}>:KAGEN_ENABLE_HIERARCHICAL_CELLS>
 )
 target_compile_features(KaGen PRIVATE cxx_std_17)
 target_link_libraries(KaGen PUBLIC ${KAGEN_LINK_LIBRARIES})

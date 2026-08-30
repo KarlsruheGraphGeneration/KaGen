@@ -262,6 +262,302 @@ HyperRGG2DPolicy::CellBounds HyperRGG2DPolicy::GetCellBounds(const Cell& cell) c
     };
 }
 
+#ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
+
+HyperRGG2DPolicy::CellBounds HyperRGG2DPolicy::GetCellRegionBounds(const CellRegion& region) const {
+    SInt chunk_x;
+    SInt chunk_y;
+
+    gen_->Decode(region.chunk_id, chunk_x, chunk_y);
+
+    const SInt global_start_x = chunk_x * gen_->cells_per_dim_ + region.start_x;
+
+    const SInt global_start_y = chunk_y * gen_->cells_per_dim_ + region.start_y;
+
+    const double h = 1.0 / static_cast<double>(gen_->SafeTotalCellsPerDim());
+
+    return {
+        .min_x = static_cast<double>(global_start_x) * h,
+
+        .max_x = static_cast<double>(global_start_x + region.columns) * h,
+
+        .min_y = static_cast<double>(global_start_y) * h,
+
+        .max_y = static_cast<double>(global_start_y + region.rows) * h,
+    };
+}
+
+CellBallRelation
+HyperRGG2DPolicy::ClassifyCellRegion(const Center& center, const LPFloat radius, const CellRegion& region) const {
+    const CellBounds bounds = GetCellRegionBounds(region);
+
+    const LPFloat radius_sq = radius * radius;
+
+    const LPFloat closest_x = std::clamp(center.x, bounds.min_x, bounds.max_x);
+
+    const LPFloat closest_y = std::clamp(center.y, bounds.min_y, bounds.max_y);
+
+    const LPFloat dx_min = center.x - closest_x;
+
+    const LPFloat dy_min = center.y - closest_y;
+
+    if (dx_min * dx_min + dy_min * dy_min > radius_sq) {
+        return CellBallRelation::OUTSIDE;
+    }
+
+    const LPFloat dx1 = center.x - bounds.min_x;
+
+    const LPFloat dx2 = center.x - bounds.max_x;
+
+    const LPFloat dy1 = center.y - bounds.min_y;
+
+    const LPFloat dy2 = center.y - bounds.max_y;
+
+    const LPFloat max_dist_sq = std::max(dx1 * dx1, dx2 * dx2) + std::max(dy1 * dy1, dy2 * dy2);
+
+    if (max_dist_sq <= radius_sq) {
+        return CellBallRelation::INSIDE;
+    }
+
+    return CellBallRelation::PARTIAL;
+}
+
+SInt HyperRGG2DPolicy::AddWholeCellRegion(const CellRegion& region, std::vector<PinRange>& ranges) const {
+    gen_->GenerateCells(region.chunk_id);
+
+    SInt total_added = 0;
+
+    for (SInt local_y = region.start_y; local_y < region.start_y + region.rows; ++local_y) {
+        bool have_vertices = false;
+
+        SInt range_begin = 0;
+        SInt range_end   = 0;
+
+        for (SInt local_x = region.start_x; local_x < region.start_x + region.columns; ++local_x) {
+            const SInt cell_id = gen_->EncodeCell(local_x, local_y);
+
+            const SInt global_cell_id = gen_->ComputeGlobalCellId(region.chunk_id, cell_id);
+
+            const auto it = gen_->cells_.find(global_cell_id);
+
+            //
+            // Empty cells are deliberately not stored by
+            // GenerateCells().
+            //
+            if (it == gen_->cells_.end()) {
+                continue;
+            }
+
+            const SInt size = std::get<0>(it->second);
+
+            const SInt offset = std::get<4>(it->second);
+
+            if (size <= 0) {
+                continue;
+            }
+
+            if (!have_vertices) {
+                range_begin = offset;
+
+                have_vertices = true;
+            }
+
+            range_end = offset + size;
+
+            total_added += size;
+        }
+
+        if (have_vertices) {
+            ranges.push_back({
+                .begin = range_begin,
+                .end   = range_end,
+            });
+        }
+    }
+
+    return total_added;
+}
+
+void HyperRGG2DPolicy::TraverseCellHierarchy(
+    const Center& center, const LPFloat radius, const CellRegion& region, std::vector<Cell>& partial_cells,
+    std::vector<PinRange>& ranges, bool& has_inside_region) const {
+    const CellBallRelation relation = ClassifyCellRegion(center, radius, region);
+
+    if (relation == CellBallRelation::OUTSIDE) {
+        return;
+    }
+
+    if (relation == CellBallRelation::INSIDE) {
+        AddWholeCellRegion(region, ranges);
+
+        has_inside_region = true;
+        return;
+    }
+
+    //
+    // PARTIAL 1×1 region:
+    // hand the individual cell back to the existing builder.
+    //
+    if (region.columns == 1 && region.rows == 1) {
+        SInt chunk_x;
+        SInt chunk_y;
+
+        gen_->Decode(region.chunk_id, chunk_x, chunk_y);
+
+        const SSInt global_cell_x = chunk_x * gen_->cells_per_dim_ + region.start_x;
+
+        const SSInt global_cell_y = chunk_y * gen_->cells_per_dim_ + region.start_y;
+
+        if (auto cell = TryMakeCell(global_cell_x, global_cell_y)) {
+            partial_cells.push_back(*cell);
+        }
+
+        return;
+    }
+    if (region.columns >= region.rows && region.columns > 1) {
+        const SInt left_columns = (region.columns + 1) / 2;
+
+        const SInt right_columns = region.columns - left_columns;
+
+        TraverseCellHierarchy(
+            center, radius,
+            {
+                .chunk_id = region.chunk_id,
+
+                .start_x = region.start_x,
+
+                .start_y = region.start_y,
+
+                .columns = left_columns,
+
+                .rows = region.rows,
+            },
+            partial_cells, ranges, has_inside_region);
+
+        if (right_columns > 0) {
+            TraverseCellHierarchy(
+                center, radius,
+                {
+                    .chunk_id = region.chunk_id,
+
+                    .start_x = region.start_x + left_columns,
+
+                    .start_y = region.start_y,
+
+                    .columns = right_columns,
+
+                    .rows = region.rows,
+                },
+                partial_cells, ranges, has_inside_region);
+        }
+
+        return;
+    }
+    const SInt upper_rows = (region.rows + 1) / 2;
+
+    const SInt lower_rows = region.rows - upper_rows;
+
+    TraverseCellHierarchy(
+        center, radius,
+        {
+            .chunk_id = region.chunk_id,
+
+            .start_x = region.start_x,
+
+            .start_y = region.start_y,
+
+            .columns = region.columns,
+
+            .rows = upper_rows,
+        },
+        partial_cells, ranges, has_inside_region);
+
+    if (lower_rows > 0) {
+        TraverseCellHierarchy(
+            center, radius,
+            {
+                .chunk_id = region.chunk_id,
+
+                .start_x = region.start_x,
+
+                .start_y = region.start_y + upper_rows,
+
+                .columns = region.columns,
+
+                .rows = lower_rows,
+            },
+            partial_cells, ranges, has_inside_region);
+    }
+}
+
+bool HyperRGG2DPolicy::HierarchicalCandidateCells(
+    const Center& center, const LPFloat radius, std::vector<Cell>& partial_cells, std::vector<PinRange>& ranges) const {
+    const SInt total_cells_per_dim = gen_->SafeTotalCellsPerDim();
+
+    const LPFloat cell_size = 1.0 / static_cast<LPFloat>(total_cells_per_dim);
+
+    SSInt min_cell_x = static_cast<SSInt>(std::floor((center.x - radius) / cell_size));
+
+    SSInt max_cell_x = static_cast<SSInt>(std::floor((center.x + radius) / cell_size));
+
+    SSInt min_cell_y = static_cast<SSInt>(std::floor((center.y - radius) / cell_size));
+
+    SSInt max_cell_y = static_cast<SSInt>(std::floor((center.y + radius) / cell_size));
+
+    min_cell_x = std::max<SSInt>(0, min_cell_x);
+
+    min_cell_y = std::max<SSInt>(0, min_cell_y);
+
+    max_cell_x = std::min<SSInt>(total_cells_per_dim - 1, max_cell_x);
+
+    max_cell_y = std::min<SSInt>(total_cells_per_dim - 1, max_cell_y);
+
+    if (min_cell_x > max_cell_x || min_cell_y > max_cell_y) {
+        return false;
+    }
+
+    const SInt first_chunk_x = static_cast<SInt>(min_cell_x) / gen_->cells_per_dim_;
+
+    const SInt last_chunk_x = static_cast<SInt>(max_cell_x) / gen_->cells_per_dim_;
+
+    const SInt first_chunk_y = static_cast<SInt>(min_cell_y) / gen_->cells_per_dim_;
+
+    const SInt last_chunk_y = static_cast<SInt>(max_cell_y) / gen_->cells_per_dim_;
+
+    bool has_inside_region = false;
+
+    for (SInt chunk_x = first_chunk_x; chunk_x <= last_chunk_x; ++chunk_x) {
+        for (SInt chunk_y = first_chunk_y; chunk_y <= last_chunk_y; ++chunk_y) {
+            const SInt chunk_id = gen_->Encode(chunk_x, chunk_y);
+
+            TraverseCellHierarchy(
+                center, radius,
+                {
+                    .chunk_id = chunk_id,
+
+                    .start_x = 0,
+                    .start_y = 0,
+
+                    .columns = gen_->cells_per_dim_,
+
+                    .rows = gen_->cells_per_dim_,
+                },
+                partial_cells, ranges, has_inside_region);
+        }
+    }
+    std::sort(partial_cells.begin(), partial_cells.end(), [](const Cell& a, const Cell& b) {
+        if (a.global_cell_x != b.global_cell_x) {
+            return a.global_cell_x < b.global_cell_x;
+        }
+
+        return a.global_cell_y < b.global_cell_y;
+    });
+
+    return has_inside_region;
+}
+
+#endif
+
 std::optional<HyperRGG2DPolicy::PartialCellSample>
 HyperRGG2DPolicy::PreparePartialCellSample(const Cell& cell, const double coverage) const {
     const auto stored = TryGetStoredCell(cell);

@@ -34,6 +34,11 @@ public:
 
     void CandidateCells(const Center& center, LPFloat radius, std::vector<Cell>& cells) const;
 
+#ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
+    bool HierarchicalCandidateCells(
+        const Center& center, LPFloat radius, std::vector<Cell>& partial_cells, std::vector<PinRange>& ranges) const;
+#endif
+
     CellBallRelation ClassifyCell(const Center& center, LPFloat radius, const Cell& cell) const;
 
     double CellCoverage(const Center& center, LPFloat radius, const Cell& cell) const;
@@ -91,6 +96,29 @@ private:
         double min_y;
         double max_y;
     };
+
+#ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
+    struct CellRegion {
+        SInt chunk_id;
+
+        // Local cell coordinates within this chunk.
+        SInt start_x;
+        SInt start_y;
+
+        SInt columns;
+        SInt rows;
+    };
+
+    CellBounds GetCellRegionBounds(const CellRegion& region) const;
+
+    CellBallRelation ClassifyCellRegion(const Center& center, LPFloat radius, const CellRegion& region) const;
+
+    void TraverseCellHierarchy(
+        const Center& center, LPFloat radius, const CellRegion& region, std::vector<Cell>& partial_cells,
+        std::vector<PinRange>& ranges, bool& has_inside_region) const;
+
+    SInt AddWholeCellRegion(const CellRegion& region, std::vector<PinRange>& ranges) const;
+#endif
 
     CellBounds GetCellBounds(const Cell& cell) const;
 

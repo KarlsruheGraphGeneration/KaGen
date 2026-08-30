@@ -590,21 +590,12 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         cmd->callback(set_hypergraph_generator(GeneratorType::CIGAM));
 
-        /*
-         * Vertex count.
-         */
         add_option_n(cmd)->required();
 
-        /*
-         * Hyperedge sizes.
-         */
         auto* size_group = add_explicit_hyperedge_sizes(cmd, "Explicit CIGAM hyperedge sizes", true);
         size_group->get_option("-l")->description("Minimum hyperedge size");
         size_group->get_option("-u")->description("Maximum hyperedge size");
 
-        /*
-         * CIGAM model parameters.
-         */
         auto* model_group = cmd->add_option_group("CIGAM model");
 
         model_group->add_option("--lambda", config.cigam_lambda, "Truncated-exponential prestige parameter")
@@ -653,9 +644,6 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         model_group->silent();
 
-        /*
-         * Generation mode.
-         */
         auto* mode_group = cmd->add_option_group("Generation mode");
 
         mode_group->add_option("--mode", config.cigam_mode, "CIGAM generation mode")

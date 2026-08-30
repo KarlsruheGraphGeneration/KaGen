@@ -62,8 +62,6 @@ std::unique_ptr<GeneratorFactory> CreateGeneratorFactory(const GeneratorType typ
         case GeneratorType::CIGAM:
             return std::make_unique<HyperCIGAMFactory>();
 
-            // TODO(clickup)[2026-05-08]: Implement other Generators
-
 #ifdef KAGEN_CGAL_FOUND
         case GeneratorType::RDG_2D:
             return std::make_unique<Delaunay2DFactory>();
