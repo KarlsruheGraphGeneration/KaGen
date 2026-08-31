@@ -88,7 +88,7 @@ bool RandomRadiusChecks(PGeneratorConfig& config) {
 
 PinRange getRandomPinRange(
     const SInt target_cell_size, const SInt range_size, const SInt target_cell_offset, Mersenne& mersenne) {
-    if (range_size < 0 || range_size > target_cell_size) {
+    if (range_size > target_cell_size) {
         throw ConfigurationError("Cannot sample a range larger than the target cell");
     }
 

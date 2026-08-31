@@ -141,11 +141,10 @@ struct LogBinomCache {
     LogBinomCacheStats stats;
 
     explicit LogBinomCache(const SInt k = -1, [[maybe_unused]] const std::size_t expected_size = 4096) : fixed_k(k) {
-        if (fixed_k >= 0) {
-            log_k_factorial = std::lgammal(static_cast<long double>(fixed_k) + 1.0L);
+        log_k_factorial = std::lgammal(static_cast<long double>(fixed_k) + 1.0L);
 
-            inv_k = 1.0L / static_cast<long double>(fixed_k);
-        }
+        inv_k = 1.0L / static_cast<long double>(fixed_k);
+
     }
 
     long double EvaluateDirect(const SInt x) const {
@@ -287,8 +286,7 @@ struct LogBinomCache {
         cursor_initialized = true;
     }
 
-    long double Get(const SInt x, const SInt k) {
-        assert(k == fixed_k);
+    long double Get(const SInt x, const SInt /*k*/) {
 
         ++stats.map_calls;
 

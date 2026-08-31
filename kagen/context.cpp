@@ -90,6 +90,7 @@ std::ostream& printHRHGData(std::ostream& out, const PGeneratorConfig& config) {
         out << "yes";
     }
     out << "\n";
+    
     out << "  Hypergraph:                         yes\n";
     out << "  Partial cell mode:                  ";
     switch (config.partial_cell_mode) {

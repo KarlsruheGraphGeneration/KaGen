@@ -286,6 +286,14 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
         group->silent();
     };
 
+    auto add_option_hp_floats = [&](CLI::App* cmd) {
+        cmd->add_flag_callback(
+            "--hp-floats", [&config]() { config.hp_floats = 1; }, "Use 80 bit floating point numbers");
+
+        cmd->add_flag_callback(
+            "--no-hp-floats", [&config]() { config.hp_floats = -1; }, "Do not use 80 bit floating point numbers");
+    };
+
     auto add_hgnm_size_distribution = [&](CLI::App* cmd) {
         auto* group = cmd->add_option_group("Hyperedge size distribution");
         auto* alpha = group->add_option("--alpha,--decay", config.size_dist_alpha, "Geometric distribution alpha")
@@ -541,7 +549,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* cmd = app.add_subcommand("hrhg", "Random Hyperbolic Hypergraph");
         cmd->callback(set_hypergraph_generator(GeneratorType::H_RHG));
 
-        cmd->add_flag("--hp-floats,!--no-hp-floats", config.hp_floats, "Use 80 bit floating point numbers");
+        add_option_hp_floats(cmd);
         add_option_gamma(cmd)->required();
 
         auto* params = cmd->add_option_group("Parameters");
@@ -789,7 +797,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* cmd = app.add_subcommand("rhg", "Random Hyperbolic Graph");
         cmd->callback([&] { config.generator = GeneratorType::RHG; });
         cmd->add_flag("--query-both", config.query_both, "Generate reverse cut edges communication-free (slow!)");
-        cmd->add_flag("--hp-floats,!--no-hp-floats", config.hp_floats, "Use 80 bit floating point numbers");
+
+        add_option_hp_floats(cmd);
         add_option_gamma(cmd)->required();
 
         auto* params = cmd->add_option_group("Parameters");
@@ -947,6 +956,8 @@ int main(int argc, char* argv[]) {
         CLI::App         app("KaGen: Karlsruhe Graph Generator");
         SetupCommandLineArguments(app, config);
         CLI11_PARSE(app, argc, argv);
+
+        std::cerr << "parsed hp_floats=" << config.hp_floats << '\n';
 
         // Coordinates output format implies --coordinates
         if (std::find(config.output_graph.formats.begin(), config.output_graph.formats.end(), FileFormat::COORDINATES)

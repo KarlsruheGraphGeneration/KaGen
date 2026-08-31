@@ -179,7 +179,7 @@ void Hyper_Hyperbolic<Double>::PrecomputeRadiusBounds() {
 
 std::unique_ptr<Generator>
 Hyper_HyperbolicFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
-    if (config.hp_floats != 0) {
+    if (config.hp_floats > 0) {
         return std::make_unique<HighPrecisionHyperHyperbolic>(config, rank, size);
     }
 
@@ -631,8 +631,10 @@ Double Hyper_Hyperbolic<Double>::TargetCellWidthForAnnulus(const SInt annulus_id
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateCSR() {
-    graph_.hyperedge_offsets.reserve(config_.m + 1);
-    graph_.hyperedge_range_offsets.reserve(config_.m + 1);
+    const SInt expected_local_m = (config_.m + size_ - 1) / size_;
+
+    graph_.hyperedge_offsets.reserve(expected_local_m + 1);
+    graph_.hyperedge_range_offsets.reserve(expected_local_m + 1);
 
     for (SInt i = 0; i < config_.k; ++i) {
         ComputeChunk(i);
@@ -644,7 +646,9 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
     }
     const SInt start_node = std::get<3>(chunks_[local_chunk_start_]);
     SetVertexRange(start_node, start_node + num_nodes_);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const auto vertex_phase_start = std::chrono::steady_clock::now();
+#endif
     for (SInt i = 0; i < config_.k; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
             // Metadata only: size, offset, bounds, AABB.
@@ -653,11 +657,11 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
     }
     BuildNonemptyCellIndex();
     const auto vertex_phase_end = std::chrono::steady_clock::now();
-
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     std::cerr << "[HRHG timing] vertex/cell phase = "
               << std::chrono::duration<double>(vertex_phase_end - vertex_phase_start).count() << " s\n";
-
-    HyperbolicGeometryPolicy<Double>                   geometry(*this, 0, 0);
+#endif
+    HyperbolicGeometryPolicy<Double>                   geometry(*this);
     HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(
         geometry, config_, debug_logger_ ? &*debug_logger_ : nullptr);
     const auto hyperedge_phase_start = std::chrono::steady_clock::now();
@@ -1038,6 +1042,7 @@ Double Hyper_Hyperbolic<Double>::Radius(const HyperbolicHyperedgeCenter<Double>&
     const Double sampled = static_cast<Double>(
         SampleHyperedgeRadius(config_, static_cast<double>(lower), static_cast<double>(upper), mersenne));
 
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     static std::uint64_t calls = 0;
 
     if (++calls % 100000 == 0) {
@@ -1045,7 +1050,7 @@ Double Hyper_Hyperbolic<Double>::Radius(const HyperbolicHyperedgeCenter<Double>&
                   << " center_r=" << center.r << " lower=" << lower << " upper=" << upper << " sampled=" << sampled
                   << " target_r=" << target_r_ << '\n';
     }
-
+#endif
     return sampled;
 }
 
@@ -1054,7 +1059,7 @@ std::pair<SInt, SInt>
 Hyper_Hyperbolic<Double>::GlobalCellToChunkCell(const SInt annulus_id, const SInt global_cell) const {
     const SInt total_cells = global_cells_per_annulus_[annulus_id];
 
-    if (global_cell < 0 || global_cell >= total_cells) {
+    if (global_cell >= total_cells) {
         throw std::out_of_range("GlobalCellToChunkCell: global cell out of range");
     }
 
@@ -1074,15 +1079,15 @@ SInt Hyper_Hyperbolic<Double>::ChunkCellToGlobalCell(
 
     const SInt cells_per_chunk = total_cells / config_.k;
 
-    if (chunk_id < 0 || chunk_id >= config_.k) {
+    if (chunk_id >= config_.k) {
         throw std::out_of_range("ChunkCellToGlobalCell: chunk out of range");
     }
 
-    if (local_cell_id < 0 || local_cell_id >= cells_per_chunk) {
+    if (local_cell_id >= cells_per_chunk) {
         throw std::out_of_range("ChunkCellToGlobalCell: local cell out of range");
     }
 
-    return chunk_id * cells_per_chunk + local_cell_id;
+    return (chunk_id * cells_per_chunk) + local_cell_id;
 }
 
 template <typename Double>

@@ -57,9 +57,7 @@ public:
         Double max_y;
     };
 
-    explicit HyperbolicGeometryPolicy(GeneratorT& generator, const SInt annulus_id, const SInt chunk_id)
-        : gen_(generator),
-          rng_(RNGWrapper(generator.config_)) {
+    explicit HyperbolicGeometryPolicy(GeneratorT& generator) : gen_(generator), rng_(RNGWrapper(generator.config_)) {
         current_annulus_half_angle_.resize(gen_.total_annuli_, Double{-1.0});
         EnsureAnnulusMidpoints();
     }
@@ -94,24 +92,31 @@ public:
     }
 
     CellBallRelation ClassifyCell(const Center& /*center*/, const Double /*radius*/, const Cell& cell) const {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         static std::uint64_t calls   = 0;
         static std::uint64_t outside = 0;
         static std::uint64_t inside  = 0;
         static std::uint64_t partial = 0;
-
+#endif
         CellBallRelation result;
 
         if (CellAABBOutsideBall(cell)) {
             result = CellBallRelation::OUTSIDE;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ++outside;
+#endif
         } else if (ShouldTryInside(cell) && HyperbolicCellInside(cell)) {
             result = CellBallRelation::INSIDE;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ++inside;
+#endif
         } else {
             result = CellBallRelation::PARTIAL;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
             ++partial;
+#endif
         }
-
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
         ++calls;
 
         if (calls % 100000 == 0) {
@@ -120,7 +125,7 @@ public:
                       << " partial=" << static_cast<double>(partial) / static_cast<double>(calls)
                       << " outside=" << static_cast<double>(outside) / static_cast<double>(calls) << '\n';
         }
-
+#endif
         return result;
     }
 
@@ -387,7 +392,7 @@ public:
         return info->k;
     }
     SInt AddPartialCellExact(
-        const Center& center, const Double /*radius*/, const Cell& cell, std::vector<SInt>& pins) const {
+        const Center& /*center*/, const Double /*radius*/, const Cell& cell, std::vector<SInt>& pins) const {
         const auto& vertices = ExactVertices(cell);
 
         return gen_.config_.debug ? AddExactVerticesChecked(vertices, pins) : AddExactVerticesFast(vertices, pins);
@@ -450,7 +455,8 @@ private:
     struct CandidateCollector {
         HyperbolicGeometryPolicy& policy;
         std::unordered_set<SInt>  seen_candidate_cells_;
-        GeneratorT&               gen() {
+        explicit CandidateCollector(HyperbolicGeometryPolicy& policy) : policy(policy) {}
+        GeneratorT& gen() {
             return policy.gen_;
         }
 

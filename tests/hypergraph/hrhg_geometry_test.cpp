@@ -49,7 +49,7 @@ struct GeometryFixture {
     explicit GeometryFixture(const double radius)
         : config(GeometryConfig(radius)),
           generator(config, 0, 1),
-          policy(generator, 0, 0) {}
+          policy(generator) {}
 
     PGeneratorConfig config;
     Generator        generator;
