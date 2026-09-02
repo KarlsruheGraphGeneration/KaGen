@@ -156,7 +156,9 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
             }
         }
     }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     policy.PrintExactCacheStats();
+#endif
 }
 
 void HyperRGG2D::ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges) {

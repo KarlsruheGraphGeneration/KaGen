@@ -134,7 +134,7 @@ private:
     mutable std::unordered_map<SInt, std::list<SInt>::iterator> exact_lru_pos_;
     std::size_t                                                 exact_remote_cache_limit_ = 8; // configurable later
     mutable std::unordered_set<SInt>                            floyd_scratch_;
-
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     mutable SInt exact_remote_cache_hits_      = 0;
     mutable SInt exact_remote_cache_misses_    = 0;
     mutable SInt exact_remote_cached_vertices_ = 0;
@@ -165,7 +165,7 @@ private:
     mutable SInt local_exact_reuse_distance_gt_16_ = 0;
 
     mutable HashMap<SInt, SInt> local_exact_last_access_;
-
+#endif
     mutable RNGWrapper<> rng_;
     mutable Mersenne     rounding_rng_;
 
@@ -175,13 +175,15 @@ private:
     mutable std::unordered_set<SInt> local_vertices_sorted_by_x_;
 
     bool IsLocalCell(const Cell& cell) const;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     void RecordRemoteAccess(SInt global_cell_id) const;
 
     void RecordLocalExactAccess(SInt global_cell_id) const;
-
+#endif
 public:
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     void PrintExactCacheStats() const;
-
+#endif
     bool ShouldApproximatePartialCell(const Cell& cell) const;
 };
 

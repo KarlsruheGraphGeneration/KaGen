@@ -159,7 +159,6 @@ private:
     std::vector<SInt>                      global_cell_ids_;
     std::vector<Double>                    target_cell_width_per_annulus_;
     std::vector<SInt>                      global_cells_per_annulus_;
-    std::vector<std::vector<SInt>>         nonempty_cells_per_annulus_;
     std::vector<std::pair<Double, Double>> boundaries_;
     std::vector<Double>                    minimum_radii_by_center_annulus_;
     std::vector<Double>                    maximum_radii_by_center_annulus_;
@@ -219,7 +218,17 @@ private:
 
     void GenerateVertices(SInt annulus_id, SInt chunk_id, SInt cell_id, VertexBlock& out);
 
+    void GenerateVertices(
+        SInt annulus_id, SInt chunk_id, SInt cell_id, const Annulus& annulus, const Cell& cell, VertexBlock& out);
+
     void ComputeCenterAnnuli(SInt chunk_id);
+
+    struct ChunkAnnulusMetadata {
+        Chunk   chunk;
+        Annulus annulus;
+    };
+
+    ChunkAnnulusMetadata ReconstructChunkAnnulus(SInt annulus_id, SInt chunk_id);
 
     void ComputeCenterChunk(SInt chunk_id);
 
@@ -242,8 +251,6 @@ private:
         SInt annulus_id, SInt chunk_id, ChunkMap& chunks, AnnulusMap& annuli, CellMap& cells, SInt seed_offset);
 
     bool OutOfBounds(Double num) const;
-
-    void BuildNonemptyCellIndex();
 
     SInt ComputeGlobalChunkId(SInt annulus, SInt chunk) const;
 

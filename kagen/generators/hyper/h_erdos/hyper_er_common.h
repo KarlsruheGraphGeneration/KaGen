@@ -2215,7 +2215,7 @@ private:
                 delta -= move * loss;
             }
 
-            if (delta > 0 && counts[from] > 0 && from - 1 >= 0) {
+            if (delta > 0 && counts[from] > 0) {
                 --counts[from];
                 ++counts[from - 1];
                 --pins_sum;

@@ -11,9 +11,13 @@
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/geometry.h"
 
+#include <sys/resource.h>
+
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    #include <iostream>
+#endif
 #include <limits>
 #include <string>
 #include <type_traits>
@@ -392,30 +396,6 @@ void Hyper_Hyperbolic<Double>::ComputeAnnuli(const SInt chunk_id) {
 }
 
 template <typename Double>
-void Hyper_Hyperbolic<Double>::BuildNonemptyCellIndex() {
-    nonempty_cells_per_annulus_.clear();
-    nonempty_cells_per_annulus_.resize(total_annuli_);
-
-    for (SInt annulus_id = 0; annulus_id < total_annuli_; ++annulus_id) {
-        auto& occupied = nonempty_cells_per_annulus_[annulus_id];
-
-        const SInt total_cells = global_cells_per_annulus_[annulus_id];
-
-        occupied.reserve(std::min<SInt>(total_cells, config_.n));
-
-        const SInt base = global_cell_ids_[annulus_id];
-
-        for (SInt global_cell = 0; global_cell < total_cells; ++global_cell) {
-            const auto it = cells_.find(base + global_cell);
-
-            if (it != cells_.end() && std::get<0>(it->second) > 0) {
-                occupied.push_back(global_cell);
-            }
-        }
-    }
-}
-
-template <typename Double>
 void Hyper_Hyperbolic<Double>::ComputeCenterAnnuli(const SInt chunk_id) {
     ComputeAnnuliInto(center_chunks_, center_annuli_, chunk_id, 9101);
 }
@@ -507,8 +487,8 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chun
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateVertices(
-    const SInt annulus_id, SInt chunk_id, const SInt cell_id, VertexBlock& out) {
-    if (chunks_.find(chunk_id) == std::end(chunks_)) {
+    const SInt annulus_id, const SInt chunk_id, const SInt cell_id, VertexBlock& out) {
+    if (chunks_.find(chunk_id) == chunks_.end()) {
         ComputeChunk(chunk_id);
         ComputeAnnuli(chunk_id);
     }
@@ -520,8 +500,16 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(
     }
 
     const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
-    auto&      cell           = cells_[global_cell_id];
 
+    const auto& cell = cells_[global_cell_id];
+
+    GenerateVertices(annulus_id, chunk_id, cell_id, annulus, cell, out);
+}
+
+template <typename Double>
+void Hyper_Hyperbolic<Double>::GenerateVertices(
+    const SInt annulus_id, const SInt chunk_id, const SInt cell_id, const Annulus& annulus, const Cell& cell,
+    VertexBlock& out) {
     out.clear();
 
     const SInt   size    = std::get<0>(cell);
@@ -544,6 +532,7 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(
 
     for (SInt i = 0; i < size; ++i) {
         const auto vertex = SampleVertex(min_phi, max_phi, mincdf, maxcdf);
+
         AppendVertex(out, offset + i, vertex);
 
         if (config_.coordinates && pe_min_phi_ <= vertex.phi && vertex.phi < pe_max_phi_) {
@@ -585,7 +574,7 @@ Double Hyper_Hyperbolic<Double>::AngularReach(const Double center_r, const Doubl
         return radial_distance <= radius ? Double{M_PI} : Double{0.0};
     }
 
-    const Double argument = (std::cosh(center_r) * std::cosh(query_r) - std::cosh(radius)) / denominator;
+    const Double argument = ((std::cosh(center_r) * std::cosh(query_r)) - std::cosh(radius)) / denominator;
 
     if (argument <= Double{-1.0}) {
         return Double{M_PI};
@@ -631,15 +620,32 @@ Double Hyper_Hyperbolic<Double>::TargetCellWidthForAnnulus(const SInt annulus_id
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateCSR() {
-    const SInt expected_local_m = (config_.m + size_ - 1) / size_;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const auto print_peak_rss = [&](const char* phase) {
+        struct rusage usage{};
+        getrusage(RUSAGE_SELF, &usage);
 
-    graph_.hyperedge_offsets.reserve(expected_local_m + 1);
-    graph_.hyperedge_range_offsets.reserve(expected_local_m + 1);
+        std::cerr << "[HRHG RSS]"
+                  << " rank=" << rank_ << " phase=" << phase << " peak_kib=" << usage.ru_maxrss << '\n';
+    };
 
-    for (SInt i = 0; i < config_.k; ++i) {
+    print_peak_rss("start");
+#endif
+    SInt exact_local_m = 0;
+
+    for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         ComputeChunk(i);
         ComputeAnnuli(i);
+
+        ComputeCenterChunk(i);
+        ComputeCenterAnnuli(i);
+
+        exact_local_m += std::get<0>(center_chunks_[i]);
     }
+
+    graph_.hyperedge_offsets.reserve(static_cast<std::size_t>(exact_local_m) + 1);
+
+    graph_.hyperedge_range_offsets.reserve(static_cast<std::size_t>(exact_local_m) + 1);
 
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         num_nodes_ += std::get<0>(chunks_[i]);
@@ -649,35 +655,56 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const auto vertex_phase_start = std::chrono::steady_clock::now();
 #endif
-    for (SInt i = 0; i < config_.k; ++i) {
+
+    std::size_t expected_local_vertex_blocks = 0;
+
+    for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
-            // Metadata only: size, offset, bounds, AABB.
+            expected_local_vertex_blocks += static_cast<std::size_t>(CellsPerChunkForAnnulus(j, i));
+        }
+    }
+
+    // Leave room for a few boundary cells generated lazily.
+    vertices_.resize(expected_local_vertex_blocks + 16);
+
+    for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
+        for (SInt j = 0; j < total_annuli_; ++j) {
             GenerateCells(j, i);
         }
     }
-    BuildNonemptyCellIndex();
-    const auto vertex_phase_end = std::chrono::steady_clock::now();
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    print_peak_rss("after_vertex_cells");
+#endif
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const auto vertex_phase_end = std::chrono::steady_clock::now();
     std::cerr << "[HRHG timing] vertex/cell phase = "
               << std::chrono::duration<double>(vertex_phase_end - vertex_phase_start).count() << " s\n";
 #endif
     HyperbolicGeometryPolicy<Double>                   geometry(*this);
     HyperedgeBuilder<HyperbolicGeometryPolicy<Double>> builder(
         geometry, config_, debug_logger_ ? &*debug_logger_ : nullptr);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const auto hyperedge_phase_start = std::chrono::steady_clock::now();
+#endif
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
             GenerateHyperedges(j, i, builder);
         }
     }
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    print_peak_rss("after_hyperedges");
+#endif
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const auto hyperedge_phase_end = std::chrono::steady_clock::now();
-
     std::cerr << "[HRHG timing] hyperedge phase = "
               << std::chrono::duration<double>(hyperedge_phase_end - hyperedge_phase_start).count() << " s\n";
 
     if (config_.debug) {
         geometry.PrintExactCacheStats();
     }
+    print_peak_rss("end");
+#endif
 }
 
 template <typename Double>
@@ -821,6 +848,26 @@ void Hyper_Hyperbolic<Double>::ComputeAnnuliInto(
         offset += n_annulus;
         total_area -= ring_area;
     }
+}
+
+template <typename Double>
+typename Hyper_Hyperbolic<Double>::ChunkAnnulusMetadata
+Hyper_Hyperbolic<Double>::ReconstructChunkAnnulus(const SInt annulus_id, const SInt chunk_id) {
+    std::unordered_map<SInt, Chunk>   temporary_chunks;
+    std::unordered_map<SInt, Annulus> temporary_annuli;
+
+    ComputeChunkInto(
+        temporary_chunks, chunk_id, config_.n, config_.k, Double{0.0}, Double{2.0 * M_PI}, SInt{0}, SInt{1}, SInt{0},
+        SInt{0});
+
+    ComputeAnnuliInto(temporary_chunks, temporary_annuli, chunk_id, SInt{0});
+
+    const SInt global_chunk_id = ComputeGlobalChunkId(annulus_id, chunk_id);
+
+    return ChunkAnnulusMetadata{
+        .chunk   = temporary_chunks.at(chunk_id),
+        .annulus = temporary_annuli.at(global_chunk_id),
+    };
 }
 
 template <typename Double>
