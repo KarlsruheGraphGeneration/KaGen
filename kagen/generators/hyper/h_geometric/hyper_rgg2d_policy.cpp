@@ -116,21 +116,27 @@ void HyperRGG2DPolicy::CandidateCells(const Center& center, const LPFloat radius
 }
 
 std::optional<HyperRGG2DPolicy::StoredCell> HyperRGG2DPolicy::TryGetStoredCell(const Cell& cell) const {
-    auto it = gen_->cells_.find(cell.global_cell_id);
+    if (gen_->IsLocalChunk(cell.chunk_id)) {
+        const auto it = gen_->cells_.find(cell.global_cell_id);
 
-    if (it == gen_->cells_.end()) {
-        gen_->GenerateCells(cell.chunk_id);
+        if (it == gen_->cells_.end()) {
+            return StoredCell{
+                .size   = 0,
+                .offset = 0,
+            };
+        }
 
-        it = gen_->cells_.find(cell.global_cell_id);
+        return StoredCell{
+            .size   = std::get<0>(it->second),
+            .offset = std::get<4>(it->second),
+        };
     }
 
-    if (it == gen_->cells_.end()) {
-        return std::nullopt;
-    }
+    const auto metadata = gen_->ReconstructCellMetadata(cell.chunk_id, cell.cell_id);
 
     return StoredCell{
-        .size   = std::get<0>(it->second),
-        .offset = std::get<4>(it->second),
+        .size   = metadata.size,
+        .offset = metadata.offset,
     };
 }
 
@@ -746,7 +752,7 @@ const HyperRGG2DPolicy::CachedExactCell& HyperRGG2DPolicy::ExactRemoteCell(const
 
     auto& cached = inserted_it->second;
 
-    gen_->GenerateVertices(cell.chunk_id, cell.cell_id, cached.vertices_by_x);
+    gen_->GenerateRemoteCellVertices(cell.chunk_id, cell.cell_id, cached.vertices_by_x);
 
     std::sort(cached.vertices_by_x.begin(), cached.vertices_by_x.end(), [](const Vertex& a, const Vertex& b) {
         return std::get<0>(a) < std::get<0>(b);

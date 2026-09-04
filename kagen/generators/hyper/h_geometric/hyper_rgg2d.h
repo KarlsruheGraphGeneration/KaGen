@@ -26,6 +26,8 @@ public:
         SInt    cell_id;
     };
 
+    ~HyperRGG2D() override;
+
 protected:
     void GenerateCSR() override;
     void FinalizeCSR(MPI_Comm comm) override;
@@ -41,6 +43,39 @@ protected:
     }
 
 private:
+    std::unique_ptr<HyperRGG2DPolicy> policy_;
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    struct WeakScalingInstrumentation {
+        std::uint64_t generate_cells_requests = 0;
+        std::uint64_t chunks_materialized     = 0;
+        std::uint64_t cell_slots_scanned      = 0;
+        std::uint64_t cell_records_inserted   = 0;
+
+        double chunk_materialization_seconds = 0.0;
+    };
+
+    WeakScalingInstrumentation weak_scaling_instrumentation_;
+
+    void PrintWeakScalingInstrumentation(MPI_Comm comm) const;
+#endif
+
+    struct CellMetadata {
+        SInt    size;
+        SInt    offset;
+        LPFloat start_x;
+        LPFloat start_y;
+    };
+
+    CellMetadata ReconstructCellMetadata(SInt chunk_id, SInt cell_id);
+
+    void GenerateCellMetadataSubtree(
+        SInt chunk_id, SInt begin_cell, SInt end_cell, SInt vertices, SInt offset, SInt tree_node);
+
+    SInt SampleLeftCellCount(SInt chunk_id, SInt tree_node, SInt vertices, SInt left_cells, SInt total_cells);
+
+    void GenerateRemoteCellVertices(SInt chunk_id, SInt cell_id, std::vector<Vertex>& buffer);
+    void GenerateCells(SInt chunk_id) override;
+
     void GenerateEdges(SInt chunk_row, SInt chunk_column) override;
 
     SInt SafeTotalCellsPerDim() const;

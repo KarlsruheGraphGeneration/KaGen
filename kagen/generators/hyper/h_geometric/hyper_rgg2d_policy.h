@@ -180,6 +180,7 @@ private:
 
     void RecordLocalExactAccess(SInt global_cell_id) const;
 #endif
+
 public:
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     void PrintExactCacheStats() const;

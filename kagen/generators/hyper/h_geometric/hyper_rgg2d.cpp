@@ -21,6 +21,105 @@ HyperRGG2D::HyperRGG2D(const PGeneratorConfig& config, const PEID rank, const PE
     }
 }
 
+HyperRGG2D::~HyperRGG2D() = default;
+
+void HyperRGG2D::GenerateCells(const SInt chunk_id) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++weak_scaling_instrumentation_.generate_cells_requests;
+#endif
+
+    if (chunks_.find(chunk_id) == chunks_.end()) {
+        ComputeChunk(chunk_id);
+    }
+
+    const auto chunk_it = chunks_.find(chunk_id);
+
+    if (chunk_it == chunks_.end()) {
+        return;
+    }
+
+    auto& chunk = chunk_it->second;
+
+    if (std::get<3>(chunk)) {
+        return;
+    }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const std::size_t records_before = cells_.size();
+    const double      start          = MPI_Wtime();
+#endif
+
+    GenerateCellMetadataSubtree(chunk_id, 0, cells_per_chunk_, std::get<0>(chunk), std::get<4>(chunk), 1);
+
+    std::get<3>(chunk) = true;
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    weak_scaling_instrumentation_.chunk_materialization_seconds += MPI_Wtime() - start;
+
+    ++weak_scaling_instrumentation_.chunks_materialized;
+
+    weak_scaling_instrumentation_.cell_slots_scanned += static_cast<std::uint64_t>(cells_per_chunk_);
+
+    weak_scaling_instrumentation_.cell_records_inserted += static_cast<std::uint64_t>(cells_.size() - records_before);
+#endif
+}
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+
+void HyperRGG2D::PrintWeakScalingInstrumentation(MPI_Comm comm) const {
+    int rank = 0;
+    int size = 1;
+
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    auto reduce_counter = [&](const char* name, const std::uint64_t local) {
+        std::uint64_t global_sum = 0;
+        std::uint64_t global_max = 0;
+
+        MPI_Reduce(&local, &global_sum, 1, MPI_UINT64_T, MPI_SUM, 0, comm);
+        MPI_Reduce(&local, &global_max, 1, MPI_UINT64_T, MPI_MAX, 0, comm);
+
+        if (rank == 0) {
+            const double mean_per_rank = static_cast<double>(global_sum) / static_cast<double>(size);
+
+            std::cout << "HRGG2D_PROFILE"
+                      << ";metric=" << name << ";sum=" << global_sum << ";mean_per_rank=" << mean_per_rank
+                      << ";max_per_rank=" << global_max << '\n';
+        }
+    };
+
+    reduce_counter("generate_cells_requests", weak_scaling_instrumentation_.generate_cells_requests);
+
+    reduce_counter("chunks_materialized", weak_scaling_instrumentation_.chunks_materialized);
+
+    reduce_counter("cell_slots_scanned", weak_scaling_instrumentation_.cell_slots_scanned);
+
+    reduce_counter("cell_records_inserted", weak_scaling_instrumentation_.cell_records_inserted);
+
+    const double local_seconds = weak_scaling_instrumentation_.chunk_materialization_seconds;
+
+    double minimum_seconds = 0.0;
+    double sum_seconds     = 0.0;
+    double maximum_seconds = 0.0;
+
+    MPI_Reduce(&local_seconds, &minimum_seconds, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+
+    MPI_Reduce(&local_seconds, &sum_seconds, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+    MPI_Reduce(&local_seconds, &maximum_seconds, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+
+    if (rank == 0) {
+        const double mean_seconds = sum_seconds / static_cast<double>(size);
+
+        std::cout << "HRGG2D_PROFILE"
+                  << ";metric=chunk_materialization_seconds"
+                  << ";min=" << minimum_seconds << ";mean=" << mean_seconds << ";max=" << maximum_seconds << '\n';
+    }
+}
+
+#endif
+
 std::string HyperRGG2D::MakeDebugFilename() const {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -74,10 +173,13 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
 
     const SInt total_cells = total_cells_per_dim * total_cells_per_dim;
 
-    HyperRGG2DPolicy                   policy(*this);
-    HyperedgeBuilder<HyperRGG2DPolicy> builder(policy, config_, debug_logger_ ? &*debug_logger_ : nullptr);
+    if (!policy_) {
+        throw std::logic_error("HRGG2D policy was not initialized");
+    }
 
-    LPFloat lower_bound = static_cast<LPFloat>(policy.MinimumRadius({}));
+    HyperedgeBuilder<HyperRGG2DPolicy> builder(*policy_, config_, debug_logger_ ? &*debug_logger_ : nullptr);
+
+    LPFloat lower_bound = static_cast<LPFloat>(policy_->MinimumRadius({}));
     LPFloat upper_bound = LPFloat{1.0};
 
     if (config_.min_hyperedge_radius != -1.0) {
@@ -157,7 +259,7 @@ void HyperRGG2D::GenerateEdges(const SInt chunk_row, const SInt chunk_column) {
         }
     }
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
-    policy.PrintExactCacheStats();
+    policy_->PrintExactCacheStats();
 #endif
 }
 
@@ -210,13 +312,20 @@ void HyperRGG2D::GenerateCSR() {
 
         graph_.hyperedge_pins.reserve(expected_local_pins);
     }
+    policy_ = std::make_unique<HyperRGG2DPolicy>(*this);
+
     GenerateGeometry();
+
+    policy_.reset();
     if (config_.debug) {
         std::cerr << "Cells per dimension: " << cells_per_dim_ << '\n';
     }
 }
 
 void HyperRGG2D::FinalizeCSR(MPI_Comm comm) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    PrintWeakScalingInstrumentation(comm);
+#endif
     if (!config_.debug) {
         return;
     }
@@ -278,6 +387,140 @@ HyperRGG2D::CenterSampler::Sample(SInt chunk_id, const CellPosition& cell, SInt 
         .chunk_id   = chunk_id,
         .cell_id    = cell.cell_id,
     };
+}
+
+SInt HyperRGG2D::SampleLeftCellCount(
+    const SInt chunk_id, const SInt tree_node, const SInt vertices, const SInt left_cells, const SInt total_cells) {
+    if (vertices == 0 || left_cells == 0) {
+        return 0;
+    }
+
+    if (left_cells == total_cells) {
+        return vertices;
+    }
+
+    const SInt seed = sampling::Spooky::hash(
+        config_.seed ^ sampling::Spooky::hash(chunk_id + 0x9e3779b97f4a7c15ULL)
+        ^ sampling::Spooky::hash(tree_node + 0xd1b54a32d192ed03ULL));
+
+    const LPFloat probability = static_cast<LPFloat>(left_cells) / static_cast<LPFloat>(total_cells);
+
+    return rng_.GenerateBinomial(seed, vertices, std::clamp(probability, LPFloat{0.0}, LPFloat{1.0}));
+}
+
+HyperRGG2D::CellMetadata HyperRGG2D::ReconstructCellMetadata(const SInt chunk_id, const SInt cell_id) {
+    if (cell_id >= cells_per_chunk_) {
+        throw std::out_of_range("HRGG2D cell ID is out of range");
+    }
+
+    if (chunks_.find(chunk_id) == chunks_.end()) {
+        ComputeChunk(chunk_id);
+    }
+
+    const auto chunk_it = chunks_.find(chunk_id);
+
+    if (chunk_it == chunks_.end()) {
+        return {
+            .size    = 0,
+            .offset  = 0,
+            .start_x = 0.0,
+            .start_y = 0.0,
+        };
+    }
+
+    const auto& chunk = chunk_it->second;
+
+    SInt begin     = 0;
+    SInt end       = cells_per_chunk_;
+    SInt vertices  = std::get<0>(chunk);
+    SInt offset    = std::get<4>(chunk);
+    SInt tree_node = 1;
+
+    while (end - begin > 1) {
+        const SInt middle      = begin + ((end - begin) / 2);
+        const SInt left_cells  = middle - begin;
+        const SInt total_cells = end - begin;
+
+        const SInt left_vertices = SampleLeftCellCount(chunk_id, tree_node, vertices, left_cells, total_cells);
+
+        if (cell_id < middle) {
+            end       = middle;
+            vertices  = left_vertices;
+            tree_node = 2 * tree_node;
+        } else {
+            begin = middle;
+            offset += left_vertices;
+            vertices -= left_vertices;
+            tree_node = (2 * tree_node) + 1;
+        }
+    }
+
+    SInt cell_x = 0;
+    SInt cell_y = 0;
+
+    DecodeCell(cell_id, cell_x, cell_y);
+
+    return {
+        .size    = vertices,
+        .offset  = offset,
+        .start_x = std::get<1>(chunk) + (static_cast<LPFloat>(cell_x) * cell_size_),
+        .start_y = std::get<2>(chunk) + (static_cast<LPFloat>(cell_y) * cell_size_),
+    };
+}
+
+void HyperRGG2D::GenerateCellMetadataSubtree(
+    const SInt chunk_id, const SInt begin_cell, const SInt end_cell, const SInt vertices, const SInt offset,
+    const SInt tree_node) {
+    if (end_cell - begin_cell == 1) {
+        if (vertices == 0) {
+            return;
+        }
+
+        SInt cell_x = 0;
+        SInt cell_y = 0;
+
+        DecodeCell(begin_cell, cell_x, cell_y);
+
+        const auto& chunk = chunks_[chunk_id];
+
+        cells_[ComputeGlobalCellId(chunk_id, begin_cell)] = std::make_tuple(
+            vertices, std::get<1>(chunk) + (static_cast<LPFloat>(cell_x) * cell_size_),
+            std::get<2>(chunk) + (static_cast<LPFloat>(cell_y) * cell_size_), false, offset);
+
+        return;
+    }
+
+    const SInt middle      = begin_cell + ((end_cell - begin_cell) / 2);
+    const SInt left_cells  = middle - begin_cell;
+    const SInt total_cells = end_cell - begin_cell;
+
+    const SInt left_vertices = SampleLeftCellCount(chunk_id, tree_node, vertices, left_cells, total_cells);
+
+    GenerateCellMetadataSubtree(chunk_id, begin_cell, middle, left_vertices, offset, 2 * tree_node);
+
+    GenerateCellMetadataSubtree(
+        chunk_id, middle, end_cell, vertices - left_vertices, offset + left_vertices, (2 * tree_node) + 1);
+}
+
+void HyperRGG2D::GenerateRemoteCellVertices(const SInt chunk_id, const SInt cell_id, std::vector<Vertex>& buffer) {
+    const CellMetadata cell = ReconstructCellMetadata(chunk_id, cell_id);
+
+    buffer.clear();
+    buffer.reserve(cell.size);
+
+    const SInt seed = config_.seed + (chunk_id * cells_per_chunk_) + cell_id;
+
+    const SInt hash = sampling::Spooky::hash(seed);
+
+    mersenne.RandomInit(hash);
+
+    for (SInt i = 0; i < cell.size; ++i) {
+        const LPFloat x = (mersenne.Random() * cell_size_) + cell.start_x;
+
+        const LPFloat y = (mersenne.Random() * cell_size_) + cell.start_y;
+
+        buffer.emplace_back(x, y, cell.offset + i);
+    }
 }
 
 } // namespace kagen
