@@ -172,23 +172,80 @@ private:
         }
 
         void CollectHierarchical(
-            const Center& /*center*/, const Double /*radius*/, std::vector<Cell>& cells,
-            std::vector<PinRange>& ranges) {
+            const Center& center, const Double radius, std::vector<Cell>& cells, std::vector<PinRange>& ranges) {
             seen_candidate_cells_.clear();
 
             std::fill(
                 policy.current_annulus_half_angle_.begin(), policy.current_annulus_half_angle_.end(), Double{-1.0});
 
-            for (SInt annulus_id = 0; annulus_id < gen().total_annuli_; ++annulus_id) {
-                const SInt total_cells = gen().global_cells_per_annulus_[annulus_id];
+            if (gen().total_annuli_ <= 0) {
+                return;
+            }
 
-                if (total_cells == 0) {
+            const Double center_phi = circular_interval::NormalizePhi(center.phi);
+
+            // The sampled hyperedge radius already gives a conservative radial and angular
+            // search window.  Do not start every query at the root of the complete global
+            // annulus hierarchy; localize the hierarchy to the cells that can actually
+            // intersect the hyperball first.
+            for (SInt annulus_id = 0; annulus_id < gen().total_annuli_; ++annulus_id) {
+                const Double min_r = gen().annulus_min_r_[annulus_id];
+                const Double max_r = gen().annulus_max_r_[annulus_id];
+
+                // Radially unreachable annulus.
+                if (min_r - center.r > radius || center.r - max_r > radius) {
                     continue;
                 }
 
-                const CellAnnulusRegion root = policy.MakeCellAnnulusRegion(annulus_id, 0, total_cells);
+                const SInt total_cells = gen().global_cells_per_annulus_[annulus_id];
 
-                policy.TraverseCandidateRegion(root, cells, ranges, *this);
+                if (total_cells <= 0) {
+                    continue;
+                }
+
+                const Double half_angle = policy.AllowedHalfAngleForAnnulus(center.r, annulus_id);
+                policy.current_annulus_half_angle_[annulus_id] = half_angle;
+
+                if (!(half_angle > Double{0.0})) {
+                    continue;
+                }
+
+                // If the hyperball can reach the complete angular extent, there is no
+                // smaller safe starting interval.
+                if (half_angle >= Double{M_PI}) {
+                    const CellAnnulusRegion root = policy.MakeCellAnnulusRegion(annulus_id, 0, total_cells);
+                    policy.TraverseCandidateRegion(root, cells, ranges, *this);
+                    continue;
+                }
+
+                // Split at 0 / 2pi so that every starting region is an ordinary contiguous
+                // angular interval.  GlobalCellRangeForAngularInterval uses a half-open
+                // angular interval internally, so the resulting cell interval is [first,end).
+                const auto parts =
+                    circular_interval::Split(center_phi - half_angle, center_phi + half_angle, gen().cell_eps_);
+
+                for (int part = 0; part < parts.count; ++part) {
+                    const Double q_begin = parts.parts[part].first;
+                    const Double q_end   = parts.parts[part].second;
+
+                    if (!(q_begin < q_end)) {
+                        continue;
+                    }
+
+                    const auto [first_cell, last_cell] =
+                        gen().GlobalCellRangeForAngularInterval(annulus_id, q_begin, q_end);
+
+                    const SInt first = std::clamp<SInt>(first_cell, 0, total_cells - 1);
+                    const SInt end   = std::clamp<SInt>(last_cell + SInt{1}, SInt{1}, total_cells);
+
+                    if (first >= end) {
+                        continue;
+                    }
+
+                    const CellAnnulusRegion localized_root = policy.MakeCellAnnulusRegion(annulus_id, first, end);
+
+                    policy.TraverseCandidateRegion(localized_root, cells, ranges, *this);
+                }
             }
         }
 
