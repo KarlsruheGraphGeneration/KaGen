@@ -80,9 +80,7 @@ public:
 
     std::pair<CellRegion, CellRegion> SplitRegionRadially(const CellRegion& region) const;
 
-    std::pair<CellRegion, CellRegion> SplitRegionAngularly(const CellRegion& region) const;
-
-    bool IsLeaf(const CellRegion& region) const;
+    std::pair<SInt, SInt> ReachableAnnulusRange(const Center& center, Double radius) const;
 
     Double CellCoverage(const Center& center, Double /*hyperball_radius*/, const Cell& cell) const;
 
@@ -131,6 +129,8 @@ private:
         Double min_y;
         Double max_y;
     };
+
+    bool IsLeaf(const CellAnnulusRegion& region) const;
     struct CandidateCollector {
         HyperbolicGeometryPolicy& policy;
         std::unordered_set<SInt>  seen_candidate_cells_;
@@ -147,11 +147,15 @@ private:
             }
         }
 
+        void TraverseSingleAnnulus(SInt annulus_id, std::vector<Cell>& cells, std::vector<PinRange>& ranges);
+
         void AddLeafCell(const CellAnnulusRegion& region, std::vector<Cell>& cells) {
             assert(region.end_cell - region.first_cell == 1);
 
             PushGlobalCell(region.annulus_id, region.first_cell, cells);
         }
+
+        
 
         GeneratorT& gen() {
             return policy.gen_;
@@ -190,9 +194,13 @@ private:
             // search window.  Do not start every query at the root of the complete global
             // annulus hierarchy; localize the hierarchy to the cells that can actually
             // intersect the hyperball first.
-            const SInt first_normal_annulus = gen().replicated_inner_last_annulus_ + SInt{1};
+            const auto [first_annulus, last_annulus] = policy.ReachableAnnulusRange(center, radius);
 
-            for (SInt annulus_id = first_normal_annulus; annulus_id < gen().total_annuli_; ++annulus_id) {
+            if (first_annulus > last_annulus) {
+                return;
+            }
+
+            for (SInt annulus_id = first_annulus; annulus_id <= last_annulus; ++annulus_id) {
                 const Double min_r = gen().annulus_min_r_[annulus_id];
                 const Double max_r = gen().annulus_max_r_[annulus_id];
 
@@ -324,6 +332,9 @@ private:
                 AddCandidateCellsInAnnulus(center, annulus_id, cells);
             }
         }
+
+        void CollectRadialHierarchy(
+            const Center& center, Double radius, std::vector<Cell>& cells, std::vector<PinRange>& ranges);
 
         void AddOccupiedCellsInAngularInterval(
             const SInt annulus_id, const Double min_phi, const Double max_phi, std::vector<Cell>& cells) {
@@ -458,8 +469,6 @@ private:
 
     std::pair<CellAnnulusRegion, CellAnnulusRegion> SplitCellAnnulusRegion(const CellAnnulusRegion& region) const;
 
-    bool IsLeaf(const CellAnnulusRegion& region) const;
-
     CellBallRelation ClassifyRegion(const CellAnnulusRegion& region) const;
 
     void EmitInsideRegion(const CellAnnulusRegion& region, std::vector<PinRange>& inside_ranges) const;
@@ -488,6 +497,8 @@ private:
     bool ShouldTryInside(const Cell& cell) const;
 
     Double MaxAngularDistanceToInterval(Double phi, Double min_phi, Double max_phi) const;
+
+    void EmitInsideRegion(const CellRegion& region, std::vector<PinRange>& inside_ranges) const;
 
     // ===== Coverage estimation =====
     Double AllowedHalfAngleAtRadius(Double query_r, Double query_cosh, Double query_sinh) const;

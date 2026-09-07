@@ -39,9 +39,90 @@ bool HyperbolicGeometryPolicy<Double>::HierarchicalCandidateCells(
     const std::size_t ranges_before = ranges.size();
 
     CandidateCollector collector{*this};
-    collector.CollectHierarchical(center, radius, cells, ranges);
+    collector.CollectRadialHierarchy(center, radius, cells, ranges);
 
     return ranges.size() > ranges_before;
+}
+
+template <typename Double>
+void HyperbolicGeometryPolicy<Double>::CandidateCollector::TraverseSingleAnnulus(
+    const SInt annulus_id, std::vector<Cell>& cells, std::vector<PinRange>& ranges) {
+    const SInt total_cells = gen().global_cells_per_annulus_[annulus_id];
+
+    if (total_cells <= 0) {
+        return;
+    }
+
+    const Double half_angle = policy.AllowedHalfAngleForAnnulus(policy.center_r_, annulus_id);
+
+    if (!(half_angle > Double{0.0})) {
+        return;
+    }
+
+    if (half_angle >= Double{M_PI}) {
+        const CellAnnulusRegion root = policy.MakeCellAnnulusRegion(annulus_id, 0, total_cells);
+
+        policy.TraverseCandidateRegion(root, cells, ranges, *this);
+
+        return;
+    }
+
+    const auto parts =
+        circular_interval::Split(policy.center_phi_ - half_angle, policy.center_phi_ + half_angle, gen().cell_eps_);
+
+    for (int part = 0; part < parts.count; ++part) {
+        const Double q_begin = parts.parts[part].first;
+        const Double q_end   = parts.parts[part].second;
+
+        if (!(q_begin < q_end)) {
+            continue;
+        }
+
+        const auto [first_cell, last_cell] = gen().GlobalCellRangeForAngularInterval(annulus_id, q_begin, q_end);
+
+        const SInt first = std::clamp<SInt>(first_cell, 0, total_cells - 1);
+
+        const SInt end = std::clamp<SInt>(last_cell + 1, 1, total_cells);
+
+        if (first >= end) {
+            continue;
+        }
+
+        const CellAnnulusRegion root = policy.MakeCellAnnulusRegion(annulus_id, first, end);
+
+        policy.TraverseCandidateRegion(root, cells, ranges, *this);
+    }
+}
+
+template <typename Double>
+void HyperbolicGeometryPolicy<Double>::EmitInsideRegion(
+    const CellRegion& region, std::vector<PinRange>& inside_ranges) const {
+    for (SInt annulus_id = region.first_annulus; annulus_id <= region.last_annulus; ++annulus_id) {
+        const auto [first_cell, last_cell] =
+            gen_.GlobalCellRangeForAngularInterval(annulus_id, region.min_phi, region.max_phi);
+
+        const SInt end_cell = last_cell + 1;
+
+        const SInt cells_per_chunk = gen_.global_cells_per_annulus_[annulus_id] / gen_.config_.k;
+
+        const SInt first_chunk = first_cell / cells_per_chunk;
+
+        const SInt last_chunk = (end_cell - 1) / cells_per_chunk;
+
+        for (SInt chunk_id = first_chunk; chunk_id <= last_chunk; ++chunk_id) {
+            const SInt chunk_begin = chunk_id * cells_per_chunk;
+
+            const SInt chunk_end = chunk_begin + cells_per_chunk;
+
+            const SInt intersection_begin = std::max(first_cell, chunk_begin);
+
+            const SInt intersection_end = std::min(end_cell, chunk_end);
+
+            if (intersection_begin < intersection_end) {
+                EmitInsideChunkIntersection(annulus_id, chunk_id, intersection_begin, intersection_end, inside_ranges);
+            }
+        }
+    }
 }
 
 template <typename Double>
@@ -56,6 +137,37 @@ void HyperbolicGeometryPolicy<Double>::CandidateCells(
 template <typename Double>
 Double HyperbolicGeometryPolicy<Double>::Radius(const Center& /*unused*/) const {
     return gen_.current_hyperedge_radius_;
+}
+
+template <typename Double>
+std::pair<SInt, SInt>
+HyperbolicGeometryPolicy<Double>::ReachableAnnulusRange(const Center& center, const Double radius) const {
+    if (gen_.total_annuli_ <= 0) {
+        return {1, 0}; // empty interval
+    }
+
+    const Double width = gen_.target_r_ / static_cast<Double>(gen_.total_annuli_);
+
+    const Double min_r = std::max<Double>(Double{0.0}, center.r - radius);
+
+    const Double max_r = std::min<Double>(gen_.target_r_, center.r + radius);
+
+    if (min_r > max_r) {
+        return {1, 0};
+    }
+
+    SInt first = static_cast<SInt>(std::floor(min_r / width));
+
+    SInt last = static_cast<SInt>(std::floor(max_r / width));
+
+    first = std::clamp<SInt>(first, SInt{0}, gen_.total_annuli_ - SInt{1});
+
+    last = std::clamp<SInt>(last, SInt{0}, gen_.total_annuli_ - SInt{1});
+
+    // The replicated inner annuli are handled separately.
+    first = std::max<SInt>(first, gen_.replicated_inner_last_annulus_ + SInt{1});
+
+    return {first, last};
 }
 
 template <typename Double>
@@ -189,34 +301,6 @@ HyperbolicGeometryPolicy<Double>::SplitRegionRadially(const CellRegion& region) 
     CellRegion outer = MakeRegion(mid_annulus + 1, region.last_annulus, region.min_phi, region.max_phi);
 
     return {std::move(inner), std::move(outer)};
-}
-
-template <typename Double>
-std::pair<typename HyperbolicGeometryPolicy<Double>::CellRegion, typename HyperbolicGeometryPolicy<Double>::CellRegion>
-HyperbolicGeometryPolicy<Double>::SplitRegionAngularly(const CellRegion& region) const {
-    const Double mid_phi = (region.min_phi + region.max_phi) / Double{2.0};
-
-    if (!(region.min_phi < mid_phi && mid_phi < region.max_phi)) {
-        throw std::logic_error("SplitRegionAngularly: cannot split angular interval");
-    }
-
-    CellRegion left = MakeRegion(region.first_annulus, region.last_annulus, region.min_phi, mid_phi);
-
-    CellRegion right = MakeRegion(region.first_annulus, region.last_annulus, mid_phi, region.max_phi);
-
-    return {std::move(left), std::move(right)};
-}
-
-template <typename Double>
-bool HyperbolicGeometryPolicy<Double>::IsLeaf(const CellRegion& region) const {
-    if (region.first_annulus != region.last_annulus) {
-        return false;
-    }
-
-    const auto [first_cell, last_cell] =
-        gen_.GlobalCellRangeForAngularInterval(region.first_annulus, region.min_phi, region.max_phi);
-
-    return first_cell == last_cell;
 }
 
 template <typename Double>
@@ -648,28 +732,20 @@ void HyperbolicGeometryPolicy<Double>::TraverseCandidateRegion(
         return;
     }
 
-    if (relation == CellBallRelation::INSIDE && region.first_annulus != region.last_annulus) {
-        auto [inner, outer] = SplitRegionRadially(region);
-
-        TraverseCandidateRegion(inner, cells, inside_ranges, collector);
-        TraverseCandidateRegion(outer, cells, inside_ranges, collector);
-        return;
-    }
-
-    if (IsLeaf(region)) {
-        collector.AddLeafCell(region, cells);
+    if (relation == CellBallRelation::INSIDE) {
+        EmitInsideRegion(region, inside_ranges);
         return;
     }
 
     if (region.first_annulus != region.last_annulus) {
         auto [inner, outer] = SplitRegionRadially(region);
+
         TraverseCandidateRegion(inner, cells, inside_ranges, collector);
         TraverseCandidateRegion(outer, cells, inside_ranges, collector);
-    } else {
-        auto [left, right] = SplitRegionAngularly(region);
-        TraverseCandidateRegion(left, cells, inside_ranges, collector);
-        TraverseCandidateRegion(right, cells, inside_ranges, collector);
+        return;
     }
+
+    collector.TraverseSingleAnnulus(region.first_annulus, cells, inside_ranges);
 }
 
 template <typename Double>
@@ -693,6 +769,23 @@ HyperbolicGeometryPolicy<Double>::AllowedHalfAngleForAnnulus(const Double /*cent
     }
 
     return reach;
+}
+
+template <typename Double>
+void HyperbolicGeometryPolicy<Double>::CandidateCollector::CollectRadialHierarchy(
+    const Center& center, const Double radius, std::vector<Cell>& cells, std::vector<PinRange>& ranges) {
+    cells.clear();
+    seen_candidate_cells_.clear();
+
+    const auto [first_annulus, last_annulus] = policy.ReachableAnnulusRange(center, radius);
+
+    if (first_annulus > last_annulus) {
+        return;
+    }
+
+    const CellRegion root = policy.MakeRegion(first_annulus, last_annulus, Double{0.0}, Double{2.0 * M_PI});
+
+    policy.TraverseCandidateRegion(root, cells, ranges, *this);
 }
 
 template <typename Double>
