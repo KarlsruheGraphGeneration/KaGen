@@ -167,10 +167,9 @@ private:
                 policy.current_annulus_half_angle_.begin(), policy.current_annulus_half_angle_.end(), Double{-1.0});
 
 #ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
-            CollectFlat(center, radius, cells);
-#else
-
             CollectHierarchical(center, radius, cells, inside_ranges);
+#else
+            CollectFlat(center, radius, cells);
 #endif
         }
 
