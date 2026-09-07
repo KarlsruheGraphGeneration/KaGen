@@ -33,13 +33,21 @@ template <typename Double>
 bool HyperbolicGeometryPolicy<Double>::HierarchicalCandidateCells(
     const Center& center, const Double radius, std::vector<Cell>& cells, std::vector<PinRange>& ranges) {
     CacheQueryState(center, radius);
-
     cells.clear();
 
     const std::size_t ranges_before = ranges.size();
 
     CandidateCollector collector{*this};
-    collector.CollectRadialHierarchy(center, radius, cells, ranges);
+
+    const auto [first_annulus, last_annulus] = ReachableAnnulusRange(center, radius);
+
+    if (first_annulus > last_annulus) {
+        return false;
+    }
+
+    for (SInt annulus_id = first_annulus; annulus_id <= last_annulus; ++annulus_id) {
+        collector.TraverseSingleAnnulus(annulus_id, cells, ranges);
+    }
 
     return ranges.size() > ranges_before;
 }
