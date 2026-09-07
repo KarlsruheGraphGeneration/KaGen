@@ -101,6 +101,8 @@ public:
 
     void EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
 
+    SInt AddReplicatedInnerVertices(const Center& center, Double radius, std::vector<SInt>& pins);
+
     std::string CenterToString(const Center& center) const;
 
     bool ShouldApproximatePartialCell(const Cell& cell) const;
@@ -165,9 +167,10 @@ private:
                 policy.current_annulus_half_angle_.begin(), policy.current_annulus_half_angle_.end(), Double{-1.0});
 
 #ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
-            CollectHierarchical(center, radius, cells, inside_ranges);
-#else
             CollectFlat(center, radius, cells);
+#else
+
+            CollectHierarchical(center, radius, cells, inside_ranges);
 #endif
         }
 
@@ -188,7 +191,9 @@ private:
             // search window.  Do not start every query at the root of the complete global
             // annulus hierarchy; localize the hierarchy to the cells that can actually
             // intersect the hyperball first.
-            for (SInt annulus_id = 0; annulus_id < gen().total_annuli_; ++annulus_id) {
+            const SInt first_normal_annulus = gen().replicated_inner_last_annulus_ + SInt{1};
+
+            for (SInt annulus_id = first_normal_annulus; annulus_id < gen().total_annuli_; ++annulus_id) {
                 const Double min_r = gen().annulus_min_r_[annulus_id];
                 const Double max_r = gen().annulus_max_r_[annulus_id];
 
@@ -267,12 +272,26 @@ private:
 
             SInt center_annulus = static_cast<SInt>(std::floor(center.r / annulus_width));
 
-            center_annulus = std::clamp<SInt>(center_annulus, 0, gen().total_annuli_ - 1);
+            center_annulus                  = std::clamp<SInt>(center_annulus, 0, gen().total_annuli_ - 1);
+            const SInt first_normal_annulus = gen().replicated_inner_last_annulus_ + SInt{1};
 
-            //
-            // Center annulus.
-            //
-            AddCandidateCellsInAnnulus(center, center_annulus, cells);
+            if (first_normal_annulus >= gen().total_annuli_) {
+                return;
+            }
+
+            if (center_annulus < first_normal_annulus) {
+                for (SInt annulus_id = first_normal_annulus; annulus_id < gen().total_annuli_; ++annulus_id) {
+                    const Double min_r = gen().annulus_min_r_[annulus_id];
+
+                    if (min_r - center.r > radius) {
+                        break;
+                    }
+
+                    AddCandidateCellsInAnnulus(center, annulus_id, cells);
+                }
+
+                return;
+            }
 
             //
             // Walk outward.
@@ -294,7 +313,7 @@ private:
             //
             // Walk inward.
             //
-            for (SInt annulus_id = center_annulus; annulus_id > 0;) {
+            for (SInt annulus_id = center_annulus; annulus_id > first_normal_annulus;) {
                 --annulus_id;
 
                 const Double max_r = gen().annulus_max_r_[annulus_id];
@@ -445,6 +464,10 @@ private:
     CellBallRelation ClassifyRegion(const CellAnnulusRegion& region) const;
 
     void EmitInsideRegion(const CellAnnulusRegion& region, std::vector<PinRange>& inside_ranges) const;
+
+    void EmitInsideChunkIntersection(
+        SInt annulus_id, SInt chunk_id, SInt first_global_cell, SInt end_global_cell,
+        std::vector<PinRange>& inside_ranges) const;
 
     void TraverseCandidateRegion(
         const CellAnnulusRegion& region, std::vector<Cell>& cells, std::vector<PinRange>& inside_ranges,

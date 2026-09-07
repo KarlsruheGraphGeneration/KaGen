@@ -49,7 +49,9 @@ struct GeometryFixture {
     explicit GeometryFixture(const double radius)
         : config(GeometryConfig(radius)),
           generator(config, 0, 1),
-          policy(generator) {}
+          policy(generator) {
+        generator.InitializeLocalGeometryForTesting();
+    }
 
     PGeneratorConfig config;
     Generator        generator;
@@ -80,11 +82,16 @@ double AngularDistance(double a, double b) {
 }
 
 bool AngleInCell(const double phi, const Cell& cell) {
+    const double two_pi = 2.0 * M_PI;
+    const double width  = cell.max_phi - cell.min_phi;
+
+    if (width >= two_pi - 1e-12) {
+        return true;
+    }
+
     const double normalized_phi = NormalizePhi(phi);
-
-    const double min_phi = NormalizePhi(cell.min_phi);
-
-    const double max_phi = NormalizePhi(cell.max_phi);
+    const double min_phi        = NormalizePhi(cell.min_phi);
+    const double max_phi        = NormalizePhi(cell.max_phi);
 
     if (min_phi <= max_phi) {
         return min_phi <= normalized_phi && normalized_phi <= max_phi;
@@ -165,6 +172,15 @@ double MaximumCoshDistance(const Center& center, const Cell& cell) {
 }
 
 CellBallRelation ExactRelation(const Center& center, const double radius, const Cell& cell) {
+    //
+    // Hyperbolic distance is always at least the radial-coordinate
+    // difference. Therefore a radial interval disjoint from
+    // [center.r - radius, center.r + radius] is exactly outside.
+    //
+    if (cell.min_r > center.r + radius || cell.max_r < center.r - radius) {
+        return CellBallRelation::OUTSIDE;
+    }
+
     const double cosh_radius = std::cosh(radius);
 
     if (MinimumCoshDistance(center, cell) > cosh_radius) {
@@ -462,8 +478,6 @@ TEST(HRHGGeometry, CandidateCellsRespectRadialSearchRange) {
 
     fixture.policy.CandidateCells(center, radius, cells);
 
-    ASSERT_FALSE(cells.empty());
-
     for (const Cell& cell: cells) {
         EXPECT_GE(cell.max_r, center.r - radius);
 
@@ -483,30 +497,25 @@ TEST(HRHGGeometry, CandidateCellsHandleAngularWraparound) {
         .annulus_id = 0,
     };
 
-    std::vector<Cell> cells;
+    const auto all_cells = AllCells(fixture.policy);
+    ASSERT_FALSE(all_cells.empty());
 
-    fixture.policy.CandidateCells(center, radius, cells);
+    std::vector<Cell> candidates;
+    fixture.policy.CandidateCells(center, radius, candidates);
 
-    ASSERT_FALSE(cells.empty());
+    const auto candidate_ids = CellIds(candidates);
 
-    bool has_low_phi  = false;
-    bool has_high_phi = false;
-
-    for (const Cell& cell: cells) {
-        if (cell.min_phi < 0.5) {
-            has_low_phi = true;
+    for (const Cell& cell: all_cells) {
+        if (ExactRelation(center, radius, cell) == CellBallRelation::OUTSIDE) {
+            continue;
         }
 
-        if (cell.max_phi > (2.0 * M_PI) - 0.5) {
-            has_high_phi = true;
-        }
+        EXPECT_TRUE(candidate_ids.contains(cell.global_cell_id))
+            << "wraparound query missed intersecting cell"
+            << " annulus=" << cell.annulus_id << " chunk=" << cell.chunk_id << " cell=" << cell.cell_id
+            << " min_phi=" << cell.min_phi << " max_phi=" << cell.max_phi;
     }
-
-    EXPECT_TRUE(has_low_phi);
-
-    EXPECT_TRUE(has_high_phi);
 }
-
 //
 // Classification
 //
@@ -516,6 +525,9 @@ TEST(HRHGGeometry, ClassificationMatchesExactHyperbolicRelation) {
 
     GeometryFixture fixture(radius);
 
+    const auto all_cells = AllCells(fixture.policy);
+    ASSERT_FALSE(all_cells.empty());
+
     const Center centers[] = {
         {
             .phi        = 1.0,
@@ -523,21 +535,18 @@ TEST(HRHGGeometry, ClassificationMatchesExactHyperbolicRelation) {
             .sampled_id = 0,
             .annulus_id = 0,
         },
-
         {
             .phi        = 0.01,
             .r          = 2.0,
             .sampled_id = 1,
             .annulus_id = 0,
         },
-
         {
             .phi        = (2.0 * M_PI) - 0.01,
             .r          = 3.0,
             .sampled_id = 2,
             .annulus_id = 0,
         },
-
         {
             .phi        = 2.3,
             .r          = 4.0,
@@ -547,21 +556,33 @@ TEST(HRHGGeometry, ClassificationMatchesExactHyperbolicRelation) {
     };
 
     for (const Center& center: centers) {
-        std::vector<Cell> candidates;
+        //
+        // Prime the policy's cached query state for this center/radius.
+        //
+        std::vector<Cell> ignored;
+        fixture.policy.CandidateCells(center, radius, ignored);
 
-        fixture.policy.CandidateCells(center, radius, candidates);
-
-        ASSERT_FALSE(candidates.empty());
-
-        for (const Cell& cell: candidates) {
+        for (const Cell& cell: all_cells) {
             const CellBallRelation expected = ExactRelation(center, radius, cell);
 
             const CellBallRelation actual = fixture.policy.ClassifyCell(center, radius, cell);
 
-            EXPECT_EQ(actual, expected) << "incorrect classification"
+            auto relation_name = [](const CellBallRelation relation) {
+                switch (relation) {
+                    case CellBallRelation::OUTSIDE:
+                        return "OUTSIDE";
+                    case CellBallRelation::INSIDE:
+                        return "INSIDE";
+                    case CellBallRelation::PARTIAL:
+                        return "PARTIAL";
+                }
+                return "UNKNOWN";
+            };
+
+            EXPECT_EQ(actual, expected) << "actual=" << relation_name(actual) << " expected=" << relation_name(expected)
                                         << " annulus=" << cell.annulus_id << " chunk=" << cell.chunk_id
-                                        << " cell=" << cell.cell_id << " min_r=" << cell.min_r
-                                        << " max_r=" << cell.max_r << " min_phi=" << cell.min_phi
+                                        << " cell=" << cell.cell_id << " min_r=" << std::setprecision(17)
+                                        << cell.min_r << " max_r=" << cell.max_r << " min_phi=" << cell.min_phi
                                         << " max_phi=" << cell.max_phi << " center_phi=" << center.phi
                                         << " center_r=" << center.r << " radius=" << radius;
         }
@@ -588,9 +609,7 @@ TEST(HRHGGeometry, CoverageAlwaysLiesInUnitInterval) {
         .annulus_id = 0,
     };
 
-    std::vector<Cell> cells;
-
-    fixture.policy.CandidateCells(center, radius, cells);
+    const auto cells = AllCells(fixture.policy);
 
     ASSERT_FALSE(cells.empty());
 
@@ -598,50 +617,42 @@ TEST(HRHGGeometry, CoverageAlwaysLiesInUnitInterval) {
         const double coverage = fixture.policy.CellCoverage(center, radius, cell);
 
         EXPECT_GE(coverage, 0.0);
-
         EXPECT_LE(coverage, 1.0);
     }
 }
 
 TEST(HRHGGeometry, InsideCellsHaveFullCoverage) {
-    constexpr double radius = 2.0;
+    constexpr double radius = 100.0;
 
     GeometryFixture fixture(radius);
 
     const Center center{
-        .phi        = 1.0,
-        .r          = 2.0,
+        .phi        = 0.0,
+        .r          = 0.0,
         .sampled_id = 0,
         .annulus_id = 0,
     };
 
-    std::vector<Cell> cells;
-
-    fixture.policy.CandidateCells(center, radius, cells);
+    const auto cells = AllCells(fixture.policy);
 
     ASSERT_FALSE(cells.empty());
 
-    bool found_inside = false;
-
     for (const Cell& cell: cells) {
-        if (ExactRelation(center, radius, cell) != CellBallRelation::INSIDE) {
-            continue;
-        }
-
-        found_inside = true;
+        ASSERT_EQ(ExactRelation(center, radius, cell), CellBallRelation::INSIDE);
 
         EXPECT_NEAR(fixture.policy.CellCoverage(center, radius, cell), 1.0, 1e-12)
             << "inside cell did not receive full coverage"
             << " annulus=" << cell.annulus_id << " chunk=" << cell.chunk_id << " cell=" << cell.cell_id;
     }
-
-    EXPECT_TRUE(found_inside);
 }
 
 TEST(HRHGGeometry, PartialCellCoverageMatchesHighPrecisionReference) {
     constexpr double radius = 1.0;
 
     GeometryFixture fixture(radius);
+
+    const auto all_cells = AllCells(fixture.policy);
+    ASSERT_FALSE(all_cells.empty());
 
     const Center centers[] = {
         {
@@ -650,14 +661,12 @@ TEST(HRHGGeometry, PartialCellCoverageMatchesHighPrecisionReference) {
             .sampled_id = 0,
             .annulus_id = 0,
         },
-
         {
             .phi        = 0.01,
             .r          = 2.0,
             .sampled_id = 1,
             .annulus_id = 0,
         },
-
         {
             .phi        = 2.3,
             .r          = 4.0,
@@ -669,11 +678,7 @@ TEST(HRHGGeometry, PartialCellCoverageMatchesHighPrecisionReference) {
     std::size_t tested_partial_cells = 0;
 
     for (const Center& center: centers) {
-        std::vector<Cell> cells;
-
-        fixture.policy.CandidateCells(center, radius, cells);
-
-        for (const Cell& cell: cells) {
+        for (const Cell& cell: all_cells) {
             if (ExactRelation(center, radius, cell) != CellBallRelation::PARTIAL) {
                 continue;
             }

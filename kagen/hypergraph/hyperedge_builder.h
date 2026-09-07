@@ -273,9 +273,10 @@ private:
 
         const auto radius = geometry_.Radius(center);
 
+        geometry_.AddReplicatedInnerVertices(center, radius, pins_);
+
 #ifdef KAGEN_ENABLE_HIERARCHICAL_CELLS
         has_hierarchical_inside = geometry_.HierarchicalCandidateCells(center, radius, cells_, ranges_);
-        ;
 #else
         has_hierarchical_inside = false;
 

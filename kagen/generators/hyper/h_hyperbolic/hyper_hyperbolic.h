@@ -109,6 +109,8 @@ public:
 
     Hyper_Hyperbolic(const PGeneratorConfig& config, PEID rank, PEID size);
 
+    void InitializeLocalGeometryForTesting();
+
 protected:
     void GenerateCSR() final;
 
@@ -169,6 +171,13 @@ private:
     std::vector<Double>                    annulus_max_cosh_;
     std::vector<Double>                    annulus_max_sinh_;
 
+    SInt   replicated_inner_last_annulus_ = -1;
+    Double replicated_inner_radius_       = Double{0.0};
+
+    static constexpr SInt replicated_inner_vertex_budget_ = 4096;
+
+    VertexBlock replicated_inner_vertices_;
+
     struct DebugCenter {
         SInt   sampled_id;
         Double phi;
@@ -220,6 +229,18 @@ private:
 
     void GenerateVertices(
         SInt annulus_id, SInt chunk_id, SInt cell_id, const Annulus& annulus, const Cell& cell, VertexBlock& out);
+
+    void GenerateVerticesIntoBlock(
+        SInt annulus_id, SInt chunk_id, SInt cell_id, const Annulus& annulus, const Cell& cell, VertexBlock& out,
+        bool record_coordinates);
+
+    void SelectReplicatedInnerRegion();
+
+    void BuildReplicatedInnerRegion();
+
+    void AppendVertexBlock(VertexBlock& destination, const VertexBlock& source);
+
+    bool IsReplicatedInnerAnnulus(SInt annulus_id) const;
 
     void ComputeCenterAnnuli(SInt chunk_id);
 

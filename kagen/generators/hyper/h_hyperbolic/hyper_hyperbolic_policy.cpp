@@ -100,6 +100,10 @@ CellBallRelation HyperbolicGeometryPolicy<Double>::ClassifyCell(
 
 template <typename Double>
 CellBallRelation HyperbolicGeometryPolicy<Double>::ClassifyRegion(const CellRegion& region) const {
+    if (region.min_r > center_r_ + gen_.current_hyperedge_radius_
+        || region.max_r < center_r_ - gen_.current_hyperedge_radius_) {
+        return CellBallRelation::OUTSIDE;
+    }
     const poincare_geometry::AABB<Double> box{
         .min_x = region.min_x,
         .max_x = region.max_x,
@@ -141,7 +145,7 @@ CellBallRelation HyperbolicGeometryPolicy<Double>::ClassifyRegion(const CellRegi
 template <typename Double>
 HyperbolicGeometryPolicy<Double>::CellRegion HyperbolicGeometryPolicy<Double>::MakeRegion(
     const SInt first_annulus, const SInt last_annulus, const Double min_phi, const Double max_phi) const {
-    if (first_annulus < 0 || last_annulus >= gen_.total_annuli_ || first_annulus > last_annulus) {
+    if (last_annulus >= gen_.total_annuli_ || first_annulus > last_annulus) {
         throw std::out_of_range("MakeRegion: invalid annulus range");
     }
 
@@ -328,6 +332,43 @@ SInt HyperbolicGeometryPolicy<Double>::AddPartialCellExact(
 }
 
 template <typename Double>
+SInt HyperbolicGeometryPolicy<Double>::AddReplicatedInnerVertices(
+    const Center& center, const Double radius, std::vector<SInt>& pins) {
+    if (gen_.replicated_inner_last_annulus_ < 0 || gen_.replicated_inner_vertices_.id.empty()) {
+        return 0;
+    }
+
+    //
+    // Make sure all cached query geometry corresponds
+    // exactly to this center/radius.
+    //
+    CacheQueryState(center, radius);
+
+    //
+    // Entire origin-centered replicated disk lies inside
+    // the query hyperball.
+    //
+    if (center_r_ + gen_.replicated_inner_radius_ <= radius) {
+        pins.insert(pins.end(), gen_.replicated_inner_vertices_.id.begin(), gen_.replicated_inner_vertices_.id.end());
+
+        return static_cast<SInt>(gen_.replicated_inner_vertices_.id.size());
+    }
+
+    //
+    // Quick radial nonintersection.
+    //
+    if (center_r_ - radius > gen_.replicated_inner_radius_) {
+        return 0;
+    }
+
+    //
+    // Partial overlap: exact-test the bounded replica.
+    //
+    return gen_.config_.debug ? AddExactVerticesChecked(gen_.replicated_inner_vertices_, pins)
+                              : AddExactVerticesFast(gen_.replicated_inner_vertices_, pins);
+}
+
+template <typename Double>
 void HyperbolicGeometryPolicy<Double>::EmitHyperedge(
     const std::vector<SInt>& pins, const std::vector<PinRange>& ranges) {
     gen_.PushHyperedgeCompressed(pins, ranges);
@@ -449,6 +490,10 @@ bool HyperbolicGeometryPolicy<Double>::IsLeaf(const CellAnnulusRegion& region) c
 
 template <typename Double>
 CellBallRelation HyperbolicGeometryPolicy<Double>::ClassifyRegion(const CellAnnulusRegion& region) const {
+    if (region.min_r > center_r_ + gen_.current_hyperedge_radius_
+        || region.max_r < center_r_ - gen_.current_hyperedge_radius_) {
+        return CellBallRelation::OUTSIDE;
+    }
     const poincare_geometry::AABB<Double> box{
         .min_x = region.min_x,
         .max_x = region.max_x,
@@ -488,16 +533,72 @@ CellBallRelation HyperbolicGeometryPolicy<Double>::ClassifyRegion(const CellAnnu
 template <typename Double>
 void HyperbolicGeometryPolicy<Double>::EmitInsideRegion(
     const CellAnnulusRegion& region, std::vector<PinRange>& inside_ranges) const {
-    for (SInt global_cell = region.first_cell; global_cell < region.end_cell; ++global_cell) {
-        const auto [chunk_id, local_cell_id] = gen_.GlobalCellToChunkCell(region.annulus_id, global_cell);
+    const SInt cells_per_chunk = gen_.global_cells_per_annulus_[region.annulus_id] / gen_.config_.k;
 
-        const CellBlock& block = GetCellBlock(region.annulus_id, chunk_id);
+    const SInt first_chunk = region.first_cell / cells_per_chunk;
 
-        if (local_cell_id < 0 || static_cast<std::size_t>(local_cell_id) >= block.cells.size()) {
-            continue;
+    const SInt last_chunk = (region.end_cell - 1) / cells_per_chunk;
+
+    for (SInt chunk_id = first_chunk; chunk_id <= last_chunk; ++chunk_id) {
+        const SInt chunk_first = chunk_id * cells_per_chunk;
+
+        const SInt chunk_end = chunk_first + cells_per_chunk;
+
+        const SInt first = std::max(region.first_cell, chunk_first);
+
+        const SInt end = std::min(region.end_cell, chunk_end);
+
+        EmitInsideChunkIntersection(region.annulus_id, chunk_id, first, end, inside_ranges);
+    }
+}
+
+template <typename Double>
+void HyperbolicGeometryPolicy<Double>::EmitInsideChunkIntersection(
+    const SInt annulus_id, const SInt chunk_id, const SInt first_global_cell, const SInt end_global_cell,
+    std::vector<PinRange>& inside_ranges) const {
+    const SInt cells_per_chunk = gen_.global_cells_per_annulus_[annulus_id] / gen_.config_.k;
+
+    const SInt chunk_first = chunk_id * cells_per_chunk;
+
+    const SInt chunk_end = chunk_first + cells_per_chunk;
+
+    //
+    // Entire chunk-annulus accepted.
+    //
+    if (first_global_cell == chunk_first && end_global_cell == chunk_end) {
+        typename GeneratorT::Annulus annulus;
+
+        if (gen_.IsLocalChunk(chunk_id)) {
+            const auto id = gen_.ComputeGlobalChunkId(annulus_id, chunk_id);
+
+            annulus = gen_.annuli_[id];
+        } else {
+            annulus = gen_.ReconstructChunkAnnulus(annulus_id, chunk_id).annulus;
         }
 
-        const auto& stored_cell = block.cells[static_cast<std::size_t>(local_cell_id)];
+        const SInt size   = std::get<0>(annulus);
+        const SInt offset = std::get<4>(annulus);
+
+        if (size > 0) {
+            inside_ranges.push_back({
+                .begin = offset,
+                .end   = offset + size,
+            });
+        }
+
+        return;
+    }
+
+    //
+    // Only a boundary part of this chunk is accepted.
+    // Here we still need the cells.
+    //
+    const CellBlock& block = GetCellBlock(annulus_id, chunk_id);
+
+    for (SInt global_cell = first_global_cell; global_cell < end_global_cell; ++global_cell) {
+        const SInt local_cell = global_cell - chunk_first;
+
+        const auto& stored_cell = block.cells[static_cast<std::size_t>(local_cell)];
 
         const SInt size   = std::get<0>(stored_cell);
         const SInt offset = std::get<4>(stored_cell);
@@ -619,6 +720,17 @@ Double HyperbolicGeometryPolicy<Double>::AllowedHalfAngleForCachedRadius(
 // ===== Cell classification =====
 template <typename Double>
 bool HyperbolicGeometryPolicy<Double>::CellAABBOutsideBall(const Cell& cell) const {
+    //
+    // Hyperbolic distance is at least the absolute difference
+    // of the radial coordinates. Hence an annulus that is
+    // radially disjoint from the query ball cannot intersect it,
+    // irrespective of its angular extent.
+    //
+    if (cell.min_r > center_r_ + gen_.current_hyperedge_radius_
+        || cell.max_r < center_r_ - gen_.current_hyperedge_radius_) {
+        return true;
+    }
+
     const poincare_geometry::AABB<Double> box{
         .min_x = cell.min_x,
         .max_x = cell.max_x,

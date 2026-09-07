@@ -31,10 +31,8 @@ PGeneratorConfig DefaultConfig() {
     config.quiet = true;
     config.debug = false;
 
-    config.k = 4;
-
     config.random_radius = false;
-    config.r             = 0.6;
+    config.r             = 4.0;
 
     config.partial_cell_mode = PartialCellMode::GenerateAndCheck;
 
@@ -93,11 +91,23 @@ void ExpectValidHypergraph(const ExpandedHypergraph& hypergraph, const SInt num_
         std::unordered_set<SInt> seen;
 
         for (const SInt pin: edge) {
+            EXPECT_GE(pin, SInt{0}) << "negative pin in hyperedge " << e;
+
             EXPECT_LT(pin, num_vertices) << "invalid pin in hyperedge " << e;
 
             EXPECT_TRUE(seen.insert(pin).second) << "duplicate pin " << pin << " in hyperedge " << e;
         }
     }
+}
+
+std::size_t CountPins(const ExpandedHypergraph& hypergraph) {
+    std::size_t pins = 0;
+
+    for (const auto& edge: hypergraph) {
+        pins += edge.size();
+    }
+
+    return pins;
 }
 
 } // namespace
@@ -106,7 +116,7 @@ TEST(HHyperbolic, GeneratesValidHypergraphExact) {
     auto config = DefaultConfig();
 
     config.random_radius = false;
-    config.r             = 0.6;
+    config.r             = 4.0;
 
     config.partial_cell_mode = PartialCellMode::GenerateAndCheck;
 
@@ -119,6 +129,8 @@ TEST(HHyperbolic, GeneratesValidHypergraphExact) {
     ASSERT_EQ(hypergraph.size(), static_cast<std::size_t>(config.m));
 
     ExpectValidHypergraph(hypergraph, config.n);
+
+    EXPECT_GT(CountPins(hypergraph), std::size_t{0});
 }
 
 TEST(HHyperbolic, GeneratesValidHypergraphCoverageRange) {
@@ -135,6 +147,8 @@ TEST(HHyperbolic, GeneratesValidHypergraphCoverageRange) {
     ASSERT_EQ(hypergraph.size(), static_cast<std::size_t>(config.m));
 
     ExpectValidHypergraph(hypergraph, config.n);
+
+    EXPECT_GT(CountPins(hypergraph), std::size_t{0});
 }
 
 TEST(HHyperbolic, GeneratesValidHypergraphCoverageFloyd) {
@@ -151,6 +165,8 @@ TEST(HHyperbolic, GeneratesValidHypergraphCoverageFloyd) {
     ASSERT_EQ(hypergraph.size(), static_cast<std::size_t>(config.m));
 
     ExpectValidHypergraph(hypergraph, config.n);
+
+    EXPECT_GT(CountPins(hypergraph), std::size_t{0});
 }
 
 TEST(HHyperbolic, SupportsRandomRadius) {
@@ -159,16 +175,15 @@ TEST(HHyperbolic, SupportsRandomRadius) {
     config.random_radius = true;
 
     config.min_hyperedge_radius = 0.25;
-    config.max_hyperedge_radius = 0.8;
+    config.max_hyperedge_radius = 10.0;
 
-    config.hyperedge_radius_exponent = 2.5;
+    config.hyperedge_radius_exponent = 30.0;
 
     const auto hypergraph = GenerateAndGather(config);
 
     if (!IsRoot()) {
         return;
     }
-
     ASSERT_EQ(hypergraph.size(), static_cast<std::size_t>(config.m));
 
     ExpectValidHypergraph(hypergraph, config.n);
@@ -212,7 +227,8 @@ TEST(HHyperbolic, SameSeedProducesSameHypergraph) {
     if (!IsRoot()) {
         return;
     }
-
+    ASSERT_GT(CountPins(first), std::size_t{0});
+    ASSERT_GT(CountPins(second), std::size_t{0});
     EXPECT_EQ(Canonicalize(first), Canonicalize(second));
 }
 
@@ -224,6 +240,9 @@ TEST(HHyperbolic, DifferentSeedsProduceDifferentHypergraphs) {
     first_config.seed  = 1;
     second_config.seed = 42;
 
+    first_config.r  = 4.0;
+    second_config.r = 4.0;
+
     const auto first = GenerateAndGather(first_config);
 
     const auto second = GenerateAndGather(second_config);
@@ -231,6 +250,7 @@ TEST(HHyperbolic, DifferentSeedsProduceDifferentHypergraphs) {
     if (!IsRoot()) {
         return;
     }
-
+    ASSERT_GT(CountPins(first), std::size_t{0});
+    ASSERT_GT(CountPins(second), std::size_t{0});
     EXPECT_NE(Canonicalize(first), Canonicalize(second));
 }

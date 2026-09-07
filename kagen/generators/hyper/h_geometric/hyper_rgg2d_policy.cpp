@@ -866,4 +866,10 @@ bool HyperRGG2DPolicy::ShouldApproximatePartialCell(const Cell& cell) const {
     return true;
 }
 
+SInt HyperRGG2DPolicy::AddReplicatedInnerVertices(
+    const HyperRGG2D::Center& /*center*/, double /*radius*/, std::vector<SInt>& /*pins*/) {
+    // Stub for hyperedge builder interface.
+    return 0;
+}
+
 } // namespace kagen

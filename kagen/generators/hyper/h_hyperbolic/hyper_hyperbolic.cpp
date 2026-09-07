@@ -181,6 +181,37 @@ void Hyper_Hyperbolic<Double>::PrecomputeRadiusBounds() {
     }
 }
 
+template <typename Double>
+void Hyper_Hyperbolic<Double>::SelectReplicatedInnerRegion() {
+    replicated_inner_last_annulus_ = -1;
+    replicated_inner_radius_       = Double{0.0};
+
+    if (total_annuli_ <= 0 || replicated_inner_vertex_budget_ <= 0) {
+        return;
+    }
+
+    const Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * target_r_);
+
+    for (SInt annulus_id = 0; annulus_id < total_annuli_; ++annulus_id) {
+        const Double cumulative_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * annulus_max_r_[annulus_id]);
+
+        const Double expected_vertices = static_cast<Double>(config_.n) * cumulative_area / total_area;
+
+        if (expected_vertices > static_cast<Double>(replicated_inner_vertex_budget_)) {
+            break;
+        }
+
+        replicated_inner_last_annulus_ = annulus_id;
+
+        replicated_inner_radius_ = annulus_max_r_[annulus_id];
+    }
+}
+
+template <typename Double>
+bool Hyper_Hyperbolic<Double>::IsReplicatedInnerAnnulus(const SInt annulus_id) const {
+    return replicated_inner_last_annulus_ >= 0 && annulus_id >= 0 && annulus_id <= replicated_inner_last_annulus_;
+}
+
 std::unique_ptr<Generator>
 Hyper_HyperbolicFactory::Create(const PGeneratorConfig& config, const PEID rank, const PEID size) const {
     if (config.hp_floats > 0) {
@@ -471,6 +502,29 @@ void Hyper_Hyperbolic<Double>::AppendVertex(
 }
 
 template <typename Double>
+void Hyper_Hyperbolic<Double>::AppendVertexBlock(VertexBlock& destination, const VertexBlock& source) {
+    destination.id.insert(destination.id.end(), source.id.begin(), source.id.end());
+
+    destination.r.insert(destination.r.end(), source.r.begin(), source.r.end());
+
+    destination.phi.insert(destination.phi.end(), source.phi.begin(), source.phi.end());
+
+    destination.x.insert(destination.x.end(), source.x.begin(), source.x.end());
+
+    destination.y.insert(destination.y.end(), source.y.begin(), source.y.end());
+
+    destination.gamma.insert(destination.gamma.end(), source.gamma.begin(), source.gamma.end());
+
+    destination.cosh_r.insert(destination.cosh_r.end(), source.cosh_r.begin(), source.cosh_r.end());
+
+    destination.sinh_r.insert(destination.sinh_r.end(), source.sinh_r.begin(), source.sinh_r.end());
+
+    destination.cos_phi.insert(destination.cos_phi.end(), source.cos_phi.begin(), source.cos_phi.end());
+
+    destination.sin_phi.insert(destination.sin_phi.end(), source.sin_phi.begin(), source.sin_phi.end());
+}
+
+template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chunk_id, const SInt cell_id) {
     const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
     auto&      cell           = cells_[global_cell_id];
@@ -483,6 +537,14 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(const SInt annulus_id, SInt chun
     GenerateVertices(annulus_id, chunk_id, cell_id, cell_vertices);
 
     std::get<3>(cell) = true;
+}
+
+template <typename Double>
+void Hyper_Hyperbolic<Double>::InitializeLocalGeometryForTesting() {
+    for (SInt chunk = local_chunk_start_; chunk < local_chunk_end_; ++chunk) {
+        ComputeChunk(chunk);
+        ComputeAnnuli(chunk);
+    }
 }
 
 template <typename Double>
@@ -510,6 +572,13 @@ template <typename Double>
 void Hyper_Hyperbolic<Double>::GenerateVertices(
     const SInt annulus_id, const SInt chunk_id, const SInt cell_id, const Annulus& annulus, const Cell& cell,
     VertexBlock& out) {
+    GenerateVerticesIntoBlock(annulus_id, chunk_id, cell_id, annulus, cell, out, true);
+}
+
+template <typename Double>
+void Hyper_Hyperbolic<Double>::GenerateVerticesIntoBlock(
+    const SInt annulus_id, const SInt chunk_id, const SInt cell_id, const Annulus& annulus, const Cell& cell,
+    VertexBlock& out, const bool record_coordinates) {
     out.clear();
 
     const SInt   size    = std::get<0>(cell);
@@ -522,10 +591,12 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(
     const SInt seed = VertexCellSeed(annulus_id, chunk_id, cell_id);
 
     const SInt hash_value = sampling::Spooky::hash(seed);
+
     mersenne.RandomInit(hash_value);
     sorted_mersenne.RandomInit(hash_value, size);
 
     const Double mincdf = std::cosh(alpha_ * min_r);
+
     const Double maxcdf = std::cosh(alpha_ * max_r);
 
     out.reserve(size);
@@ -535,7 +606,7 @@ void Hyper_Hyperbolic<Double>::GenerateVertices(
 
         AppendVertex(out, offset + i, vertex);
 
-        if (config_.coordinates && pe_min_phi_ <= vertex.phi && vertex.phi < pe_max_phi_) {
+        if (record_coordinates && config_.coordinates && pe_min_phi_ <= vertex.phi && vertex.phi < pe_max_phi_) {
             PushCoordinate(vertex.x, vertex.y);
         }
     }
@@ -675,7 +746,8 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     print_peak_rss("after_vertex_cells");
 #endif
-
+    SelectReplicatedInnerRegion();
+    BuildReplicatedInnerRegion();
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     const auto vertex_phase_end = std::chrono::steady_clock::now();
     std::cerr << "[HRHG timing] vertex/cell phase = "
@@ -937,6 +1009,99 @@ void Hyper_Hyperbolic<Double>::GenerateCellsInto(
 
     std::get<3>(annulus) = true;
 }
+
+template <typename Double>
+void Hyper_Hyperbolic<Double>::BuildReplicatedInnerRegion() {
+    replicated_inner_vertices_.clear();
+
+    if (replicated_inner_last_annulus_ < 0) {
+        return;
+    }
+
+    const SInt candidate_last = replicated_inner_last_annulus_;
+
+    std::vector<VertexBlock> per_annulus(static_cast<std::size_t>(candidate_last + 1));
+
+    for (SInt chunk_id = 0; chunk_id < config_.k; ++chunk_id) {
+        std::unordered_map<SInt, Chunk>   temporary_chunks;
+        std::unordered_map<SInt, Annulus> temporary_annuli;
+
+        ComputeChunkInto(
+            temporary_chunks, chunk_id, config_.n, config_.k, Double{0.0}, Double{2.0 * M_PI}, SInt{0}, SInt{1},
+            SInt{0}, SInt{0});
+
+        ComputeAnnuliInto(temporary_chunks, temporary_annuli, chunk_id, SInt{0});
+
+        for (SInt annulus_id = 0; annulus_id <= candidate_last; ++annulus_id) {
+            const SInt global_chunk_id = ComputeGlobalChunkId(annulus_id, chunk_id);
+
+            const auto annulus_it = temporary_annuli.find(global_chunk_id);
+
+            if (annulus_it == temporary_annuli.end()) {
+                throw std::logic_error("replicated inner annulus metadata missing");
+            }
+
+            const Annulus& annulus = annulus_it->second;
+
+            if (std::get<0>(annulus) <= 0) {
+                continue;
+            }
+
+            std::unordered_map<SInt, Cell> temporary_cells;
+
+            GenerateCellsInto(annulus_id, chunk_id, temporary_chunks, temporary_annuli, temporary_cells, SInt{0});
+
+            const SInt cells_per_chunk = CellsPerChunkForAnnulus(annulus_id, chunk_id);
+
+            for (SInt cell_id = 0; cell_id < cells_per_chunk; ++cell_id) {
+                const SInt global_cell_id = ComputeGlobalCellId(annulus_id, chunk_id, cell_id);
+
+                const auto cell_it = temporary_cells.find(global_cell_id);
+
+                if (cell_it == temporary_cells.end()) {
+                    throw std::logic_error("replicated inner cell metadata missing");
+                }
+
+                const Cell& cell = cell_it->second;
+
+                if (std::get<0>(cell) <= 0) {
+                    continue;
+                }
+
+                VertexBlock cell_vertices;
+
+                GenerateVerticesIntoBlock(annulus_id, chunk_id, cell_id, annulus, cell, cell_vertices, false);
+
+                AppendVertexBlock(per_annulus[annulus_id], cell_vertices);
+            }
+        }
+    }
+
+    SInt actual_last_annulus = -1;
+
+    for (SInt annulus_id = 0; annulus_id <= candidate_last; ++annulus_id) {
+        const auto& annulus_vertices = per_annulus[annulus_id];
+
+        if (replicated_inner_vertices_.size() + annulus_vertices.size()
+            > static_cast<std::size_t>(replicated_inner_vertex_budget_)) {
+            break;
+        }
+
+        AppendVertexBlock(replicated_inner_vertices_, annulus_vertices);
+
+        actual_last_annulus = annulus_id;
+    }
+
+    replicated_inner_last_annulus_ = actual_last_annulus;
+
+    if (actual_last_annulus >= 0) {
+        replicated_inner_radius_ = annulus_max_r_[actual_last_annulus];
+    } else {
+        replicated_inner_radius_ = Double{0.0};
+        replicated_inner_vertices_.clear();
+    }
+}
+
 template <typename Double>
 void Hyper_Hyperbolic<Double>::SeedHyperedgeRNG(const SInt sampled_center_id) {
     const SInt seed = sampling::Spooky::hash(config_.seed + sampled_center_id);

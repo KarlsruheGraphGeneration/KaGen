@@ -186,6 +186,8 @@ public:
     void PrintExactCacheStats() const;
 #endif
     bool ShouldApproximatePartialCell(const Cell& cell) const;
+
+    SInt AddReplicatedInnerVertices(const Center& center, double radius, std::vector<SInt>& pins);
 };
 
 } // namespace kagen
