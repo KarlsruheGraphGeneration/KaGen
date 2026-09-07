@@ -155,8 +155,6 @@ private:
             PushGlobalCell(region.annulus_id, region.first_cell, cells);
         }
 
-        
-
         GeneratorT& gen() {
             return policy.gen_;
         }
@@ -639,6 +637,9 @@ private:
     mutable SInt exact_remote_reuse_distance_le_4_  = 0;
     mutable SInt exact_remote_reuse_distance_le_16_ = 0;
     mutable SInt exact_remote_reuse_distance_gt_16_ = 0;
+
+    mutable std::uint64_t cell_region_visits_         = 0;
+    mutable std::uint64_t cell_annulus_region_visits_ = 0;
 #endif
 };
 

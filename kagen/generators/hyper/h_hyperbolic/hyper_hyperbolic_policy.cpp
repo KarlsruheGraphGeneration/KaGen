@@ -205,6 +205,9 @@ CellBallRelation HyperbolicGeometryPolicy<Double>::ClassifyCell(
                   << " calls=" << calls << " inside=" << static_cast<double>(inside) / static_cast<double>(calls)
                   << " partial=" << static_cast<double>(partial) / static_cast<double>(calls)
                   << " outside=" << static_cast<double>(outside) / static_cast<double>(calls) << '\n';
+
+        std::cerr << "[HRHG hierarchy] cell_region_visits=" << cell_region_visits_
+                  << " cell_annulus_region_visits=" << cell_annulus_region_visits_ << '\n';
     }
 #endif
     return result;
@@ -700,6 +703,10 @@ template <typename Double>
 void HyperbolicGeometryPolicy<Double>::TraverseCandidateRegion(
     const CellAnnulusRegion& region, std::vector<Cell>& cells, std::vector<PinRange>& inside_ranges,
     CandidateCollector& collector) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++cell_annulus_region_visits_;
+#endif
+
     const auto relation = ClassifyRegion(region);
 
     if (relation == CellBallRelation::OUTSIDE) {
@@ -726,6 +733,10 @@ template <typename Double>
 void HyperbolicGeometryPolicy<Double>::TraverseCandidateRegion(
     const CellRegion& region, std::vector<Cell>& cells, std::vector<PinRange>& inside_ranges,
     CandidateCollector& collector) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++cell_region_visits_;
+#endif
+
     const auto relation = ClassifyRegion(region);
 
     if (relation == CellBallRelation::OUTSIDE) {
