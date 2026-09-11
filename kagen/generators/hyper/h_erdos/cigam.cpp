@@ -24,7 +24,7 @@ namespace {
 constexpr std::uint64_t kCIGAMPermutationDomain = 0x434947414d504552ULL; // "CIGAMPER"
 
 SInt ComputeRankBlockSize(const SInt n, const PEID size) {
-    constexpr SInt kMaximumBlockSize = 32;
+    constexpr SInt kMaximumBlockSize = 1024;
     constexpr SInt kBlocksPerPE      = 8;
 
     const SInt desired_blocks = std::max<SInt>(1, static_cast<SInt>(size) * kBlocksPerPE);
@@ -655,6 +655,8 @@ void HyperCIGAM<BigInt>::GenerateBoundedBlock(
                     .mode                 = static_cast<SInt>(config_.cigam_mode),
                     .hyperedge_size       = k,
                     .dominant_vertex      = i,
+                    .dominant_final_vertex = static_cast<SInt>(
+                        vertex_permutation_.f(static_cast<std::uint64_t>(i))),
                     .layer                = layer,
                     .endpoint_vertex      = pins.back(),
                     .block_j_min          = j_min,
@@ -780,6 +782,8 @@ void HyperCIGAM<BigInt>::GenerateApproxBlock(
                 .mode                 = static_cast<SInt>(config_.cigam_mode),
                 .hyperedge_size       = k,
                 .dominant_vertex      = dominant,
+                .dominant_final_vertex = static_cast<SInt>(
+                    vertex_permutation_.f(static_cast<std::uint64_t>(dominant))),
                 .layer                = layer,
                 .endpoint_vertex      = endpoint,
                 .block_j_min          = j_min,
@@ -1426,6 +1430,7 @@ void HyperCIGAM<BigInt>::GeneratePythonBlock(
                 .mode                 = static_cast<SInt>(config_.cigam_mode),
                 .hyperedge_size       = k,
                 .dominant_vertex      = dominant,
+                .dominant_final_vertex = ranks.original_vertex[dominant],
                 .layer                = layer,
                 .endpoint_vertex      = rank_positions.back(),
                 .block_j_min          = j_min,
