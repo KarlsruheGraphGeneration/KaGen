@@ -78,8 +78,26 @@ public:
         if (static_cast<std::size_t>(buffer_pos_ - buffer_) >= kBufferSizeLimit) {
             ForceFlush();
         }
-        
+
         int written = std::snprintf(buffer_pos_, kBufferSize - (buffer_pos_ - buffer_), "%.5lf", value);
+        buffer_pos_ += written;
+        return *this;
+    }
+
+    BufferedTextOutput& WritePreciseFloat(const long double value) {
+        if (static_cast<std::size_t>(buffer_pos_ - buffer_) >= kBufferSizeLimit) {
+            ForceFlush();
+        }
+
+        const std::size_t remaining = kBufferSize - static_cast<std::size_t>(buffer_pos_ - buffer_);
+
+        const int written =
+            std::snprintf(buffer_pos_, remaining, "%.*Lg", std::numeric_limits<long double>::max_digits10, value);
+
+        if (written < 0 || static_cast<std::size_t>(written) >= remaining) {
+            throw IOError("failed to format floating-point value");
+        }
+
         buffer_pos_ += written;
         return *this;
     }

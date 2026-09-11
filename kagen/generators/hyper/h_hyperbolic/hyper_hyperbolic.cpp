@@ -232,6 +232,7 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
       target_r_(PGGeometry<Double>::GetTargetRadius(config_.n, config_.n * config_.avg_degree / 2, alpha_)),
       cosh_target_r_(std::cosh(target_r_)),
       pdm_target_r_((cosh_target_r_ - 1) / 2),
+      center_alpha_(config_.center_plexp < 0 ? alpha_ : (config_.center_plexp - 1) / 2),
       clique_thres_(0),
       total_annuli_(std::floor(alpha_ * target_r_ / std::numbers::ln2)),
       current_hyperedge_radius_(static_cast<Double>(config_.r)),
@@ -336,7 +337,7 @@ Hyper_Hyperbolic<Double>::Hyper_Hyperbolic(const PGeneratorConfig& config, PEID 
     }
 
     if (config_.debug) {
-        debug_logger_.emplace(MakeDebugFilename(), true);
+        debug_logger_.emplace(MakeDebugFilename(), false);
     }
 }
 template <typename Double>
@@ -423,12 +424,12 @@ void Hyper_Hyperbolic<Double>::ComputeCenterChunk(const SInt chunk_id) {
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::ComputeAnnuli(const SInt chunk_id) {
-    ComputeAnnuliInto(chunks_, annuli_, chunk_id, 0);
+    ComputeAnnuliInto(chunks_, annuli_, chunk_id, 0, alpha_);
 }
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::ComputeCenterAnnuli(const SInt chunk_id) {
-    ComputeAnnuliInto(center_chunks_, center_annuli_, chunk_id, 9101);
+    ComputeAnnuliInto(center_chunks_, center_annuli_, chunk_id, 9101, center_alpha_);
 }
 
 template <typename Double>
@@ -607,7 +608,7 @@ void Hyper_Hyperbolic<Double>::GenerateVerticesIntoBlock(
         AppendVertex(out, offset + i, vertex);
 
         if (record_coordinates && config_.coordinates && pe_min_phi_ <= vertex.phi && vertex.phi < pe_max_phi_) {
-            PushCoordinate(vertex.x, vertex.y);
+            PushCoordinate(vertex.phi, vertex.r);
         }
     }
 }
@@ -741,6 +742,13 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
     for (SInt i = local_chunk_start_; i < local_chunk_end_; ++i) {
         for (SInt j = 0; j < total_annuli_; ++j) {
             GenerateCells(j, i);
+
+            if (config_.coordinates) {
+                const SInt cells = CellsPerChunkForAnnulus(j, i);
+                for (SInt cell_id = 0; cell_id < cells; ++cell_id) {
+                    GenerateVertices(j, i, cell_id);
+                }
+            }
         }
     }
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
@@ -889,19 +897,20 @@ void Hyper_Hyperbolic<Double>::ComputeChunkInto(
 template <typename Double>
 template <typename ChunkMap, typename AnnulusMap>
 void Hyper_Hyperbolic<Double>::ComputeAnnuliInto(
-    const ChunkMap& chunks, AnnulusMap& annuli, const SInt chunk_id, const SInt seed_offset) {
+    const ChunkMap& chunks, AnnulusMap& annuli, const SInt chunk_id, const SInt seed_offset,
+    Double distribution_alpha) {
     const auto& chunk  = chunks.find(chunk_id)->second;
     SInt        size   = std::get<0>(chunk);
     SInt        offset = std::get<3>(chunk);
 
     Double min_r      = 0;
-    Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * target_r_);
+    Double total_area = PGGeometry<Double>::RadiusToHyperbolicArea(distribution_alpha * target_r_);
 
     for (SInt i = 1; i < total_annuli_ + 1; ++i) {
         const Double max_r = i * target_r_ / total_annuli_;
 
-        const Double ring_area = PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * max_r)
-                                 - PGGeometry<Double>::RadiusToHyperbolicArea(alpha_ * min_r);
+        const Double ring_area = PGGeometry<Double>::RadiusToHyperbolicArea(distribution_alpha * max_r)
+                                 - PGGeometry<Double>::RadiusToHyperbolicArea(distribution_alpha * min_r);
 
         const SInt hash_value = sampling::Spooky::hash(
             config_.seed + seed_offset + (total_annuli_ * config_.k) + (chunk_id * total_annuli_) + i);
@@ -932,7 +941,7 @@ Hyper_Hyperbolic<Double>::ReconstructChunkAnnulus(const SInt annulus_id, const S
         temporary_chunks, chunk_id, config_.n, config_.k, Double{0.0}, Double{2.0 * M_PI}, SInt{0}, SInt{1}, SInt{0},
         SInt{0});
 
-    ComputeAnnuliInto(temporary_chunks, temporary_annuli, chunk_id, SInt{0});
+    ComputeAnnuliInto(temporary_chunks, temporary_annuli, chunk_id, SInt{0}, alpha_);
 
     const SInt global_chunk_id = ComputeGlobalChunkId(annulus_id, chunk_id);
 
@@ -1030,7 +1039,7 @@ void Hyper_Hyperbolic<Double>::BuildReplicatedInnerRegion() {
             temporary_chunks, chunk_id, config_.n, config_.k, Double{0.0}, Double{2.0 * M_PI}, SInt{0}, SInt{1},
             SInt{0}, SInt{0});
 
-        ComputeAnnuliInto(temporary_chunks, temporary_annuli, chunk_id, SInt{0});
+        ComputeAnnuliInto(temporary_chunks, temporary_annuli, chunk_id, SInt{0}, alpha_);
 
         for (SInt annulus_id = 0; annulus_id <= candidate_last; ++annulus_id) {
             const SInt global_chunk_id = ComputeGlobalChunkId(annulus_id, chunk_id);
@@ -1116,7 +1125,7 @@ Hyper_Hyperbolic<Double>::SampleCenter(SInt annulus_id, SInt sampled_center_id, 
 
     return {
         .phi        = region.min_phi + (u_phi * (region.max_phi - region.min_phi)),
-        .r          = std::acosh((u_r * (region.max_cdf - region.min_cdf)) + region.min_cdf) / alpha_,
+        .r          = std::acosh((u_r * (region.max_cdf - region.min_cdf)) + region.min_cdf) / center_alpha_,
         .sampled_id = sampled_center_id,
         .annulus_id = annulus_id,
     };
@@ -1153,6 +1162,7 @@ void Hyper_Hyperbolic<Double>::GenerateHyperedges(
 
             const auto center = SampleCenter(annulus_id, sampled_center_id, region);
 
+            ++hyperedge_queries_;
             BeginHyperedge(center, mersenne);
             builder.Build(center);
         }
@@ -1168,8 +1178,8 @@ Hyper_Hyperbolic<Double>::CenterSamplingRegion Hyper_Hyperbolic<Double>::BuildCe
     return {
         .min_phi = std::get<1>(center_cell),
         .max_phi = std::get<2>(center_cell),
-        .min_cdf = std::cosh(alpha_ * min_r),
-        .max_cdf = std::cosh(alpha_ * max_r),
+        .min_cdf = std::cosh(center_alpha_ * min_r),
+        .max_cdf = std::cosh(center_alpha_ * max_r),
         .offset  = std::get<4>(center_cell),
         .count   = std::get<0>(center_cell),
     };

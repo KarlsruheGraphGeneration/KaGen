@@ -29,7 +29,7 @@ private:
         long double log_block_size;
     };
 
-    void                  InitQuantileGenerationState();
+    void                  InitGenerationState();
     std::pair<SInt, SInt> ComputeLocalVertexRange();
     void                  InitEdgeBudgetScaling();
     SInt                  EstimateEndpointInitialGuess(
@@ -55,6 +55,13 @@ private:
     void                  GenerateApproxCSR();
     void                  GenerateExactCSR();
 
+    SInt        NumRankBlocks() const;
+    SInt        RankBlockBegin(SInt block) const;
+    SInt        RankBlockEnd(SInt block) const;
+    PEID        RankBlockOwner(SInt block) const;
+    bool        OwnsDominant(SInt dominant) const;
+    std::size_t DominantLocalIndex(SInt dominant) const;
+
     SInt NumLayers() const {
         return static_cast<SInt>(config_.cigam_c.size());
     }
@@ -69,12 +76,9 @@ private:
 
     // Position i is zero-based and ordered by decreasing prestige.
     //
-    // The deterministic prestige is the midpoint quantile
-    //
-    //   u_i = 1 - (i + 1/2) / n,
-    //   r_i = F^{-1}(u_i),
-    //
-    // where F is the truncated exponential CDF.
+    // Rank positions are ordered by decreasing prestige. The underlying
+    // uniforms are one jointly consistent pseudorandom sample of the order
+    // statistics of n independent U(0, 1) variables.
     long double RankQuantile(SInt position) const;
     long double RankValue(SInt position) const;
 
@@ -95,6 +99,8 @@ private:
     PGeneratorConfig                                   config_;
     PEID                                               rank_;
     PEID                                               size_;
+    SInt                                               rank_block_size_;
+    SortedUniformOrderStatistics                       rank_order_statistics_;
     std::vector<SInt>                                  layer_begin_;
     std::vector<SInt>                                  layer_end_;
     random_permutation::FeistelPseudoRandomPermutation vertex_permutation_;
@@ -122,7 +128,12 @@ private:
 
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
 
-    LogBinomCacheStats log_binom_stats_;
+    LogBinomCacheStats    log_binom_stats_;
+    mutable std::uint64_t rank_value_calls_        = 0;
+    std::uint64_t         model_initialization_ns_ = 0;
+    std::uint64_t         layer_initialization_ns_ = 0;
+    std::uint64_t         rank_initialization_ns_  = 0;
+    std::uint64_t         edge_generation_ns_      = 0;
 #endif
     // #### Paper-accurate implementation ####
 

@@ -45,6 +45,8 @@ bool HyperbolicGeometryPolicy<Double>::HierarchicalCandidateCells(
         return false;
     }
 
+    gen_.AddReachableAnnuli(last_annulus - first_annulus + 1);
+
     for (SInt annulus_id = first_annulus; annulus_id <= last_annulus; ++annulus_id) {
         collector.TraverseSingleAnnulus(annulus_id, cells, ranges);
     }
@@ -472,7 +474,7 @@ void HyperbolicGeometryPolicy<Double>::EmitHyperedge(
 template <typename Double>
 std::string HyperbolicGeometryPolicy<Double>::CenterToString(const Center& center) const {
     std::ostringstream out;
-
+    out << std::setprecision(std::numeric_limits<double>::max_digits10);
     out << "phi=" << center.phi << ";r=" << center.r;
 
     return out.str();
@@ -711,6 +713,7 @@ template <typename Double>
 void HyperbolicGeometryPolicy<Double>::TraverseCandidateRegion(
     const CellAnnulusRegion& region, std::vector<Cell>& cells, std::vector<PinRange>& inside_ranges,
     CandidateCollector& collector) {
+    gen_.AddTraversalOperations(1);
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     ++cell_annulus_region_visits_;
 #endif
@@ -741,6 +744,7 @@ template <typename Double>
 void HyperbolicGeometryPolicy<Double>::TraverseCandidateRegion(
     const CellRegion& region, std::vector<Cell>& cells, std::vector<PinRange>& inside_ranges,
     CandidateCollector& collector) {
+    gen_.AddTraversalOperations(1);
 #ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
     ++cell_region_visits_;
 #endif

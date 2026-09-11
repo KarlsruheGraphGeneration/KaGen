@@ -129,7 +129,7 @@ private:
     std::optional<GeometricHypergraphDebugLogger> debug_logger_;
 
     // Constants and variables
-    Double alpha_, target_r_, cosh_target_r_, pdm_target_r_;
+    Double alpha_, target_r_, cosh_target_r_, pdm_target_r_, center_alpha_;
     Double pe_min_phi_, pe_max_phi_;
     Double clique_thres_;
     SInt   local_chunks_;
@@ -146,6 +146,11 @@ private:
     std::vector<PinRange> current_hyperedge_ranges_;
     Double                current_hyperedge_radius_;
     Double                current_hyperedge_pdm_radius_;
+
+    // Scaling instrumentation
+    SInt hyperedge_queries_     = 0;
+    SInt reachable_annuli_      = 0;
+    SInt traversal_operations_  = 0;
 
     // Data structures
     HashMap<SInt, Annulus>     annuli_;
@@ -217,6 +222,14 @@ private:
 
     void ObserveHyperedgeAndMaybeReserve(std::size_t pins, std::size_t ranges);
 
+    void AddReachableAnnuli(SInt count) {
+        reachable_annuli_ += count;
+    }
+
+    void AddTraversalOperations(SInt count) {
+        traversal_operations_ += count;
+    }
+
     void ComputeAnnuli(SInt chunk_id);
 
     void ComputeChunk(SInt chunk_id);
@@ -260,7 +273,8 @@ private:
     GenerateHyperedges(SInt annulus_id, SInt chunk_id, HyperedgeBuilder<HyperbolicGeometryPolicy<Double>>& builder);
 
     template <typename ChunkMap, typename AnnulusMap>
-    void ComputeAnnuliInto(const ChunkMap& chunks, AnnulusMap& annuli, SInt chunk_id, SInt seed_offset);
+    void ComputeAnnuliInto(
+        const ChunkMap& chunks, AnnulusMap& annuli, SInt chunk_id, SInt seed_offset, Double distribution_alpha);
 
     template <typename ChunkMap>
     void ComputeChunkInto(
@@ -331,12 +345,34 @@ private:
 
 template <typename Double>
 void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm comm) {
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
+
+    SInt global_hyperedge_queries = 0;
+    SInt global_reachable_annuli  = 0;
+    SInt global_traversal_ops     = 0;
+    MPI_Reduce(&hyperedge_queries_, &global_hyperedge_queries, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&reachable_annuli_, &global_reachable_annuli, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&traversal_operations_, &global_traversal_ops, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, comm);
+
+    if (rank == 0) {
+        std::cout << "[HRHG scaling] total_hyperedge_queries=" << global_hyperedge_queries
+                  << " total_reachable_annuli=" << global_reachable_annuli
+                  << " avg_reachable_annuli_per_query="
+                  << (global_hyperedge_queries > 0
+                          ? static_cast<double>(global_reachable_annuli) / static_cast<double>(global_hyperedge_queries)
+                          : 0.0)
+                  << " total_traversal_operations=" << global_traversal_ops
+                  << " avg_traversal_operations_per_query="
+                  << (global_hyperedge_queries > 0
+                          ? static_cast<double>(global_traversal_ops) / static_cast<double>(global_hyperedge_queries)
+                          : 0.0)
+                  << '\n';
+    }
+
     if (!config_.debug) {
         return;
     }
-
-    int rank = 0;
-    MPI_Comm_rank(comm, &rank);
 
     const SInt local_pins                 = static_cast<SInt>(graph_.hyperedge_pins.size());
     const SInt local_max_hyperedge_pins   = local_memory_stats_.max_pins_per_hyperedge;

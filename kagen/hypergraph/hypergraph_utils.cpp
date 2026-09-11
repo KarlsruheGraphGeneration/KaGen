@@ -499,7 +499,8 @@ double ExpectedPinsOverRadius(
 } // namespace
 
 double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& config) {
-    const double alpha = (config.plexp - 1.0) / 2.0;
+    const double alpha        = (config.plexp - 1.0) / 2.0;
+    const double center_alpha = config.center_plexp < 0.0 ? alpha : (config.center_plexp - 1.0) / 2.0;
 
     const double target_r = PGGeometry<double>::GetTargetRadius(config.n, config.n * config.avg_degree / 2.0, alpha);
 
@@ -585,7 +586,7 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
     }
 
     auto expected_per_edge = [&](double exponent) {
-        const double total_area = PGGeometry<double>::RadiusToHyperbolicArea(alpha * target_r);
+        const double total_area = PGGeometry<double>::RadiusToHyperbolicArea(center_alpha * target_r);
 
         double weighted_total = 0.0;
         double total_weight   = 0.0;
@@ -597,8 +598,8 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
 
             const double ann_max_r = (a + 1) * target_r / total_annuli;
 
-            const double ring_area = PGGeometry<double>::RadiusToHyperbolicArea(alpha * ann_max_r)
-                                     - PGGeometry<double>::RadiusToHyperbolicArea(alpha * ann_min_r);
+            const double ring_area = PGGeometry<double>::RadiusToHyperbolicArea(center_alpha * ann_max_r)
+                                     - PGGeometry<double>::RadiusToHyperbolicArea(center_alpha * ann_min_r);
 
             const double annulus_weight = ring_area / total_area;
 
@@ -611,7 +612,7 @@ double SolveHyperbolicRadiusExponentForExpectedPins(const PGeneratorConfig& conf
 
                 const double qc = 0.5 * (q0 + q1);
 
-                const double center_r = HyperbolicRadialQuantile(qc, alpha, ann_min_r, ann_max_r);
+                const double center_r = HyperbolicRadialQuantile(qc, center_alpha, ann_min_r, ann_max_r);
 
                 double upper;
 

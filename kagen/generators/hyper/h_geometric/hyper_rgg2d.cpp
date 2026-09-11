@@ -17,7 +17,7 @@ namespace kagen {
 HyperRGG2D::HyperRGG2D(const PGeneratorConfig& config, const PEID rank, const PEID size)
     : SpatialGrid2D(config, rank, size) {
     if (config_.debug) {
-        debug_logger_.emplace(MakeDebugFilename(), true);
+        debug_logger_.emplace(MakeDebugFilename(), false);
     }
 }
 

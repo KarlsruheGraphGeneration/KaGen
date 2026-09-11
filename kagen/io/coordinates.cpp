@@ -3,6 +3,9 @@
 #include "kagen/io/buffered_writer.h"
 #include "kagen/io/graph_format.h"
 
+#include <iomanip>
+#include <limits>
+
 namespace kagen {
 CoordinatesWriter::CoordinatesWriter(
     const OutputGraphConfig& config, Graph& graph, const GraphInfo info, const PEID rank, const PEID size)
@@ -14,12 +17,23 @@ bool CoordinatesWriter::WriteBody(const std::string& filename) {
     RequiresCoordinates();
 
     BufferedTextOutput<> out(tag::append, filename);
-
     for (const auto& [x, y]: graph_.coordinates.first) {
-        out.WriteFloat(x).WriteChar(' ').WriteFloat(y).WriteChar(' ').WriteFloat(0.0).WriteChar('\n').Flush();
+        out.WritePreciseFloat(x)
+            .WriteChar(' ')
+            .WritePreciseFloat(y)
+            .WriteChar(' ')
+            .WritePreciseFloat(0.0)
+            .WriteChar('\n')
+            .Flush();
     }
     for (const auto& [x, y, z]: graph_.coordinates.second) {
-        out.WriteFloat(x).WriteChar(' ').WriteFloat(y).WriteChar(' ').WriteFloat(z).WriteChar('\n').Flush();
+        out.WritePreciseFloat(x)
+            .WriteChar(' ')
+            .WritePreciseFloat(y)
+            .WriteChar(' ')
+            .WritePreciseFloat(z)
+            .WriteChar('\n')
+            .Flush();
     }
 
     return false;

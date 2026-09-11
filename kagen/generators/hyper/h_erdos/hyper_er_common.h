@@ -15,11 +15,63 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <limits>
 #include <vector>
 
 namespace kagen {
+
+// Communication-free random access to one jointly consistent sample of the
+// order statistics of n independent U(0, 1) variables.
+//
+// The recursive construction samples the middle order statistic conditional
+// on its two enclosing order statistics. Randomness is keyed by the interval,
+// so every PE reconstructs the same value without storing or communicating the
+// complete rank vector.
+class SortedUniformOrderStatistics {
+public:
+    struct Stats {
+        std::uint64_t lookups         = 0;
+        std::uint64_t tree_nodes      = 0;
+        std::uint64_t inverse_beta_ns = 0;
+    };
+
+    SortedUniformOrderStatistics(SInt count, std::uint64_t seed);
+
+    long double Ascending(SInt position) const;
+    long double Descending(SInt position) const;
+
+    void FillAscending(SInt begin, SInt end, std::vector<long double>& values) const;
+
+    void FillDescending(SInt begin, SInt end, std::vector<long double>& values) const;
+
+    SInt size() const {
+        return count_;
+    }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const Stats& stats() const {
+        return stats_;
+    }
+#endif
+
+private:
+    void FillAscendingRecursive(
+        SInt node_begin, SInt node_end, long double lower, long double upper, SInt requested_begin, SInt requested_end,
+        std::vector<long double>& values) const;
+
+    long double SampleNodeValue(SInt begin, SInt end, long double lower, long double upper) const;
+
+    long double NodeUniform(SInt begin, SInt end) const;
+
+    SInt          count_;
+    std::uint64_t seed_;
+
+    // Must remain present in every build configuration so the class has
+    // the same ABI everywhere.
+    mutable Stats stats_;
+};
 
 using CountInt         = boost::multiprecision::cpp_int;
 using FloydScratchSet  = boost::unordered_flat_set<SInt>;
@@ -144,7 +196,6 @@ struct LogBinomCache {
         log_k_factorial = std::lgammal(static_cast<long double>(fixed_k) + 1.0L);
 
         inv_k = 1.0L / static_cast<long double>(fixed_k);
-
     }
 
     long double EvaluateDirect(const SInt x) const {
@@ -287,7 +338,6 @@ struct LogBinomCache {
     }
 
     long double Get(const SInt x, const SInt /*k*/) {
-
         ++stats.map_calls;
 
         stats.min_key = std::min(stats.min_key, x);

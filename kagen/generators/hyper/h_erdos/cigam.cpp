@@ -6,6 +6,7 @@
 #include "kagen/sampling/hash.hpp"
 #include "kagen/tools/rng_wrapper.h"
 
+#include <chrono>
 #include <map>
 #include <set>
 
@@ -22,6 +23,16 @@ namespace {
 
 constexpr std::uint64_t kCIGAMPermutationDomain = 0x434947414d504552ULL; // "CIGAMPER"
 
+SInt ComputeRankBlockSize(const SInt n, const PEID size) {
+    constexpr SInt kMaximumBlockSize = 32;
+    constexpr SInt kBlocksPerPE      = 8;
+
+    const SInt desired_blocks = std::max<SInt>(1, static_cast<SInt>(size) * kBlocksPerPE);
+    const SInt balanced_size  = (n + desired_blocks - 1) / desired_blocks;
+
+    return std::max<SInt>(1, std::min(kMaximumBlockSize, balanced_size));
+}
+
 std::uint64_t CIGAMPermutationSeed(const std::uint64_t global_seed) {
     return static_cast<std::uint64_t>(
         sampling::Spooky::hash(static_cast<unsigned long long>(global_seed ^ kCIGAMPermutationDomain)));
@@ -34,6 +45,8 @@ HyperCIGAM<BigInt>::HyperCIGAM(const PGeneratorConfig& config, const PEID rank, 
     : config_(config),
       rank_(rank),
       size_(size),
+      rank_block_size_(ComputeRankBlockSize(config.n, size)),
+      rank_order_statistics_(config.n, static_cast<std::uint64_t>(config.seed)),
       vertex_permutation_(
           random_permutation::FeistelPseudoRandomPermutation::buildPermutation(
               static_cast<std::uint64_t>(config.n - 1), CIGAMPermutationSeed(static_cast<std::uint64_t>(config.seed)))),
@@ -103,14 +116,38 @@ void ValidateCIGAMConfig(const PGeneratorConfig& config) {
 }
 
 template <typename BigInt>
-void HyperCIGAM<BigInt>::InitQuantileGenerationState() {
+void HyperCIGAM<BigInt>::InitGenerationState() {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const auto initialization_start = std::chrono::steady_clock::now();
+    auto       phase_start          = std::chrono::steady_clock::now();
+#endif
+
     InitLayerBounds();
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    layer_initialization_ns_ = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - phase_start).count());
+    phase_start = std::chrono::steady_clock::now();
+#endif
+
     InitProbabilityConstants();
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    rank_initialization_ns_ = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - phase_start).count());
+#endif
+
     InitSizeWeights();
     if (config_.edge_budget > 0.0) {
         InitMassCache();
     }
     InitEdgeBudgetScaling();
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    model_initialization_ns_ = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - initialization_start)
+            .count());
+#endif
 }
 
 // #### Entrypoints ####
@@ -129,21 +166,33 @@ void HyperCIGAM<BigInt>::GenerateCSR() {
     debug_edges_per_layer_.assign(static_cast<std::size_t>(NumLayers()), 0);
 #endif
 
+    if (config_.cigam_mode != CIGAMMode::PAPER) {
+        InitGenerationState();
+    }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const auto edge_generation_start = std::chrono::steady_clock::now();
+#endif
+
     switch (config_.cigam_mode) {
         case CIGAMMode::PAPER:
             GeneratePythonDistributedCSR();
             break;
 
         case CIGAMMode::EXACT:
-            InitQuantileGenerationState();
             GenerateExactCSR();
             break;
 
         case CIGAMMode::APPROX:
-            InitQuantileGenerationState();
             GenerateApproxCSR();
             break;
     }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    edge_generation_ns_ = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - edge_generation_start)
+            .count());
+#endif
 
 #ifndef NDEBUG
     if (config_.cigam_mode != CIGAMMode::PAPER) {
@@ -158,7 +207,57 @@ void HyperCIGAM<BigInt>::GenerateCSR() {
 }
 
 template <typename BigInt>
-void HyperCIGAM<BigInt>::FinalizeCSR(MPI_Comm /*comm*/) {
+void HyperCIGAM<BigInt>::FinalizeCSR(MPI_Comm comm) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const auto& rank_stats = rank_order_statistics_.stats();
+
+    const std::uint64_t local_sum_values[] = {
+        rank_value_calls_,
+        rank_stats.lookups,
+        rank_stats.tree_nodes,
+        rank_stats.inverse_beta_ns,
+    };
+    std::uint64_t global_sum_values[4] = {};
+
+    MPI_Reduce(local_sum_values, global_sum_values, 4, MPI_UINT64_T, MPI_SUM, 0, comm);
+
+    const std::uint64_t local_max_values[] = {
+        model_initialization_ns_,
+        layer_initialization_ns_,
+        rank_initialization_ns_,
+        edge_generation_ns_,
+    };
+    std::uint64_t global_max_values[4] = {};
+
+    MPI_Reduce(local_max_values, global_max_values, 4, MPI_UINT64_T, MPI_MAX, 0, comm);
+
+    if (rank_ == 0) {
+        constexpr long double kNanosecondsToSeconds = 1.0e-9L;
+
+        const long double nodes_per_lookup =
+            global_sum_values[1] == 0
+                ? 0.0L
+                : static_cast<long double>(global_sum_values[2]) / static_cast<long double>(global_sum_values[1]);
+        const long double ns_per_tree_node =
+            global_sum_values[2] == 0
+                ? 0.0L
+                : static_cast<long double>(global_sum_values[3]) / static_cast<long double>(global_sum_values[2]);
+
+        std::cerr << "[CIGAM rank sampling]"
+                  << " rank_value_calls_sum=" << global_sum_values[0]
+                  << " order_statistic_lookups_sum=" << global_sum_values[1]
+                  << " tree_nodes_sum=" << global_sum_values[2] << " nodes_per_lookup=" << nodes_per_lookup
+                  << " inverse_beta_time_sum_s="
+                  << static_cast<long double>(global_sum_values[3]) * kNanosecondsToSeconds
+                  << " inverse_beta_ns_per_node=" << ns_per_tree_node
+                  << " model_init_time_max_s=" << static_cast<long double>(global_max_values[0]) * kNanosecondsToSeconds
+                  << " layer_init_time_max_s=" << static_cast<long double>(global_max_values[1]) * kNanosecondsToSeconds
+                  << " rank_init_time_max_s=" << static_cast<long double>(global_max_values[2]) * kNanosecondsToSeconds
+                  << " edge_generation_time_max_s="
+                  << static_cast<long double>(global_max_values[3]) * kNanosecondsToSeconds << '\n';
+    }
+#endif
+
     if (pins_are_final_vertex_ids_) {
         return;
     }
@@ -230,15 +329,57 @@ void HyperCIGAM<BigInt>::InitProbabilityConstants() {
         log_c_[static_cast<std::size_t>(layer)] = std::log(c);
     }
 
-    const SInt local_dominant_count = config_.n > rank_ ? 1 + (config_.n - 1 - rank_) / size_ : 0;
+    dominant_exponent_.clear();
 
-    dominant_exponent_.resize(static_cast<std::size_t>(local_dominant_count));
+    const SInt full_blocks_per_pe = NumRankBlocks() / size_;
+    dominant_exponent_.reserve(static_cast<std::size_t>((full_blocks_per_pe + 1) * rank_block_size_));
 
-    SInt local_index = 0;
+    std::vector<long double> block_uniforms;
 
-    for (SInt dominant = rank_; dominant < config_.n; dominant += size_, ++local_index) {
-        dominant_exponent_[static_cast<std::size_t>(local_index)] = -2.0L + RankValue(dominant);
+    for (SInt block = rank_; block < NumRankBlocks(); block += size_) {
+        const SInt begin = RankBlockBegin(block);
+        const SInt end   = RankBlockEnd(block);
+
+        rank_order_statistics_.FillDescending(begin, end, block_uniforms);
+
+        for (const long double uniform: block_uniforms) {
+            dominant_exponent_.push_back(-2.0L + InverseTruncatedExpCDF(uniform));
+        }
     }
+}
+
+template <typename BigInt>
+SInt HyperCIGAM<BigInt>::NumRankBlocks() const {
+    return (config_.n + rank_block_size_ - 1) / rank_block_size_;
+}
+
+template <typename BigInt>
+SInt HyperCIGAM<BigInt>::RankBlockBegin(const SInt block) const {
+    return block * rank_block_size_;
+}
+
+template <typename BigInt>
+SInt HyperCIGAM<BigInt>::RankBlockEnd(const SInt block) const {
+    return std::min(config_.n, RankBlockBegin(block) + rank_block_size_);
+}
+
+template <typename BigInt>
+PEID HyperCIGAM<BigInt>::RankBlockOwner(const SInt block) const {
+    return static_cast<PEID>(block % size_);
+}
+
+template <typename BigInt>
+bool HyperCIGAM<BigInt>::OwnsDominant(const SInt dominant) const {
+    return RankBlockOwner(dominant / rank_block_size_) == rank_;
+}
+
+template <typename BigInt>
+std::size_t HyperCIGAM<BigInt>::DominantLocalIndex(const SInt dominant) const {
+    const SInt block       = dominant / rank_block_size_;
+    const SInt local_block = block / size_;
+    const SInt offset      = dominant - RankBlockBegin(block);
+
+    return static_cast<std::size_t>((local_block * rank_block_size_) + offset);
 }
 
 template <typename BigInt>
@@ -283,18 +424,22 @@ void HyperCIGAM<BigInt>::InitMassCache() {
 
         const SInt dominant_end = config_.n - k + 1;
 
-        for (SInt i = rank_; i < dominant_end; i += size_) {
-            for (SInt layer = 0; layer < NumLayers(); ++layer) {
-                const auto [j_min, j_max] = LayerEndpointRange(i, layer);
+        for (SInt block = rank_; block < NumRankBlocks(); block += size_) {
+            const SInt block_end = std::min(dominant_end, RankBlockEnd(block));
 
-                if (j_min > j_max || j_max - i < k - 1) {
-                    continue;
+            for (SInt i = RankBlockBegin(block); i < block_end; ++i) {
+                for (SInt layer = 0; layer < NumLayers(); ++layer) {
+                    const auto [j_min, j_max] = LayerEndpointRange(i, layer);
+
+                    if (j_min > j_max || j_max - i < k - 1) {
+                        continue;
+                    }
+
+                    const long double log_mass =
+                        LogBlockSize(k, i, j_min, j_max, high_cursor) + LogProbabilityForDominant(i, layer);
+
+                    local_mass += std::exp(log_mass);
                 }
-
-                const long double log_mass =
-                    LogBlockSize(k, i, j_min, j_max, high_cursor) + LogProbabilityForDominant(i, layer);
-
-                local_mass += std::exp(log_mass);
             }
         }
 
@@ -368,7 +513,13 @@ std::vector<double> HyperCIGAM<BigInt>::BuildDominantMassPrefix(const SInt k, co
                     }
                 }
 
-                mass = std::exp(log_block_size + static_cast<double>(LogProbabilityForDominant(i, layer)));
+                // This helper builds a global prefix and therefore also visits
+                // dominants owned by other PEs. Reconstruct their rank directly
+                // instead of indexing the PE-local dominant-exponent cache.
+                const long double dominant_exponent = -2.0L + RankValue(i);
+                const long double log_probability   = dominant_exponent * log_c_[layer];
+
+                mass = std::exp(log_block_size + static_cast<double>(log_probability));
             }
         }
 
@@ -408,9 +559,13 @@ void HyperCIGAM<BigInt>::GenerateExactCSR() {
         LogBinomCache binom_cache(k - 1);
         const SInt    dominant_end = config_.n - k + 1;
 
-        for (SInt dominant = rank_; dominant < dominant_end; dominant += size_) {
-            for (SInt layer = 0; layer < NumLayers(); ++layer) {
-                GenerateBoundedBlock(k, dominant, layer, binom_cache);
+        for (SInt block = rank_; block < NumRankBlocks(); block += size_) {
+            const SInt block_end = std::min(dominant_end, RankBlockEnd(block));
+
+            for (SInt dominant = RankBlockBegin(block); dominant < block_end; ++dominant) {
+                for (SInt layer = 0; layer < NumLayers(); ++layer) {
+                    GenerateBoundedBlock(k, dominant, layer, binom_cache);
+                }
             }
         }
 
@@ -539,21 +694,26 @@ void HyperCIGAM<BigInt>::GenerateApproxCSR() {
         std::vector<BlockInfo> blocks;
         blocks.reserve(NumLayers());
 
-        for (SInt dominant = rank_; dominant < dominant_end; dominant += size_) {
-            blocks.clear();
+        for (SInt rank_block = rank_; rank_block < NumRankBlocks(); rank_block += size_) {
+            const SInt block_end = std::min(dominant_end, RankBlockEnd(rank_block));
 
-            for (SInt layer = 0; layer < NumLayers(); ++layer) {
-                const auto [j_min, j_max] = LayerEndpointRange(dominant, layer);
+            for (SInt dominant = RankBlockBegin(rank_block); dominant < block_end; ++dominant) {
+                blocks.clear();
 
-                if (j_min > j_max || j_max - dominant < k - 1) {
-                    continue;
+                for (SInt layer = 0; layer < NumLayers(); ++layer) {
+                    const auto [j_min, j_max] = LayerEndpointRange(dominant, layer);
+
+                    if (j_min > j_max || j_max - dominant < k - 1) {
+                        continue;
+                    }
+
+                    blocks.push_back({layer, j_min, j_max, LogBlockSize(k, dominant, j_min, j_max, cache)});
                 }
 
-                blocks.push_back({layer, j_min, j_max, LogBlockSize(k, dominant, j_min, j_max, cache)});
-            }
-
-            for (const auto& block: blocks) {
-                GenerateApproxBlock(k, dominant, block.layer, block.j_min, block.j_max, block.log_block_size, cache);
+                for (const auto& block: blocks) {
+                    GenerateApproxBlock(
+                        k, dominant, block.layer, block.j_min, block.j_max, block.log_block_size, cache);
+                }
             }
         }
     }
@@ -647,25 +807,20 @@ long double HyperCIGAM<BigInt>::RankQuantile(const SInt position) const {
         throw ConfigurationError("CIGAM rank position is outside [0, n)");
     }
 
-    const long double quantile =
-        1.0L - ((static_cast<long double>(position) + 0.5L) / static_cast<long double>(config_.n));
-
-    /*
-     * The midpoint expression is mathematically inside (0, 1).
-     * Clamp only to protect against floating-point rounding for
-     * extremely large n.
-     */
-    return std::clamp(quantile, std::nextafter(0.0L, 1.0L), std::nextafter(1.0L, 0.0L));
+    return rank_order_statistics_.Descending(position);
 }
 
 template <typename BigInt>
 long double HyperCIGAM<BigInt>::RankValue(const SInt position) const {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++rank_value_calls_;
+#endif
+
     return InverseTruncatedExpCDF(RankQuantile(position));
 }
 template <typename BigInt>
 long double HyperCIGAM<BigInt>::InverseTruncatedExpCDF(const long double u) const {
     const long double lambda = static_cast<long double>(config_.cigam_lambda);
-
 
     if (!std::isfinite(u) || u < 0.0L || u > 1.0L) {
         throw ConfigurationError("CIGAM quantile must be finite and lie in [0, 1]");
@@ -714,52 +869,24 @@ template <typename BigInt>
 SInt HyperCIGAM<BigInt>::FirstPositionAfterBreakpoint(const long double breakpoint) const {
     const SInt n = config_.n;
 
-
     if (breakpoint >= 1.0L) {
         return n;
     }
 
-    const long double lambda = static_cast<long double>(config_.cigam_lambda);
+    SInt begin = 0;
+    SInt end   = n;
 
-    const long double target_rank = 1.0L - breakpoint;
+    while (begin < end) {
+        const SInt middle = begin + ((end - begin) / 2);
 
-    const long double cdf = (-std::expm1l(-lambda * target_rank)) / (-std::expm1l(-lambda));
-
-    /*
-     * Initial inversion of:
-     *
-     *   u_i = 1 - (i + 1/2) / n < cdf.
-     */
-    const long double estimate = (static_cast<long double>(n) * (1.0L - cdf)) - 0.5L;
-
-    SInt candidate;
-
-    if (estimate < 0.0L) {
-        candidate = 0;
-    } else if (estimate >= static_cast<long double>(n)) {
-        candidate = n;
-    } else {
-        candidate = static_cast<SInt>(std::floor(estimate)) + 1;
-        candidate = std::clamp<SInt>(candidate, 0, n);
+        if ((1.0L - RankValue(middle)) > breakpoint) {
+            end = middle;
+        } else {
+            begin = middle + 1;
+        }
     }
 
-    auto is_after = [&](const SInt position) {
-        return position < n && (1.0L - RankValue(position)) > breakpoint;
-    };
-
-    /*
-     * Correct any rounding error near the analytic boundary.
-     * In normal operation this performs zero or one iteration.
-     */
-    while (candidate > 0 && is_after(candidate - 1)) {
-        --candidate;
-    }
-
-    while (candidate < n && !is_after(candidate)) {
-        ++candidate;
-    }
-
-    return candidate;
+    return begin;
 }
 
 template <typename BigInt>
@@ -785,15 +912,14 @@ long double HyperCIGAM<BigInt>::LogProbabilityForDominant(const SInt i, const SI
     }
 
 #ifndef NDEBUG
-    if (i % size_ != rank_) {
+    if (!OwnsDominant(i)) {
         throw ConfigurationError("CIGAM accessed a dominant not owned by this PE");
     }
 #endif
 
-    const SInt local_index = (i - rank_) / size_;
+    const std::size_t local_index = DominantLocalIndex(i);
 
-    const long double log_probability =
-        dominant_exponent_[static_cast<std::size_t>(local_index)] * log_c_[static_cast<std::size_t>(layer)];
+    const long double log_probability = dominant_exponent_[local_index] * log_c_[static_cast<std::size_t>(layer)];
 
     if (!std::isfinite(log_probability) || log_probability >= 0.0L) {
         throw ConfigurationError("CIGAM generated an invalid hyperedge probability");

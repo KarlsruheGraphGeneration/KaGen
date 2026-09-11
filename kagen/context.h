@@ -223,6 +223,8 @@ struct PGeneratorConfig {
         PartialCellMode::GenerateAndCheck; // Controls how cells partially covered by hyperball are generated
     double quantile = 0.95;                // Controls size of cells depending on hyperedge radius distribution
 
+    double center_plexp = -1;               // Power law exponent for hyperedge center distribution in HRHG
+
     // Erdos Renyi
 
     double                   size_dist_alpha = 0.9; 

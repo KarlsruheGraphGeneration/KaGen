@@ -554,6 +554,9 @@ This is mostly useful for experimental graph generators or when using KaGen to l
 
         auto* params = cmd->add_option_group("Parameters");
         add_hypergraph_nm(params);
+
+        params->add_option(
+            "--center-g", config.center_plexp, "Power-law exponent for hyperedge-center radial distribution (default: same as vertex power-law exponent)");
         params->silent();
 
         auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");

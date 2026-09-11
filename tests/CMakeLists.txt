@@ -119,3 +119,11 @@ kagen_add_test(test_hrgg2d_geometry
 kagen_add_test(test_hrhg_geometry
     FILES hypergraph/hrhg_geometry_test.cpp
     CORES 1)
+
+kagen_add_test(test_cigam_rank_sampling
+    FILES hypergraph/cigam_rank_sampling_test.cpp
+    CORES 1)
+
+kagen_add_test(test_cigam
+    FILES hypergraph/cigam_test.cpp
+    CORES 1 2 4)

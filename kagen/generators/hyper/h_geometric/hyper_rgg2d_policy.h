@@ -57,8 +57,15 @@ public:
 
     void EmitHyperedge(const std::vector<SInt>& pins, const std::vector<PinRange>& ranges);
 
-    static std::string CenterToString(const Center center) {
-        return std::to_string(center.x) + ";" + std::to_string(center.y);
+    static std::string CenterToString(const Center& center) {
+        using Coordinate = std::remove_cvref_t<decltype(center.x)>;
+
+        std::ostringstream out;
+        out.imbue(std::locale::classic());
+
+        out << std::setprecision(std::numeric_limits<Coordinate>::max_digits10) << center.x << ';' << center.y;
+
+        return out.str();
     }
 
     void PrintExactStatistics() const;

@@ -2,13 +2,99 @@
 
 #include "kagen/kagen.h"
 
+#include <boost/math/special_functions/beta.hpp>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <limits>
 #include <vector>
 
 namespace kagen {
+
+namespace {
+
+constexpr std::uint64_t kSortedUniformStream = 0x534f5254554e4946ULL; // "SORTUNIF"
+constexpr long double   kInverseTwoTo53      = 1.0L / 9007199254740992.0L;
+
+std::uint64_t MixSortedUniformKey(std::uint64_t key, const std::uint64_t value) {
+    key ^= value + 0x9e3779b97f4a7c15ULL + (key << 6U) + (key >> 2U);
+    return static_cast<std::uint64_t>(sampling::Spooky::hash(static_cast<unsigned long long>(key)));
+}
+
+} // namespace
+
+SortedUniformOrderStatistics::SortedUniformOrderStatistics(const SInt count, const std::uint64_t seed)
+    : count_(count),
+      seed_(seed) {
+    if (count_ <= 0) {
+        throw ConfigurationError("sorted uniform order-statistic sample requires a positive size");
+    }
+}
+
+long double SortedUniformOrderStatistics::NodeUniform(const SInt begin, const SInt end) const {
+    std::uint64_t key = MixSortedUniformKey(seed_ ^ kSortedUniformStream, static_cast<std::uint64_t>(begin));
+    key               = MixSortedUniformKey(key, static_cast<std::uint64_t>(end));
+
+    // The half-unit offset gives a binary64-grid value strictly inside (0, 1),
+    // which is required by the inverse beta CDF.
+    return (static_cast<long double>(key >> 11U) + 0.5L) * kInverseTwoTo53;
+}
+
+long double SortedUniformOrderStatistics::Ascending(const SInt position) const {
+    if (position < 0 || position >= count_) {
+        throw ConfigurationError("order-statistic position is outside [0, n)");
+    }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++stats_.lookups;
+#endif
+
+    SInt        begin = 0;
+    SInt        end   = count_;
+    long double lower = 0.0L;
+    long double upper = 1.0L;
+
+    while (true) {
+        const SInt middle = begin + ((end - begin) / 2);
+
+        const long double alpha = static_cast<long double>(middle - begin + 1);
+        const long double beta  = static_cast<long double>(end - middle);
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        const auto inverse_beta_start = std::chrono::steady_clock::now();
+#endif
+
+        const long double split = boost::math::ibeta_inv(alpha, beta, NodeUniform(begin, end));
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+        ++stats_.tree_nodes;
+        stats_.inverse_beta_ns += static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - inverse_beta_start)
+                .count());
+#endif
+        const long double value = lower + ((upper - lower) * split);
+
+        if (position == middle) {
+            return value;
+        }
+
+        if (position < middle) {
+            end   = middle;
+            upper = value;
+        } else {
+            begin = middle + 1;
+            lower = value;
+        }
+    }
+}
+
+long double SortedUniformOrderStatistics::Descending(const SInt position) const {
+    if (position < 0 || position >= count_) {
+        throw ConfigurationError("order-statistic position is outside [0, n)");
+    }
+    return Ascending(count_ - 1 - position);
+}
 
 std::vector<SInt>
 DeterministicRankCounts(const SInt m, const std::vector<long double>& mass, const long double total_mass) {
@@ -831,6 +917,86 @@ void ExactFixedCountHyperedgeGenerator<BigInt>::Generate(const SInt hyperedge_si
         }
     }
 #endif
+}
+
+long double SortedUniformOrderStatistics::SampleNodeValue(
+    const SInt begin, const SInt end, const long double lower, const long double upper) const {
+    const SInt middle = begin + ((end - begin) / 2);
+
+    const long double alpha = static_cast<long double>(middle - begin + 1);
+
+    const long double beta = static_cast<long double>(end - middle);
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    const auto start = std::chrono::steady_clock::now();
+#endif
+
+    const long double split = boost::math::ibeta_inv(alpha, beta, NodeUniform(begin, end));
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    ++stats_.tree_nodes;
+
+    stats_.inverse_beta_ns += static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count());
+#endif
+
+    return lower + ((upper - lower) * split);
+}
+
+void SortedUniformOrderStatistics::FillAscendingRecursive(
+    const SInt node_begin, const SInt node_end, const long double lower, const long double upper,
+    const SInt requested_begin, const SInt requested_end, std::vector<long double>& values) const {
+    if (node_begin >= node_end || requested_begin >= node_end || requested_end <= node_begin) {
+        return;
+    }
+
+    const SInt middle = node_begin + ((node_end - node_begin) / 2);
+
+    const long double middle_value = SampleNodeValue(node_begin, node_end, lower, upper);
+
+    if (requested_begin < middle) {
+        FillAscendingRecursive(node_begin, middle, lower, middle_value, requested_begin, requested_end, values);
+    }
+
+    if (requested_begin <= middle && middle < requested_end) {
+        values[static_cast<std::size_t>(middle - requested_begin)] = middle_value;
+    }
+
+    if (middle + 1 < requested_end) {
+        FillAscendingRecursive(middle + 1, node_end, middle_value, upper, requested_begin, requested_end, values);
+    }
+}
+
+void SortedUniformOrderStatistics::FillAscending(
+    const SInt begin, const SInt end, std::vector<long double>& values) const {
+    if (begin < 0 || begin > end || end > count_) {
+        throw ConfigurationError("order-statistic interval is outside [0, n)");
+    }
+
+    values.resize(static_cast<std::size_t>(end - begin));
+
+    if (begin == end) {
+        return;
+    }
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    stats_.lookups += static_cast<std::uint64_t>(end - begin);
+#endif
+
+    FillAscendingRecursive(0, count_, 0.0L, 1.0L, begin, end, values);
+}
+
+void SortedUniformOrderStatistics::FillDescending(
+    const SInt begin, const SInt end, std::vector<long double>& values) const {
+    if (begin < 0 || begin > end || end > count_) {
+        throw ConfigurationError("order-statistic interval is outside [0, n)");
+    }
+
+    std::vector<long double> ascending;
+
+    FillAscending(count_ - end, count_ - begin, ascending);
+
+    values.assign(ascending.rbegin(), ascending.rend());
 }
 
 #pragma GCC diagnostic push
