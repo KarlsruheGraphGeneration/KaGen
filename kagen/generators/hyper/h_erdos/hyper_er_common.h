@@ -859,8 +859,10 @@ template <typename RNG>
 SInt SampleMinimumImplicitK2(const SInt local_begin, const SInt local_end, const SInt n, RNG& rng, SInt& seed) {
     const SInt draw_seed = sampling::Spooky::hash(seed++);
 
-    const long double u = std::min<long double>(
-        static_cast<long double>(rng.GenerateUniform(draw_seed, 0.0L, 1.0L)), std::nextafter(1.0L, 0.0L));
+    const auto raw_u  = rng.GenerateUniform(draw_seed, 0.0L, 1.0L);
+    using UniformType = decltype(raw_u);
+
+    const long double u = static_cast<long double>(std::min(raw_u, std::nextafter(UniformType{1}, UniformType{0})));
 
     const auto choose2 = [](const long double x) {
         return (x * (x - 1.0L)) / 2.0L;
@@ -927,8 +929,10 @@ SInt SampleMinimumImplicit(
      */
     const SInt draw_seed = sampling::Spooky::hash(seed++);
 
-    const long double u = std::min<long double>(
-        static_cast<long double>(rng.GenerateUniform(draw_seed, 0.0L, 1.0L)), std::nextafter(1.0L, 0.0L));
+    const auto raw_u  = rng.GenerateUniform(draw_seed, 0.0L, 1.0L);
+    using UniformType = decltype(raw_u);
+
+    const long double u = static_cast<long double>(std::min(raw_u, std::nextafter(UniformType{1}, UniformType{0})));
 
     auto cached_log_binomial = [&](const SInt x) -> long double {
         if (cache_gets) {
@@ -980,13 +984,17 @@ SInt SampleMinimumImplicit(
 
         return cache.LogBinomialRatioSmallK(x, begin_x);
     };
-    /*
-     * Monotone predicate used by both local correction and binary search.
-     *
-     * false: s is strictly before the selected minimum.
-     * true:  s is the selected minimum or lies to its right.
-     */
     auto at_or_right_of_answer = [&](const SInt s) -> bool {
+        /*
+         * The target was sampled from [end_tail, begin_tail].
+         * Consequently, the last local minimum always satisfies the
+         * inverse-CDF predicate. Enforce this exact boundary identity instead
+         * of recomputing it using independently rounded logarithms.
+         */
+        if (s == local_end - 1) {
+            return true;
+        }
+
         const SInt remaining = n - (s + 1);
 
         if (remaining < k) {
