@@ -556,7 +556,8 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_hypergraph_nm(params);
 
         params->add_option(
-            "--center-g", config.center_plexp, "Power-law exponent for hyperedge-center radial distribution (default: same as vertex power-law exponent)");
+            "--center-g", config.center_plexp,
+            "Power-law exponent for hyperedge-center radial distribution (default: same as vertex power-law exponent)");
         params->silent();
 
         auto* hyperedge_dist_options = cmd->add_option_group("Hyperedge Distribution options");
@@ -959,8 +960,6 @@ int main(int argc, char* argv[]) {
         CLI::App         app("KaGen: Karlsruhe Graph Generator");
         SetupCommandLineArguments(app, config);
         CLI11_PARSE(app, argc, argv);
-
-        std::cerr << "parsed hp_floats=" << config.hp_floats << '\n';
 
         // Coordinates output format implies --coordinates
         if (std::find(config.output_graph.formats.begin(), config.output_graph.formats.end(), FileFormat::COORDINATES)

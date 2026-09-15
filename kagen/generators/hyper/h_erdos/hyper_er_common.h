@@ -1734,7 +1734,14 @@ SInt GenerateBinomialHybrid(
         throw ConfigurationError(std::string(error_context) + " binomial probability exceeds one");
     }
 
-    const CountInt native_limit = std::numeric_limits<SInt>::max();
+    /*
+     * std::binomial_distribution performs its internal calculations using
+     * binary64 arithmetic. Restrict the native path to trial counts for which
+     * consecutive integer values remain exactly representable.
+     */
+    constexpr std::uint64_t kNativeBinomialLimit = (std::uint64_t{1} << std::numeric_limits<double>::digits) - 1;
+
+    const CountInt native_limit = kNativeBinomialLimit;
 
     if (population <= native_limit) {
         const SInt trials = population.convert_to<SInt>();
@@ -1747,7 +1754,6 @@ SInt GenerateBinomialHybrid(
 
         return rng.GenerateBinomial(seed, trials, probability);
     }
-
     return GenerateHugeBinomialCorrectedPoisson(population, log_population, log_probability, rng, seed, error_context);
 }
 
@@ -1755,15 +1761,10 @@ template <typename RNG>
 SInt GenerateBinomialHybrid(
     const CountInt& population, const long double log_probability, RNG& rng, const SInt seed,
     const char* error_context) {
-    if (population <= CountInt(std::numeric_limits<SInt>::max())) {
-        return GenerateBinomialHybrid(
-            population,
-            0.0L, // unused by the native branch
-            log_probability, rng, seed, error_context);
-    }
+    const long double log_population =
+        population > 0 ? LogPositiveCountIntApprox(population) : -std::numeric_limits<long double>::infinity();
 
-    return GenerateBinomialHybrid(
-        population, LogPositiveCountIntApprox(population), log_probability, rng, seed, error_context);
+    return GenerateBinomialHybrid(population, log_population, log_probability, rng, seed, error_context);
 }
 
 inline long double TransformCountIntToLongDoubleFast(const CountInt& value) {
