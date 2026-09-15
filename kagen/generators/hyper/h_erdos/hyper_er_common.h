@@ -1739,7 +1739,7 @@ SInt GenerateBinomialHybrid(
      * binary64 arithmetic. Restrict the native path to trial counts for which
      * consecutive integer values remain exactly representable.
      */
-    constexpr std::uint64_t kNativeBinomialLimit = (std::uint64_t{1} << std::numeric_limits<double>::digits) - 1;
+    constexpr std::uint64_t kNativeBinomialLimit = std::numeric_limits<std::uint32_t>::max();
 
     const CountInt native_limit = kNativeBinomialLimit;
 
