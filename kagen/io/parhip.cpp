@@ -445,6 +445,113 @@ SInt ParhipReader::FindNodeByEdge(const SInt edge) {
     return high.first;
 }
 
+Graph ParhipReader::ReadStrictEdgeRange(
+    const SInt from_edge, SInt to_edge, const GraphRepresentation representation) {
+    // Vertex weights belong to a whole vertex; a strict boundary can split a vertex across PEs, leaving its
+    // weight ambiguous. Edge weights (read below) stay unambiguously attached to their edge. Every PE reads the
+    // same header, so this decision -- and hence the throw -- is identical on all PEs (collective-safe).
+    if (HasVertexWeights(version_)) {
+        throw ConfigurationError(
+            "--distribution=balance-edges-strict does not support vertex-weighted input; use "
+            "--distribution=balance-vertices or --drop-vertex-weights");
+    }
+
+    if (to_edge > m_) {
+        to_edge = m_;
+    }
+
+    Graph ans;
+    ans.representation = representation;
+
+    // Empty local edge range (e.g. a small graph split across many PEs): nothing to read. The provisional
+    // vertex_range is left empty; ReadGraphFragment/FinalizeGraphFragment replaces it with the gap-free range.
+    if (from_edge >= to_edge) {
+        ans.vertex_range = {n_, n_};
+        if (representation == GraphRepresentation::CSR) {
+            ans.xadj.push_back(0);
+        }
+        return ans;
+    }
+
+    const int edge_id_width     = Has32BitEdgeIDs(version_) ? 4 : 8;
+    const int vertex_id_width   = Has32BitVertexIDs(version_) ? 4 : 8;
+    const int edge_weight_width = Has32BitEdgeWeights(version_) ? 4 : 8;
+
+    // Vertices whose adjacency overlaps [from_edge, to_edge): [from_vertex, to_vertex). from_vertex owns
+    // from_edge (its adjacency may start before from_edge, i.e. a left-partial/split boundary vertex);
+    // to_vertex - 1 owns to_edge - 1 (its adjacency may extend past to_edge, i.e. a right-partial vertex).
+    // FindNodeByEdge(e) returns the smallest vertex whose first edge is >= e, so FindNodeByEdge(from_edge + 1) - 1
+    // is the vertex owning from_edge, and FindNodeByEdge(to_edge) is the exclusive vertex bound.
+    const SInt from_vertex     = FindNodeByEdge(from_edge + 1) - 1;
+    const SInt to_vertex       = FindNodeByEdge(to_edge);
+    const SInt num_local_nodes = to_vertex - from_vertex;
+
+    // Read the xadj slice [from_vertex, to_vertex] (num_local_nodes + 1 entries) and convert the on-disk byte
+    // offsets to global edge indices.
+    const SInt xadj_offset = 3 * sizeof(ParhipID) + from_vertex * edge_id_width;
+    in_.seekg(xadj_offset);
+    if (in_.rdstate()) {
+        throw IOError("seeking to offset " + std::to_string(xadj_offset) + " failed");
+    }
+    auto xadj = Has32BitEdgeIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_nodes + 1)
+                                          : ReadVector<ParhipID, ParhipID>(in_, num_local_nodes + 1);
+    for (auto& entry: xadj) {
+        entry = OffsetToEdge(version_, n_, entry);
+    }
+
+    // Read exactly the adjncy slice [from_edge, to_edge) -- a single contiguous region of the file.
+    const SInt num_local_edges = to_edge - from_edge;
+    const SInt adjncy_offset =
+        3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + from_edge * vertex_id_width;
+    in_.seekg(adjncy_offset);
+    if (in_.rdstate()) {
+        throw IOError("seeking to offset " + std::to_string(adjncy_offset) + " failed");
+    }
+    auto adjncy = Has32BitVertexIDs(version_) ? ReadVector<ParhipID, std::uint32_t>(in_, num_local_edges)
+                                              : ReadVector<ParhipID, ParhipID>(in_, num_local_edges);
+
+    // Rebase xadj to local edge indices within [from_edge, to_edge), clamping the (possibly partial) first and
+    // last rows: xadj.front() (<= from_edge) becomes 0 and xadj.back() (>= to_edge) becomes num_local_edges.
+    for (auto& entry: xadj) {
+        if (entry < from_edge) {
+            entry = 0;
+        } else if (entry > to_edge) {
+            entry = num_local_edges;
+        } else {
+            entry -= from_edge;
+        }
+    }
+
+    ans.vertex_range = {from_vertex, to_vertex};
+
+    if (representation == GraphRepresentation::EDGE_LIST) {
+        ans.edges.reserve(num_local_edges);
+        for (SInt u = 0; u < num_local_nodes; ++u) {
+            for (SInt e = xadj[u]; e < xadj[u + 1]; ++e) {
+                ans.edges.emplace_back(from_vertex + u, adjncy[e]);
+            }
+        }
+    } else {
+        ans.xadj   = std::move(xadj);
+        ans.adjncy = std::move(adjncy);
+    }
+
+    // Edge weights for the [from_edge, to_edge) slice, aligned with adjncy. No redistribution occurs, so each
+    // edge keeps its weight. (Vertex weights are rejected above.)
+    if (HasEdgeWeights(version_)) {
+        const SInt adjwgt_offset = 3 * sizeof(ParhipID) + (n_ + 1) * edge_id_width + m_ * vertex_id_width
+                                   + from_edge * edge_weight_width;
+        in_.seekg(adjwgt_offset);
+        if (in_.rdstate()) {
+            throw IOError("seeking to offset " + std::to_string(adjwgt_offset) + " failed");
+        }
+        ans.edge_weights = Has32BitEdgeWeights(version_) ? ReadVector<ParhipWeight, std::int32_t>(in_, num_local_edges)
+                                                         : ReadVector<ParhipWeight, ParhipWeight>(in_, num_local_edges);
+    }
+
+    return ans;
+}
+
 std::unique_ptr<GraphReader> ParhipFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {
     return std::make_unique<ParhipReader>(config);
 }

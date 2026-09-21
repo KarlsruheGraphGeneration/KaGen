@@ -25,6 +25,8 @@ public:
 protected:
     void GenerateEdgeList() final;
 
+    void FinalizeEdgeList(MPI_Comm comm) final;
+
 private:
     // Config
     const PGeneratorConfig& config_;
@@ -38,6 +40,10 @@ private:
     // Constants and variables
     SInt edges_per_node_;
     SInt start_node_, end_node_, num_nodes_;
+
+    // Staging buffer: edges are generated here first (rather than directly into graph_.edges) so that
+    // FinalizeEdgeList can redistribute them according to config_.redistribution.
+    Edgelist local_edges_;
 
     void GenerateChunk(SInt chunk_id);
 

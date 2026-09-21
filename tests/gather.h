@@ -199,7 +199,9 @@ inline Graph GatherCSR(const Graph& local_graph) {
         local_graph.adjncy.data(), num_local_edges, KAGEN_MPI_SINT, global_graph.adjncy.data(), edges_recvcounts.data(),
         edges_displs.data(), KAGEN_MPI_SINT, MPI_COMM_WORLD);
 
-    std::exclusive_scan(global_graph.xadj.begin(), global_graph.xadj.end(), global_graph.xadj.begin(), 0);
+    // exclusive_scan's accumulator type is deduced from the init value, not the output iterator -- 0 (int) would
+    // silently overflow xadj (SInt) for a graph with more than ~2^31 edges.
+    std::exclusive_scan(global_graph.xadj.begin(), global_graph.xadj.end(), global_graph.xadj.begin(), kagen::SInt{0});
 
     EXPECT_EQ(global_graph.xadj.back(), global_graph.adjncy.size());
 

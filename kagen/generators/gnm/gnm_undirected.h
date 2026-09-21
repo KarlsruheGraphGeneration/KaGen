@@ -26,6 +26,8 @@ public:
 protected:
     void GenerateEdgeList() final;
 
+    void FinalizeEdgeList(MPI_Comm comm) final;
+
 private:
     // Config
     const PGeneratorConfig& config_;
@@ -39,6 +41,10 @@ private:
 
     // Variates
     RNGWrapper<BigInt> rng_;
+
+    // Staging buffer: edges are generated here first (rather than directly into graph_.edges) so that
+    // FinalizeEdgeList can redistribute them according to config_.redistribution.
+    Edgelist local_edges_;
 
     void GenerateChunks(SInt row);
 

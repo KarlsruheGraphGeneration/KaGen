@@ -5,6 +5,7 @@
     #include <cstdint>
     #include <limits>
     #include <memory>
+    #include <optional>
     #include <string>
     #include <tuple>
     #include <type_traits>
@@ -158,6 +159,7 @@ std::ostream& operator<<(std::ostream& out, GraphRepresentation representation);
 enum class GraphRedistribution {
     BALANCE_VERTICES,
     BALANCE_EDGES,
+    BALANCE_EDGES_TRUE,
 };
 
 std::unordered_map<std::string, GraphRedistribution> GetGraphRedistributionMap();
@@ -168,6 +170,7 @@ enum class GraphDistribution {
     ROOT,
     BALANCE_VERTICES,
     BALANCE_EDGES,
+    BALANCE_EDGES_TRUE,
     EXPLICIT,
 };
 
@@ -207,7 +210,28 @@ enum class StreamingMode {
 
 #ifdef __cplusplus
 namespace kagen {
+/*!
+ * Describes a vertex whose own edges are split across a boundary with an adjacent PE (only possible after
+ * GraphRedistribution::BALANCE_EDGES_TRUE / GraphDistribution::BALANCE_EDGES_TRUE; see
+ * Graph::has_split_vertices).
+ */
+struct SplitVertexInfo {
+    SInt vertex;       //!< The (global) vertex ID.
+    SInt local_offset; //!< Offset of this vertex's edges within this PE's local (sorted) edge list.
+    SInt local_count;  //!< Number of this vertex's edges held on this PE.
+};
+
 struct Graph {
+    // Partition of [0, n) by vertex ownership, the SAME for both representations. Complete and gap-free: every
+    // vertex, including isolated (degree-0) ones, is covered by exactly one PE's range, so summing local sizes
+    // across all PEs always yields exactly n -- after GraphRedistribution/GraphDistribution::BALANCE_EDGES_TRUE,
+    // a shared boundary (split) vertex is resolved to exactly one (the lowest-rank) PE for counting purposes; see
+    // has_split_vertices/left_partial_vertex/right_partial_vertex. Being in the range does not by itself imply
+    // this PE holds every edge of every vertex in it: another PE may hold part of a split vertex's edges. In
+    // particular, this PE may hold a (partial) share of a split vertex's neighborhood without owning that
+    // vertex -- vertex_range alone does not tell you which vertices' neighborhoods this PE has any information
+    // for; use PhysicalVertexRange() for that (it adds back a left-partial boundary vertex; equal to vertex_range
+    // whenever has_split_vertices is false).
     VertexRange         vertex_range;
     GraphRepresentation representation;
 
@@ -222,7 +246,41 @@ struct Graph {
     EdgeWeights   edge_weights;
     Coordinates   coordinates;
 
+    // True only for GraphRedistribution::BALANCE_EDGES_TRUE / GraphDistribution::BALANCE_EDGES_TRUE: whether any
+    // vertex anywhere in the graph had its own edges split across multiple PEs, breaking the invariant that a
+    // single PE owns a vertex's whole adjacency. Adjacency-grouped output formats, --validate-simple-graph, and
+    // some edge-weight/statistics code rely on that invariant and are incompatible with a graph where this is true.
+    bool has_split_vertices = false;
+
+    // This PE's first local vertex, if its own edges are shared with the lower-rank neighbor (only ever set when
+    // has_split_vertices is true). That neighbor -- not this PE -- is the vertex's canonical owner: it is
+    // credited into the neighbor's vertex_range (as that neighbor's right_partial_vertex) and excluded from
+    // this PE's own vertex_range. This PE nonetheless holds a (partial) share of that vertex's neighborhood --
+    // the vertex PhysicalVertexRange() adds back. A consumer that wants to treat a split vertex as, e.g., a chain
+    // of per-PE replicas can use this to locate exactly which of its local edges belong to the shared vertex,
+    // without having to re-derive split detection (a global communication step) itself.
+    std::optional<SplitVertexInfo> left_partial_vertex;
+
+    // This PE's last local vertex, if its own edges are shared with the higher-rank neighbor (only ever set when
+    // has_split_vertices is true). This PE -- being the lower-rank of the two sharing it -- is the vertex's
+    // canonical owner: it is credited into this PE's vertex_range, even though the higher-rank neighbor also
+    // physically holds a share of its edges (as that neighbor's left_partial_vertex).
+    std::optional<SplitVertexInfo> right_partial_vertex;
+
     SInt NumberOfLocalVertices() const;
+
+    //! The set of vertices this PE holds at least partial neighborhood (edge) information for: vertex_range plus
+    //! a left-partial boundary vertex, if any (see left_partial_vertex) -- this PE holds a share of that
+    //! vertex's edges even though it is credited to the lower-rank neighbor and excluded from vertex_range.
+    //! Equal to vertex_range whenever has_split_vertices is false. Defined identically for both
+    //! representations, independent of how the neighborhood information happens to be stored; for CSR it also
+    //! happens to be exactly the range xadj/adjncy are indexed by (PhysicalVertexRange().first + i is vertex i's
+    //! neighborhood), since CSR must give every such vertex an entry -- but that's a consequence of CSR's
+    //! layout, not the definition. A split vertex's neighborhood is genuinely held (in part) by both PEs sharing
+    //! it, so adjacent PEs' PhysicalVertexRange()s OVERLAP by one vertex at each split boundary -- unlike
+    //! vertex_range, this is not a gap-free partition of [0, n) and must not be used for counting/ownership
+    //! purposes.
+    VertexRange PhysicalVertexRange() const;
 
     SInt NumberOfGlobalVertices() const;
 
@@ -506,6 +564,7 @@ private:
  * Returns an array A of size |comm| + 1 s.t. PE i contains nodes in the range [A[i], A[i + 1]).
  *
  * @param graph Graph generated by any of the Generate* functions.
+ * @param vertex_range Vertex range of a graph generated by any of the Generate* functions.
  * @param idx_mpi_type MPI type corresponding to the template parameter IDX.
  * @param comm MPI communicator that was used to generate the graph.
  *
@@ -515,16 +574,16 @@ private:
  * @return Vertex distribution as described above.
  */
 template <typename IDX>
-std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
+std::vector<IDX> BuildVertexDistribution(const VertexRange& vertex_range, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
     PEID rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
     std::vector<IDX> distribution(size + 1);
-    if (graph.vertex_range.first == graph.vertex_range.second) {
+    if (vertex_range.first == vertex_range.second) {
         distribution[rank + 1] = std::numeric_limits<IDX>::max();
     } else {
-        distribution[rank + 1] = graph.vertex_range.second;
+        distribution[rank + 1] = vertex_range.second;
     }
 
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, distribution.data() + 1, 1, idx_mpi_type, comm);
@@ -538,6 +597,24 @@ std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mp
     }
 
     return distribution;
+}
+
+/*!
+ * Returns an array A of size |comm| + 1 s.t. PE i contains nodes in the range [A[i], A[i + 1]).
+ *
+ * @param graph Graph generated by any of the Generate* functions.
+ * @param vertex_range Vertex range of a graph generated by any of the Generate* functions.
+ * @param idx_mpi_type MPI type corresponding to the template parameter IDX.
+ * @param comm MPI communicator that was used to generate the graph.
+ *
+ * @tparam IDX Data type to be used for the entries in A. Must be large enough to represent the global number of
+ *  nodes in the graph.
+*
+ * @return Vertex distribution as described above.
+ */
+template <typename IDX>
+std::vector<IDX> BuildVertexDistribution(const Graph& graph, MPI_Datatype idx_mpi_type, MPI_Comm comm) {
+    return BuildVertexDistribution<IDX>(graph.vertex_range, idx_mpi_type, comm);
 }
 
 //

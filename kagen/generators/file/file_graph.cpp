@@ -41,11 +41,11 @@ void FileGraphGenerator::FinalizeEdgeList(MPI_Comm comm) {
             std::cout << "converting to edge list ... " << std::flush;
         }
 
-        graph_.edges          = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
+        graph_.edges          = BuildEdgeListFromCSR(graph_.PhysicalVertexRange(), graph_.xadj, graph_.adjncy);
         graph_.representation = GraphRepresentation::EDGE_LIST;
         graph_.FreeCSR();
     } else {
-        graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
+        graph_ = FinalizeGraphFragment(std::move(fragment_), config_.input_graph, Output(), comm);
     }
 }
 
@@ -57,12 +57,18 @@ void FileGraphGenerator::FinalizeCSR(MPI_Comm comm) {
             std::cout << "converting to CSR ... " << std::flush;
         }
 
-        std::tie(graph_.xadj, graph_.adjncy) =
-            BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
-        graph_.representation = GraphRepresentation::CSR;
+        // Split graphs are supported: PhysicalVertexRange() extends the CSR row space down by one on a PE that
+        // holds a replica of its first vertex (left_partial_vertex set), whose edges sit just below the gap-free
+        // vertex_range and would otherwise underflow BuildCSRFromEdgeList's `from - range.first`. This yields the
+        // overlapping physically-present row space the strict CSR reader also produces; see
+        // EdgeListOnlyGenerator::FinalizeCSR for the full rationale. graph_.vertex_range itself is left
+        // untouched -- it keeps meaning the gap-free ownership range.
+        const VertexRange csr_range          = graph_.PhysicalVertexRange();
+        std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
+        graph_.representation                = GraphRepresentation::CSR;
         graph_.FreeEdgelist();
     } else {
-        graph_ = FinalizeGraphFragment(std::move(fragment_), Output(), comm);
+        graph_ = FinalizeGraphFragment(std::move(fragment_), config_.input_graph, Output(), comm);
     }
 }
 

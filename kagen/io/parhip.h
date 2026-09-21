@@ -114,6 +114,12 @@ public:
 
     SInt FindNodeByEdge(SInt edge) final;
 
+    bool CanReadStrictEdgeRange() const final {
+        return true;
+    }
+
+    Graph ReadStrictEdgeRange(SInt from_edge, SInt to_edge, GraphRepresentation representation) final;
+
 private:
     std::ifstream in_;
 

@@ -16,6 +16,9 @@ class RGG2D : public Geometric2D, RGG {
 public:
     RGG2D(const PGeneratorConfig& config, PEID rank, PEID size);
 
+protected:
+    void FinalizeEdgeList(MPI_Comm comm) final;
+
 private:
     LPFloat target_r_;
 

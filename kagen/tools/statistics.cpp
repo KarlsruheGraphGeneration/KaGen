@@ -316,8 +316,10 @@ void PrintBasicStatistics(const SInt local_num_vertices, const SInt local_num_ed
 } // namespace
 
 void PrintBasicStatistics(
-    const XadjArray& xadj, const AdjncyArray& adjncy, VertexRange, const bool root, MPI_Comm comm) {
-    PrintBasicStatistics(xadj.size() - 1, adjncy.size(), root, comm);
+    const XadjArray&, const AdjncyArray& adjncy, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
+    // vertex_range.second - vertex_range.first, not xadj.size() - 1: the latter is the physically-present row
+    // count, which double-counts a shared boundary vertex on a split graph (see Graph::PhysicalVertexRange()).
+    PrintBasicStatistics(vertex_range.second - vertex_range.first, adjncy.size(), root, comm);
 }
 
 void PrintBasicStatistics(const Edgelist& edges, const VertexRange vertex_range, const bool root, MPI_Comm comm) {
