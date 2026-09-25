@@ -623,7 +623,6 @@ PGeneratorConfig CreateConfigFromString(const std::string& options_str, PGenerat
         std::cout << sstr.str();
     }
 
-    // TODO(clickup)[2026-05-10]: Adapt guards to style
     if (config.is_hypergraph) {
         config.validate_simple_graph = false;
 

@@ -351,6 +351,46 @@ std::string Hyper_Hyperbolic<Double>::MakeDebugFilename() const {
 }
 
 template <typename Double>
+void Hyper_Hyperbolic<Double>::WriteVertexRangeDebugFile() const {
+    if (!config_.debug) {
+        return;
+    }
+
+    const std::string filename =
+        config_.output_graph.filename + "_vertex_ranges_rank_" + std::to_string(rank_) + ".csv";
+
+    std::ofstream out(filename);
+
+    if (!out) {
+        throw std::runtime_error("Could not open vertex range debug file: " + filename);
+    }
+
+    out << "pe,vertex_from,vertex_to,chunk_from,chunk_to\n";
+
+    for (SInt chunk_id = local_chunk_start_; chunk_id < local_chunk_end_; ++chunk_id) {
+        for (SInt annulus_id = 0; annulus_id < total_annuli_; ++annulus_id) {
+            const SInt global_chunk_id = ComputeGlobalChunkId(annulus_id, chunk_id);
+
+            const auto it = annuli_.find(global_chunk_id);
+            if (it == annuli_.end()) {
+                continue;
+            }
+
+            const Annulus& annulus = it->second;
+
+            const SInt count  = std::get<0>(annulus);
+            const SInt offset = std::get<4>(annulus);
+
+            if (count <= 0) {
+                continue;
+            }
+
+            out << rank_ << ',' << offset << ',' << offset + count << ',' << chunk_id << ',' << chunk_id + 1 << '\n';
+        }
+    }
+}
+
+template <typename Double>
 Double Hyper_Hyperbolic<Double>::FindRadiusForExpectedPins(
     const HyperbolicHyperedgeCenter<Double>& center, const Double desired_pins) {
     auto expected_pins = [&](const Double radius) {
@@ -785,6 +825,9 @@ void Hyper_Hyperbolic<Double>::GenerateCSR() {
     }
     print_peak_rss("end");
 #endif
+    if (config_.debug) {
+        WriteVertexRangeDebugFile();
+    }
 }
 
 template <typename Double>

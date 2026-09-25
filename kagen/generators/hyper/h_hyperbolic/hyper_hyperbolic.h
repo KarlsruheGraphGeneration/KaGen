@@ -148,9 +148,9 @@ private:
     Double                current_hyperedge_pdm_radius_;
 
     // Scaling instrumentation
-    SInt hyperedge_queries_     = 0;
-    SInt reachable_annuli_      = 0;
-    SInt traversal_operations_  = 0;
+    SInt hyperedge_queries_    = 0;
+    SInt reachable_annuli_     = 0;
+    SInt traversal_operations_ = 0;
 
     // Data structures
     HashMap<SInt, Annulus>     annuli_;
@@ -268,7 +268,7 @@ private:
 
     void        GenerateCenterCells(SInt annulus_id, SInt chunk_id);
     std::string MakeDebugFilename() const;
-
+    void        WriteVertexRangeDebugFile() const;
     void
     GenerateHyperedges(SInt annulus_id, SInt chunk_id, HyperedgeBuilder<HyperbolicGeometryPolicy<Double>>& builder);
 
@@ -357,13 +357,11 @@ void Hyper_Hyperbolic<Double>::FinalizeCSR(MPI_Comm comm) {
 
     if (rank == 0) {
         std::cout << "[HRHG scaling] total_hyperedge_queries=" << global_hyperedge_queries
-                  << " total_reachable_annuli=" << global_reachable_annuli
-                  << " avg_reachable_annuli_per_query="
+                  << " total_reachable_annuli=" << global_reachable_annuli << " avg_reachable_annuli_per_query="
                   << (global_hyperedge_queries > 0
                           ? static_cast<double>(global_reachable_annuli) / static_cast<double>(global_hyperedge_queries)
                           : 0.0)
-                  << " total_traversal_operations=" << global_traversal_ops
-                  << " avg_traversal_operations_per_query="
+                  << " total_traversal_operations=" << global_traversal_ops << " avg_traversal_operations_per_query="
                   << (global_hyperedge_queries > 0
                           ? static_cast<double>(global_traversal_ops) / static_cast<double>(global_hyperedge_queries)
                           : 0.0)

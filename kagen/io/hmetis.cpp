@@ -16,7 +16,7 @@ HmetisWriter::HmetisWriter(
 void HmetisWriter::WriteHeader(const std::string& filename, const SInt n, const SInt m) {
     BufferedTextOutput<> out(tag::append, filename);
     if (graph_.IsHypergraph()) {
-        // TODO(clickup)[2026-05-10]: Weights for Hypergraphs not supported
+        // TODO: Weights for Hypergraphs not supported
         IgnoresEdgeWeights();
         IgnoresVertexWeights();
 

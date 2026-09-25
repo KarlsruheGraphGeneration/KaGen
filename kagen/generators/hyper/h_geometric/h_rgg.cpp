@@ -15,8 +15,6 @@ HyperRGG2DFactory::NormalizeParameters(PGeneratorConfig config, PEID rank, const
 
     EnsureSquarePowerOfTwoChunkSize(config, size, output);
 
-    // TODO(clickup)[2026-05-08]: Only supports parameter combination n, r as of now
-
     if (config.random_radius && config.r == 0) {
         const double expected_vertices = 32.0;
 
@@ -114,7 +112,7 @@ HyperRGG2DFactory::Create(const PGeneratorConfig& config, const PEID rank, const
 void HRGG::PushWeightIfRequested(
     [[maybe_unused]] const EdgeWeightConfig& config, [[maybe_unused]] const double& squared_distance,
     [[maybe_unused]] const double& squared_radius) {
-    // TODO(clickup)[2026-05-10]: Not yet implemented
+    // TODO: Not yet implemented
 }
 
 } // namespace kagen
