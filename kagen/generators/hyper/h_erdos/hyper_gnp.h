@@ -64,6 +64,9 @@ private:
     HGNPLocalGenerationRange PrepareApproxLocalRange(SInt hyperedge_size, double probability, SInt partition_id);
     SInt                     LocalCountSeed(SInt hyperedge_size, SInt partition_id) const;
     void                     PrepareSampledExactPlan(HGNPSizePlan& entry, double probability);
+    void                     PrepareUnderflowExactPlan(HGNPSizePlan& entry, double expected_count);
+    HGNPLocalGenerationRange
+    PrepareUnderflowApproxLocalRange(SInt hyperedge_size, double expected_count, SInt partition_id);
     long double
     LogBinomialPoissonRatioRelativeToMode(SInt value, SInt mode, long double population, long double probability) const;
     void                     ReserveCSRForPlan(const std::vector<HGNPSizePlan>& plan);

@@ -674,6 +674,76 @@ void HyperGNP<BigInt>::PrepareSampledExactPlan(HGNPSizePlan& entry, const double
 }
 
 template <typename BigInt>
+void HyperGNP<BigInt>::PrepareUnderflowExactPlan(HGNPSizePlan& entry, const double expected_count) {
+    const SInt k = entry.hyperedge_size;
+
+    const auto [min_begin, min_end] = LocalMinOwnerRange(k, entry.partition_id);
+
+    entry.range.begin   = min_begin;
+    entry.range.end     = min_end;
+    entry.range.local_m = 0;
+
+    if (min_begin >= min_end || expected_count <= 0.0) {
+        return;
+    }
+
+    const CountInt local_population = MinRangeMassExact(min_begin, min_end, config_.n, k);
+
+    if (local_population == 0) {
+        return;
+    }
+
+    const long double population = local_population.template convert_to<long double>();
+
+    if (!std::isfinite(population) || population <= 0.0L) {
+        throw ConfigurationError("HGNP local population cannot be represented as long double");
+    }
+
+    /*
+     * We cannot represent
+     *
+     *     p = expected_count / C(n,k)
+     *
+     * as double here.
+     *
+     * Instead compute
+     *
+     *     lambda_local = N_local * p
+     *
+     * directly in log space.
+     */
+    const long double log_lambda =
+        std::log(population) + std::log(static_cast<long double>(expected_count)) - LogBinomialApprox(config_.n, k);
+
+    /*
+     * lambda itself normally has a perfectly ordinary magnitude even
+     * though p does not.
+     */
+    const long double lambda_ld = std::exp(log_lambda);
+
+    if (!std::isfinite(lambda_ld) || lambda_ld < 0.0L) {
+        throw ConfigurationError("Invalid HGNP underflow local expected edge count");
+    }
+
+    if (lambda_ld > static_cast<long double>(std::numeric_limits<double>::max())) {
+        throw ConfigurationError("HGNP underflow local expected edge count exceeds double");
+    }
+
+    const double lambda = static_cast<double>(lambda_ld);
+
+    if (lambda <= 0.0) {
+        return;
+    }
+
+    entry.range.local_m = rng_.GeneratePoisson(LocalCountSeed(k, entry.partition_id), lambda);
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+    instrumentation_.max_local_edges_for_size = std::max<std::uint64_t>(
+        instrumentation_.max_local_edges_for_size, static_cast<std::uint64_t>(entry.range.local_m));
+#endif
+}
+
+template <typename BigInt>
 SInt HyperGNP<BigInt>::SampleExactEdgeCount(const CountInt& population, const double probability, const SInt seed) {
     if (population <= std::numeric_limits<SInt>::max()) {
         return SampleExactEdgeCountNative(population.convert_to<SInt>(), probability, seed);
@@ -789,6 +859,71 @@ std::vector<HGNPSizePlan> HyperGNP<BigInt>::BuildGenerationPlan(const SInt lower
     return plan;
 }
 template <typename BigInt>
+HGNPLocalGenerationRange HyperGNP<BigInt>::PrepareUnderflowApproxLocalRange(
+    const SInt hyperedge_size, const double expected_count, const SInt partition_id) {
+    const auto [begin, end] = LocalMinOwnerRange(hyperedge_size, partition_id);
+
+    HGNPLocalGenerationRange range;
+    range.begin = begin;
+    range.end   = end;
+
+    if (begin >= end || expected_count <= 0.0) {
+        return range;
+    }
+
+    LogBinomCache cache(hyperedge_size);
+
+    const long double log_total = cache.Get(config_.n, hyperedge_size);
+
+    const long double mass = MinRangeMassApproxCached(begin, end, config_.n, hyperedge_size, cache);
+
+    if (mass <= 0.0L) {
+        return range;
+    }
+
+    /*
+     * Normally:
+     *
+     *   lambda_local
+     *       = p * C(n,k) * mass
+     *
+     * with
+     *
+     *   p = expected_count / C(n,k).
+     *
+     * Since p itself underflows double, compute lambda directly:
+     *
+     *   log(lambda_local)
+     *       = log(expected_count)
+     *         - log(C(n,k))
+     *         + log(C(n,k))
+     *         + log(mass)
+     *
+     *       = log(expected_count) + log(mass).
+     *
+     * Keep the unsimplified form conceptually tied to the normal
+     * probability-based path, but avoid constructing p entirely.
+     */
+    const long double log_lambda = std::log(static_cast<long double>(expected_count)) + std::log(mass);
+
+    if (log_lambda > std::log(static_cast<long double>(std::numeric_limits<SInt>::max()))) {
+        throw ConfigurationError("HGNP approximate local edge count exceeds SInt");
+    }
+
+    const long double lambda_ld = std::exp(log_lambda);
+
+    if (!std::isfinite(lambda_ld) || lambda_ld < 0.0L) {
+        throw ConfigurationError("Invalid HGNP approximate local edge count");
+    }
+
+    const double lambda = static_cast<double>(lambda_ld);
+
+    range.local_m = lambda > 0.0 ? rng_.GeneratePoisson(LocalCountSeed(hyperedge_size, partition_id), lambda) : 0;
+
+    return range;
+}
+
+template <typename BigInt>
 bool HyperGNP<BigInt>::AppendSizePlanIfNeeded(
     const SInt hyperedge_size, const SInt lower_bound, std::vector<HGNPSizePlan>& plan) {
     const SizeGenerationParameters params = GetSizeGenerationParameters(hyperedge_size, lower_bound);
@@ -807,6 +942,48 @@ bool HyperGNP<BigInt>::AppendSizePlanIfNeeded(
         const auto resolved = ResolveProbabilityForSize(hyperedge_size, params);
 
         if (!resolved) {
+            /*
+             * EdgeAndPinBudget may produce valid expected counts whose
+             * corresponding probability is smaller than double can
+             * represent.
+             */
+            if (probs_type_ == ProbabilityMode::EdgeAndPinBudget) {
+                const auto partitions = AssignPartitionsToPE(config_.k, rank_, size_);
+
+                for (SInt partition_id = partitions.begin; partition_id < partitions.end; ++partition_id) {
+                    HGNPSizePlan entry;
+                    entry.hyperedge_size = hyperedge_size;
+                    entry.partition_id   = partition_id;
+
+                    if (config_.approx) {
+                        entry.range =
+                            PrepareUnderflowApproxLocalRange(hyperedge_size, params.expected_count, partition_id);
+                    } else {
+                        PrepareUnderflowExactPlan(entry, params.expected_count);
+                    }
+
+                    if (entry.range.local_m > 0) {
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+                        ++instrumentation_.active_sizes;
+
+                        instrumentation_.planned_edges += static_cast<std::uint64_t>(entry.range.local_m);
+
+                        instrumentation_.planned_pins += static_cast<std::uint64_t>(entry.range.local_m)
+                                                         * static_cast<std::uint64_t>(hyperedge_size);
+#endif
+
+                        plan.push_back(std::move(entry));
+
+#ifdef KAGEN_ENABLE_HYPER_INSTRUMENTATION
+                    } else {
+                        ++instrumentation_.zero_count_sizes;
+#endif
+                    }
+                }
+
+                return true;
+            }
+
             return probs_type_ != ProbabilityMode::EdgeBudget;
         }
 
@@ -1010,7 +1187,7 @@ HyperGNP<BigInt>::ResolveProbabilityForSize(SInt hyperedge_size, const SizeGener
             return std::nullopt;
         }
 
-        return std::clamp(static_cast<double>(expl(log_p)), 0.0, 1.0);
+        return std::clamp(static_cast<double>(std::exp(log_p)), 0.0, 1.0);
     }
 
     return params.probability;
