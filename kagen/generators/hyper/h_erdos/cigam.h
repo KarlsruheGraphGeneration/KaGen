@@ -172,7 +172,7 @@ private:
     CountInt ExactBlockPopulation(SInt k, SInt i, SInt j_min, SInt j_max) const;
 
     void GenerateApproxBlock(
-        SInt k, SInt dominant, SInt layer, SInt j_min, SInt j_max, SInt log_block_size, LogBinomCache& cache);
+        SInt k, SInt dominant, SInt layer, SInt j_min, SInt j_max, long double log_block_size, LogBinomCache& cache);
 
     bool pins_are_final_vertex_ids_ = false;
 

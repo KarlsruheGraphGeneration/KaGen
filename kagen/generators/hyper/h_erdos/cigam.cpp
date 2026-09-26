@@ -651,21 +651,20 @@ void HyperCIGAM<BigInt>::GenerateBoundedBlock(
                         .count();
 
                 debug_logger_->LogHyperedge({
-                    .hyperedge_id         = next_debug_hyperedge_id_++,
-                    .mode                 = static_cast<SInt>(config_.cigam_mode),
-                    .hyperedge_size       = k,
-                    .dominant_vertex      = i,
-                    .dominant_final_vertex = static_cast<SInt>(
-                        vertex_permutation_.f(static_cast<std::uint64_t>(i))),
-                    .layer                = layer,
-                    .endpoint_vertex      = pins.back(),
-                    .block_j_min          = j_min,
-                    .block_j_max          = j_max,
-                    .block_log_population = log_block_size,
-                    .log_probability      = LogProbabilityForDominant(i, layer) + log_edge_scaling_by_size_.at(k),
-                    .sampling_attempts    = sampling_attempts,
-                    .duplicate_rejections = duplicate_rejections,
-                    .duration_ns          = duration_ns,
+                    .hyperedge_id          = next_debug_hyperedge_id_++,
+                    .mode                  = static_cast<SInt>(config_.cigam_mode),
+                    .hyperedge_size        = k,
+                    .dominant_vertex       = i,
+                    .dominant_final_vertex = static_cast<SInt>(vertex_permutation_.f(static_cast<std::uint64_t>(i))),
+                    .layer                 = layer,
+                    .endpoint_vertex       = pins.back(),
+                    .block_j_min           = j_min,
+                    .block_j_max           = j_max,
+                    .block_log_population  = log_block_size,
+                    .log_probability       = LogProbabilityForDominant(i, layer) + log_edge_scaling_by_size_.at(k),
+                    .sampling_attempts     = sampling_attempts,
+                    .duplicate_rejections  = duplicate_rejections,
+                    .duration_ns           = duration_ns,
                 });
             }
 
@@ -723,7 +722,7 @@ void HyperCIGAM<BigInt>::GenerateApproxCSR() {
 
 template <typename BigInt>
 void HyperCIGAM<BigInt>::GenerateApproxBlock(
-    const SInt k, const SInt dominant, const SInt layer, SInt j_min, SInt j_max, SInt log_block_size,
+    const SInt k, const SInt dominant, const SInt layer, SInt j_min, SInt j_max, const long double log_block_size,
     LogBinomCache& cache) {
     const long double log_expected =
         log_block_size + LogProbabilityForDominant(dominant, layer) + log_edge_scaling_by_size_.at(k);
@@ -778,21 +777,20 @@ void HyperCIGAM<BigInt>::GenerateApproxBlock(
                     .count();
 
             debug_logger_->LogHyperedge({
-                .hyperedge_id         = next_debug_hyperedge_id_++,
-                .mode                 = static_cast<SInt>(config_.cigam_mode),
-                .hyperedge_size       = k,
-                .dominant_vertex      = dominant,
-                .dominant_final_vertex = static_cast<SInt>(
-                    vertex_permutation_.f(static_cast<std::uint64_t>(dominant))),
-                .layer                = layer,
-                .endpoint_vertex      = endpoint,
-                .block_j_min          = j_min,
-                .block_j_max          = j_max,
-                .block_log_population = static_cast<long double>(log_block_size),
-                .log_probability      = log_probability,
-                .sampling_attempts    = 1,
-                .duplicate_rejections = 0,
-                .duration_ns          = duration_ns,
+                .hyperedge_id          = next_debug_hyperedge_id_++,
+                .mode                  = static_cast<SInt>(config_.cigam_mode),
+                .hyperedge_size        = k,
+                .dominant_vertex       = dominant,
+                .dominant_final_vertex = static_cast<SInt>(vertex_permutation_.f(static_cast<std::uint64_t>(dominant))),
+                .layer                 = layer,
+                .endpoint_vertex       = endpoint,
+                .block_j_min           = j_min,
+                .block_j_max           = j_max,
+                .block_log_population  = static_cast<long double>(log_block_size),
+                .log_probability       = log_probability,
+                .sampling_attempts     = 1,
+                .duplicate_rejections  = 0,
+                .duration_ns           = duration_ns,
             });
         }
     }
@@ -1426,20 +1424,20 @@ void HyperCIGAM<BigInt>::GeneratePythonBlock(
             const auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(debug_data.duration).count();
 
             debug_logger_->LogHyperedge({
-                .hyperedge_id         = next_debug_hyperedge_id_++,
-                .mode                 = static_cast<SInt>(config_.cigam_mode),
-                .hyperedge_size       = k,
-                .dominant_vertex      = dominant,
+                .hyperedge_id          = next_debug_hyperedge_id_++,
+                .mode                  = static_cast<SInt>(config_.cigam_mode),
+                .hyperedge_size        = k,
+                .dominant_vertex       = dominant,
                 .dominant_final_vertex = ranks.original_vertex[dominant],
-                .layer                = layer,
-                .endpoint_vertex      = rank_positions.back(),
-                .block_j_min          = j_min,
-                .block_j_max          = j_max,
-                .block_log_population = block_log_population,
-                .log_probability      = log_probability,
-                .sampling_attempts    = debug_data.sampling_attempts,
-                .duplicate_rejections = debug_data.duplicate_rejections,
-                .duration_ns          = duration_ns,
+                .layer                 = layer,
+                .endpoint_vertex       = rank_positions.back(),
+                .block_j_min           = j_min,
+                .block_j_max           = j_max,
+                .block_log_population  = block_log_population,
+                .log_probability       = log_probability,
+                .sampling_attempts     = debug_data.sampling_attempts,
+                .duplicate_rejections  = debug_data.duplicate_rejections,
+                .duration_ns           = duration_ns,
             });
         }
     }
