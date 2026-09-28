@@ -351,7 +351,13 @@ GraphFragment ReadGraphFragment(
             } else {
                 const auto edge_range = ComputeRange(m, size, rank);
                 from                  = reader.FindNodeByEdge(edge_range.first);
-                to_edge               = edge_range.second;
+                // The last PE reads up to n rather than up to edge m: trailing isolated vertices own no edges, so
+                // stopping at edge m would drop them.
+                if (rank + 1 < size) {
+                    to_edge = edge_range.second;
+                } else {
+                    to_node = n;
+                }
             }
             break;
         }
