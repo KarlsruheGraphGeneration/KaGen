@@ -20,6 +20,7 @@ const char* WEIGHTED_K3         = "tests/data/graphs/weighted_K3";
 const char* WEIGHTED_P2         = "tests/data/graphs/weighted_P2";
 const char* LARGE_WEIGHTS       = "tests/data/graphs/large_weights";
 const char* GRAPH_WITH_COMMENTS = "tests/data/graphs/with_comments";
+const char* ISOLATED_ENDS       = "tests/data/graphs/isolated_ends";
 
 using namespace kagen;
 
@@ -33,10 +34,17 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
         std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+        // BALANCE_EDGES_TRUE is restricted to edge-list-shaped consumption: a split vertex's adjacency is no
+        // longer owned by a single PE, which CSR (like METIS/ParHIP output) fundamentally requires. This test
+        // fixture drives FileGraphGenerator directly and bypasses the compatibility guard in GenerateInMemory
+        // (which only protects the CLI/library entry points), so only the CSR-incompatible EDGE_LIST case is
+        // exercised here.
+        std::make_tuple(FileFormat::METIS, GraphDistribution::BALANCE_EDGES_TRUE, GraphRepresentation::EDGE_LIST),
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::EDGE_LIST),
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_VERTICES, GraphRepresentation::CSR),
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::EDGE_LIST),
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES, GraphRepresentation::CSR),
+        std::make_tuple(FileFormat::PARHIP, GraphDistribution::BALANCE_EDGES_TRUE, GraphRepresentation::EDGE_LIST),
 
         std::make_tuple(FileFormat::PARHIP, GraphDistribution::ROOT, GraphRepresentation::CSR),
         std::make_tuple(FileFormat::METIS, GraphDistribution::ROOT, GraphRepresentation::CSR)));
@@ -98,7 +106,13 @@ inline Graph ReadStaticGraphOnRoot(
 
         FileGraphGenerator generator(config, 0, 1);
         generator.Generate(representation);
-        generator.Finalize(MPI_COMM_WORLD);
+        // This simulates a genuine single-PE run (rank=0, size=1 above), so Finalize() must use a real
+        // single-process communicator, not MPI_COMM_WORLD -- otherwise any actual collective communication
+        // inside Finalize() (as BALANCE_EDGES_TRUE now performs) would deadlock: this call only happens on
+        // rank 0 (see the enclosing `if`), but the other real ranks never join a MPI_COMM_WORLD collective here.
+        // This was previously latent because METIS/ParHIP + the older distributions never triggered any
+        // collective communication inside Finalize() at all.
+        generator.Finalize(MPI_COMM_SELF);
         return generator.Take();
     } else {
         return {};
@@ -203,6 +217,16 @@ inline void ExpectP2(const Graph& graph) {
             break;
     }
 }
+
+// None of the redistribution primitives carry vertex_weights/edge_weights alongside the Edgelist they
+// redistribute, so postprocessing throws ConfigurationError for weighted input rather than silently desyncing
+// weights from their edges/vertices (see FinalizeGraphFragment in kagen/io.cpp). METIS/ParHIP are
+// FindNodeByEdge-capable, so BALANCE_EDGES for them never triggers postprocessing at all (it reads the right
+// vertex range directly via an efficient offset-based seek, weights included, consistently) -- only
+// BALANCE_EDGES_TRUE always forces postprocessing, regardless of reader capability.
+inline bool RedistributesEdges(const GraphDistribution distribution) {
+    return distribution == GraphDistribution::BALANCE_EDGES_TRUE;
+}
 } // namespace
 
 TEST_P(GenericGeneratorTestFixture, reads_empty_graph) {
@@ -245,6 +269,8 @@ TEST_P(GenericGeneratorTestFixture, loads_unweighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
+    // METIS/ParHIP BALANCE_EDGES_TRUE now reads each PE's edge slice directly, with no redistribution, so edge
+    // weights stay attached to their edges and the read succeeds (only vertex-weighted input is rejected).
     const auto local_graph  = ReadStaticGraph(EDGE_WEIGHTED_K3, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
     ExpectK3(global_graph);
@@ -254,6 +280,11 @@ TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_K3) {
 
 TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
+
+    if (RedistributesEdges(distribution)) {
+        EXPECT_THROW(ReadStaticGraph(VERTEX_WEIGHTED_K3, distribution, format, representation), ConfigurationError);
+        return;
+    }
 
     const auto local_graph  = ReadStaticGraph(VERTEX_WEIGHTED_K3, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
@@ -265,6 +296,11 @@ TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_K3) {
 TEST_P(GenericGeneratorTestFixture, loads_weighted_K3) {
     const auto [format, distribution, representation] = GetParam();
 
+    if (RedistributesEdges(distribution)) {
+        EXPECT_THROW(ReadStaticGraph(WEIGHTED_K3, distribution, format, representation), ConfigurationError);
+        return;
+    }
+
     const auto local_graph  = ReadStaticGraph(WEIGHTED_K3, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
     ExpectK3(global_graph);
@@ -274,6 +310,11 @@ TEST_P(GenericGeneratorTestFixture, loads_weighted_K3) {
 
 TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
+
+    if (RedistributesEdges(distribution)) {
+        EXPECT_THROW(ReadStaticGraph(VERTEX_WEIGHTED_P2, distribution, format, representation), ConfigurationError);
+        return;
+    }
 
     const auto local_graph  = ReadStaticGraph(VERTEX_WEIGHTED_P2, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
@@ -285,6 +326,7 @@ TEST_P(GenericGeneratorTestFixture, loads_vertex_weighted_P2) {
 TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
 
+    // See loads_edge_weighted_K3: edge-weighted input now succeeds on the direct strict edge-balanced path.
     const auto local_graph  = ReadStaticGraph(EDGE_WEIGHTED_P2, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
     ExpectP2(global_graph);
@@ -295,6 +337,11 @@ TEST_P(GenericGeneratorTestFixture, loads_edge_weighted_P2) {
 TEST_P(GenericGeneratorTestFixture, loads_weighted_P2) {
     const auto [format, distribution, representation] = GetParam();
 
+    if (RedistributesEdges(distribution)) {
+        EXPECT_THROW(ReadStaticGraph(WEIGHTED_P2, distribution, format, representation), ConfigurationError);
+        return;
+    }
+
     const auto local_graph  = ReadStaticGraph(WEIGHTED_P2, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
     ExpectP2(global_graph);
@@ -304,6 +351,11 @@ TEST_P(GenericGeneratorTestFixture, loads_weighted_P2) {
 
 TEST_P(GenericGeneratorTestFixture, loads_large_weights) {
     const auto [format, distribution, representation] = GetParam();
+
+    if (RedistributesEdges(distribution)) {
+        EXPECT_THROW(ReadStaticGraph(LARGE_WEIGHTS, distribution, format, representation), ConfigurationError);
+        return;
+    }
 
     const auto local_graph  = ReadStaticGraph(LARGE_WEIGHTS, distribution, format, representation);
     const auto global_graph = kagen::testing::GatherGraph(local_graph);
@@ -437,4 +489,32 @@ TEST_P(GenericGeneratorTestFixture, loads_real_world_graph) {
     ASSERT_THAT(
         last_neighbors,
         UnorderedElementsAre(50177, 90587, 50681, 27591, 27593, 96339, 50315, 97561, 50835, 99400, 115158, 120458));
+}
+
+// Vertices 0, 3 and 5 are isolated: one at each end and one in the middle. Every vertex must be owned by
+// exactly one PE; in particular, the last PE must not stop at the last edge and drop vertex 5.
+TEST_P(GenericGeneratorTestFixture, keeps_isolated_vertices_at_both_ends) {
+    const auto [format, distribution, representation] = GetParam();
+
+    const auto graph = ReadStaticGraph(ISOLATED_ENDS, distribution, format, representation);
+
+    SInt num_local_vertices = graph.vertex_range.second - graph.vertex_range.first;
+    SInt num_vertices       = 0;
+    MPI_Allreduce(&num_local_vertices, &num_vertices, 1, KAGEN_MPI_SINT, MPI_SUM, MPI_COMM_WORLD);
+    SInt last_vertex = 0;
+    MPI_Allreduce(&graph.vertex_range.second, &last_vertex, 1, KAGEN_MPI_SINT, MPI_MAX, MPI_COMM_WORLD);
+    EXPECT_EQ(num_vertices, 6);
+    EXPECT_EQ(last_vertex, 6);
+
+    const auto global_graph = kagen::testing::GatherGraph(graph);
+    switch (representation) {
+        case GraphRepresentation::CSR:
+            EXPECT_EQ(global_graph.xadj.size() - 1, 6);
+            EXPECT_EQ(global_graph.adjncy.size(), 4);
+            break;
+
+        case GraphRepresentation::EDGE_LIST:
+            EXPECT_EQ(global_graph.edges.size(), 4);
+            break;
+    }
 }

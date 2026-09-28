@@ -1,6 +1,8 @@
 #include "kagen/io/metis.h"
 
+#include "kagen/definitions.h"
 #include "kagen/io/buffered_writer.h"
+#include "kagen/tools/converter.h"
 
 namespace kagen {
 MetisWriter::MetisWriter(
@@ -269,6 +271,75 @@ SInt MetisReader::FindNodeByEdge(const SInt edge) {
     cached_first_vertex_pos_ = end_position;
 
     return current_node;
+}
+
+Graph MetisReader::ReadStrictEdgeRange(
+    const SInt from_edge, const SInt to_edge, const GraphRepresentation representation) {
+    // Reads the strict (possibly mid-adjacency) edge slice by a sequential scan, always producing a tail-sorted
+    // edge list first; a CSR request is then served by building CSR locally over the physically-present row
+    // space, exactly like ParHIP's native CSR (the first/last row may be partial for a split boundary vertex).
+    toker_.Reset();
+    const auto [global_n, global_m, has_node_weights, has_edge_weights] = ParseHeader(toker_);
+
+    if (has_node_weights) {
+        // See the ParHIP reader: a split boundary vertex leaves its (whole-vertex) weight ambiguous. Every PE
+        // reads the same header, so all PEs throw together.
+        throw ConfigurationError(
+            "--distribution=balance-edges-strict does not support vertex-weighted input; use "
+            "--distribution=balance-vertices or --drop-vertex-weights");
+    }
+
+    Graph graph;
+    graph.representation = GraphRepresentation::EDGE_LIST;
+
+    SInt current_node = 0;
+    SInt current_edge = 0;
+    SInt first_tail   = 0;
+    SInt last_tail    = 0;
+    bool any          = false;
+
+    ParseBody(
+        toker_,
+        [&](const SInt) {
+            // The edge indices are grouped by ascending tail vertex, so once we have passed to_edge there is
+            // nothing left to emit.
+            if (current_edge >= to_edge) {
+                return false;
+            }
+            ++current_node;
+            return true;
+        },
+        [&, has_edge_weights = has_edge_weights](const SInt weight, const SInt to) {
+            const SInt e = current_edge;
+            ++current_edge;
+            if (e >= from_edge && e < to_edge) {
+                const SInt tail = current_node - 1;
+                if (!any) {
+                    first_tail = tail;
+                    any        = true;
+                }
+                last_tail = tail;
+                graph.edges.emplace_back(tail, to);
+                if (has_edge_weights) {
+                    graph.edge_weights.push_back(weight);
+                }
+            }
+        },
+        global_n, has_node_weights, has_edge_weights);
+
+    // Provisional vertex range spanning the physically-present tail vertices. For an edge list it is replaced by
+    // the gap-free range in FinalizeGraphFragment; for CSR it is the row space that xadj indexes (kept as-is).
+    graph.vertex_range = any ? VertexRange{first_tail, last_tail + 1} : VertexRange{global_n, global_n};
+
+    if (representation == GraphRepresentation::CSR) {
+        std::tie(graph.xadj, graph.adjncy) =
+            BuildCSRFromEdgeList(graph.vertex_range, graph.edges, graph.edge_weights);
+        graph.representation = GraphRepresentation::CSR;
+        graph.edges.clear();
+        graph.edges.shrink_to_fit();
+    }
+
+    return graph;
 }
 
 std::unique_ptr<GraphReader> MetisFactory::CreateReader(const InputGraphConfig& config, PEID, PEID) const {

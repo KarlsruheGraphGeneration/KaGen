@@ -99,6 +99,19 @@ void SetupCommandLineArguments(CLI::App& app, PGeneratorConfig& config) {
     auto add_option_avg_deg = [&](CLI::App* cmd) {
         return cmd->add_option("-d,--avg-deg", config.avg_degree, "Average vertex degree");
     };
+    auto add_option_redistribution = [&](CLI::App* cmd) {
+        return cmd->add_option("--redistribution", config.redistribution)
+            ->transform(CLI::CheckedTransformer(GetGraphRedistributionMap()).description(""))
+            ->description(R"(How to distribute the generated graph across PEs:
+  - balance-vertices:    assign roughly the same number of vertices to each PE
+  - balance-edges:       assign roughly the same number of edges to each PE, without splitting any
+                          single vertex's edges across multiple PEs
+  - balance-edges-strict: assign exactly (+/-1) the same number of edges to each PE, splitting a
+                          single vertex's edges across multiple PEs if necessary; only compatible
+                          with edge-list-shaped output (plain edgelist/binary-edgelist, in-memory
+                          Edgelist API), not with adjacency-grouped formats (METIS, ParHIP, HMETIS,
+                          DOT, freight-netl), --validate-simple-graph, or statistics)");
+    };
 
     // Use 40 characters width for help
     auto formatter = std::make_shared<CLI::Formatter>();
@@ -216,6 +229,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_n(cmd)->required();
         add_option_m(cmd)->required();
         add_option_self_loops(cmd);
+        add_option_redistribution(cmd);
     }
 
     { // GNM_UNDIRECTED
@@ -225,6 +239,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_n(cmd)->required();
         add_option_m(cmd)->required();
         add_option_self_loops(cmd);
+        add_option_redistribution(cmd);
     }
 
     { // GNP_DIRECTED
@@ -249,6 +264,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* cmd = app.add_subcommand("rgg2d", "2D Random Geometric Graph");
         cmd->alias("rgg_2d")->alias("rgg-2d");
         cmd->callback([&] { config.generator = GeneratorType::RGG_2D; });
+        add_option_redistribution(cmd);
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);
@@ -262,6 +278,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         auto* cmd = app.add_subcommand("rgg3d", "3D Random Geometric Graph");
         cmd->alias("rgg_3d")->alias("rgg-3d");
         cmd->callback([&] { config.generator = GeneratorType::RGG_3D; });
+        add_option_redistribution(cmd);
 
         auto* params = cmd->add_option_group("Parameters");
         add_option_n(params);
@@ -371,6 +388,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         add_option_directed(cmd);
         add_option_n(cmd)->required();
         add_option_m(cmd)->required();
+        add_option_redistribution(cmd);
     }
 
     { // RHG
@@ -398,11 +416,7 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("-a", config.rmat_a, "Probability for block a");
         cmd->add_option("-b", config.rmat_b, "Probability for block b");
         cmd->add_option("-c", config.rmat_c, "Probability for block c");
-        cmd->add_option("--redistribution", config.redistribution)
-            ->transform(CLI::CheckedTransformer(GetGraphRedistributionMap()).description(""))
-            ->description(R"(How to distribute the generated graph across PEs:
-  - balance-vertices: assign roughly the same number of vertices to each PE
-  - balance-edges:    assign roughly the same number of edges to each PE)");
+        add_option_redistribution(cmd);
     }
 
     { // ImageMesh
@@ -447,9 +461,10 @@ This is mostly useful for experimental graph generators or when using KaGen to l
         cmd->add_option("--distribution", config.input_graph.distribution)
             ->transform(CLI::CheckedTransformer(GetGraphDistributionMap()).description(""))
             ->description(R"(The following options for how to distribute the static graph across PEs are available:
-  - balance-vertices: assign roughly the same number of nodes to each PE
-  - balance-edges:    assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>
-  - explicit:         explicitly specify the number of vertices on each PE through a text file specified via the --explicit-distribution=<filename> option)");
+  - balance-vertices:     assign roughly the same number of nodes to each PE
+  - balance-edges:        assign roughly the same number of edges to each PE by assigning consecutive vertices to a PE until the number of incident edges is >= m/<nproc>
+  - balance-edges-strict: assign exactly (+/-1) the same number of edges to each PE, splitting a single vertex's edges across multiple PEs if necessary. For parhip, metis, and (globally tail-sorted) weighted-binary-edgelist inputs this reads each PE's edge slice directly, with no redistribution; other inputs (e.g. plain-edgelist, or an unsorted edge list) fall back to reading a vertex-balanced partition and redistributing. Vertex-weighted input is not supported on the direct path.
+  - explicit:             explicitly specify the number of vertices on each PE through a text file specified via the --explicit-distribution=<filename> option)");
         cmd->add_option(
             "--explicit-distribution", config.input_graph.explicit_distribution_filename,
             "A text file containing the number of vertices on each PE, one line per PE. Only used when "

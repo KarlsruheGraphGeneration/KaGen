@@ -1,6 +1,7 @@
 #include "kagen/generators/generator.h"
 
 #include "kagen/context.h"
+#include "kagen/definitions.h"
 #include "kagen/edgeweight_generators/default_generator.h"
 #include "kagen/edgeweight_generators/edge_weight_generator.h"
 #include "kagen/edgeweight_generators/euclidean_distance_generator.h"
@@ -9,6 +10,7 @@
 #include "kagen/edgeweight_generators/voiding_generator.h"
 #include "kagen/kagen.h"
 #include "kagen/tools/converter.h"
+#include "kagen/tools/postprocessor.h"
 #include "kagen/vertexweight_generators/default_generator.h"
 #include "kagen/vertexweight_generators/uniform_random_generator.h"
 #include "kagen/vertexweight_generators/vertex_weight_generator.h"
@@ -18,6 +20,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <sstream>
 
 #ifdef KAGEN_XXHASH_FOUND
     #include "kagen/tools/random_permutation.h"
@@ -154,9 +158,16 @@ auto ApplyPermutationAndComputeSendBuffersCSR(
     bool has_edge_weights   = graph.NumberOfLocalEdges() == 0 || !graph.edge_weights.empty();
     bool has_vertex_weights = !graph.vertex_weights.empty();
 
+    // xadj/adjncy are indexed by the physically present row space, which is *not* vertex_range: on a PE holding
+    // a replica of a split vertex (left_partial_vertex), that vertex has a row here even though it is credited
+    // to -- and counted in the vertex_range of -- the lower-rank neighbor. Using vertex_range.first would label
+    // every row with the ID of the next vertex, and run one row past the end of the range; on the last PE that
+    // last row would ask for permute(n), which is outside the permutation's domain.
+    const VertexRange row_range = graph.PhysicalVertexRange();
+
     for (std::size_t i = 0; i + 1 < graph.xadj.size(); ++i) {
         const SInt         degree             = graph.xadj[i + 1] - graph.xadj[i];
-        const SInt         global_id          = graph.vertex_range.first + i;
+        const SInt         global_id          = row_range.first + i;
         const SInt         permuted_global_id = permute(global_id);
         const PEID         target_pe          = FindPEInRange(permuted_global_id, recv_ranges);
         std::vector<SInt>& send_buf           = send_buffers[target_pe];
@@ -177,10 +188,13 @@ auto ApplyPermutationAndComputeSendBuffersCSR(
                 graph.edge_weights.begin() + edge_end_offset);
         }
         // [Permuted_Src_Id, VertexWeight]
-        if (has_vertex_weights) {
+        // vertex_weights is indexed by vertex_range, which excludes a left-partial replica row: that vertex's
+        // weight is held -- and sent -- by its canonical owner, the lower-rank neighbor, so skip it here rather
+        // than reading past the end of the (shorter) weight array.
+        if (has_vertex_weights && global_id >= graph.vertex_range.first && global_id < graph.vertex_range.second) {
             std::vector<SSInt>& vertex_weights_send_buf = vertex_weights_send_buffers[target_pe];
             vertex_weights_send_buf.push_back(permuted_global_id);
-            vertex_weights_send_buf.push_back(graph.vertex_weights[i]);
+            vertex_weights_send_buf.push_back(graph.vertex_weights[global_id - graph.vertex_range.first]);
         }
     }
     return std::make_tuple(
@@ -207,41 +221,60 @@ auto ApplyPermutationAndComputeSendBuffers(
     std::size_t       num_local_vertices = recv_range.second - recv_range.first;
     std::vector<SInt> degree_count(num_local_vertices, 0);
 
-    // scan received data for degrees
+    // Scan received data for degrees. A vertex whose own edges were split across several PEs before the
+    // permutation (see Graph::left_partial_vertex/right_partial_vertex) arrives as one message per holder --
+    // all of them addressed to this PE, since they all carry the same permuted ID -- so the shares have to be
+    // summed here. Assigning would drop every share but the last, and then size adjncy too small for the
+    // copies below.
     for (std::size_t cur_pos = 0; cur_pos < recv_edges.size();) {
-        const SInt src_id                       = recv_edges[cur_pos];
-        const SInt degree                       = recv_edges[cur_pos + 1];
-        degree_count[src_id - recv_range.first] = degree;
+        const SInt src_id = recv_edges[cur_pos];
+        const SInt degree = recv_edges[cur_pos + 1];
+        degree_count[src_id - recv_range.first] += degree;
         // skip edges
         cur_pos += 1 + degree + 1;
     }
     XadjArray xadj(num_local_vertices + 1, 0);
     // compute xadj array for received graph
     std::exclusive_scan(degree_count.begin(), degree_count.end(), xadj.begin(), SInt{0});
-    xadj.back() = degree_count.back() + xadj[num_local_vertices - 1];
+    if (num_local_vertices > 0) {
+        xadj.back() = degree_count.back() + xadj[num_local_vertices - 1];
+    }
 
     // compute adjncy for received graph
     const std::size_t num_local_edges = xadj.back();
     XadjArray         adjncy(num_local_edges);
+    // Per-row write cursor rather than xadj[local_src_id] directly, so that the several shares of a formerly
+    // split vertex are appended one after the other instead of overwriting each other at the row start. They
+    // are appended in source rank order -- the order ExchangeMessageBuffers concatenates messages in -- which
+    // is the order the shares appeared in along the graph's edges.
+    std::vector<SInt> write_pos(xadj.begin(), xadj.end() - 1);
     for (std::size_t cur_pos = 0; cur_pos < recv_edges.size();) {
         const SInt global_src_id = recv_edges[cur_pos];
         const SInt degree        = recv_edges[cur_pos + 1];
         const SInt local_src_id  = global_src_id - recv_range.first;
-        std::copy_n(recv_edges.begin() + cur_pos + 2, degree, adjncy.begin() + xadj[local_src_id]);
+        std::copy_n(recv_edges.begin() + cur_pos + 2, degree, adjncy.begin() + write_pos[local_src_id]);
+        write_pos[local_src_id] += degree;
         // forward to next received src vertex
         cur_pos += 1 + degree + 1;
     }
     // compute edge weights for received graph
     EdgeWeights edge_weights(recv_edge_weights.empty() ? 0 : num_local_edges);
+    // The weight messages carry the same (vertex, share) sequence as the edge messages above and are exchanged
+    // the same way, so an identical cursor walk keeps every share's weights aligned with its edges.
+    std::vector<SInt> weight_write_pos(xadj.begin(), xadj.end() - 1);
     for (std::size_t cur_pos = 0; cur_pos < recv_edge_weights.size();) {
         const SInt global_src_id = static_cast<SInt>(recv_edge_weights[cur_pos]);
         const SInt degree        = static_cast<SInt>(recv_edge_weights[cur_pos + 1]);
         const SInt local_src_id  = global_src_id - recv_range.first;
-        std::copy_n(recv_edge_weights.begin() + cur_pos + 2, degree, edge_weights.begin() + xadj[local_src_id]);
+        std::copy_n(
+            recv_edge_weights.begin() + cur_pos + 2, degree, edge_weights.begin() + weight_write_pos[local_src_id]);
+        weight_write_pos[local_src_id] += degree;
         // forward to next received src vertex
         cur_pos += 1 + degree + 1;
     }
-    std::vector<SSInt> vertex_weights(recv_vertex_weights.size() / 2, 0);
+    // Sized by the local vertex count, not by the number of received entries: the two differ if some local
+    // vertex received no weight (e.g. an empty local range), and the indexed writes below assume the former.
+    std::vector<SSInt> vertex_weights(recv_vertex_weights.empty() ? 0 : num_local_vertices, 0);
     for (std::size_t i = 0; i < recv_vertex_weights.size(); i += 2) {
         const auto global_src_id     = recv_vertex_weights[i];
         const auto local_src_id      = global_src_id - recv_range.first;
@@ -276,13 +309,93 @@ auto ApplyPermutationAndComputeSendBuffers(
         }
         ++write_idx[local_src_id];
     }
-    std::vector<SSInt> vertex_weights(recv_vertex_weights.size() / 2, 0);
+    std::vector<SSInt> vertex_weights(recv_vertex_weights.empty() ? 0 : num_local_vertices, 0);
     for (std::size_t i = 0; i < recv_vertex_weights.size(); i += 2) {
         const auto global_id     = recv_vertex_weights[i];
         const auto local_id      = global_id - recv_range.first;
         vertex_weights[local_id] = recv_vertex_weights[i + 1];
     }
     return std::make_tuple(std::move(edgelist), std::move(edge_weights), std::move(vertex_weights));
+}
+
+// The balance a permuted graph has to be restored to. For generated graphs that is config.redistribution; for
+// file graphs the equivalent knob is the input distribution (--distribution), which FileGraphGenerator applies
+// in place of config.redistribution. ROOT and EXPLICIT are not balance requests -- they say where the *input*
+// should be placed, and permuting necessarily reassigns vertices to PEs anyway -- so they are left alone.
+GraphRedistribution EffectiveRedistribution(const PGeneratorConfig& config) {
+    if (config.generator == GeneratorType::FILE) {
+        switch (config.input_graph.distribution) {
+            case GraphDistribution::BALANCE_EDGES:
+                return GraphRedistribution::BALANCE_EDGES;
+            case GraphDistribution::BALANCE_EDGES_TRUE:
+                return GraphRedistribution::BALANCE_EDGES_TRUE;
+            default:
+                break;
+        }
+    }
+    return config.redistribution;
+}
+
+// Relabels every vertex with its permuted ID and then re-establishes the requested edge balance in the new ID
+// space. Relabeling itself needs no communication, so the whole operation is a single all-to-all -- the one the
+// redistribution primitive performs -- and vertex_range plus the split metadata come back from that primitive
+// rather than being recomputed here. For BALANCE_EDGES_TRUE that metadata describes the *new* split vertices:
+// permuting does not change the degree sequence, only which IDs the balance boundaries fall on, so a hub that
+// was split before is (some other hub) split after.
+template <typename Permutator>
+void PermuteAndRebalance(
+    Graph& graph, const SInt n, const GraphRedistribution redistribution, Permutator&& permute, MPI_Comm comm) {
+    const bool csr = graph.representation == GraphRepresentation::CSR;
+
+    Edgelist edges;
+    if (csr) {
+        // PhysicalVertexRange(), not vertex_range: xadj is indexed by the physically present row space, which
+        // includes a left-partial split vertex that vertex_range excludes.
+        edges = BuildEdgeListFromCSR(graph.PhysicalVertexRange(), graph.xadj, graph.adjncy);
+        graph.FreeCSR();
+    } else {
+        edges = std::move(graph.edges);
+        graph.FreeEdgelist();
+    }
+    for (auto& [src, dst]: edges) {
+        src = permute(src);
+        dst = permute(dst);
+    }
+
+    // remap_round_robin=false: the IDs have just been permuted, they must not be remapped a second time.
+    Edgelist redistributed;
+    switch (redistribution) {
+        case GraphRedistribution::BALANCE_EDGES:
+            graph.vertex_range = RedistributeEdgesBalanced(edges, redistributed, n, /*remap_round_robin=*/false, comm);
+            graph.has_split_vertices = false;
+            graph.left_partial_vertex.reset();
+            graph.right_partial_vertex.reset();
+            break;
+
+        case GraphRedistribution::BALANCE_EDGES_TRUE: {
+            const EdgeBalancedDistribution distribution =
+                RedistributeEdgesTrueBalance(edges, redistributed, n, /*remap_round_robin=*/false, comm);
+            graph.vertex_range         = distribution.vertex_range;
+            graph.has_split_vertices   = distribution.has_split_vertices;
+            graph.left_partial_vertex  = distribution.left_partial_vertex;
+            graph.right_partial_vertex = distribution.right_partial_vertex;
+            break;
+        }
+
+        case GraphRedistribution::BALANCE_VERTICES:
+            throw std::runtime_error("PermuteAndRebalance called for a vertex-balanced distribution");
+    }
+
+    if (csr) {
+        // Same row space as every other split-aware CSR builder (see EdgeListOnlyGenerator::FinalizeCSR): a PE
+        // holding a replica of its first vertex needs a row for it, and that vertex sits just below the
+        // gap-free vertex_range. Unweighted throughout -- weighted graphs never take this path.
+        EdgeWeights no_edge_weights;
+        std::tie(graph.xadj, graph.adjncy) =
+            BuildCSRFromEdgeList(graph.PhysicalVertexRange(), redistributed, no_edge_weights);
+    } else {
+        graph.edges = std::move(redistributed);
+    }
 }
 } // namespace
 
@@ -293,15 +406,67 @@ void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config,
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    auto permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(config.n - 1, 0);
+    // config.n is the generator's own parameter and not every generator sets it: the file generator takes its
+    // vertex count from the input file and leaves config.n at 0, which would underflow the permutation domain
+    // below. vertex_range is a gap-free partition of [0, n) for both representations, so its largest end is n.
+    SInt n = config.n;
+    if (n == 0) {
+        n = graph_.vertex_range.second;
+        MPI_Allreduce(MPI_IN_PLACE, &n, 1, KAGEN_MPI_SINT, MPI_MAX, comm);
+    }
+    if (n == 0) {
+        return; // empty graph -- nothing to permute
+    }
+
+    // Coordinates are stored per local vertex and are not carried through the exchange below, so the permuted
+    // graph would silently end up with its old PE's coordinates. Rejected outright rather than shipping wrong
+    // data. Collective, like the weight check below: a PE with an empty local graph has no coordinates even
+    // when the graph as a whole does, and everything past this point is collective.
+    bool has_coordinates = !graph_.coordinates.first.empty() || !graph_.coordinates.second.empty();
+    MPI_Allreduce(MPI_IN_PLACE, &has_coordinates, 1, MPI_C_BOOL, MPI_LOR, comm);
+    if (has_coordinates) {
+        throw ConfigurationError(
+            "vertex permutation (--permute) is not supported together with coordinate output (--coordinates): "
+            "the permutation reassigns vertices to PEs, but coordinates are not moved along with them");
+    }
+
+    auto permutator = random_permutation::FeistelPseudoRandomPermutation::buildPermutation(n - 1, 0);
     auto permute    = [&permutator](SInt v) {
         return permutator.f(v);
     };
 
+    // Permuting relabels vertices; it does not preserve how many *edges* a PE holds, since each PE's new vertex
+    // set is an essentially random subset of the old one. So for the edge-balanced modes the balance has to be
+    // re-established in the permuted ID space -- otherwise --permute silently downgrades
+    // --redistribution=balance-edges[-strict] to the plain vertex-balanced distribution computed below, leaving
+    // the per-PE edge count to the whims of the permutation (a hub vertex lands, with its entire degree, on
+    // whichever PE happens to own its permuted ID).
+    const GraphRedistribution redistribution = EffectiveRedistribution(config);
+    if (redistribution != GraphRedistribution::BALANCE_VERTICES) {
+        // The RedistributeEdges*() primitives carry no weights alongside the edge list they move -- the same
+        // restriction FinalizeGraphFragment() documents for edge-balanced input distributions -- and
+        // rebalancing changes both which PE holds which edges and which vertices it owns, so weights cannot be
+        // carried along unchanged. Checked collectively: a PE with an empty local graph sees empty weight
+        // arrays even when the graph as a whole is weighted, and PermuteAndRebalance() below is collective.
+        bool has_weights = !graph_.vertex_weights.empty() || !graph_.edge_weights.empty();
+        MPI_Allreduce(MPI_IN_PLACE, &has_weights, 1, MPI_C_BOOL, MPI_LOR, comm);
+        if (has_weights) {
+            std::stringstream msg;
+            msg << "vertex permutation (--permute) together with '" << redistribution
+                << "' is not supported for weighted graphs: re-establishing the edge balance after permuting "
+                   "moves edges and vertices independently of their weights; use "
+                   "--redistribution=balance-vertices, --drop-edge-weights and/or --drop-vertex-weights";
+            throw ConfigurationError(msg.str());
+        }
+
+        PermuteAndRebalance(graph_, n, redistribution, permute, comm);
+        return;
+    }
+
     // all PE get n / size vertices
     // the first n modulo size PEs obtain one additional vertices.
-    const SInt vertices_per_pe             = config.n / size;
-    const PEID num_pe_with_additional_node = config.n % size;
+    const SInt vertices_per_pe             = n / size;
+    const PEID num_pe_with_additional_node = n % size;
     const bool has_pe_additional_node      = rank < num_pe_with_additional_node;
     const SInt begin_vertices              = std::min(num_pe_with_additional_node, rank) + rank * vertices_per_pe;
     const SInt end_vertices                = begin_vertices + vertices_per_pe + has_pe_additional_node;
@@ -336,6 +501,14 @@ void Generator::PermuteVertices([[maybe_unused]] const PGeneratorConfig& config,
         }
     }
     SetVertexRange(recv_range);
+
+    // The exchange above routes every edge of vertex v to the single PE owning permute(v), and recv_ranges is a
+    // gap-free partition of [0, n), so a vertex whose edges used to live on several PEs is whole again here --
+    // the permutation resolves every split by construction. Clear the now-stale metadata: its offsets and
+    // counts refer to the pre-exchange local edge list, and a left-over left_partial_vertex would make
+    // PhysicalVertexRange() claim a row space one vertex larger than the one that actually exists.
+    SetHasSplitVertices(false);
+    SetPartialVertices(std::nullopt, std::nullopt);
 #endif // KAGEN_XXHASH_FOUND
 }
 
@@ -384,7 +557,7 @@ void CSROnlyGenerator::FinalizeEdgeList(MPI_Comm comm) {
     // Otherwise, we have generated the graph in CSR representation, but
     // actually want edge list representation -> transform graph
     FinalizeCSR(comm);
-    graph_.edges = BuildEdgeListFromCSR(graph_.vertex_range, graph_.xadj, graph_.adjncy);
+    graph_.edges = BuildEdgeListFromCSR(graph_.PhysicalVertexRange(), graph_.xadj, graph_.adjncy);
     {
         XadjArray tmp;
         std::swap(graph_.xadj, tmp);
@@ -407,7 +580,17 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
     // Otherwise, we have generated the graph in edge list representation, but
     // actually want CSR format --> transform graph
     FinalizeEdgeList(comm);
-    std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(graph_.vertex_range, graph_.edges, graph_.edge_weights);
+
+    // BuildCSRFromEdgeList gives every vertex in the given range a row (indexing by `from - range.first`),
+    // isolated vertices included as empty rows. Building from vertex_range (the gap-free ownership range) would
+    // underflow on a PE holding a *replica* of its first vertex (left_partial_vertex set): that vertex is
+    // credited to the lower-rank canonical PE and so lies just below vertex_range, yet its edges are physically
+    // here. PhysicalVertexRange() is exactly vertex_range extended down by one to cover that replica row, giving
+    // the same physically-present row-space layout the strict CSR file reader produces (see
+    // FinalizeGraphFragment). graph_.vertex_range itself is left untouched -- it keeps meaning the gap-free
+    // ownership range, same as for the edge-list representation.
+    const VertexRange csr_range          = graph_.PhysicalVertexRange();
+    std::tie(graph_.xadj, graph_.adjncy) = BuildCSRFromEdgeList(csr_range, graph_.edges, graph_.edge_weights);
     {
         Edgelist tmp;
         std::swap(graph_.edges, tmp);
@@ -416,6 +599,10 @@ void EdgeListOnlyGenerator::FinalizeCSR(MPI_Comm comm) {
 
 SInt Generator::GetNumberOfEdges() const {
     return std::max(graph_.adjncy.size(), graph_.edges.size());
+}
+
+bool Generator::HasSplitVertices() const {
+    return graph_.has_split_vertices;
 }
 
 Graph Generator::Take() {
@@ -428,6 +615,16 @@ Edgelist Generator::TakeNonlocalEdges() {
 
 void Generator::SetVertexRange(const VertexRange vertex_range) {
     graph_.vertex_range = vertex_range;
+}
+
+void Generator::SetHasSplitVertices(const bool has_split_vertices) {
+    graph_.has_split_vertices = has_split_vertices;
+}
+
+void Generator::SetPartialVertices(
+    std::optional<SplitVertexInfo> left_partial_vertex, std::optional<SplitVertexInfo> right_partial_vertex) {
+    graph_.left_partial_vertex  = left_partial_vertex;
+    graph_.right_partial_vertex = right_partial_vertex;
 }
 
 void Generator::FilterDuplicateEdges() {

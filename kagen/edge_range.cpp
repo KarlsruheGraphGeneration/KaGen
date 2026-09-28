@@ -27,7 +27,9 @@ EdgeRange EdgeRange::FromGraph(const Graph& g) noexcept {
     if (g.representation == GraphRepresentation::EDGE_LIST) {
         return EdgeRange(g.edges);
     } else {
-        return EdgeRange(g.xadj, g.adjncy, g.vertex_range);
+        // PhysicalVertexRange(), not vertex_range: xadj/adjncy are indexed by the physically-present row space,
+        // which can differ from the gap-free vertex_range for a split graph (see Graph::PhysicalVertexRange()).
+        return EdgeRange(g.xadj, g.adjncy, g.PhysicalVertexRange());
     }
 }
 

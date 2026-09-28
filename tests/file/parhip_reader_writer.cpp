@@ -86,8 +86,11 @@ std::filesystem::path get_temp_dir() {
     return std::filesystem::path(::testing::TempDir());
 }
 
-std::filesystem::path get_file_path(const std::string& instance_id) {
-    return get_temp_dir() / (instance_id + ".parhip");
+std::filesystem::path get_file_path(const std::string& instance_id, const int size) {
+    // Include the MPI comm size: ctest runs the different core-count variants of this binary concurrently, and
+    // instance_id alone (derived from the test parameter) is identical across them, so a shared temp dir would
+    // race one variant's write against another's read. The size is constant across the ranks of a single run.
+    return get_temp_dir() / (instance_id + "_" + std::to_string(size) + ".parhip");
 }
 
 std::string get_instance_id(std::string const& test_name) {
@@ -128,7 +131,7 @@ TEST_P(ParhipReadWriteTestFixture, default_write_read_in_parhip_format) {
     // writer setup
     GraphInfo         info(generated_graph, comm);
     OutputGraphConfig config;
-    config.filename = get_file_path(instance_id);
+    config.filename = get_file_path(instance_id, size);
     kagen::ParhipWriter writer(config, generated_graph, info, rank, size);
     auto                write = [&](int round) {
         return writer.Write(round, config.filename);
@@ -168,7 +171,7 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format) {
     // writer setup
     GraphInfo         info(generated_graph, comm);
     OutputGraphConfig config;
-    config.filename = get_file_path(instance_id);
+    config.filename = get_file_path(instance_id, size);
     kagen::ParhipWriter writer(config, generated_graph, info, rank, size);
     auto                write = [&](int round) {
         return writer.WriteFromCSR<kagen::SInt, kagen::SSInt, kagen::SSInt>(
@@ -296,7 +299,7 @@ TEST_P(ParhipReadWriteTestFixture, write_from_csr_read_in_parhip_format_32bit_ed
     // writer setup
     GraphInfo         info(generated_graph, comm);
     OutputGraphConfig config;
-    config.filename     = get_file_path(instance_id);
+    config.filename     = get_file_path(instance_id, size);
     config.adjwgt_width = 32;
     kagen::ParhipWriter       writer(config, generated_graph, info, rank, size);
     std::vector<std::int32_t> edge_weight_32_bit(generated_graph.edge_weights.size());

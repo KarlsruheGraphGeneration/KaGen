@@ -285,6 +285,7 @@ std::unordered_map<std::string, GraphRedistribution> GetGraphRedistributionMap()
     return {
         {"balance-vertices", GraphRedistribution::BALANCE_VERTICES},
         {"balance-edges", GraphRedistribution::BALANCE_EDGES},
+        {"balance-edges-strict", GraphRedistribution::BALANCE_EDGES_TRUE},
     };
 }
 
@@ -294,6 +295,8 @@ std::ostream& operator<<(std::ostream& out, GraphRedistribution distribution) {
             return out << "balance-vertices";
         case GraphRedistribution::BALANCE_EDGES:
             return out << "balance-edges";
+        case GraphRedistribution::BALANCE_EDGES_TRUE:
+            return out << "balance-edges-strict";
     }
 
     return out << "<invalid>";
@@ -304,6 +307,7 @@ std::unordered_map<std::string, GraphDistribution> GetGraphDistributionMap() {
         {"root", GraphDistribution::ROOT},
         {"balance-vertices", GraphDistribution::BALANCE_VERTICES},
         {"balance-edges", GraphDistribution::BALANCE_EDGES},
+        {"balance-edges-strict", GraphDistribution::BALANCE_EDGES_TRUE},
         {"explicit", GraphDistribution::EXPLICIT},
     };
 }
@@ -316,6 +320,8 @@ std::ostream& operator<<(std::ostream& out, GraphDistribution distribution) {
             return out << "balance-vertices";
         case GraphDistribution::BALANCE_EDGES:
             return out << "balance-edges";
+        case GraphDistribution::BALANCE_EDGES_TRUE:
+            return out << "balance-edges-strict";
         case GraphDistribution::EXPLICIT:
             return out << "explicit";
     }
@@ -348,7 +354,7 @@ std::unordered_map<std::string, EdgeWeightGeneratorType> GetEdgeWeightGeneratorT
         {"default", EdgeWeightGeneratorType::DEFAULT},
         {"voiding", EdgeWeightGeneratorType::VOIDING},
         {"hashing_based", EdgeWeightGeneratorType::HASHING_BASED},
-        {"euclidean_distance", EdgeWeightGeneratorType::HASHING_BASED},
+        {"euclidean_distance", EdgeWeightGeneratorType::EUCLIDEAN_DISTANCE},
         {"uniform_random", EdgeWeightGeneratorType::UNIFORM_RANDOM}};
 }
 
@@ -392,6 +398,19 @@ SInt Graph::NumberOfLocalVertices() const {
     return vertex_range.second - vertex_range.first;
 }
 
+VertexRange Graph::PhysicalVertexRange() const {
+    // A left-partial boundary vertex's neighborhood is (partially) held here -- this PE has edges for it -- even
+    // though it's credited to the lower-rank neighbor and so excluded from vertex_range; add it back. This holds
+    // the same way for both representations (whether that neighborhood information is stored as entries in
+    // `edges` or as an entry in `xadj`/`adjncy` is incidental). The shared right-partial boundary vertex, if any,
+    // is already inside vertex_range.
+    VertexRange physical_range = vertex_range;
+    if (left_partial_vertex) {
+        --physical_range.first;
+    }
+    return physical_range;
+}
+
 SInt Graph::NumberOfGlobalVertices() const {
     SInt number_vertices = NumberOfLocalVertices();
     MPI_Allreduce(MPI_IN_PLACE, &number_vertices, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
@@ -424,6 +443,9 @@ void Graph::Clear() {
     edge_weights.clear();
     coordinates.first.clear();
     coordinates.second.clear();
+    has_split_vertices = false;
+    left_partial_vertex.reset();
+    right_partial_vertex.reset();
 }
 
 void Graph::FreeEdgelist() {

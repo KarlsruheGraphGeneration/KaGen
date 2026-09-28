@@ -17,6 +17,8 @@ public:
     RGG3D(const PGeneratorConfig& config, const PEID rank, const PEID size);
 
 protected:
+    void FinalizeEdgeList(MPI_Comm comm) final;
+
     LPFloat target_r_;
 
     void GenerateEdges(SInt chunk_row, SInt chunk_column, SInt chunk_depth) override;

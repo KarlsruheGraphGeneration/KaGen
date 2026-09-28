@@ -11,6 +11,11 @@
 
 namespace kagen {
 
+// Hard-requires every edge's tail to be within the owning PE's vertex_range, i.e. single-PE vertex ownership.
+// Not adapted to tolerate a graph with split vertices (see GraphRedistribution::BALANCE_EDGES_TRUE) -- callers
+// must not invoke this (or ValidateGraph()/ValidateGraphInplace() below, which call it) on such a graph. The
+// compatibility guard in kagen/in_memory_facade.cpp's GenerateInMemory() rejects that combination before it
+// would reach here.
 bool ValidateVertexRanges(const Edgelist& edge_list, const VertexRange vertex_range, MPI_Comm comm) {
     int rank, size;
     MPI_Comm_rank(comm, &rank);

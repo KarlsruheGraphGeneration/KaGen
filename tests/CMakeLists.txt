@@ -57,6 +57,18 @@ kagen_add_test(test_parhip_reader_writer
     FILES file/parhip_reader_writer.cpp
     CORES 1 2 3 4 8)
 
+kagen_add_test(test_plain_edgelist_distribution
+    FILES file/plain_edgelist_distribution_test.cpp
+    CORES 1 2 4)
+
+kagen_add_test(test_strict_edge_balance
+    FILES file/strict_edge_balance_test.cpp
+    CORES 1 2 3 4 8 16)
+
+kagen_add_test(test_weighted_edgelist_distribution
+    FILES file/weighted_edgelist_distribution_test.cpp
+    CORES 1 2 3 4 8)
+
 
 # Geometric Generator
 kagen_add_test(test_rgg2d
@@ -66,6 +78,10 @@ kagen_add_test(test_rgg2d
 kagen_add_test(test_rgg3d
         FILES geometric/rgg3d_test.cpp
         CORES 1 2 3 4 5 6)
+
+kagen_add_test(test_rgg_distribution
+        FILES geometric/rgg_distribution_test.cpp
+        CORES 1 2 4)
 
 kagen_add_test(test_hyperbolic
         FILES geometric/hyperbolic_test.cpp
@@ -83,6 +99,10 @@ kagen_add_test(test_edge_range
         FILES edge_range.cpp
         CORES 1)
 
+kagen_add_test(test_compatibility_guard
+        FILES compatibility_guard_test.cpp
+        CORES 1)
+
 kagen_add_test(test_find_pe_in_range
         FILES utils/find_pe_in_range_test.cpp
         CORES 1)
@@ -93,4 +113,12 @@ kagen_add_test(test_redistribute_edges
 
 kagen_add_test(test_rmat_distribution
         FILES rmat/rmat_distribution_test.cpp
+        CORES 1 2 4)
+
+kagen_add_test(test_kronecker_distribution
+        FILES kronecker/kronecker_distribution_test.cpp
+        CORES 1 2 4)
+
+kagen_add_test(test_gnm_distribution
+        FILES gnm/gnm_distribution_test.cpp
         CORES 1 2 4)
